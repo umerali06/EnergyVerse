@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.db.firestore import FirestoreStatus, get_firestore_status
+from app.db.repositories.health import FirestoreStatus, get_firestore_status
 
 router = APIRouter()
 

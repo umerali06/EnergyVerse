@@ -75,6 +75,21 @@ flutter run -d chrome --web-port 8080 --dart-define=API_BASE_URL=http://localhos
 # flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8000
 ```
 
+### Seed the Phase 0.4 data foundation
+
+The seed is idempotent and creates only the permission catalog, two demo companies,
+their system roles/mappings, and demo users. Set the Firebase Admin variables shown
+above, then run:
+
+```powershell
+cd apps/api
+poetry run python -m scripts.seed
+```
+
+Re-running the command reconciles the same deterministic document IDs without
+creating duplicates. Placeholder Firebase UIDs use the `demo-` prefix and are data
+foundation records only; no authentication accounts or flows are created.
+
 ## Tooling
 
 ### API

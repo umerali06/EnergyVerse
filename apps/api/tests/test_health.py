@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from app.db.firestore import FirestoreStatus, get_firestore_status
+from app.db.repositories.health import FirestoreStatus, get_firestore_status
 from app.main import app
 
 
