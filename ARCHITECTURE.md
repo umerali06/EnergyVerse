@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 0.2 is complete. The monorepo application and infrastructure boundaries are scaffolded; detailed feature architecture remains intentionally incremental and is recorded after each tested micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
+Phase 0.3 is complete. The monorepo now has a tested FastAPI-to-Firestore connection boundary and health contract consumed by both clients; detailed feature architecture remains intentionally incremental and is recorded after each tested micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
 
 ## Architecture Goals
 
@@ -15,7 +15,7 @@ Phase 0.2 is complete. The monorepo application and infrastructure boundaries ar
 
 ## System Context
 
-_To be defined after the blocking backend, database, and authentication decisions are confirmed._
+The blocking backend, database, and authentication decisions are confirmed. System context continues to be defined slice by slice.
 
 ### Client Applications
 
@@ -26,23 +26,23 @@ _To be defined after the blocking backend, database, and authentication decision
 
 ### Backend and APIs
 
-- Framework: **PENDING — blocking**
+- Framework: FastAPI on Python 3.11+
 - API style and versioning: _To be decided_
-- Module boundaries: _To be defined slice by slice_
+- Current infrastructure boundaries: `app/core/firebase.py` owns Admin SDK startup; `app/db/firestore.py` owns the lazy asynchronous Firestore client and all Firestore calls; routers consume that boundary rather than raw clients.
 - Future integration interfaces: _To be defined without implementing out-of-scope systems_
 
 ### Data and Storage
 
-- Primary database: **PENDING — blocking**
-- Tenant isolation strategy: every tenant-owned record carries `company_id`; detailed enforcement awaits database selection
+- Primary database: Firebase Firestore, accessed server-side only through FastAPI and the Admin SDK
+- Tenant isolation strategy: every tenant-owned record carries `company_id`; collection modeling and enforcement begin after Phase 0.3
 - Role/permission model: many-to-many and extensible for custom roles
-- AI vector storage: **PENDING clarification alongside database selection**
+- AI vector storage: no separate vector store for MVP; revisit only if embedding requirements justify it
 - Offline device store: SQLite or Hive, final choice pending
 - Object storage: Firebase Storage or AWS S3, final choice pending
 
 ### Identity and Access
 
-- Authentication provider: **PENDING — blocking**
+- Authentication provider: Firebase Authentication; authentication flows are not implemented in Phase 0.3
 - Token/session issuance boundary must remain provider-agnostic
 - Enterprise SSO through SAML/OIDC is a future capability
 - API authorization is authoritative; UI authorization supports user experience but is not a security boundary
@@ -79,3 +79,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 |---|---|---|
 | Phase 0.1 — context setup | Establishes persistent project constraints and decision gates; no application components created. | 2026-07-11 |
 | Phase 0.2 — monorepo scaffold | Establishes independently runnable `apps/api` (FastAPI), `apps/admin` (Next.js), and `apps/mobile` (Flutter with web runner). `packages/contracts` reserves the future generated API-contract boundary. `infra/ci` points to the root GitHub Actions workflow, whose API, admin, and mobile jobs validate each application independently. `infra/firebase` reserves Firebase configuration for Phase 0.3. No feature, authentication, or data behavior is introduced. | 2026-07-15 |
+| Phase 0.3 — Firebase health connection | FastAPI initializes one Firebase Admin app at process startup from either a local service-account path or base64 JSON. A lazy async client in `app/db/firestore.py` performs the only Firestore call: a retry-disabled, deadline-bounded read of `_health/ping`. `GET /health` converts missing credentials, connectivity, timeouts, and failures into the stable HTTP 200 contract consumed directly by the Next.js and Flutter scaffold screens. Local CORS origins connect both clients to the API. Firestore rules deny every direct client read/write, preserving FastAPI as the database boundary. No collections, tenant data, auth flows, or seed data are introduced. | 2026-07-15 |

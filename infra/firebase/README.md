@@ -1,5 +1,16 @@
-# infra/firebase
+# Firebase Infrastructure
 
-Firebase project configuration, security rules, and indexes.
+Firestore is server-only. The Firebase Admin SDK used by FastAPI bypasses
+Firestore Security Rules; all direct client reads and writes are denied.
 
-Implementation in Phase 0.3.
+## Deploy the rules (PowerShell)
+
+Install and authenticate the Firebase CLI, then run from this directory:
+
+```powershell
+npm install --global firebase-tools
+firebase login
+firebase deploy --only firestore:rules --project <firebase-project-id>
+```
+
+The deployment uses `firebase.json` to select `firestore.rules`.
