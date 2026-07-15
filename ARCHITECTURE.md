@@ -2,7 +2,7 @@
 
 ## Status
 
-Architecture definition is intentionally incomplete. Phase 0.1 establishes the structure only; blocking platform decisions are tracked in `DECISIONS.md`.
+Phase 0.2 is complete. The monorepo application and infrastructure boundaries are scaffolded; detailed feature architecture remains intentionally incremental and is recorded after each tested micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
 
 ## Architecture Goals
 
@@ -78,4 +78,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Micro-task | Connections and contracts | Date |
 |---|---|---|
 | Phase 0.1 — context setup | Establishes persistent project constraints and decision gates; no application components created. | 2026-07-11 |
-
+| Phase 0.2 — monorepo scaffold | Establishes independently runnable `apps/api` (FastAPI), `apps/admin` (Next.js), and `apps/mobile` (Flutter with web runner). `packages/contracts` reserves the future generated API-contract boundary. `infra/ci` points to the root GitHub Actions workflow, whose API, admin, and mobile jobs validate each application independently. `infra/firebase` reserves Firebase configuration for Phase 0.3. No feature, authentication, or data behavior is introduced. | 2026-07-15 |

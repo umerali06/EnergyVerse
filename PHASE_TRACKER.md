@@ -13,8 +13,8 @@ Only one micro-task may be active at a time.
 |---|---|---|
 | 0 | Foundation and project definition | In progress |
 | 0.1 | Project bootstrap and persistent context setup | Done |
-| 0.2 | Monorepo scaffold — apps/api (FastAPI), apps/admin (Next.js), apps/mobile (Flutter), packages/contracts placeholder, infra/ci (GitHub Actions), infra/firebase placeholder, root config | In progress |
-| 0.3 | To be defined | Not started |
+| 0.2 | Monorepo scaffold — apps/api (FastAPI), apps/admin (Next.js), apps/mobile (Flutter), packages/contracts placeholder, infra/ci (GitHub Actions), infra/firebase placeholder, root config | Done |
+| 0.3 | FastAPI ↔ Firebase Admin SDK, Firestore-aware `/health`, and client connectivity indicators | In progress |
 | 1 | To be defined | Not started |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |

@@ -35,3 +35,8 @@ A micro-task is not Done merely because code was written. Done requires passing 
 
 Phase 0.1 contains documentation only. Its focused verification is checking that all requested context files exist, contain the supplied constraints, and preserve open decisions without inventing answers.
 
+## Phase 0.2 Evidence
+
+| Micro-task | Acceptance and focused evidence | Result | Date |
+|---|---|---|---|
+| 0.2 — monorepo scaffold | API: `poetry install` completed; `poetry run ruff check .` → `All checks passed!`; `poetry run mypy app` → no issues in 4 source files; `poetry run pytest` → 2 passed; Uvicorn served `GET /` with HTTP 200 and `{"service":"fev-api","status":"ok"}`. Admin: pnpm install completed; `pnpm lint` → no warnings/errors; `pnpm build` compiled and generated 4 static pages; `pnpm dev` became ready and served `/` with HTTP 200. Mobile: `flutter pub get` completed; `flutter analyze` → no issues; `flutter build web` succeeded; Flutter web-server served `/` with HTTP 200. CI: GitHub Actions workflow `CI` run 29414241787 passed all three jobs — API (24s), Admin (42s), Mobile (48s). PR: https://github.com/umerali06/EnergyVerse/pull/1. Tenant isolation, authorization, audit, AI, and offline-sync checks are not applicable to this scaffold-only slice. | Passed | 2026-07-15 |
