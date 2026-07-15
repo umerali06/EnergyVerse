@@ -7,13 +7,14 @@
 - **Testing:** implementation is complete and its focused verification is underway.
 - **Done:** the focused result has been shown, accepted as tested, and its architecture connection has been recorded.
 
-Only one micro-task may be active at a time. Phase 0.2 must not begin until Phase 0.1 is tested and marked Done.
+Only one micro-task may be active at a time.
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Foundation and project definition | In progress |
-| 0.1 | Project bootstrap and persistent context setup | In progress |
-| 0.2 | To be defined/confirmed by product owner | Not started |
+| 0.1 | Project bootstrap and persistent context setup | Done |
+| 0.2 | Monorepo scaffold — apps/api (FastAPI), apps/admin (Next.js), apps/mobile (Flutter), packages/contracts placeholder, infra/ci (GitHub Actions), infra/firebase placeholder, root config | Done |
+| 0.3 | FastAPI ↔ Firebase Admin SDK, Firestore-aware `/health`, and client connectivity indicators | In progress |
 | 1 | To be defined | Not started |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |
@@ -35,5 +36,4 @@ Only one micro-task may be active at a time. Phase 0.2 must not begin until Phas
 | 19 | To be defined | Not started |
 | 20 | To be defined | Not started |
 
-Detailed scopes for Phases 0.2–20 have not been supplied and must not be invented.
-
+Detailed scopes for Phases 0.3–20 have not been supplied and must not be invented.

@@ -1,21 +1,45 @@
 # FEV Decision Log
 
-No Phase 0 coding may begin until decisions D-001 through D-003 are confirmed by the product owner.
+## Resolved Decisions
 
-| ID | Decision | Options / clarification required | Status | Impact |
+| ID | Decision | Chosen Option | Status | Date |
 |---|---|---|---|---|
-| D-001 | Backend framework | NestJS (Node.js) or FastAPI (Python) | **PENDING — blocking** | Blocks backend architecture and Phase 0 coding. |
-| D-002 | Primary database and AI vector storage | Confirm Firebase Firestore or PostgreSQL. The source brief said “not PostgreSQL,” so this must be explicitly resolved. Also confirm whether AI embeddings require a separate vector store. | **PENDING — blocking** | Blocks data modeling, tenant enforcement details, offline sync design, and backend architecture. |
-| D-003 | Authentication provider | Firebase Auth or custom authentication. In either case, the issuance layer must be provider-agnostic; enterprise SSO/SAML/OIDC comes later. | **PENDING — blocking** | Blocks identity architecture and authentication implementation. |
+| D-001 | Backend framework | **FastAPI (Python 3.11+)** | **RESOLVED — LOCKED** | 2026-07-15 |
+| D-002 | Primary database and AI vector storage | **Firebase Firestore** (server-side only via FastAPI + Admin SDK) | **RESOLVED — LOCKED** | 2026-07-15 |
+| D-003 | Authentication provider | **Firebase Authentication** (email/password + verification + reset) | **RESOLVED — LOCKED** | 2026-07-15 |
 
-## Decision Record Template
+## Decision Details
 
-When a decision is confirmed, preserve the history and add:
+### D-001 — Backend Framework → FastAPI (Python 3.11+)
 
-- Decision and date
-- Decision owner
-- Chosen option
-- Context and rationale
-- Alternatives considered
-- Consequences and follow-up actions
+- **Decision owner:** Product owner
+- **Chosen option:** FastAPI (Python 3.11+)
+- **Context and rationale:** FastAPI is the ONLY tier that touches the database, via the Firebase Admin SDK. No direct client access to Firestore.
+- **Alternatives considered:** NestJS (Node.js)
+- **Consequences:** All backend development in Python; Poetry for dependency management; ruff + mypy for linting/type-checking.
 
+### D-002 — Database → Firebase Firestore
+
+- **Decision owner:** Product owner
+- **Chosen option:** Firebase Firestore, accessed server-side only through FastAPI
+- **Context and rationale:** Firestore Security Rules locked to server-only. No separate vector store for MVP (revisit only if AI embeddings need it later). No direct client access.
+- **Alternatives considered:** PostgreSQL (explicitly ruled out per source brief)
+- **Consequences:** Data modeling uses Firestore collections/documents; tenant isolation via `company_id` on every record; offline sync handled at the app layer with server reconciliation.
+
+### D-003 — Authentication → Firebase Authentication
+
+- **Decision owner:** Product owner
+- **Chosen option:** Firebase Authentication (email/password + verification + reset)
+- **Context and rationale:** `role` + `company_id` stored in custom claims. FastAPI verifies the Firebase ID token via the Admin SDK. Provider-agnostic seam preserved so enterprise SSO/SAML/OIDC slots in later.
+- **Alternatives considered:** Custom authentication
+- **Consequences:** Token verification in FastAPI middleware; custom claims for RBAC; abstraction layer for future SSO integration.
+
+## Locked Principles
+
+These principles are reaffirmed alongside the resolved decisions and apply to all phases:
+
+1. **Multi-tenancy:** Every record scoped by `company_id`. No cross-tenant data leakage.
+2. **RBAC:** Many-to-many role→permission mapping enforced in BOTH FastAPI and UI. No hardcoded role enums.
+3. **AI is advisory:** Inspector must confirm/override before any report finalizes. AI never takes autonomous action on safety-critical data.
+4. **Offline-first field flows:** Durable local queues with background sync and conflict resolution.
+5. **Audit-log every critical action:** All mutations to safety-critical data are logged with actor, timestamp, and before/after state.
