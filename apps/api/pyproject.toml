@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fev-api"
-version = "0.2.0"
+version = "0.3.0"
 description = "Flacron EnergyVerse API"
 authors = ["FEV Team"]
 readme = "README.md"
@@ -11,6 +11,7 @@ python = "^3.11"
 fastapi = "^0.115.0"
 uvicorn = {version = "^0.34.0", extras = ["standard"]}
 pydantic-settings = "^2.7.0"
+firebase-admin = "^7.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -36,3 +37,6 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: requires configured external services",
+]
