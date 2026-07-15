@@ -2,6 +2,8 @@
 
 Firestore is server-only. The Firebase Admin SDK used by FastAPI bypasses
 Firestore Security Rules; all direct client reads and writes are denied.
+Phase 0.4 keeps this server-only policy unchanged; repositories in FastAPI remain
+the only data-access boundary.
 
 ## Deploy the rules (PowerShell)
 
