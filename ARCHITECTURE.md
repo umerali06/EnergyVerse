@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 0.3 is complete. The monorepo now has a tested FastAPI-to-Firestore connection boundary and health contract consumed by both clients; detailed feature architecture remains intentionally incremental and is recorded after each tested micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
+Phase 0.4 is complete. Firestore now has a tested repository-only tenancy and RBAC foundation; detailed feature architecture remains intentionally incremental and is recorded after each tested micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
 
 ## Architecture Goals
 
@@ -28,17 +28,35 @@ The blocking backend, database, and authentication decisions are confirmed. Syst
 
 - Framework: FastAPI on Python 3.11+
 - API style and versioning: _To be decided_
-- Current infrastructure boundaries: `app/core/firebase.py` owns Admin SDK startup; `app/db/firestore.py` owns the lazy asynchronous Firestore client and all Firestore calls; routers consume that boundary rather than raw clients.
+- Current infrastructure boundaries: `app/core/firebase.py` owns Admin SDK startup; `app/db/firestore.py` owns only the lazy asynchronous client; `app/db/repositories/` owns every Firestore operation. Routers and services consume repositories rather than raw clients.
 - Future integration interfaces: _To be defined without implementing out-of-scope systems_
 
 ### Data and Storage
 
 - Primary database: Firebase Firestore, accessed server-side only through FastAPI and the Admin SDK
-- Tenant isolation strategy: every tenant-owned record carries `company_id`; collection modeling and enforcement begin after Phase 0.3
+- Tenant isolation strategy: top-level collections with `company_id` on every tenant-owned document. Tenant repository methods require a `CompanyScope`; direct reads verify stored scope and list queries always filter by scope. Cross-tenant Super Admin access is deferred until a verified auth context exists.
 - Role/permission model: many-to-many and extensible for custom roles
 - AI vector storage: no separate vector store for MVP; revisit only if embedding requirements justify it
 - Offline device store: SQLite or Hive, final choice pending
 - Object storage: Firebase Storage or AWS S3, final choice pending
+
+#### Phase 0.4 Data Foundation
+
+| Collection | Contract | Scope and mutation policy |
+|---|---|---|
+| `companies` | `GlobalDoc` timestamps plus nullable `created_by`; document `id` is the tenant identity | Tenant root; addressed through its required `CompanyScope`; no unscoped list API |
+| `users` | `TenantDoc` plus Firebase UID, email, display name, role, and status | Strictly company-scoped CRUD |
+| `roles` | `TenantDoc` plus key, name, description, and `is_system` | Strictly company-scoped CRUD |
+| `permissions` | `GlobalDoc` plus key, group, and description | System-managed global catalog; intentional `company_id` exception |
+| `role_permissions` | `TenantDoc` plus role and permission IDs | Strictly company-scoped CRUD; many-to-many RBAC mapping |
+| `audit_logs` | `AppendOnlyDoc` plus `company_id`, action, target, and metadata | Strictly company-scoped append/read; no update or delete API |
+
+`TenantDoc` contains `company_id`, `created_at`, `updated_at`, and `created_by`.
+`GlobalDoc` contains `created_at` and `updated_at`. `AppendOnlyDoc` contains
+`created_at` and `actor_uid`. Stamps are generated centrally. Effective permissions
+resolve through user → role → role-permission → global permission and return
+`frozenset[str]`. The seven default role templates and starter permission catalog
+live in one constants module. Firestore Rules remain deny-all for clients.
 
 ### Identity and Access
 
@@ -80,3 +98,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 0.1 — context setup | Establishes persistent project constraints and decision gates; no application components created. | 2026-07-11 |
 | Phase 0.2 — monorepo scaffold | Establishes independently runnable `apps/api` (FastAPI), `apps/admin` (Next.js), and `apps/mobile` (Flutter with web runner). `packages/contracts` reserves the future generated API-contract boundary. `infra/ci` points to the root GitHub Actions workflow, whose API, admin, and mobile jobs validate each application independently. `infra/firebase` reserves Firebase configuration for Phase 0.3. No feature, authentication, or data behavior is introduced. | 2026-07-15 |
 | Phase 0.3 — Firebase health connection | FastAPI initializes one Firebase Admin app at process startup from either a local service-account path or base64 JSON. A lazy async client in `app/db/firestore.py` performs the only Firestore call: a retry-disabled, deadline-bounded read of `_health/ping`. `GET /health` converts missing credentials, connectivity, timeouts, and failures into the stable HTTP 200 contract consumed directly by the Next.js and Flutter scaffold screens. Local CORS origins connect both clients to the API. Firestore rules deny every direct client read/write, preserving FastAPI as the database boundary. No collections, tenant data, auth flows, or seed data are introduced. | 2026-07-15 |
+| Phase 0.4 — tenant data foundation | Adds only `companies`, `users`, `roles`, `permissions`, `role_permissions`, and `audit_logs` as top-level collections. Pydantic base contracts feed typed repositories; tenant repositories require `CompanyScope`, central stamps protect provenance, mutations can emit append-only audit records, and permission resolution returns immutable keys. The idempotent seed uses deterministic IDs to reconcile the exact catalog, Acme’s seven system roles/users, and a second isolated tenant/user. The existing health read was moved behind an infrastructure repository so all Firestore operations now share the repository boundary. No HTTP routes, auth flows, UI, or feature collections were added. | 2026-07-15 |
