@@ -64,8 +64,8 @@ class ApiService implements ApiContract {
         Dio(
           BaseOptions(
             baseUrl: baseUrl.replaceFirst(RegExp(r'/$'), ''),
-            connectTimeout: const Duration(seconds: 5),
-            receiveTimeout: const Duration(seconds: 5),
+            connectTimeout: const Duration(seconds: 15),
+            receiveTimeout: const Duration(seconds: 15),
           ),
         );
     configuredDio.options.baseUrl = baseUrl.replaceFirst(RegExp(r'/$'), '');

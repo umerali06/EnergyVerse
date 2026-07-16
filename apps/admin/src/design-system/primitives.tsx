@@ -32,6 +32,7 @@ export function Button({
   const reduced = useReducedMotion();
   return (
     <motion.button
+      aria-label={loading && typeof children === "string" ? `${children}, loading` : undefined}
       className={cn(
         "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-body font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         buttonVariants[variant],
@@ -83,23 +84,29 @@ const fieldClass =
   "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-body text-text-primary placeholder:text-text-muted transition-colors hover:border-primary-400 focus:border-primary-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50";
 
 export function Input({
+  endAdornment,
   error,
   hint,
   id: suppliedId,
   label,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & FieldProps) {
+}: React.InputHTMLAttributes<HTMLInputElement> & FieldProps & { endAdornment?: ReactNode }) {
   const generatedId = useId();
   const id = suppliedId ?? generatedId;
   return (
     <FieldFrame error={error} hint={hint} id={id} label={label}>
-      <input
-        aria-describedby={error || hint ? `${id}-description` : undefined}
-        aria-invalid={Boolean(error)}
-        className={fieldClass}
-        id={id}
-        {...props}
-      />
+      <div className="relative">
+        <input
+          aria-describedby={error || hint ? `${id}-description` : undefined}
+          aria-invalid={Boolean(error)}
+          className={cn(fieldClass, Boolean(endAdornment) && "pr-20")}
+          id={id}
+          {...props}
+        />
+        {endAdornment && (
+          <span className="absolute inset-y-0 right-2 grid place-items-center">{endAdornment}</span>
+        )}
+      </div>
     </FieldFrame>
   );
 }

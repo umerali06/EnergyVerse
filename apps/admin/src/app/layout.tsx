@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { ApiProvider } from "@/api";
-import { PermissionProvider } from "@/auth/permissions";
+import { AuthProvider } from "@/auth/auth-context";
 import { ThemeProvider, ToastProvider } from "@/design-system";
 import "./globals.css";
 
@@ -32,9 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <ToastProvider>
-            <ApiProvider>
-              <PermissionProvider>{children}</PermissionProvider>
-            </ApiProvider>
+            <AuthProvider>{children}</AuthProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

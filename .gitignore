@@ -55,3 +55,7 @@ firebase-debug.log
 coverage/
 htmlcov/
 .coverage
+
+# Local verification artifacts
+artifacts/
+*.tsbuildinfo
