@@ -12,6 +12,7 @@
 | D-006 | Super Admin cross-tenant repository access | **Deferred until verified post-auth trusted context exists** | **RESOLVED — LOCKED** | 2026-07-15 |
 | D-007 | Backend token verification boundary | **Provider-neutral `TokenVerifier` protocol with Firebase adapter** | **RESOLVED — LOCKED** | 2026-07-16 |
 | D-008 | RBAC denial contract and enforcement authority | **401 for authentication; 403 for authorization; server authoritative, UI advisory** | **RESOLVED — LOCKED** | 2026-07-16 |
+| D-009 | Cross-client design language and motion | **Industrial blue/orange brand with one generated token source and reduced-motion-aware client implementations** | **RESOLVED — LOCKED** | 2026-07-16 |
 
 ## Decision Details
 
@@ -93,6 +94,27 @@
 - **Consequences:** Feature routes added later must prefer permission gates;
   `require_role` is reserved for the few policies that are inherently role-based.
 
+### D-009 — Design System → Shared Tokens, Industrial Brand, and Motion Spec
+
+- **Decision owner:** Product owner
+- **Brand:** Electric blue `#2563EB` is primary, energy orange `#F97316` is
+  accent, and the dark industrial layers are `#0A0E1A`, `#111827`, and
+  `#1A2234`. Dark is the default; an accessible light theme is supported and the
+  user's choice persists locally.
+- **Typography:** Inter is the technical sans family and JetBrains Mono is used
+  for identifiers/codes. Both are bundled under the OFL so rendering does not
+  depend on a network font request.
+- **Single source:** Framework-neutral `packages/design-tokens/tokens.json` owns
+  visual and motion values. A deterministic generator emits committed admin
+  TypeScript/CSS and mobile Dart bindings; generated files are not edited by hand.
+- **Motion:** Fast/standard/slow durations, shared easing curves, and stagger
+  timing define hover/press, fade-slide, list, modal, and shimmer behavior.
+  Next.js uses Framer Motion and Flutter uses framework animations. Both honor the
+  platform reduced-animation setting.
+- **Consequences:** All future screens reuse the shared primitives and tokens.
+  New visual values or reusable components are added centrally, never copied into
+  a feature. The showcases remain development-only and are not product screens.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -113,3 +135,6 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 - **2026-07-16 — Phase 0.6:** Added D-008. Server-side dependencies now enforce
   the Phase 0.4 matrix on the Phase 0.5 identity chain; client guards remain
   explicitly advisory and no cross-tenant exception was introduced.
+- **2026-07-16 — Phase 0.7:** Added D-009. Admin and mobile now derive their
+  themes, primitives, and motion feel from one generated token source, with dark
+  default, persisted light mode, bundled fonts, and reduced-motion parity.
