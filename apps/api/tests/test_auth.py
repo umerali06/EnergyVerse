@@ -80,7 +80,11 @@ def _request_with_verifier(verifier: TokenVerifier, token: str | None = "token")
 def test_me_missing_token_returns_401() -> None:
     response = _request_with_verifier(StaticTokenVerifier(), token=None)
     assert response.status_code == 401
-    assert response.json()["detail"]["code"] == "missing_token"
+    assert response.json() == {
+        "error": "unauthorized",
+        "code": "missing_token",
+        "message": "Bearer token is required",
+    }
 
 
 @pytest.mark.parametrize(
@@ -96,7 +100,11 @@ def test_me_bad_token_returns_401(code: str, message: str) -> None:
         StaticTokenVerifier(error=TokenVerificationError(code, message))
     )
     assert response.status_code == 401
-    assert response.json()["detail"] == {"code": code, "message": message}
+    assert response.json() == {
+        "error": "unauthorized",
+        "code": code,
+        "message": message,
+    }
 
 
 def test_me_returns_seeded_identity_and_exact_permissions(
@@ -140,7 +148,8 @@ def test_me_inactive_user_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     )
     assert response.status_code == 403
-    assert response.json()["detail"]["code"] == "user_inactive"
+    assert response.json()["code"] == "user_inactive"
+    assert response.json()["error"] == "forbidden"
 
 
 def test_me_missing_firestore_user_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -150,7 +159,8 @@ def test_me_missing_firestore_user_returns_403(monkeypatch: pytest.MonkeyPatch) 
         StaticTokenVerifier({"uid": "missing", "company_id": ACME_COMPANY_ID})
     )
     assert response.status_code == 403
-    assert response.json()["detail"]["code"] == "user_not_found"
+    assert response.json()["code"] == "user_not_found"
+    assert response.json()["error"] == "forbidden"
 
 
 def test_sync_claims_from_role_sets_exact_payload() -> None:

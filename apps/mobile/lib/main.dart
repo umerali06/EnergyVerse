@@ -3,10 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-const apiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://localhost:8000',
-);
+import 'auth/permissions.dart';
+import 'config.dart';
 
 void main() {
   runApp(const FevApp());
@@ -23,8 +21,40 @@ class FevApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const PermissionBootstrap(child: HomePage()),
     );
+  }
+}
+
+class PermissionBootstrap extends StatefulWidget {
+  const PermissionBootstrap({required this.child, this.idToken, super.key});
+
+  final Widget child;
+  final String? idToken;
+
+  @override
+  State<PermissionBootstrap> createState() => _PermissionBootstrapState();
+}
+
+class _PermissionBootstrapState extends State<PermissionBootstrap> {
+  late final PermissionController _permissions;
+
+  @override
+  void initState() {
+    super.initState();
+    _permissions = PermissionController();
+    _permissions.loadFromMe(idToken: widget.idToken);
+  }
+
+  @override
+  void dispose() {
+    _permissions.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PermissionProvider(controller: _permissions, child: widget.child);
   }
 }
 
@@ -89,9 +119,29 @@ class _HomePageState extends State<HomePage> {
         child: Card(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-            child: Text(
-              'API: $_apiStatus · Firestore: $_firestoreStatus',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'API: $_apiStatus · Firestore: $_firestoreStatus',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const PermissionGate(
+                  permission: 'assets.write',
+                  fallback: Text(
+                    'No access: assets.write required',
+                    style: TextStyle(color: Colors.orange),
+                  ),
+                  child: Text(
+                    'Asset write action available',
+                    style: TextStyle(color: Colors.green),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
