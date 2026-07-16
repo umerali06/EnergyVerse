@@ -19,6 +19,7 @@ apps/
   mobile/       Flutter field app
 packages/
   contracts/    OpenAPI specs + generated clients (0.8+)
+  design-tokens/ Framework-neutral visual and motion token source
 infra/
   ci/           GitHub Actions workflows
   firebase/     Firebase configuration (0.3+)
@@ -67,6 +68,7 @@ pnpm install
 $env:NEXT_PUBLIC_API_BASE_URL="http://localhost:8000"
 pnpm dev
 # http://localhost:3000
+# Development-only primitive showcase: http://localhost:3000/design-system
 ```
 
 ### Mobile
@@ -75,6 +77,8 @@ pnpm dev
 cd apps/mobile
 flutter pub get
 flutter run -d chrome --web-port 8080 --dart-define=API_BASE_URL=http://localhost:8000
+# Development-only primitive showcase:
+# flutter run -d chrome --web-port 8080 --route=/design-system
 # Windows desktop alternative:
 # flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8000
 ```
@@ -127,6 +131,7 @@ poetry run pytest
 ```powershell
 cd apps/admin
 pnpm lint
+pnpm test
 pnpm build
 ```
 
@@ -135,4 +140,22 @@ pnpm build
 ```powershell
 cd apps/mobile
 flutter analyze
+flutter test
+flutter build web
 ```
+
+## Shared design system
+
+Visual and motion values are edited only in
+`packages/design-tokens/tokens.json`. Regenerate committed Next.js and Flutter
+bindings after a token change:
+
+```powershell
+node packages/design-tokens/scripts/generate.mjs
+```
+
+Dark mode is the default in both clients, light mode is persisted locally, and
+both clients honor the operating system's reduced-animation preference. All
+future screens must be composed from the shared tokens and reusable primitives;
+feature-local copies of colors, spacing, typography, or motion values are not
+allowed.

@@ -1,3 +1,41 @@
+@import "../design-system/tokens.generated.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    background: var(--color-background);
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: var(--font-inter), Inter, sans-serif;
+    transition:
+      background-color var(--motion-normal) var(--ease-standard),
+      color var(--motion-normal) var(--ease-standard);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-400);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,27 +1,68 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'auth/permissions.dart';
 import 'config.dart';
+import 'design_system/motion.dart';
+import 'design_system/primitives.dart';
+import 'design_system/showcase.dart';
+import 'design_system/theme.dart';
 
 void main() {
   runApp(const FevApp());
 }
 
-class FevApp extends StatelessWidget {
-  const FevApp({super.key});
+class FevApp extends StatefulWidget {
+  const FevApp({this.initialRoute, super.key});
+
+  final String? initialRoute;
+
+  @override
+  State<FevApp> createState() => _FevAppState();
+}
+
+class _FevAppState extends State<FevApp> {
+  late final AppThemeController _theme;
+
+  @override
+  void initState() {
+    super.initState();
+    _theme = AppThemeController()..load();
+  }
+
+  @override
+  void dispose() {
+    _theme.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'FEV Field App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
+    return AppThemeScope(
+      controller: _theme,
+      child: AnimatedBuilder(
+        animation: _theme,
+        builder: (context, _) => MaterialApp(
+          title: 'FEV Field App',
+          theme: AppThemes.light,
+          darkTheme: AppThemes.dark,
+          themeMode: _theme.mode,
+          initialRoute: widget.initialRoute,
+          onGenerateRoute: (settings) {
+            if (kDebugMode && settings.name == DesignSystemShowcase.routeName) {
+              return IndustrialPageRoute<void>(
+                settings: settings,
+                builder: (_) => const DesignSystemShowcase(),
+              );
+            }
+            return null;
+          },
+          home: const PermissionBootstrap(child: HomePage()),
+        ),
       ),
-      home: const PermissionBootstrap(child: HomePage()),
     );
   }
 }
@@ -116,33 +157,31 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('FEV Field App')),
       body: Center(
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'API: $_apiStatus · Firestore: $_firestoreStatus',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+        child: AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'API: $_apiStatus · Firestore: $_firestoreStatus',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 12),
-                const PermissionGate(
-                  permission: 'assets.write',
-                  fallback: Text(
-                    'No access: assets.write required',
-                    style: TextStyle(color: Colors.orange),
-                  ),
-                  child: Text(
-                    'Asset write action available',
-                    style: TextStyle(color: Colors.green),
-                  ),
+              ),
+              const SizedBox(height: 12),
+              const PermissionGate(
+                permission: 'assets.write',
+                fallback: Text(
+                  'No access: assets.write required',
+                  style: TextStyle(color: Colors.orange),
                 ),
-              ],
-            ),
+                child: Text(
+                  'Asset write action available',
+                  style: TextStyle(color: Colors.green),
+                ),
+              ),
+            ],
           ),
         ),
       ),
