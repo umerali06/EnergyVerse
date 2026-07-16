@@ -1,8 +1,13 @@
+import argparse
 import asyncio
+from dataclasses import dataclass
 
 from google.cloud.firestore_v1.async_client import AsyncClient
 
 from app.audit.service import AuditService
+from app.auth.admin import AuthAdmin
+from app.auth.provisioning import UserProvisioningService
+from app.core.settings import settings
 from app.db.firestore import get_firestore_client
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.companies import CompanyRepository
@@ -29,6 +34,35 @@ from app.rbac.constants import PERMISSION_CATALOG, SYSTEM_ROLE_TEMPLATES, System
 SEED_ACTOR_UID = "system:seed"
 ACME_COMPANY_ID = "acme-energy"
 SECOND_COMPANY_ID = "beta-utilities"
+
+
+@dataclass(frozen=True)
+class DemoUserSeed:
+    company_id: str
+    placeholder_uid: str
+    email: str
+    display_name: str
+    role_key: str
+
+
+DEMO_USERS = tuple(
+    DemoUserSeed(
+        company_id=ACME_COMPANY_ID,
+        placeholder_uid=f"demo-acme-{role_key}",
+        email=f"{role_key}@acme.example.invalid",
+        display_name=f"Acme {template.name}",
+        role_key=role_key,
+    )
+    for role_key, template in SYSTEM_ROLE_TEMPLATES.items()
+) + (
+    DemoUserSeed(
+        company_id=SECOND_COMPANY_ID,
+        placeholder_uid="demo-beta-company-admin",
+        email="company_admin@beta.example.invalid",
+        display_name="Beta Company Admin",
+        role_key="company_admin",
+    ),
+)
 
 
 def role_id(company_id: str, role_key: str) -> str:
@@ -186,6 +220,8 @@ async def _ensure_user(
 ) -> None:
     existing = await repository.get(scope, user_id)
     if existing is None:
+        existing = await repository.find_by_email(scope, email)
+    if existing is None:
         await repository.create(
             scope,
             UserCreate(
@@ -206,7 +242,7 @@ async def _ensure_user(
     ):
         await repository.update(
             scope,
-            user_id,
+            existing.id,
             UserUpdate(
                 email=email,
                 display_name=display_name,
@@ -217,7 +253,13 @@ async def _ensure_user(
         )
 
 
-async def run_seed(client: AsyncClient | None = None) -> SeedCounts:
+async def run_seed(
+    client: AsyncClient | None = None,
+    *,
+    with_auth_users: bool = False,
+    demo_password: str | None = None,
+    auth_admin: AuthAdmin | None = None,
+) -> SeedCounts:
     firestore_client = client or get_firestore_client()
     audit_logs = AuditLogRepository(firestore_client)
     audit = AuditService(audit_logs)
@@ -313,6 +355,27 @@ async def run_seed(client: AsyncClient | None = None) -> SeedCounts:
         user_role_id=second_role_id,
     )
 
+    if with_auth_users:
+        password = demo_password or settings.seed_demo_password
+        if not password:
+            raise ValueError("SEED_DEMO_PASSWORD is required with --with-auth-users")
+        provisioner = UserProvisioningService(
+            admin=auth_admin,
+            users=users,
+            roles=roles,
+            audit=audit,
+        )
+        for demo_user in DEMO_USERS:
+            await provisioner.provision_seed_user(
+                placeholder_uid=demo_user.placeholder_uid,
+                email=demo_user.email,
+                company_id=demo_user.company_id,
+                role_id=role_id(demo_user.company_id, demo_user.role_key),
+                display_name=demo_user.display_name,
+                password=password,
+                actor_uid=SEED_ACTOR_UID,
+            )
+
     acme_roles, second_roles, acme_mappings, second_mappings, acme_users, second_users = (
         await asyncio.gather(
             roles.list(acme_scope),
@@ -344,7 +407,14 @@ async def run_seed(client: AsyncClient | None = None) -> SeedCounts:
 
 
 async def main() -> None:
-    counts = await run_seed()
+    parser = argparse.ArgumentParser(description="Seed the FEV data foundation")
+    parser.add_argument(
+        "--with-auth-users",
+        action="store_true",
+        help="Create/reconcile real Firebase Auth demo users and custom claims",
+    )
+    arguments = parser.parse_args()
+    counts = await run_seed(with_auth_users=arguments.with_auth_users)
     print(counts.model_dump_json(indent=2))
 
 

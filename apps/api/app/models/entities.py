@@ -133,5 +133,13 @@ class SeedCounts(StrictModel):
     audit_logs: int
 
 
+class CurrentUser(StrictModel):
+    uid: str
+    email: str
+    company_id: str
+    role_key: str
+    permissions: frozenset[str]
+
+
 def without_none(values: dict[str, object | None]) -> dict[str, object]:
     return {key: value for key, value in values.items() if value is not None}

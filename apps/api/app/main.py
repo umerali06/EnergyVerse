@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
+from app.api.v1.auth import router as auth_router
 from app.core.firebase import initialize_firebase
 from app.core.settings import settings
 
@@ -15,7 +16,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="FEV API", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="FEV API", version="0.5.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
@@ -24,6 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(health_router)
+app.include_router(auth_router)
 
 
 @app.get("/")
