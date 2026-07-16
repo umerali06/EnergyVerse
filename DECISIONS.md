@@ -14,6 +14,7 @@
 | D-008 | RBAC denial contract and enforcement authority | **401 for authentication; 403 for authorization; server authoritative, UI advisory** | **RESOLVED — LOCKED** | 2026-07-16 |
 | D-009 | Cross-client design language and motion | **Industrial blue/orange brand with one generated token source and reduced-motion-aware client implementations** | **RESOLVED — LOCKED** | 2026-07-16 |
 | D-010 | API contract, generated clients, and error strategy | **OpenAPI 3.1 → pinned TypeScript Fetch/Dart Dio clients; unified request-ID error envelope; CI drift rejection** | **RESOLVED — LOCKED** | 2026-07-16 |
+| D-011 | Client authentication state | **Firebase client SDK + one auth provider resolving authoritative `/me` identity** | **RESOLVED — LOCKED** | 2026-07-17 |
 
 ## Decision Details
 
@@ -141,6 +142,27 @@
   network handling, and Phase 0.7 toast/snackbar feedback. Direct feature-level
   transport calls are prohibited.
 
+### D-011 — Client Authentication → Firebase SDK + One Auth Provider
+
+- **Decision owner:** Product owner
+- **Chosen option:** Use the Firebase client SDK in each client and keep one
+  lightweight auth provider as the source of resolved application identity.
+- **Configuration:** Next.js reads the six public `NEXT_PUBLIC_FIREBASE_*` values;
+  Flutter receives the same public values through `--dart-define`. Firebase owns
+  default web session persistence. Native Firebase configuration files are deferred
+  until Android/iOS builds enter scope.
+- **Identity chain:** Email/password credentials go only to Firebase. After sign-in,
+  the Phase 0.8 wrapper injects the Firebase ID token into `/api/v1/auth/me`; the
+  returned Phase 0.5 `CurrentUser` supplies tenant, role, and effective permissions.
+  Raw tokens and passwords are never stored in application state or logged.
+- **Failure policy:** Invalid credentials never reveal whether the email exists.
+  Disabled, rate-limited, network, and inactive/missing-Firestore-user cases receive
+  dedicated friendly feedback through Phase 0.7 toast/snackbar infrastructure. A
+  `/me` 403 immediately signs the Firebase session out.
+- **Consequences:** Session restoration and minimal sign-out are available now.
+  Signup/verification, reset, comprehensive refresh, and route-guard hardening stay
+  in their scheduled Phase 1 slices; client identity never replaces API enforcement.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -167,3 +189,6 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 - **2026-07-16 — Phase 0.8:** Added D-010. FastAPI is the OpenAPI source of truth;
   pinned TypeScript Fetch and Dart Dio clients feed typed application wrappers,
   all errors share a request-ID envelope, and CI rejects contract drift.
+- **2026-07-17 — Phase 1.1:** Added D-011. Both clients now use Firebase's client
+  SDK and one auth provider to turn a persisted Firebase session into the scoped,
+  permission-bearing `/me` identity; API authorization remains authoritative.
