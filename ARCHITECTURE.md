@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 0.6 is complete. The verified, company-scoped identity from Phase 0.5 now
-flows through server-authoritative permission/role dependencies, with advisory
-guard parity in both clients; detailed feature architecture remains intentionally
+Phase 0.7 is complete. Both clients now consume one framework-neutral visual and
+motion token source through generated bindings, dark/light themes, and reusable
+accessible primitives. Detailed feature architecture remains intentionally
 incremental and is recorded after each tested micro-task. Locked platform decisions
 are tracked in `DECISIONS.md`.
 
@@ -90,6 +90,26 @@ live in one constants module. Firestore Rules remain deny-all for clients.
 - Enterprise SSO through SAML/OIDC is a future capability
 - API authorization is authoritative; UI authorization supports user experience but is not a security boundary
 
+### Shared Design System
+
+- `packages/design-tokens/tokens.json` is the only editable source for brand color
+  scales, semantic dark/light colors, typography, 4px spacing, radius, elevation,
+  z-index, and motion values. Its generator emits committed TypeScript/CSS and Dart
+  bindings so neither client needs generation during its build.
+- Next.js maps the generated values into Tailwind and CSS custom properties. Its
+  theme provider defaults to dark, persists the user's light/dark choice, and its
+  Framer Motion helpers honor `prefers-reduced-motion`.
+- Flutter builds dark-default and light `ThemeData` from generated Dart constants,
+  persists the theme locally, and uses `MediaQuery.disableAnimations` to remove
+  non-essential motion. Inter and JetBrains Mono are bundled locally in both
+  clients for deterministic/offline typography.
+- Admin and mobile expose parity primitives for actions, fields, surfaces, status,
+  overlays, feedback, tabs, loading, and empty states. Development-only showcases
+  exercise those primitives without entering normal navigation.
+- **Rule:** every future screen must compose these primitives and shared tokens.
+  Feature modules may extend the system centrally but may not introduce parallel
+  color, spacing, typography, elevation, or motion constants.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -126,3 +146,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 0.4 — tenant data foundation | Adds only `companies`, `users`, `roles`, `permissions`, `role_permissions`, and `audit_logs` as top-level collections. Pydantic base contracts feed typed repositories; tenant repositories require `CompanyScope`, central stamps protect provenance, mutations can emit append-only audit records, and permission resolution returns immutable keys. The idempotent seed uses deterministic IDs to reconcile the exact catalog, Acme’s seven system roles/users, and a second isolated tenant/user. The existing health read was moved behind an infrastructure repository so all Firestore operations now share the repository boundary. No HTTP routes, auth flows, UI, or feature collections were added. | 2026-07-15 |
 | Phase 0.5 — backend auth foundation | Adds a provider-neutral `TokenVerifier` seam with a Firebase Admin adapter, explicit 401 translation, and the sole protected route `/api/v1/auth/me`. Verified `uid` + `company_id` claims enter the Phase 0.4 `CompanyScope`; repositories load the active user/role and the existing resolver returns exact immutable permission keys for typed `CurrentUser`. Claims services synchronize `company_id`, `role_id`, and `role_key`; provisioning links Firebase Auth creation to scoped Firestore creation and audit records; verification/reset link wrappers optionally consume `AUTH_ACTION_URL`. The auth seed mode reconciles only its declared demo emails, re-keys placeholder documents to real Firebase UIDs while preserving timestamps, audits migrations, and handles interrupted reruns without duplicates. Firestore rules remain deny-all and no login UI or permission-specific guard was added. | 2026-07-16 |
 | Phase 0.6 — RBAC enforcement | Connects the Phase 0.5 token → `CurrentUser` chain and Phase 0.4 immutable role matrix to `require_permission` (`all`/`any`) and the narrowly reserved `require_role`. Three temporary `/api/v1/_rbac-demo` routes prove single/all/any gates; 401 and 403 use top-level JSON contracts, and permission/role denials attempt a scoped append-only `access.denied` audit without allowing audit failure to weaken or crash the gate. Super Admin receives no bypass or cross-tenant path. The Next.js permission context and Flutter permission provider consume `/me` once through future-auth token seams and expose matching predicates/wrappers on existing scaffold screens; these client guards are explicitly advisory. CI now executes admin and mobile guard tests. No feature module or Phase 0.7 behavior was added. | 2026-07-16 |
+| Phase 0.7 — shared design system | Establishes `packages/design-tokens/tokens.json` as the single framework-neutral source and generates committed bindings into Next.js Tailwind/CSS and Flutter `ThemeData`. Both clients default to dark, persist light/dark choice, bundle Inter/JetBrains Mono, share equivalent reusable primitives, and implement the same fast/standard/slow motion feel with reduced-animation paths. Development-only showcases render every primitive and motion behavior without adding feature or auth screens. All future screens must reuse this foundation. | 2026-07-16 |
