@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     firebase_project_id: str | None = None
     firebase_credentials_b64: str | None = None
     google_application_credentials: str | None = None
+    firebase_web_api_key: str | None = None
+    seed_demo_password: str | None = None
+    auth_action_url: str | None = None
     cors_origins: tuple[str, ...] = (
         "http://localhost:3000",
         "http://127.0.0.1:3000",

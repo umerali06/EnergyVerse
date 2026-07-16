@@ -10,6 +10,7 @@
 | D-004 | Firestore tenancy pattern | **Top-level collections with required backend `CompanyScope`** | **RESOLVED — LOCKED** | 2026-07-15 |
 | D-005 | Document metadata contracts | **Explicit `TenantDoc`, `GlobalDoc`, and `AppendOnlyDoc` bases** | **RESOLVED — LOCKED** | 2026-07-15 |
 | D-006 | Super Admin cross-tenant repository access | **Deferred until verified post-auth trusted context exists** | **RESOLVED — LOCKED** | 2026-07-15 |
+| D-007 | Backend token verification boundary | **Provider-neutral `TokenVerifier` protocol with Firebase adapter** | **RESOLVED — LOCKED** | 2026-07-16 |
 
 ## Decision Details
 
@@ -60,6 +61,20 @@
 - **Context and rationale:** Before Firebase token verification and trusted custom claims exist, a cross-tenant method would be an unguarded backdoor.
 - **Consequences:** Even the `super_admin` template remains company-scoped in repositories. A future post-auth phase may introduce an explicit trusted context only after verifying Firebase claims including `role=super_admin`.
 
+### D-007 — Token Verification → Provider-Neutral Protocol
+
+- **Decision owner:** Product owner
+- **Chosen option:** FastAPI auth dependencies consume a `TokenVerifier` protocol;
+  `FirebaseTokenVerifier` is the current implementation.
+- **Context and rationale:** This reaffirms D-003's enterprise SSO seam. Firebase
+  verifies issuance, expiry, revocation, and signature today without coupling route
+  dependencies or `CurrentUser` resolution to the provider SDK.
+- **Trust boundary:** Verified `uid` and `company_id` select a required
+  `CompanyScope`; Firestore user status, role membership, and effective permissions
+  are reloaded through Phase 0.4 repositories and remain authoritative.
+- **Consequences:** A later SAML/OIDC adapter can implement the same protocol.
+  Permission-specific dependencies are intentionally deferred to Phase 0.6.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -74,3 +89,6 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 
 - **2026-07-15 — Phase 0.3:** D-001 through D-003 remain locked. The Firebase Admin SDK/Firestore health implementation conforms to those decisions; no new product decision was introduced.
 - **2026-07-15 — Phase 0.4:** Added and locked D-004 through D-006. Effective permission resolution is represented as `frozenset[str]`; the exact starter catalog and seven role templates remain a single source of truth in code.
+- **2026-07-16 — Phase 0.5:** Added D-007, reaffirming D-003's provider-neutral
+  verifier seam. Firebase custom claims carry tenant/role hints while scoped
+  Firestore repositories remain authoritative for active identity and permissions.

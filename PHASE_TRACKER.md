@@ -16,7 +16,8 @@ Only one micro-task may be active at a time.
 | 0.2 | Monorepo scaffold — apps/api (FastAPI), apps/admin (Next.js), apps/mobile (Flutter), packages/contracts placeholder, infra/ci (GitHub Actions), infra/firebase placeholder, root config | Done |
 | 0.3 | FastAPI ↔ Firebase Admin SDK, Firestore-aware `/health`, and client connectivity indicators | Done |
 | 0.4 | Firestore data foundation — tenancy, companies, users, roles, permissions, role mappings, and audit logs | Done |
-| 0.5 | To be defined | In progress |
+| 0.5 | Backend auth foundation — Firebase token verification, typed current user, claims, provisioning/link services, auth-user seed migration, and protected `/api/v1/auth/me` | Done |
+| 0.6 | Per-permission API gating and UI authorization guards | In progress |
 | 1 | To be defined | Not started |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |
@@ -38,4 +39,4 @@ Only one micro-task may be active at a time.
 | 19 | To be defined | Not started |
 | 20 | To be defined | Not started |
 
-Detailed scopes for Phases 0.5–20 have not been fully supplied and must not be invented.
+Detailed scopes for Phases 0.7–20 have not been fully supplied and must not be invented.

@@ -2,7 +2,10 @@
 
 ## Status
 
-Phase 0.4 is complete. Firestore now has a tested repository-only tenancy and RBAC foundation; detailed feature architecture remains intentionally incremental and is recorded after each tested micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
+Phase 0.5 is complete. Firebase ID tokens now resolve through a provider-neutral
+verification seam into a company-scoped, permission-bearing API identity; detailed
+feature architecture remains intentionally incremental and is recorded after each
+tested micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
 
 ## Architecture Goals
 
@@ -60,8 +63,18 @@ live in one constants module. Firestore Rules remain deny-all for clients.
 
 ### Identity and Access
 
-- Authentication provider: Firebase Authentication; authentication flows are not implemented in Phase 0.3
-- Token/session issuance boundary must remain provider-agnostic
+- Authentication provider: Firebase Authentication. Phase 0.5 implements backend
+  token verification, claims synchronization, provisioning/link services, and
+  `/api/v1/auth/me`; client login/reset/verification screens remain deferred.
+- Token verification is provider-neutral at the dependency boundary through the
+  `TokenVerifier` protocol. `FirebaseTokenVerifier` is the current adapter and uses
+  revoked-token checks plus the Admin SDK's bounded clock-skew tolerance.
+- A verified token contributes `uid` and `company_id`; `get_current_user` then loads
+  the scoped Firestore user and role and resolves effective permissions through the
+  Phase 0.4 many-to-many repositories. Custom claims carry `company_id`, `role_id`,
+  and `role_key`, while Firestore remains authoritative for status and permissions.
+- `/api/v1/auth/me` is the only Phase 0.5 protected route. Permission-specific route
+  dependencies and UI guards belong to Phase 0.6.
 - Enterprise SSO through SAML/OIDC is a future capability
 - API authorization is authoritative; UI authorization supports user experience but is not a security boundary
 
@@ -99,3 +112,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 0.2 — monorepo scaffold | Establishes independently runnable `apps/api` (FastAPI), `apps/admin` (Next.js), and `apps/mobile` (Flutter with web runner). `packages/contracts` reserves the future generated API-contract boundary. `infra/ci` points to the root GitHub Actions workflow, whose API, admin, and mobile jobs validate each application independently. `infra/firebase` reserves Firebase configuration for Phase 0.3. No feature, authentication, or data behavior is introduced. | 2026-07-15 |
 | Phase 0.3 — Firebase health connection | FastAPI initializes one Firebase Admin app at process startup from either a local service-account path or base64 JSON. A lazy async client in `app/db/firestore.py` performs the only Firestore call: a retry-disabled, deadline-bounded read of `_health/ping`. `GET /health` converts missing credentials, connectivity, timeouts, and failures into the stable HTTP 200 contract consumed directly by the Next.js and Flutter scaffold screens. Local CORS origins connect both clients to the API. Firestore rules deny every direct client read/write, preserving FastAPI as the database boundary. No collections, tenant data, auth flows, or seed data are introduced. | 2026-07-15 |
 | Phase 0.4 — tenant data foundation | Adds only `companies`, `users`, `roles`, `permissions`, `role_permissions`, and `audit_logs` as top-level collections. Pydantic base contracts feed typed repositories; tenant repositories require `CompanyScope`, central stamps protect provenance, mutations can emit append-only audit records, and permission resolution returns immutable keys. The idempotent seed uses deterministic IDs to reconcile the exact catalog, Acme’s seven system roles/users, and a second isolated tenant/user. The existing health read was moved behind an infrastructure repository so all Firestore operations now share the repository boundary. No HTTP routes, auth flows, UI, or feature collections were added. | 2026-07-15 |
+| Phase 0.5 — backend auth foundation | Adds a provider-neutral `TokenVerifier` seam with a Firebase Admin adapter, explicit 401 translation, and the sole protected route `/api/v1/auth/me`. Verified `uid` + `company_id` claims enter the Phase 0.4 `CompanyScope`; repositories load the active user/role and the existing resolver returns exact immutable permission keys for typed `CurrentUser`. Claims services synchronize `company_id`, `role_id`, and `role_key`; provisioning links Firebase Auth creation to scoped Firestore creation and audit records; verification/reset link wrappers optionally consume `AUTH_ACTION_URL`. The auth seed mode reconciles only its declared demo emails, re-keys placeholder documents to real Firebase UIDs while preserving timestamps, audits migrations, and handles interrupted reruns without duplicates. Firestore rules remain deny-all and no login UI or permission-specific guard was added. | 2026-07-16 |

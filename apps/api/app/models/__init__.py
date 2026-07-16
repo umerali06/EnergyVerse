@@ -1,6 +1,7 @@
 from app.models.entities import (
     AuditLog,
     Company,
+    CurrentUser,
     Permission,
     Role,
     RolePermission,
@@ -10,6 +11,7 @@ from app.models.entities import (
 __all__ = [
     "AuditLog",
     "Company",
+    "CurrentUser",
     "Permission",
     "Role",
     "RolePermission",

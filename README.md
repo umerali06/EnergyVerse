@@ -33,6 +33,10 @@ cd apps/api
 poetry install
 $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
 $env:FIREBASE_PROJECT_ID="your-firebase-project-id"
+$env:FIREBASE_WEB_API_KEY="your-firebase-web-api-key" # real login test only
+$env:SEED_DEMO_PASSWORD="choose-a-local-dev-password" # auth demo seed/test only
+# Optional until Phase 1 provides verification/reset pages:
+$env:AUTH_ACTION_URL="https://app.example.com/auth/action"
 poetry run uvicorn app.main:app --reload
 # http://localhost:8000/health
 ```
@@ -75,7 +79,7 @@ flutter run -d chrome --web-port 8080 --dart-define=API_BASE_URL=http://localhos
 # flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8000
 ```
 
-### Seed the Phase 0.4 data foundation
+### Seed the data foundation and optional Phase 0.5 Auth users
 
 The seed is idempotent and creates only the permission catalog, two demo companies,
 their system roles/mappings, and demo users. Set the Firebase Admin variables shown
@@ -89,6 +93,23 @@ poetry run python -m scripts.seed
 Re-running the command reconciles the same deterministic document IDs without
 creating duplicates. Placeholder Firebase UIDs use the `demo-` prefix and are data
 foundation records only; no authentication accounts or flows are created.
+
+To provision the same declared demo users in Firebase Authentication, migrate their
+Firestore document IDs to the real Firebase UIDs, and set their custom claims:
+
+```powershell
+cd apps/api
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
+$env:FIREBASE_PROJECT_ID="your-firebase-project-id"
+$env:SEED_DEMO_PASSWORD="choose-a-local-dev-password"
+poetry run python -m scripts.seed --with-auth-users
+```
+
+Re-running is safe and retains one user per seeded role. The migration applies only
+to the seed's fixed demo-user list. For the local real-token test, also set
+`FIREBASE_WEB_API_KEY`; the test signs in via Firebase Identity Toolkit using the
+demo email/password. `AUTH_ACTION_URL` is optional: when unset, verification/reset
+link wrappers use Firebase defaults; Phase 1 can set it when auth pages exist.
 
 ## Tooling
 
