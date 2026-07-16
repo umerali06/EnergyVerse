@@ -47,6 +47,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: ESLint
         run: pnpm lint
+      - name: Unit tests
+        run: pnpm test
       - name: Build
         run: pnpm build
 
@@ -66,3 +68,5 @@ jobs:
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
+      - name: Unit and widget tests
+        run: flutter test

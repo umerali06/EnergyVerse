@@ -26,7 +26,11 @@ async def verify_token(
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "missing_token", "message": "Bearer token is required"},
+            detail={
+                "error": "unauthorized",
+                "code": "missing_token",
+                "message": "Bearer token is required",
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
@@ -34,7 +38,11 @@ async def verify_token(
     except TokenVerificationError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": error.code, "message": str(error)},
+            detail={
+                "error": "unauthorized",
+                "code": error.code,
+                "message": str(error),
+            },
             headers={"WWW-Authenticate": "Bearer"},
         ) from error
 
@@ -47,7 +55,11 @@ async def get_current_user(
     if not isinstance(uid, str) or not uid or not isinstance(company_id, str) or not company_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "identity_not_provisioned", "message": "User identity is incomplete"},
+            detail={
+                "error": "forbidden",
+                "code": "identity_not_provisioned",
+                "message": "User identity is incomplete",
+            },
         )
 
     scope = CompanyScope(company_id=company_id)
@@ -56,12 +68,20 @@ async def get_current_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "user_not_found", "message": "User is not provisioned"},
+            detail={
+                "error": "forbidden",
+                "code": "user_not_found",
+                "message": "User is not provisioned",
+            },
         )
     if user.status != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "user_inactive", "message": "User is inactive"},
+            detail={
+                "error": "forbidden",
+                "code": "user_inactive",
+                "message": "User is inactive",
+            },
         )
 
     roles = RoleRepository()
@@ -69,7 +89,11 @@ async def get_current_user(
     if role is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "role_not_found", "message": "User role is unavailable"},
+            detail={
+                "error": "forbidden",
+                "code": "role_not_found",
+                "message": "User role is unavailable",
+            },
         )
     resolver = PermissionResolver(
         users,
@@ -82,7 +106,11 @@ async def get_current_user(
     except LookupError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "permissions_unavailable", "message": str(error)},
+            detail={
+                "error": "forbidden",
+                "code": "permissions_unavailable",
+                "message": str(error),
+            },
         ) from error
 
     return CurrentUser(

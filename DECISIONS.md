@@ -11,6 +11,7 @@
 | D-005 | Document metadata contracts | **Explicit `TenantDoc`, `GlobalDoc`, and `AppendOnlyDoc` bases** | **RESOLVED — LOCKED** | 2026-07-15 |
 | D-006 | Super Admin cross-tenant repository access | **Deferred until verified post-auth trusted context exists** | **RESOLVED — LOCKED** | 2026-07-15 |
 | D-007 | Backend token verification boundary | **Provider-neutral `TokenVerifier` protocol with Firebase adapter** | **RESOLVED — LOCKED** | 2026-07-16 |
+| D-008 | RBAC denial contract and enforcement authority | **401 for authentication; 403 for authorization; server authoritative, UI advisory** | **RESOLVED — LOCKED** | 2026-07-16 |
 
 ## Decision Details
 
@@ -75,6 +76,23 @@
 - **Consequences:** A later SAML/OIDC adapter can implement the same protocol.
   Permission-specific dependencies are intentionally deferred to Phase 0.6.
 
+### D-008 — RBAC Enforcement → Server-Authoritative 401/403 Contract
+
+- **Decision owner:** Product owner
+- **Chosen option:** HTTP 401 answers “who are you?” for missing/invalid identity;
+  HTTP 403 answers “you cannot do this” after authentication. Authentication and
+  authorization errors are top-level JSON contracts.
+- **Authority:** FastAPI permission dependencies are the security boundary. Next.js
+  and Flutter guards mirror effective permissions only for user experience and can
+  never authorize an API operation.
+- **Denial trace:** Permission/role gates attempt a company-scoped
+  `access.denied` audit containing route, required keys, missing keys, and mode.
+  Audit failure is logged but does not change the 403 result.
+- **Super Admin:** No cross-tenant bypass exists. A scoped Super Admin passes only
+  through its full Phase 0.4 permission mapping, preserving D-006.
+- **Consequences:** Feature routes added later must prefer permission gates;
+  `require_role` is reserved for the few policies that are inherently role-based.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -92,3 +110,6 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 - **2026-07-16 — Phase 0.5:** Added D-007, reaffirming D-003's provider-neutral
   verifier seam. Firebase custom claims carry tenant/role hints while scoped
   Firestore repositories remain authoritative for active identity and permissions.
+- **2026-07-16 — Phase 0.6:** Added D-008. Server-side dependencies now enforce
+  the Phase 0.4 matrix on the Phase 0.5 identity chain; client guards remain
+  explicitly advisory and no cross-tenant exception was introduced.
