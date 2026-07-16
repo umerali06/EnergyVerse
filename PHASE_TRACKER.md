@@ -17,7 +17,8 @@ Only one micro-task may be active at a time.
 | 0.3 | FastAPI ↔ Firebase Admin SDK, Firestore-aware `/health`, and client connectivity indicators | Done |
 | 0.4 | Firestore data foundation — tenancy, companies, users, roles, permissions, role mappings, and audit logs | Done |
 | 0.5 | Backend auth foundation — Firebase token verification, typed current user, claims, provisioning/link services, auth-user seed migration, and protected `/api/v1/auth/me` | Done |
-| 0.6 | Per-permission API gating and UI authorization guards | In progress |
+| 0.6 | RBAC enforcement — permission/role dependencies, demo route gates, denial audits, and admin/mobile guard helpers | Done |
+| 0.7 | Scope pending product-owner definition | In progress |
 | 1 | To be defined | Not started |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |
@@ -39,4 +40,4 @@ Only one micro-task may be active at a time.
 | 19 | To be defined | Not started |
 | 20 | To be defined | Not started |
 
-Detailed scopes for Phases 0.7–20 have not been fully supplied and must not be invented.
+Detailed scopes for Phases 0.7–20 have not been fully supplied and must not be invented; no Phase 0.7 implementation has started.
