@@ -19,9 +19,11 @@ class CompanyRepository:
         self._audit = audit
 
     async def get(self, scope: CompanyScope) -> Company | None:
-        snapshot = await self._client.collection(self.collection_name).document(
-            scope.company_id
-        ).get(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS, retry=None)
+        snapshot = (
+            await self._client.collection(self.collection_name)
+            .document(scope.company_id)
+            .get(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS, retry=None)
+        )
         if not snapshot.exists:
             return None
         data = snapshot.to_dict()
@@ -78,10 +80,14 @@ class CompanyRepository:
                 "updated_at": utc_now(),
             }
         )
-        await self._client.collection(self.collection_name).document(scope.company_id).set(
-            company.model_dump(),
-            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
-            retry=None,
+        await (
+            self._client.collection(self.collection_name)
+            .document(scope.company_id)
+            .set(
+                company.model_dump(),
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+                retry=None,
+            )
         )
         if self._audit is not None:
             await self._audit.audit(
@@ -101,9 +107,13 @@ class CompanyRepository:
         current = await self.get(scope)
         if current is None:
             raise LookupError("company not found")
-        await self._client.collection(self.collection_name).document(scope.company_id).delete(
-            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
-            retry=None,
+        await (
+            self._client.collection(self.collection_name)
+            .document(scope.company_id)
+            .delete(
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+                retry=None,
+            )
         )
         if self._audit is not None:
             await self._audit.audit(

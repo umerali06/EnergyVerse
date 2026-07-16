@@ -6,8 +6,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 has_real_credentials = bool(
-    os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    or os.getenv("FIREBASE_CREDENTIALS_B64")
+    os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or os.getenv("FIREBASE_CREDENTIALS_B64")
 )
 
 

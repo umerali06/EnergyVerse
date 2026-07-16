@@ -49,9 +49,7 @@ def initialize_firebase() -> App | None:
             return None
 
         options = (
-            {"projectId": settings.firebase_project_id}
-            if settings.firebase_project_id
-            else None
+            {"projectId": settings.firebase_project_id} if settings.firebase_project_id else None
         )
         _firebase_app = firebase_admin.initialize_app(credential, options)
         logger.info("Firebase Admin SDK initialized")

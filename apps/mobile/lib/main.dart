@@ -1,11 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
+import 'api/api_service.dart';
 import 'auth/permissions.dart';
-import 'config.dart';
 import 'design_system/motion.dart';
 import 'design_system/primitives.dart';
 import 'design_system/showcase.dart';
@@ -16,9 +13,18 @@ void main() {
 }
 
 class FevApp extends StatefulWidget {
-  const FevApp({this.initialRoute, super.key});
+  const FevApp({
+    this.api,
+    this.getIdToken,
+    this.initialRoute,
+    this.onUnauthorized,
+    super.key,
+  });
 
+  final ApiContract? api;
+  final TokenProvider? getIdToken;
   final String? initialRoute;
+  final UnauthorizedHook? onUnauthorized;
 
   @override
   State<FevApp> createState() => _FevAppState();
@@ -26,11 +32,23 @@ class FevApp extends StatefulWidget {
 
 class _FevAppState extends State<FevApp> {
   late final AppThemeController _theme;
+  late final ApiContract _api;
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   void initState() {
     super.initState();
     _theme = AppThemeController()..load();
+    _api = widget.api ??
+        ApiService(
+          getIdToken: widget.getIdToken,
+          onUnauthorized: widget.onUnauthorized,
+          feedback: CallbackApiFeedback(
+            (message) => _messengerKey.currentState?.showSnackBar(
+              buildAppToast(message, status: AppStatus.critical),
+            ),
+          ),
+        );
   }
 
   @override
@@ -47,6 +65,7 @@ class _FevAppState extends State<FevApp> {
         animation: _theme,
         builder: (context, _) => MaterialApp(
           title: 'FEV Field App',
+          scaffoldMessengerKey: _messengerKey,
           theme: AppThemes.light,
           darkTheme: AppThemes.dark,
           themeMode: _theme.mode,
@@ -60,7 +79,10 @@ class _FevAppState extends State<FevApp> {
             }
             return null;
           },
-          home: const PermissionBootstrap(child: HomePage()),
+          home: PermissionBootstrap(
+            api: _api,
+            child: HomePage(api: _api),
+          ),
         ),
       ),
     );
@@ -68,10 +90,14 @@ class _FevAppState extends State<FevApp> {
 }
 
 class PermissionBootstrap extends StatefulWidget {
-  const PermissionBootstrap({required this.child, this.idToken, super.key});
+  const PermissionBootstrap({
+    required this.api,
+    required this.child,
+    super.key,
+  });
 
+  final ApiContract api;
   final Widget child;
-  final String? idToken;
 
   @override
   State<PermissionBootstrap> createState() => _PermissionBootstrapState();
@@ -83,8 +109,8 @@ class _PermissionBootstrapState extends State<PermissionBootstrap> {
   @override
   void initState() {
     super.initState();
-    _permissions = PermissionController();
-    _permissions.loadFromMe(idToken: widget.idToken);
+    _permissions = PermissionController(api: widget.api);
+    _permissions.loadFromMe();
   }
 
   @override
@@ -100,7 +126,9 @@ class _PermissionBootstrapState extends State<PermissionBootstrap> {
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({required this.api, super.key});
+
+  final ApiContract api;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -118,28 +146,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadHealth() async {
     try {
-      final baseUrl = apiBaseUrl.endsWith('/')
-          ? apiBaseUrl.substring(0, apiBaseUrl.length - 1)
-          : apiBaseUrl;
-      final response = await http
-          .get(Uri.parse('$baseUrl/health'))
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) {
-        throw StateError('Health request returned HTTP ${response.statusCode}');
-      }
-
-      final health = jsonDecode(response.body) as Map<String, dynamic>;
-      final firestore = health['firestore'];
-      if (firestore != 'connected' &&
-          firestore != 'unavailable' &&
-          firestore != 'unconfigured') {
-        throw const FormatException('Invalid Firestore health status');
-      }
+      final health = await widget.api.getHealth();
 
       if (mounted) {
         setState(() {
           _apiStatus = 'connected';
-          _firestoreStatus = firestore as String;
+          _firestoreStatus = health.firestore.name;
         });
       }
     } catch (_) {

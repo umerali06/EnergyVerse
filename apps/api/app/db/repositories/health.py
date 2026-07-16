@@ -23,9 +23,13 @@ class HealthRepository:
         self._client = client or get_firestore_client()
 
     async def ping(self) -> None:
-        await self._client.collection("_health").document("ping").get(
-            timeout=FIRESTORE_RPC_TIMEOUT_SECONDS,
-            retry=None,
+        await (
+            self._client.collection("_health")
+            .document("ping")
+            .get(
+                timeout=FIRESTORE_RPC_TIMEOUT_SECONDS,
+                retry=None,
+            )
         )
 
 

@@ -93,13 +93,14 @@ def test_seed_without_auth_does_not_recreate_migrated_placeholders() -> None:
     )
     counts = asyncio.run(run_seed(firestore))
     assert counts.users == len(DEMO_USERS)
-    assert all(
-        demo.placeholder_uid not in firestore.documents("users") for demo in DEMO_USERS
+    assert all(demo.placeholder_uid not in firestore.documents("users") for demo in DEMO_USERS)
+    assert (
+        len(
+            [
+                user
+                for user in firestore.documents("users").values()
+                if user["company_id"] == CompanyScope(company_id=ACME_COMPANY_ID).company_id
+            ]
+        )
+        == 7
     )
-    assert len(
-        [
-            user
-            for user in firestore.documents("users").values()
-            if user["company_id"] == CompanyScope(company_id=ACME_COMPANY_ID).company_id
-        ]
-    ) == 7

@@ -43,9 +43,7 @@ class UserRepository(TenantRepository[User]):
     async def find_by_email(self, scope: CompanyScope, email: str) -> User | None:
         """Find within a tenant; used to keep seed identity reconciliation scoped."""
         normalized = email.casefold()
-        matches = [
-            user for user in await self.list(scope) if user.email.casefold() == normalized
-        ]
+        matches = [user for user in await self.list(scope) if user.email.casefold() == normalized]
         return next((user for user in matches if not user.id.startswith("demo-")), None) or next(
             iter(matches), None
         )

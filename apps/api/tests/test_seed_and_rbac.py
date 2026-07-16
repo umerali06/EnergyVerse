@@ -252,9 +252,7 @@ def test_company_a_query_never_returns_company_b_documents() -> None:
         assert await users.get(acme, "demo-beta-company-admin") is None
         assert await users.get(second, "demo-acme-super_admin") is None
         assert all(role.company_id == ACME_COMPANY_ID for role in await roles.list(acme))
-        assert all(
-            role.company_id == SECOND_COMPANY_ID for role in await roles.list(second)
-        )
+        assert all(role.company_id == SECOND_COMPANY_ID for role in await roles.list(second))
 
     asyncio.run(scenario())
 

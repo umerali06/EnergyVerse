@@ -1,0 +1,35 @@
+import 'package:test/test.dart';
+import 'package:fev_api_client/fev_api_client.dart';
+
+// tests for CurrentUser
+void main() {
+  final instance = CurrentUserBuilder();
+  // TODO add properties to the builder and call build()
+
+  group(CurrentUser, () {
+    // String companyId
+    test('to test the property `companyId`', () async {
+      // TODO
+    });
+
+    // String email
+    test('to test the property `email`', () async {
+      // TODO
+    });
+
+    // BuiltSet<String> permissions
+    test('to test the property `permissions`', () async {
+      // TODO
+    });
+
+    // String roleKey
+    test('to test the property `roleKey`', () async {
+      // TODO
+    });
+
+    // String uid
+    test('to test the property `uid`', () async {
+      // TODO
+    });
+  });
+}

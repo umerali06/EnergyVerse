@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ApiClientError, useApiClient } from "@/api";
 import { Can, usePermissions } from "@/auth/permissions";
 
 type FirestoreStatus = "connected" | "unavailable" | "unconfigured";
@@ -11,9 +12,8 @@ type ConnectionState = {
   firestore: FirestoreStatus | "checking";
 };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-
 export default function Home() {
+  const api = useApiClient();
   const { can, status: permissionStatus } = usePermissions();
   const [connection, setConnection] = useState<ConnectionState>({
     api: "checking",
@@ -25,35 +25,17 @@ export default function Home() {
 
     async function loadHealth() {
       try {
-        const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/health`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          throw new Error(`Health request failed with HTTP ${response.status}`);
-        }
-
-        const health = (await response.json()) as { firestore?: unknown };
-        const firestore = health.firestore;
-        if (
-          firestore !== "connected" &&
-          firestore !== "unavailable" &&
-          firestore !== "unconfigured"
-        ) {
-          throw new Error("Health response contained an invalid Firestore status");
-        }
-
-        setConnection({ api: "connected", firestore });
+        const health = await api.getHealth(controller.signal);
+        setConnection({ api: "connected", firestore: health.firestore });
       } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setConnection({ api: "unavailable", firestore: "unavailable" });
-        }
+        if (error instanceof ApiClientError && error.code === "request_cancelled") return;
+        setConnection({ api: "unavailable", firestore: "unavailable" });
       }
     }
 
     void loadHealth();
     return () => controller.abort();
-  }, []);
+  }, [api]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-50">

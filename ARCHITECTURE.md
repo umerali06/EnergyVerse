@@ -2,11 +2,11 @@
 
 ## Status
 
-Phase 0.7 is complete. Both clients now consume one framework-neutral visual and
-motion token source through generated bindings, dark/light themes, and reusable
-accessible primitives. Detailed feature architecture remains intentionally
-incremental and is recorded after each tested micro-task. Locked platform decisions
-are tracked in `DECISIONS.md`.
+Phase 0 is complete. FastAPI now publishes a committed OpenAPI contract, pinned
+generators produce typed TypeScript and Dart clients, and both applications consume
+those clients through shared token/error/feedback wrappers. Detailed feature
+architecture remains intentionally incremental and is recorded after each tested
+micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
 
 ## Architecture Goals
 
@@ -31,7 +31,8 @@ The blocking backend, database, and authentication decisions are confirmed. Syst
 ### Backend and APIs
 
 - Framework: FastAPI on Python 3.11+
-- API style and versioning: _To be decided_
+- API style and versioning: FastAPI OpenAPI 3.1 with explicit operation IDs, direct
+  typed resource responses, and `/api/v1` for versioned application routes
 - Current infrastructure boundaries: `app/core/firebase.py` owns Admin SDK startup; `app/db/firestore.py` owns only the lazy asynchronous client; `app/db/repositories/` owns every Firestore operation. Routers and services consume repositories rather than raw clients.
 - Future integration interfaces: _To be defined without implementing out-of-scope systems_
 
@@ -110,6 +111,29 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   Feature modules may extend the system centrally but may not introduce parallel
   color, spacing, typography, elevation, or motion constants.
 
+### API Contract and Cross-Client Errors
+
+- FastAPI owns the source contract. Every current operation has an explicit stable
+  `operation_id`, tag, typed success model, and typed error responses. The
+  reproducible export script writes `packages/contracts/openapi.json`.
+- Pinned OpenAPI Generator 7.10.0 templates emit `typescript-fetch` for admin and
+  `dart-dio` for mobile. The generated outputs are committed; CI repeats export and
+  generation with pinned runtimes and fails on any diff.
+- Single-resource success responses are returned directly. Future list responses
+  use `{items, next_cursor}`; `next_cursor` is opaque and nullable, `null` means no
+  more pages, and totals are omitted unless a future use case explicitly requires
+  their Firestore cost.
+- Every failure is `{error, message, details?, request_id}`. Request middleware
+  accepts a valid caller UUID or creates one, echoes `X-Request-ID`, and handlers
+  map validation/auth/forbidden/not-found/conflict/unhandled failures without
+  leaking stack traces. RBAC `required`, `missing`, and `mode` values live under
+  `details`.
+- Admin wraps the generated Fetch client and mobile wraps the generated Dio client.
+  These layers inject Firebase ID tokens, translate envelopes to typed errors, run
+  the Phase 0.5 401 seam, log request IDs in development, and route user feedback
+  through the Phase 0.7 toast/snackbar infrastructure. Application code does not
+  issue feature-level direct `fetch`, `http`, or raw Dio calls.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -145,5 +169,6 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 0.3 — Firebase health connection | FastAPI initializes one Firebase Admin app at process startup from either a local service-account path or base64 JSON. A lazy async client in `app/db/firestore.py` performs the only Firestore call: a retry-disabled, deadline-bounded read of `_health/ping`. `GET /health` converts missing credentials, connectivity, timeouts, and failures into the stable HTTP 200 contract consumed directly by the Next.js and Flutter scaffold screens. Local CORS origins connect both clients to the API. Firestore rules deny every direct client read/write, preserving FastAPI as the database boundary. No collections, tenant data, auth flows, or seed data are introduced. | 2026-07-15 |
 | Phase 0.4 — tenant data foundation | Adds only `companies`, `users`, `roles`, `permissions`, `role_permissions`, and `audit_logs` as top-level collections. Pydantic base contracts feed typed repositories; tenant repositories require `CompanyScope`, central stamps protect provenance, mutations can emit append-only audit records, and permission resolution returns immutable keys. The idempotent seed uses deterministic IDs to reconcile the exact catalog, Acme’s seven system roles/users, and a second isolated tenant/user. The existing health read was moved behind an infrastructure repository so all Firestore operations now share the repository boundary. No HTTP routes, auth flows, UI, or feature collections were added. | 2026-07-15 |
 | Phase 0.5 — backend auth foundation | Adds a provider-neutral `TokenVerifier` seam with a Firebase Admin adapter, explicit 401 translation, and the sole protected route `/api/v1/auth/me`. Verified `uid` + `company_id` claims enter the Phase 0.4 `CompanyScope`; repositories load the active user/role and the existing resolver returns exact immutable permission keys for typed `CurrentUser`. Claims services synchronize `company_id`, `role_id`, and `role_key`; provisioning links Firebase Auth creation to scoped Firestore creation and audit records; verification/reset link wrappers optionally consume `AUTH_ACTION_URL`. The auth seed mode reconciles only its declared demo emails, re-keys placeholder documents to real Firebase UIDs while preserving timestamps, audits migrations, and handles interrupted reruns without duplicates. Firestore rules remain deny-all and no login UI or permission-specific guard was added. | 2026-07-16 |
-| Phase 0.6 — RBAC enforcement | Connects the Phase 0.5 token → `CurrentUser` chain and Phase 0.4 immutable role matrix to `require_permission` (`all`/`any`) and the narrowly reserved `require_role`. Three temporary `/api/v1/_rbac-demo` routes prove single/all/any gates; 401 and 403 use top-level JSON contracts, and permission/role denials attempt a scoped append-only `access.denied` audit without allowing audit failure to weaken or crash the gate. Super Admin receives no bypass or cross-tenant path. The Next.js permission context and Flutter permission provider consume `/me` once through future-auth token seams and expose matching predicates/wrappers on existing scaffold screens; these client guards are explicitly advisory. CI now executes admin and mobile guard tests. No feature module or Phase 0.7 behavior was added. | 2026-07-16 |
+| Phase 0.6 — RBAC enforcement | Connects the Phase 0.5 token → `CurrentUser` chain and Phase 0.4 immutable role matrix to `require_permission` (`all`/`any`) and the narrowly reserved `require_role`. Three temporary `/api/v1/_rbac-demo` routes prove single/all/any gates; permission/role denials attempt a scoped append-only `access.denied` audit without allowing audit failure to weaken or crash the gate. Phase 0.8 now carries 401/403 through the unified envelope with RBAC context under `details`. Super Admin receives no bypass or cross-tenant path. The Next.js permission context and Flutter permission provider consume `/me` once through future-auth token seams and expose matching predicates/wrappers on existing scaffold screens; these client guards are explicitly advisory. CI executes admin and mobile guard tests. | 2026-07-16 |
 | Phase 0.7 — shared design system | Establishes `packages/design-tokens/tokens.json` as the single framework-neutral source and generates committed bindings into Next.js Tailwind/CSS and Flutter `ThemeData`. Both clients default to dark, persist light/dark choice, bundle Inter/JetBrains Mono, share equivalent reusable primitives, and implement the same fast/standard/slow motion feel with reduced-animation paths. Development-only showcases render every primitive and motion behavior without adding feature or auth screens. All future screens must reuse this foundation. | 2026-07-16 |
+| Phase 0.8 — API contract and generated clients | Connects the Phase 0.5 token/current-user chain and Phase 0.6 RBAC routes to a typed OpenAPI 3.1 contract with one request-ID error envelope. Pinned generation commits a TypeScript Fetch client for Next.js and Dart Dio client for Flutter; CI re-exports/regenerates and rejects drift. Client wrappers inject tokens, normalize network/API failures, invoke the 401 seam, and surface Phase 0.7 toast/snackbar feedback. Existing health and `/me` consumers now use these wrappers. No feature screen/module or Phase 1 implementation was added. | 2026-07-16 |

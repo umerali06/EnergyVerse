@@ -49,9 +49,7 @@ class FakeQuery:
         )
 
     async def stream(self, **_: Any) -> AsyncIterator[FakeDocumentSnapshot]:
-        for document_id, data in sorted(
-            self._client._store.get(self._collection, {}).items()
-        ):
+        for document_id, data in sorted(self._client._store.get(self._collection, {}).items()):
             if all(
                 operator == "==" and data.get(field) == value
                 for field, operator, value in self._filters
@@ -75,7 +73,4 @@ class FakeAsyncClient:
         return deepcopy(self._store.get(collection, {}))
 
     def counts(self) -> dict[str, int]:
-        return {
-            collection: len(documents)
-            for collection, documents in sorted(self._store.items())
-        }
+        return {collection: len(documents) for collection, documents in sorted(self._store.items())}

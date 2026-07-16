@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
-import '../config.dart';
+import '../api/api_service.dart';
 
 enum PermissionStatus { loading, ready, unauthenticated, error }
 
@@ -14,23 +11,21 @@ class PermissionAccess {
   final Set<String> permissions;
 
   bool can(String key) => permissions.contains(key);
-
   bool hasAny(Iterable<String> keys) => keys.any(can);
-
   bool hasAll(Iterable<String> keys) => keys.every(can);
 }
 
 class PermissionController extends ChangeNotifier {
   PermissionController({
+    ApiContract? api,
     Iterable<String>? initialPermissions,
-    http.Client? client,
-  })  : _client = client,
+  })  : _api = api,
         _access = PermissionAccess(initialPermissions ?? const <String>[]),
         _status = initialPermissions == null
             ? PermissionStatus.loading
             : PermissionStatus.ready;
 
-  final http.Client? _client;
+  final ApiContract? _api;
   PermissionAccess _access;
   PermissionStatus _status;
   bool _disposed = false;
@@ -41,32 +36,22 @@ class PermissionController extends ChangeNotifier {
   bool hasAny(Iterable<String> keys) => _access.hasAny(keys);
   bool hasAll(Iterable<String> keys) => _access.hasAll(keys);
 
-  Future<void> loadFromMe({String? idToken}) async {
+  Future<void> loadFromMe() async {
+    final api = _api;
+    if (api == null) {
+      _set(const <String>[], PermissionStatus.error);
+      return;
+    }
     try {
-      final baseUrl = apiBaseUrl.endsWith('/')
-          ? apiBaseUrl.substring(0, apiBaseUrl.length - 1)
-          : apiBaseUrl;
-      final uri = Uri.parse('$baseUrl/api/v1/auth/me');
-      final headers = idToken == null
-          ? const <String, String>{}
-          : <String, String>{'Authorization': 'Bearer $idToken'};
-      final response = await (_client?.get(uri, headers: headers) ??
-              http.get(uri, headers: headers))
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 401) {
-        _set(const <String>[], PermissionStatus.unauthenticated);
-        return;
-      }
-      if (response.statusCode != 200) {
-        throw StateError('/me returned HTTP ${response.statusCode}');
-      }
-      final currentUser = jsonDecode(response.body) as Map<String, dynamic>;
-      final rawPermissions = currentUser['permissions'];
-      if (rawPermissions is! List<dynamic> ||
-          rawPermissions.any((permission) => permission is! String)) {
-        throw const FormatException('/me returned invalid permissions');
-      }
-      _set(rawPermissions.cast<String>(), PermissionStatus.ready);
+      final currentUser = await api.getCurrentUser();
+      _set(currentUser.permissions, PermissionStatus.ready);
+    } on ApiException catch (error) {
+      _set(
+        const <String>[],
+        error.statusCode == 401
+            ? PermissionStatus.unauthenticated
+            : PermissionStatus.error,
+      );
     } catch (_) {
       _set(const <String>[], PermissionStatus.error);
     }

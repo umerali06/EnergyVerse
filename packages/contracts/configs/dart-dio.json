@@ -1,0 +1,11 @@
+{
+  "generatorName": "dart-dio",
+  "inputSpec": "openapi.json",
+  "outputDir": "generated/dart-dio",
+  "additionalProperties": {
+    "hideGenerationTimestamp": true,
+    "pubName": "fev_api_client",
+    "pubVersion": "0.8.0",
+    "serializationLibrary": "built_value"
+  }
+}

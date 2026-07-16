@@ -23,8 +23,13 @@ import { ThemeProvider, ThemeSwitch } from "./theme-provider";
 import { ToastProvider, useToast } from "./toast";
 
 function ToastProbe() {
-  const { showToast } = useToast();
-  return <Button onClick={() => showToast("Saved", "healthy")}>Toast</Button>;
+  const toast = useToast();
+  return (
+    <>
+      <Button onClick={() => toast.success("Saved")}>Toast</Button>
+      <Button onClick={() => toast.error("Failed")}>Error toast</Button>
+    </>
+  );
 }
 
 describe("admin design system", () => {
@@ -134,5 +139,7 @@ describe("admin design system", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Toast" }));
     expect(await screen.findByText(/Saved/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Error toast" }));
+    expect(await screen.findByText(/Failed/)).toBeInTheDocument();
   });
 });

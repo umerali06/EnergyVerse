@@ -13,6 +13,7 @@
 | D-007 | Backend token verification boundary | **Provider-neutral `TokenVerifier` protocol with Firebase adapter** | **RESOLVED — LOCKED** | 2026-07-16 |
 | D-008 | RBAC denial contract and enforcement authority | **401 for authentication; 403 for authorization; server authoritative, UI advisory** | **RESOLVED — LOCKED** | 2026-07-16 |
 | D-009 | Cross-client design language and motion | **Industrial blue/orange brand with one generated token source and reduced-motion-aware client implementations** | **RESOLVED — LOCKED** | 2026-07-16 |
+| D-010 | API contract, generated clients, and error strategy | **OpenAPI 3.1 → pinned TypeScript Fetch/Dart Dio clients; unified request-ID error envelope; CI drift rejection** | **RESOLVED — LOCKED** | 2026-07-16 |
 
 ## Decision Details
 
@@ -82,7 +83,8 @@
 - **Decision owner:** Product owner
 - **Chosen option:** HTTP 401 answers “who are you?” for missing/invalid identity;
   HTTP 403 answers “you cannot do this” after authentication. Authentication and
-  authorization errors are top-level JSON contracts.
+  authorization retain distinct machine codes/statuses inside the Phase 0.8
+  unified error envelope; authorization context is nested under `details`.
 - **Authority:** FastAPI permission dependencies are the security boundary. Next.js
   and Flutter guards mirror effective permissions only for user experience and can
   never authorize an API operation.
@@ -115,6 +117,30 @@
   New visual values or reusable components are added centrally, never copied into
   a feature. The showcases remain development-only and are not product screens.
 
+### D-010 — API Contract → Generated Clients and Unified Errors
+
+- **Decision owner:** Product owner
+- **Source of truth:** FastAPI emits OpenAPI 3.1 and a reproducible script commits
+  `packages/contracts/openapi.json`. Every route owns a stable operation ID, tag,
+  typed success response, and error response metadata.
+- **Generators:** OpenAPI Generator 7.10.0 uses `typescript-fetch` for admin and
+  `dart-dio` for mobile. The CLI wrapper is pinned at 2.15.3; CI pins Python 3.11,
+  Poetry 2.4.1, Node 22.22.0, pnpm 9.15.9, Temurin Java 17.0.16+8, and Flutter
+  3.44.6. Generated outputs and dependency locks are committed.
+- **Drift rule:** API change → export spec → regenerate both clients. CI repeats
+  that exact sequence and fails if `packages/contracts` differs.
+- **Success contract:** Single resources are their typed shape. Future lists are
+  `{items, next_cursor}` with an opaque nullable cursor; `null` means no further
+  page. Total counts are excluded by default because Firestore counts have a cost.
+- **Failure contract:** All failures are
+  `{error, message, details?, request_id}` and echo `X-Request-ID`. HTTP status
+  retains meaning; 401 and 403 preserve D-008, with RBAC context under `details`.
+  Unhandled errors never expose stack traces.
+- **Client boundary:** Next.js and Flutter use wrappers over generated clients for
+  token injection, typed error translation, 401 callbacks, request-ID diagnostics,
+  network handling, and Phase 0.7 toast/snackbar feedback. Direct feature-level
+  transport calls are prohibited.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -138,3 +164,6 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 - **2026-07-16 — Phase 0.7:** Added D-009. Admin and mobile now derive their
   themes, primitives, and motion feel from one generated token source, with dark
   default, persisted light mode, bundled fonts, and reduced-motion parity.
+- **2026-07-16 — Phase 0.8:** Added D-010. FastAPI is the OpenAPI source of truth;
+  pinned TypeScript Fetch and Dart Dio clients feed typed application wrappers,
+  all errors share a request-ID envelope, and CI rejects contract drift.

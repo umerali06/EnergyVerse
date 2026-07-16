@@ -92,9 +92,12 @@ def require_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "error": "forbidden",
-                "required": list(required),
-                "mode": mode,
-                "missing": missing,
+                "message": "Required permissions are missing",
+                "details": {
+                    "required": list(required),
+                    "mode": mode,
+                    "missing": missing,
+                },
             },
         )
 
@@ -126,9 +129,12 @@ def require_role(*role_keys: str) -> RbacDependency:
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "error": "forbidden",
-                "required": list(required),
-                "mode": "any",
-                "missing": missing,
+                "message": "Required role is missing",
+                "details": {
+                    "required": list(required),
+                    "mode": "any",
+                    "missing": missing,
+                },
             },
         )
 
