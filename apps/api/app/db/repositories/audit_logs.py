@@ -33,17 +33,25 @@ class AuditLogRepository:
             metadata=event.metadata,
             created_at=utc_now(),
         )
-        await self._client.collection(self.collection_name).document(audit_log.id).set(
-            audit_log.model_dump(),
-            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
-            retry=None,
+        await (
+            self._client.collection(self.collection_name)
+            .document(audit_log.id)
+            .set(
+                audit_log.model_dump(),
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+                retry=None,
+            )
         )
         return audit_log
 
     async def get(self, scope: CompanyScope, event_id: str) -> AuditLog | None:
-        snapshot = await self._client.collection(self.collection_name).document(event_id).get(
-            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
-            retry=None,
+        snapshot = (
+            await self._client.collection(self.collection_name)
+            .document(event_id)
+            .get(
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+                retry=None,
+            )
         )
         if not snapshot.exists:
             return None

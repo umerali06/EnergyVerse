@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Mapping
 from typing import Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -80,11 +81,12 @@ def _request_with_verifier(verifier: TokenVerifier, token: str | None = "token")
 def test_me_missing_token_returns_401() -> None:
     response = _request_with_verifier(StaticTokenVerifier(), token=None)
     assert response.status_code == 401
-    assert response.json() == {
-        "error": "unauthorized",
-        "code": "missing_token",
-        "message": "Bearer token is required",
-    }
+    body = response.json()
+    assert body["error"] == "missing_token"
+    assert body["message"] == "Bearer token is required"
+    assert "details" not in body
+    assert UUID(body["request_id"])
+    assert response.headers["X-Request-ID"] == body["request_id"]
 
 
 @pytest.mark.parametrize(
@@ -100,11 +102,10 @@ def test_me_bad_token_returns_401(code: str, message: str) -> None:
         StaticTokenVerifier(error=TokenVerificationError(code, message))
     )
     assert response.status_code == 401
-    assert response.json() == {
-        "error": "unauthorized",
-        "code": code,
-        "message": message,
-    }
+    body = response.json()
+    assert body["error"] == code
+    assert body["message"] == message
+    assert UUID(body["request_id"])
 
 
 def test_me_returns_seeded_identity_and_exact_permissions(
@@ -124,9 +125,7 @@ def test_me_returns_seeded_identity_and_exact_permissions(
     assert body["email"] == "field_inspector@acme.example.invalid"
     assert body["company_id"] == ACME_COMPANY_ID
     assert body["role_key"] == "field_inspector"
-    assert set(body["permissions"]) == set(
-        SYSTEM_ROLE_TEMPLATES["field_inspector"].permission_keys
-    )
+    assert set(body["permissions"]) == set(SYSTEM_ROLE_TEMPLATES["field_inspector"].permission_keys)
 
 
 def test_me_inactive_user_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -143,13 +142,11 @@ def test_me_inactive_user_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     _override_repositories(monkeypatch, firestore)
     response = _request_with_verifier(
-        StaticTokenVerifier(
-            {"uid": "demo-acme-executive", "company_id": ACME_COMPANY_ID}
-        )
+        StaticTokenVerifier({"uid": "demo-acme-executive", "company_id": ACME_COMPANY_ID})
     )
     assert response.status_code == 403
-    assert response.json()["code"] == "user_inactive"
-    assert response.json()["error"] == "forbidden"
+    assert response.json()["error"] == "user_inactive"
+    assert UUID(response.json()["request_id"])
 
 
 def test_me_missing_firestore_user_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -159,8 +156,8 @@ def test_me_missing_firestore_user_returns_403(monkeypatch: pytest.MonkeyPatch) 
         StaticTokenVerifier({"uid": "missing", "company_id": ACME_COMPANY_ID})
     )
     assert response.status_code == 403
-    assert response.json()["code"] == "user_not_found"
-    assert response.json()["error"] == "forbidden"
+    assert response.json()["error"] == "user_not_found"
+    assert UUID(response.json()["request_id"])
 
 
 def test_sync_claims_from_role_sets_exact_payload() -> None:
@@ -224,6 +221,5 @@ def test_provision_user_creates_firestore_user_claims_and_audit() -> None:
     }
     audits = asyncio.run(AuditLogRepository(firestore).list(scope))
     assert any(
-        entry.action == "user.provisioned" and entry.target_id == provisioned.id
-        for entry in audits
+        entry.action == "user.provisioned" and entry.target_id == provisioned.id for entry in audits
     )

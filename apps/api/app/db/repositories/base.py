@@ -44,9 +44,7 @@ class TenantRepository(Generic[ModelT]):
         return self.model_type.model_validate(data)
 
     async def list(self, scope: CompanyScope) -> list[ModelT]:
-        query = self._collection.where(
-            filter=FieldFilter("company_id", "==", scope.company_id)
-        )
+        query = self._collection.where(filter=FieldFilter("company_id", "==", scope.company_id))
         documents = []
         async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
             data = snapshot.to_dict()

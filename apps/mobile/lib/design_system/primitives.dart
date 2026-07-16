@@ -320,7 +320,14 @@ void showAppToast(
   String message, {
   AppStatus status = AppStatus.info,
 }) {
-  ScaffoldMessenger.of(context).showSnackBar(
+  ScaffoldMessenger.of(context)
+      .showSnackBar(buildAppToast(message, status: status));
+}
+
+SnackBar buildAppToast(
+  String message, {
+  AppStatus status = AppStatus.info,
+}) =>
     SnackBar(
       content: Row(
         children: [
@@ -329,9 +336,7 @@ void showAppToast(
           Expanded(child: Text(message)),
         ],
       ),
-    ),
-  );
-}
+    );
 
 class AppTabs extends StatelessWidget {
   const AppTabs({

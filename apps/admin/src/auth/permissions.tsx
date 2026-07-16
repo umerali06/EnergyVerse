@@ -2,6 +2,8 @@
 
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
+import { ApiClientError, type FevApiClient, useOptionalApiClient } from "@/api";
+
 type PermissionStatus = "loading" | "ready" | "unauthenticated" | "error";
 
 type PermissionAccess = {
@@ -14,12 +16,6 @@ type PermissionContextValue = PermissionAccess & {
   permissions: ReadonlySet<string>;
   status: PermissionStatus;
 };
-
-type CurrentUserResponse = {
-  permissions: string[];
-};
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export function createPermissionAccess(permissions: Iterable<string>): PermissionAccess {
   const permissionSet = new Set(permissions);
@@ -34,13 +30,15 @@ const PermissionContext = createContext<PermissionContextValue | null>(null);
 
 export function PermissionProvider({
   children,
-  accessToken,
+  apiClient,
   initialPermissions,
 }: {
   children: ReactNode;
-  accessToken?: string;
+  apiClient?: Pick<FevApiClient, "getCurrentUser">;
   initialPermissions?: readonly string[];
 }) {
+  const contextClient = useOptionalApiClient();
+  const client = apiClient ?? contextClient;
   const seeded = initialPermissions !== undefined;
   const [permissions, setPermissions] = useState<ReadonlySet<string>>(
     () => new Set(initialPermissions ?? []),
@@ -49,41 +47,31 @@ export function PermissionProvider({
 
   useEffect(() => {
     if (seeded) return;
+    if (client === null) {
+      setPermissions(new Set());
+      setStatus("error");
+      return;
+    }
+    const activeClient = client;
 
     const controller = new AbortController();
     async function loadCurrentUser() {
       try {
-        const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-        const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/api/v1/auth/me`, {
-          cache: "no-store",
-          headers,
-          signal: controller.signal,
-        });
-        if (response.status === 401) {
-          setPermissions(new Set());
-          setStatus("unauthenticated");
-          return;
-        }
-        if (!response.ok) {
-          throw new Error(`/me returned HTTP ${response.status}`);
-        }
-        const currentUser = (await response.json()) as CurrentUserResponse;
-        if (!Array.isArray(currentUser.permissions)) {
-          throw new Error("/me returned invalid permissions");
-        }
+        const currentUser = await activeClient.getCurrentUser(controller.signal);
         setPermissions(new Set(currentUser.permissions));
         setStatus("ready");
       } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setPermissions(new Set());
-          setStatus("error");
-        }
+        if (error instanceof ApiClientError && error.code === "request_cancelled") return;
+        setPermissions(new Set());
+        setStatus(
+          error instanceof ApiClientError && error.status === 401 ? "unauthenticated" : "error",
+        );
       }
     }
 
     void loadCurrentUser();
     return () => controller.abort();
-  }, [accessToken, seeded]);
+  }, [client, seeded]);
 
   const value = useMemo<PermissionContextValue>(() => {
     const access = createPermissionAccess(permissions);

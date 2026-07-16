@@ -1,8 +1,31 @@
+import 'package:fev_api_client/fev_api_client.dart';
+import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/auth/permissions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
+
+class _IdentityApi implements ApiContract {
+  _IdentityApi(this.permissionKeys);
+
+  final Iterable<String> permissionKeys;
+  int requests = 0;
+
+  @override
+  Future<CurrentUser> getCurrentUser() async {
+    requests += 1;
+    return CurrentUser(
+      (builder) => builder
+        ..uid = 'test-uid'
+        ..email = 'test@example.invalid'
+        ..companyId = 'acme-energy'
+        ..roleKey = 'custom'
+        ..permissions.addAll(permissionKeys),
+    );
+  }
+
+  @override
+  Future<HealthResponse> getHealth() => throw UnimplementedError();
+}
 
 void main() {
   test('can, hasAny, and hasAll evaluate a sample permission set', () {
@@ -20,22 +43,14 @@ void main() {
     expect(access.hasAll(const ['assets.read', 'users.manage']), isFalse);
   });
 
-  test('loads permissions once from the protected /me response', () async {
-    var requests = 0;
-    final client = MockClient((request) async {
-      requests += 1;
-      expect(request.url.path, '/api/v1/auth/me');
-      expect(request.headers['Authorization'], 'Bearer test-token');
-      return http.Response(
-        '{"permissions":["assets.read","assets.write"]}',
-        200,
-      );
-    });
-    final controller = PermissionController(client: client);
+  test('loads permissions once through the generated-client API service seam',
+      () async {
+    final api = _IdentityApi(const ['assets.read', 'assets.write']);
+    final controller = PermissionController(api: api);
 
-    await controller.loadFromMe(idToken: 'test-token');
+    await controller.loadFromMe();
 
-    expect(requests, 1);
+    expect(api.requests, 1);
     expect(controller.status, PermissionStatus.ready);
     expect(controller.can('assets.write'), isTrue);
     controller.dispose();

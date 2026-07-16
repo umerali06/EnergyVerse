@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Mapping
 from typing import Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -63,12 +64,15 @@ def test_single_permission_allows_caller_with_permission() -> None:
 def test_single_permission_denies_with_exact_missing_contract() -> None:
     response = _request_as(_identity("custom", frozenset()), "single")
     assert response.status_code == 403
-    assert response.json() == {
-        "error": "forbidden",
+    body = response.json()
+    assert body["error"] == "forbidden"
+    assert body["message"] == "Required permissions are missing"
+    assert body["details"] == {
         "required": ["assets.write"],
         "mode": "all",
         "missing": ["assets.write"],
     }
+    assert UUID(body["request_id"])
 
 
 def test_all_mode_denies_when_one_permission_is_missing() -> None:
@@ -77,8 +81,8 @@ def test_all_mode_denies_when_one_permission_is_missing() -> None:
         "all",
     )
     assert response.status_code == 403
-    assert response.json()["missing"] == ["reports.generate"]
-    assert response.json()["mode"] == "all"
+    assert response.json()["details"]["missing"] == ["reports.generate"]
+    assert response.json()["details"]["mode"] == "all"
 
 
 def test_any_mode_allows_when_one_permission_is_present() -> None:
@@ -93,7 +97,7 @@ def test_unauthenticated_demo_request_is_401_not_403() -> None:
     with TestClient(app) as client:
         response = client.get("/api/v1/_rbac-demo/single")
     assert response.status_code == 401
-    assert response.json()["error"] == "unauthorized"
+    assert response.json()["error"] == "missing_token"
 
 
 @pytest.mark.parametrize(

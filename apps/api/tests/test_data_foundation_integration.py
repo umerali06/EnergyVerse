@@ -14,8 +14,7 @@ from app.rbac.service import PermissionResolver
 from scripts.seed import ACME_COMPANY_ID, SECOND_COMPANY_ID
 
 has_real_credentials = bool(
-    os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    or os.getenv("FIREBASE_CREDENTIALS_B64")
+    os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or os.getenv("FIREBASE_CREDENTIALS_B64")
 )
 
 

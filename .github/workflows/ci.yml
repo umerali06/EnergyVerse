@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.0"
+          flutter-version: "3.44.6"
           channel: stable
       - name: Get dependencies
         run: flutter pub get
@@ -70,3 +70,42 @@ jobs:
         run: flutter analyze
       - name: Unit and widget tests
         run: flutter test
+
+  contracts:
+    name: Contracts — generated-client drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned Poetry
+        run: pip install poetry==2.4.1
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: poetry install --no-interaction
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9.15.9"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17.0.16+8"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.6"
+          channel: stable
+      - name: Export OpenAPI
+        working-directory: apps/api
+        run: poetry run python -m scripts.export_openapi
+      - name: Install pinned generator
+        working-directory: packages/contracts
+        run: pnpm install --frozen-lockfile
+      - name: Regenerate clients
+        working-directory: packages/contracts
+        run: pnpm run generate
+      - name: Fail on contract drift
+        run: git diff --exit-code -- packages/contracts

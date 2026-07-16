@@ -18,7 +18,7 @@ apps/
   admin/        Next.js admin dashboard (pnpm)
   mobile/       Flutter field app
 packages/
-  contracts/    OpenAPI specs + generated clients (0.8+)
+  contracts/    Committed OpenAPI spec + generated TypeScript/Dart clients
   design-tokens/ Framework-neutral visual and motion token source
 infra/
   ci/           GitHub Actions workflows
@@ -159,3 +159,27 @@ both clients honor the operating system's reduced-animation preference. All
 future screens must be composed from the shared tokens and reusable primitives;
 feature-local copies of colors, spacing, typography, or motion values are not
 allowed.
+
+## API contract regeneration
+
+FastAPI success resources are returned directly. Future list responses use
+`{ "items": [...], "next_cursor": string | null }`; cursors are opaque, `null`
+means no more pages, and totals are not included by default. Every failure uses
+the unified `{ error, message, details?, request_id }` envelope and echoes the
+request ID in `X-Request-ID`.
+
+After changing an API route or model, export and regenerate both pinned clients:
+
+```powershell
+cd apps/api
+python -m poetry run python -m scripts.export_openapi
+cd ..\..\packages\contracts
+corepack pnpm install --frozen-lockfile
+.\scripts\gen-clients.ps1
+cd ..\..
+git diff --exit-code -- packages/contracts
+```
+
+Admin and mobile application code must call their typed API wrappers, which use
+the generated clients. Direct feature-level `fetch`, `http`, or raw Dio calls are
+not allowed.

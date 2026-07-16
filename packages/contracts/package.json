@@ -1,0 +1,12 @@
+{
+  "name": "@fev/contracts-codegen",
+  "version": "0.8.0",
+  "private": true,
+  "scripts": {
+    "generate": "node scripts/gen-clients.mjs"
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "2.15.3"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

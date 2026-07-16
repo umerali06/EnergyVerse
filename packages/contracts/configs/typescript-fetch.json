@@ -1,0 +1,13 @@
+{
+  "generatorName": "typescript-fetch",
+  "inputSpec": "openapi.json",
+  "outputDir": "generated/typescript-fetch",
+  "additionalProperties": {
+    "hideGenerationTimestamp": true,
+    "npmName": "@fev/api-client",
+    "npmVersion": "0.8.0",
+    "supportsES6": true,
+    "typescriptThreePlus": true,
+    "useSingleRequestParameter": true
+  }
+}

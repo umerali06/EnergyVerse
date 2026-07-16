@@ -20,9 +20,11 @@ class PermissionRepository:
         self._client = client or get_firestore_client()
 
     async def get(self, permission_id: str) -> Permission | None:
-        snapshot = await self._client.collection(self.collection_name).document(
-            permission_id
-        ).get(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS, retry=None)
+        snapshot = (
+            await self._client.collection(self.collection_name)
+            .document(permission_id)
+            .get(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS, retry=None)
+        )
         if not snapshot.exists:
             return None
         data = snapshot.to_dict()
@@ -47,9 +49,7 @@ class PermissionRepository:
             )
         ).exists:
             raise ValueError("permission already exists")
-        permission = Permission.model_validate(
-            {**payload.model_dump(), **global_creation_fields()}
-        )
+        permission = Permission.model_validate({**payload.model_dump(), **global_creation_fields()})
         await reference.set(
             permission.model_dump(),
             timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
@@ -72,17 +72,25 @@ class PermissionRepository:
                 "updated_at": utc_now(),
             }
         )
-        await self._client.collection(self.collection_name).document(permission_id).set(
-            permission.model_dump(),
-            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
-            retry=None,
+        await (
+            self._client.collection(self.collection_name)
+            .document(permission_id)
+            .set(
+                permission.model_dump(),
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+                retry=None,
+            )
         )
         return permission
 
     async def delete(self, permission_id: str) -> None:
         if await self.get(permission_id) is None:
             raise LookupError("permission not found")
-        await self._client.collection(self.collection_name).document(permission_id).delete(
-            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
-            retry=None,
+        await (
+            self._client.collection(self.collection_name)
+            .document(permission_id)
+            .delete(
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+                retry=None,
+            )
         )

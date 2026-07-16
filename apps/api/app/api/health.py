@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.db.repositories.health import FirestoreStatus, get_firestore_status
+from app.models.api import error_responses
 
-router = APIRouter()
+router = APIRouter(tags=["system"])
 
 
 class HealthResponse(BaseModel):
@@ -16,7 +17,12 @@ class HealthResponse(BaseModel):
     timestamp: datetime
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    operation_id="get_health",
+    responses=error_responses(422, 500),
+)
 async def health(
     firestore_status: Annotated[FirestoreStatus, Depends(get_firestore_status)],
 ) -> HealthResponse:

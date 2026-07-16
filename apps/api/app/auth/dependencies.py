@@ -27,8 +27,7 @@ async def verify_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "error": "unauthorized",
-                "code": "missing_token",
+                "error": "missing_token",
                 "message": "Bearer token is required",
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -39,8 +38,7 @@ async def verify_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
-                "error": "unauthorized",
-                "code": error.code,
+                "error": error.code,
                 "message": str(error),
             },
             headers={"WWW-Authenticate": "Bearer"},
@@ -56,8 +54,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "error": "forbidden",
-                "code": "identity_not_provisioned",
+                "error": "identity_not_provisioned",
                 "message": "User identity is incomplete",
             },
         )
@@ -69,8 +66,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "error": "forbidden",
-                "code": "user_not_found",
+                "error": "user_not_found",
                 "message": "User is not provisioned",
             },
         )
@@ -78,8 +74,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "error": "forbidden",
-                "code": "user_inactive",
+                "error": "user_inactive",
                 "message": "User is inactive",
             },
         )
@@ -90,8 +85,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "error": "forbidden",
-                "code": "role_not_found",
+                "error": "role_not_found",
                 "message": "User role is unavailable",
             },
         )
@@ -107,8 +101,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "error": "forbidden",
-                "code": "permissions_unavailable",
+                "error": "permissions_unavailable",
                 "message": str(error),
             },
         ) from error

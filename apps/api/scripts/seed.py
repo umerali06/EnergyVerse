@@ -172,9 +172,7 @@ async def _ensure_role_permissions(
         for permission_key in template.permission_keys
     }
     existing_by_id = {
-        mapping.id: mapping
-        for mapping in existing_mappings
-        if mapping.role_id == document_role_id
+        mapping.id: mapping for mapping in existing_mappings if mapping.role_id == document_role_id
     }
     creations = []
     for permission_key in template.permission_keys:
@@ -192,10 +190,7 @@ async def _ensure_role_permissions(
                     SEED_ACTOR_UID,
                 )
             )
-        elif (
-            existing.role_id != document_role_id
-            or existing.permission_id != permission_key
-        ):
+        elif existing.role_id != document_role_id or existing.permission_id != permission_key:
             raise ValueError(f"Role-permission mapping {mapping_id} is incompatible")
     if creations:
         await asyncio.gather(*creations)
@@ -376,15 +371,20 @@ async def run_seed(
                 actor_uid=SEED_ACTOR_UID,
             )
 
-    acme_roles, second_roles, acme_mappings, second_mappings, acme_users, second_users = (
-        await asyncio.gather(
-            roles.list(acme_scope),
-            roles.list(second_scope),
-            role_permissions.list(acme_scope),
-            role_permissions.list(second_scope),
-            users.list(acme_scope),
-            users.list(second_scope),
-        )
+    (
+        acme_roles,
+        second_roles,
+        acme_mappings,
+        second_mappings,
+        acme_users,
+        second_users,
+    ) = await asyncio.gather(
+        roles.list(acme_scope),
+        roles.list(second_scope),
+        role_permissions.list(acme_scope),
+        role_permissions.list(second_scope),
+        users.list(acme_scope),
+        users.list(second_scope),
     )
     acme_audits, second_audits = await asyncio.gather(
         audit_logs.list(acme_scope),

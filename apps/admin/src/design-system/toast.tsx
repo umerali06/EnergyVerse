@@ -7,9 +7,15 @@ import { motionSpec } from "./motion";
 import type { StatusTone } from "./primitives";
 
 type ToastItem = { id: number; message: string; tone: StatusTone };
-type ToastContextValue = { showToast: (message: string, tone?: StatusTone) => void };
+export type ToastApi = {
+  showToast: (message: string, tone?: StatusTone) => void;
+  success: (message: string) => void;
+  error: (message: string) => void;
+  warning: (message: string) => void;
+  info: (message: string) => void;
+};
 
-const ToastContext = createContext<ToastContextValue | null>(null);
+const ToastContext = createContext<ToastApi | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
@@ -19,7 +25,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((current) => [...current, { id, message, tone }]);
     window.setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 3200);
   }, []);
-  const value = useMemo(() => ({ showToast }), [showToast]);
+  const value = useMemo<ToastApi>(
+    () => ({
+      showToast,
+      success: (message) => showToast(message, "healthy"),
+      error: (message) => showToast(message, "critical"),
+      warning: (message) => showToast(message, "warning"),
+      info: (message) => showToast(message, "info"),
+    }),
+    [showToast],
+  );
 
   return (
     <ToastContext.Provider value={value}>
@@ -48,7 +63,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useToast(): ToastContextValue {
+export function useToast(): ToastApi {
   const context = useContext(ToastContext);
   if (context === null) throw new Error("useToast requires ToastProvider");
   return context;

@@ -22,9 +22,7 @@ class Settings(BaseSettings):
 
     @property
     def firebase_credentials_configured(self) -> bool:
-        return bool(
-            self.firebase_credentials_b64 or self.google_application_credentials
-        )
+        return bool(self.firebase_credentials_b64 or self.google_application_credentials)
 
 
 settings = Settings()
