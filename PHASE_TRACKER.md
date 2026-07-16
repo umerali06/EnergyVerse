@@ -11,7 +11,7 @@ Only one micro-task may be active at a time.
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Foundation and project definition | In progress |
+| 0 | Foundation and project definition | **COMPLETE** |
 | 0.1 | Project bootstrap and persistent context setup | Done |
 | 0.2 | Monorepo scaffold — apps/api (FastAPI), apps/admin (Next.js), apps/mobile (Flutter), packages/contracts placeholder, infra/ci (GitHub Actions), infra/firebase placeholder, root config | Done |
 | 0.3 | FastAPI ↔ Firebase Admin SDK, Firestore-aware `/health`, and client connectivity indicators | Done |
@@ -19,8 +19,9 @@ Only one micro-task may be active at a time.
 | 0.5 | Backend auth foundation — Firebase token verification, typed current user, claims, provisioning/link services, auth-user seed migration, and protected `/api/v1/auth/me` | Done |
 | 0.6 | RBAC enforcement — permission/role dependencies, demo route gates, denial audits, and admin/mobile guard helpers | Done |
 | 0.7 | Shared design system — framework-neutral tokens, dark/light theming, reusable admin/mobile primitives, and reduced-motion-aware animation | Done |
-| 0.8 | Scope pending product-owner definition | In progress |
-| 1 | To be defined | Not started |
+| 0.8 | API contract, generated TypeScript/Dart clients, unified errors/request IDs, typed client wrappers, and toast infrastructure | Done |
+| 1 | User-facing authentication and application flows | In progress |
+| 1.1 | Login screen | In progress |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |
 | 4 | To be defined | Not started |
@@ -41,4 +42,4 @@ Only one micro-task may be active at a time.
 | 19 | To be defined | Not started |
 | 20 | To be defined | Not started |
 
-Detailed scopes for Phases 0.8–20 have not been fully supplied and must not be invented.
+Detailed scopes after Phase 1.1 have not been fully supplied and must not be invented.
