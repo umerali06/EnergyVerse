@@ -8,19 +8,20 @@ import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
-part 'current_user.g.dart';
+part 'company_registration_response.g.dart';
 
-/// CurrentUser
+/// CompanyRegistrationResponse
 ///
 /// Properties:
 /// * [companyId]
 /// * [email]
 /// * [emailVerified]
-/// * [permissions]
 /// * [roleKey]
 /// * [uid]
 @BuiltValue()
-abstract class CurrentUser implements Built<CurrentUser, CurrentUserBuilder> {
+abstract class CompanyRegistrationResponse
+    implements
+        Built<CompanyRegistrationResponse, CompanyRegistrationResponseBuilder> {
   @BuiltValueField(wireName: r'company_id')
   String get companyId;
 
@@ -30,36 +31,40 @@ abstract class CurrentUser implements Built<CurrentUser, CurrentUserBuilder> {
   @BuiltValueField(wireName: r'email_verified')
   bool get emailVerified;
 
-  @BuiltValueField(wireName: r'permissions')
-  BuiltSet<String> get permissions;
-
   @BuiltValueField(wireName: r'role_key')
   String get roleKey;
 
   @BuiltValueField(wireName: r'uid')
   String get uid;
 
-  CurrentUser._();
+  CompanyRegistrationResponse._();
 
-  factory CurrentUser([void updates(CurrentUserBuilder b)]) = _$CurrentUser;
+  factory CompanyRegistrationResponse(
+          [void updates(CompanyRegistrationResponseBuilder b)]) =
+      _$CompanyRegistrationResponse;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(CurrentUserBuilder b) => b;
+  static void _defaults(CompanyRegistrationResponseBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<CurrentUser> get serializer => _$CurrentUserSerializer();
+  static Serializer<CompanyRegistrationResponse> get serializer =>
+      _$CompanyRegistrationResponseSerializer();
 }
 
-class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
+class _$CompanyRegistrationResponseSerializer
+    implements PrimitiveSerializer<CompanyRegistrationResponse> {
   @override
-  final Iterable<Type> types = const [CurrentUser, _$CurrentUser];
+  final Iterable<Type> types = const [
+    CompanyRegistrationResponse,
+    _$CompanyRegistrationResponse
+  ];
 
   @override
-  final String wireName = r'CurrentUser';
+  final String wireName = r'CompanyRegistrationResponse';
 
   Iterable<Object?> _serializeProperties(
     Serializers serializers,
-    CurrentUser object, {
+    CompanyRegistrationResponse object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
     yield r'company_id';
@@ -77,11 +82,6 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
       object.emailVerified,
       specifiedType: const FullType(bool),
     );
-    yield r'permissions';
-    yield serializers.serialize(
-      object.permissions,
-      specifiedType: const FullType(BuiltSet, [FullType(String)]),
-    );
     yield r'role_key';
     yield serializers.serialize(
       object.roleKey,
@@ -97,7 +97,7 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
   @override
   Object serialize(
     Serializers serializers,
-    CurrentUser object, {
+    CompanyRegistrationResponse object, {
     FullType specifiedType = FullType.unspecified,
   }) {
     return _serializeProperties(serializers, object,
@@ -110,7 +110,7 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
     required List<Object?> serializedList,
-    required CurrentUserBuilder result,
+    required CompanyRegistrationResponseBuilder result,
     required List<Object?> unhandled,
   }) {
     for (var i = 0; i < serializedList.length; i += 2) {
@@ -138,13 +138,6 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
           ) as bool;
           result.emailVerified = valueDes;
           break;
-        case r'permissions':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(BuiltSet, [FullType(String)]),
-          ) as BuiltSet<String>;
-          result.permissions.replace(valueDes);
-          break;
         case r'role_key':
           final valueDes = serializers.deserialize(
             value,
@@ -168,12 +161,12 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
   }
 
   @override
-  CurrentUser deserialize(
+  CompanyRegistrationResponse deserialize(
     Serializers serializers,
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    final result = CurrentUserBuilder();
+    final result = CompanyRegistrationResponseBuilder();
     final serializedList = (serialized as Iterable<Object?>).toList();
     final unhandled = <Object?>[];
     _deserializeProperties(

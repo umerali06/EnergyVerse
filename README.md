@@ -224,3 +224,42 @@ clients mint the current ID token and resolve the authoritative identity and
 permissions through `/api/v1/auth/me`. Native Android/iOS builds will add
 `google-services.json` and `GoogleService-Info.plist` in their platform setup task;
 those native files are intentionally not required for this web-targeted slice.
+
+## Phase 1.2 organization signup and email verification
+
+Self-service signup creates a new company with an opaque generated ID, installs
+the seven system roles, and provisions the first user as `company_admin` through
+`POST /api/v1/auth/register`. Company display names are not unique. The clients
+then sign in with Firebase and call `sendEmailVerification`, which uses Firebase's
+built-in email delivery; notification-provider email delivery remains deferred.
+
+Run the API and either client with the Firebase settings above. In PowerShell:
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
+$env:FIREBASE_PROJECT_ID="your-project-id"
+cd apps\api
+poetry run uvicorn app.main:app --reload
+
+# In a second terminal, use the admin variables shown above:
+cd apps\admin
+corepack pnpm dev
+```
+
+An unverified caller can resolve identity through `/api/v1/auth/me`, which returns
+`email_verified: false`; this keeps the verification screen functional. All other
+protected application routes use `require_verified_email` and return the unified
+`403 email_unverified` envelope until Firebase reports the address as verified.
+The resend action has a 60-second client cooldown. Native Firebase configuration
+files are still deferred to the native-build setup task.
+
+For the opt-in real registration test, set a fresh inbox that you can inspect. The
+test creates a real tenant and user and dispatches Firebase's verification email,
+so do not reuse an address:
+
+```powershell
+$env:REAL_SIGNUP_TEST_EMAIL="fresh-throwaway-inbox@example.com"
+$env:SEED_DEMO_PASSWORD="a-local-test-password"
+cd apps\api
+poetry run pytest tests/test_registration_integration.py -v
+```

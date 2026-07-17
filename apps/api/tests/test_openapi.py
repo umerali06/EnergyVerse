@@ -7,6 +7,7 @@ EXPECTED_OPERATIONS = {
     "get_root",
     "get_health",
     "get_current_user",
+    "register_company_admin",
     "rbac_demo_single_permission",
     "rbac_demo_all_permissions",
     "rbac_demo_any_permission",
@@ -37,5 +38,8 @@ def test_every_operation_has_tags_and_typed_success_response(tmp_path: Path) -> 
             if not isinstance(operation, dict) or "operationId" not in operation:
                 continue
             assert operation["tags"]
-            success = operation["responses"]["200"]["content"]["application/json"]
+            success_code = next(
+                code for code in operation["responses"] if str(code).startswith("2")
+            )
+            success = operation["responses"][success_code]["content"]["application/json"]
             assert "$ref" in success["schema"]

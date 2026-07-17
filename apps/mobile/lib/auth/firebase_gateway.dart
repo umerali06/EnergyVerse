@@ -8,15 +8,22 @@ class ClientAuthException implements Exception {
 }
 
 class AuthSession {
-  const AuthSession({required this.uid, required this.email});
+  const AuthSession({
+    required this.uid,
+    required this.email,
+    required this.emailVerified,
+  });
 
   final String uid;
   final String? email;
+  final bool emailVerified;
 }
 
 abstract interface class AuthGateway {
   Stream<AuthSession?> authStateChanges();
   Future<String?> getIdToken();
+  Future<AuthSession> refreshSession();
+  Future<void> sendEmailVerification();
   Future<AuthSession> signIn(String email, String password);
   Future<void> signOut();
 }
@@ -27,13 +34,16 @@ class FirebaseAuthGateway implements AuthGateway {
 
   final FirebaseAuth _auth;
 
-  static AuthSession _session(User user) =>
-      AuthSession(uid: user.uid, email: user.email);
+  static AuthSession _session(User user) => AuthSession(
+        uid: user.uid,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      );
 
   @override
-  Stream<AuthSession?> authStateChanges() => _auth
-      .authStateChanges()
-      .map((user) => user == null ? null : _session(user));
+  Stream<AuthSession?> authStateChanges() => _auth.authStateChanges().map(
+        (user) => user == null ? null : _session(user),
+      );
 
   @override
   Future<String?> getIdToken() async {
@@ -58,7 +68,56 @@ class FirebaseAuthGateway implements AuthGateway {
       return _session(user);
     } on FirebaseAuthException catch (error) {
       throw ClientAuthException(
-          error.code, error.message ?? 'Authentication failed');
+        error.code,
+        error.message ?? 'Authentication failed',
+      );
+    }
+  }
+
+  @override
+  Future<AuthSession> refreshSession() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const ClientAuthException(
+        'no-current-user',
+        'No authenticated user is available',
+      );
+    }
+    try {
+      await user.reload();
+      final refreshed = _auth.currentUser;
+      if (refreshed == null) {
+        throw const ClientAuthException(
+          'no-current-user',
+          'No authenticated user is available',
+        );
+      }
+      await refreshed.getIdToken(true);
+      return _session(refreshed);
+    } on FirebaseAuthException catch (error) {
+      throw ClientAuthException(
+        error.code,
+        error.message ?? 'Unable to refresh the session',
+      );
+    }
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const ClientAuthException(
+        'no-current-user',
+        'No authenticated user is available',
+      );
+    }
+    try {
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (error) {
+      throw ClientAuthException(
+        error.code,
+        error.message ?? 'Unable to send the verification email',
+      );
     }
   }
 

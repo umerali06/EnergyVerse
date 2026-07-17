@@ -37,6 +37,7 @@ def _identity(role_key: str, permissions: frozenset[str]) -> CurrentUser:
     return CurrentUser(
         uid=f"test-{role_key}",
         email=f"{role_key}@example.invalid",
+        email_verified=True,
         company_id=ACME_COMPANY_ID,
         role_key=role_key,
         permissions=permissions,
@@ -59,6 +60,17 @@ def test_single_permission_allows_caller_with_permission() -> None:
     response = _request_as(_identity("custom", frozenset({"assets.write"})), "single")
     assert response.status_code == 200
     assert response.json() == {"ok": True}
+
+
+def test_unverified_identity_is_blocked_before_permission_gate() -> None:
+    identity = _identity("custom", frozenset({"assets.write"})).model_copy(
+        update={"email_verified": False}
+    )
+    response = _request_as(identity, "single")
+
+    assert response.status_code == 403
+    assert response.json()["error"] == "email_unverified"
+    assert response.json()["message"] == "Email verification is required"
 
 
 def test_single_permission_denies_with_exact_missing_contract() -> None:

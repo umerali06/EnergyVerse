@@ -16,66 +16,59 @@ import { mapValues } from '../runtime';
 /**
  *
  * @export
- * @interface CurrentUser
+ * @interface CompanyRegistrationResponse
  */
-export interface CurrentUser {
+export interface CompanyRegistrationResponse {
     [key: string]: any | any;
     /**
      *
      * @type {string}
-     * @memberof CurrentUser
+     * @memberof CompanyRegistrationResponse
      */
     companyId: string;
     /**
      *
      * @type {string}
-     * @memberof CurrentUser
+     * @memberof CompanyRegistrationResponse
      */
     email: string;
     /**
      *
      * @type {boolean}
-     * @memberof CurrentUser
+     * @memberof CompanyRegistrationResponse
      */
     emailVerified: boolean;
     /**
      *
-     * @type {Set<string>}
-     * @memberof CurrentUser
-     */
-    permissions: Set<string>;
-    /**
-     *
      * @type {string}
-     * @memberof CurrentUser
+     * @memberof CompanyRegistrationResponse
      */
     roleKey: string;
     /**
      *
      * @type {string}
-     * @memberof CurrentUser
+     * @memberof CompanyRegistrationResponse
      */
     uid: string;
 }
 
 /**
- * Check if a given object implements the CurrentUser interface.
+ * Check if a given object implements the CompanyRegistrationResponse interface.
  */
-export function instanceOfCurrentUser(value: object): value is CurrentUser {
+export function instanceOfCompanyRegistrationResponse(value: object): value is CompanyRegistrationResponse {
     if (!('companyId' in value) || value['companyId'] === undefined) return false;
     if (!('email' in value) || value['email'] === undefined) return false;
     if (!('emailVerified' in value) || value['emailVerified'] === undefined) return false;
-    if (!('permissions' in value) || value['permissions'] === undefined) return false;
     if (!('roleKey' in value) || value['roleKey'] === undefined) return false;
     if (!('uid' in value) || value['uid'] === undefined) return false;
     return true;
 }
 
-export function CurrentUserFromJSON(json: any): CurrentUser {
-    return CurrentUserFromJSONTyped(json, false);
+export function CompanyRegistrationResponseFromJSON(json: any): CompanyRegistrationResponse {
+    return CompanyRegistrationResponseFromJSONTyped(json, false);
 }
 
-export function CurrentUserFromJSONTyped(json: any, ignoreDiscriminator: boolean): CurrentUser {
+export function CompanyRegistrationResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): CompanyRegistrationResponse {
     if (json == null) {
         return json;
     }
@@ -85,17 +78,16 @@ export function CurrentUserFromJSONTyped(json: any, ignoreDiscriminator: boolean
         'companyId': json['company_id'],
         'email': json['email'],
         'emailVerified': json['email_verified'],
-        'permissions': new Set(json['permissions']),
         'roleKey': json['role_key'],
         'uid': json['uid'],
     };
 }
 
-export function CurrentUserToJSON(json: any): CurrentUser {
-    return CurrentUserToJSONTyped(json, false);
+export function CompanyRegistrationResponseToJSON(json: any): CompanyRegistrationResponse {
+    return CompanyRegistrationResponseToJSONTyped(json, false);
 }
 
-export function CurrentUserToJSONTyped(value?: CurrentUser | null, ignoreDiscriminator: boolean = false): any {
+export function CompanyRegistrationResponseToJSONTyped(value?: CompanyRegistrationResponse | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }
@@ -106,7 +98,6 @@ export function CurrentUserToJSONTyped(value?: CurrentUser | null, ignoreDiscrim
         'company_id': value['companyId'],
         'email': value['email'],
         'email_verified': value['emailVerified'],
-        'permissions': Array.from(value['permissions'] as Set<any>),
         'role_key': value['roleKey'],
         'uid': value['uid'],
     };

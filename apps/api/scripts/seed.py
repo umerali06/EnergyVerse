@@ -30,6 +30,11 @@ from app.models.entities import (
     UserUpdate,
 )
 from app.rbac.constants import PERMISSION_CATALOG, SYSTEM_ROLE_TEMPLATES, SystemRoleTemplate
+from app.rbac.seeding import (
+    seed_system_roles,
+    system_role_id,
+    system_role_permission_id,
+)
 
 SEED_ACTOR_UID = "system:seed"
 ACME_COMPANY_ID = "acme-energy"
@@ -66,11 +71,11 @@ DEMO_USERS = tuple(
 
 
 def role_id(company_id: str, role_key: str) -> str:
-    return f"{company_id}__{role_key}"
+    return system_role_id(company_id, role_key)
 
 
 def role_permission_id(company_id: str, role_key: str, permission_key: str) -> str:
-    return f"{role_id(company_id, role_key)}__{permission_key}"
+    return system_role_permission_id(company_id, role_key, permission_key)
 
 
 async def _ensure_company(
@@ -299,20 +304,11 @@ async def run_seed(
 
     acme_scope = CompanyScope(company_id=ACME_COMPANY_ID)
     role_entries = tuple(SYSTEM_ROLE_TEMPLATES.items())
-    acme_role_ids = await asyncio.gather(
-        *(_ensure_role(roles, acme_scope, template) for _, template in role_entries)
-    )
-    acme_existing_mappings = await role_permissions.list(acme_scope)
-    await asyncio.gather(
-        *(
-            _ensure_role_permissions(
-                role_permissions,
-                acme_scope,
-                template,
-                acme_existing_mappings,
-            )
-            for _, template in role_entries
-        )
+    acme_role_ids = await seed_system_roles(
+        acme_scope,
+        roles,
+        role_permissions,
+        actor_uid=SEED_ACTOR_UID,
     )
     await asyncio.gather(
         *(
@@ -324,11 +320,8 @@ async def run_seed(
                 display_name=f"Acme {template.name}",
                 user_role_id=document_role_id,
             )
-            for (role_key, template), document_role_id in zip(
-                role_entries,
-                acme_role_ids,
-                strict=True,
-            )
+            for role_key, template in role_entries
+            for document_role_id in (acme_role_ids[role_key],)
         )
     )
 

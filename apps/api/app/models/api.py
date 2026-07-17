@@ -27,6 +27,7 @@ class DemoGateResponse(BaseModel):
 
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
+        201: "Resource created",
         401: "Authentication failed",
         403: "Authenticated caller is not authorized",
         404: "Resource was not found",

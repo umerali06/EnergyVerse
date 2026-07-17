@@ -11,6 +11,7 @@ import { ClientAuthError, type AuthGateway, type AuthSession } from "./firebase-
 
 const session: AuthSession = {
   email: "field_inspector@acme.example.invalid",
+  emailVerified: true,
   getIdToken: vi.fn(async () => "id-token"),
   uid: "firebase-uid",
 };
@@ -18,6 +19,7 @@ const session: AuthSession = {
 const identity = {
   uid: "firebase-uid",
   email: "field_inspector@acme.example.invalid",
+  emailVerified: true,
   companyId: "acme-energy",
   roleKey: "field_inspector",
   permissions: new Set(["assets.read", "inspections.write", "reports.generate"]),
@@ -30,6 +32,7 @@ class FakeGateway implements AuthGateway {
   ) {}
 
   signOutCalls = 0;
+  sendVerificationCalls = 0;
 
   async getIdToken() {
     return "id-token";
@@ -38,6 +41,14 @@ class FakeGateway implements AuthGateway {
   observe(listener: (value: AuthSession | null) => void) {
     listener(this.initial);
     return () => undefined;
+  }
+
+  async refreshSession() {
+    return { ...session, emailVerified: true };
+  }
+
+  async sendEmailVerification() {
+    this.sendVerificationCalls += 1;
   }
 
   async signIn() {
@@ -63,14 +74,21 @@ function renderAuth({
     if (apiResult instanceof Error) throw apiResult;
     return apiResult;
   });
+  const registerCompanyAdmin = vi.fn(async () => ({
+    uid: "firebase-uid",
+    email: "field_inspector@acme.example.invalid",
+    emailVerified: false,
+    companyId: "cmp_new",
+    roleKey: "company_admin",
+  }));
   const view = render(
     <ToastProvider>
-      <AuthProvider apiClient={{ getCurrentUser }} gateway={gateway}>
+      <AuthProvider apiClient={{ getCurrentUser, registerCompanyAdmin }} gateway={gateway}>
         <AuthExperience reducedMotionOverride={reducedMotionOverride} />
       </AuthProvider>
     </ToastProvider>,
   );
-  return { ...view, getCurrentUser };
+  return { ...view, getCurrentUser, registerCompanyAdmin };
 }
 
 async function submitCredentials() {
@@ -105,6 +123,8 @@ describe("admin login experience", () => {
         listener(null);
         return () => undefined;
       },
+      refreshSession: async () => session,
+      sendEmailVerification: async () => undefined,
       signIn: () => deferred,
       signOut: async () => undefined,
     };
@@ -161,5 +181,53 @@ describe("admin login experience", () => {
     const { container } = renderAuth({ reducedMotionOverride: true });
     await screen.findByRole("button", { name: "Login" });
     expect(container.querySelector('[data-motion="reduced"]')).toBeInTheDocument();
+  });
+
+  it("validates signup fields and password strength before registration", async () => {
+    const { registerCompanyAdmin } = renderAuth();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Sign up" }));
+    await user.click(screen.getByRole("button", { name: "Create organization" }));
+    expect(screen.getByText("Company name is required")).toBeInTheDocument();
+    expect(screen.getByText("Display name is required")).toBeInTheDocument();
+    expect(screen.getByText("Email is required")).toBeInTheDocument();
+    expect(screen.getByText("Password is required")).toBeInTheDocument();
+    expect(registerCompanyAdmin).not.toHaveBeenCalled();
+  });
+
+  it("registers a company admin, sends verification, and shows verify screen", async () => {
+    const gateway = new FakeGateway();
+    const unverified = { ...identity, emailVerified: false, roleKey: "company_admin" };
+    const { registerCompanyAdmin } = renderAuth({ gateway, apiResult: unverified });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Sign up" }));
+    await user.type(screen.getByLabelText("Company name"), "Northstar Energy");
+    await user.type(screen.getByLabelText("Display name"), "First Admin");
+    await user.type(screen.getByLabelText("Email"), "admin@northstar.example");
+    await user.type(screen.getByLabelText("Password"), "StrongPass1");
+    await user.type(screen.getByLabelText("Confirm password"), "StrongPass1");
+    await user.click(screen.getByRole("button", { name: "Create organization" }));
+
+    expect(await screen.findByText("Verify your email")).toBeInTheDocument();
+    expect(registerCompanyAdmin).toHaveBeenCalledWith({
+      companyName: "Northstar Energy",
+      displayName: "First Admin",
+      email: "admin@northstar.example",
+      password: "StrongPass1",
+    });
+    expect(gateway.sendVerificationCalls).toBe(1);
+    expect(screen.getByRole("button", { name: /Resend available/ })).toBeDisabled();
+  });
+
+  it("routes an unverified login to verify and resends with cooldown", async () => {
+    const gateway = new FakeGateway(session);
+    renderAuth({ gateway, apiResult: { ...identity, emailVerified: false } });
+    const user = userEvent.setup();
+    expect(await screen.findByText("Verify your email")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Resend verification" }));
+    await waitFor(() => expect(gateway.sendVerificationCalls).toBe(1));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Resend available/ })).toBeDisabled(),
+    );
   });
 });

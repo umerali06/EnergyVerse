@@ -1,12 +1,12 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'current_user.dart';
+part of 'company_registration_response.dart';
 
 // **************************************************************************
 // BuiltValueGenerator
 // **************************************************************************
 
-class _$CurrentUser extends CurrentUser {
+class _$CompanyRegistrationResponse extends CompanyRegistrationResponse {
   @override
   final String companyId;
   @override
@@ -14,49 +14,49 @@ class _$CurrentUser extends CurrentUser {
   @override
   final bool emailVerified;
   @override
-  final BuiltSet<String> permissions;
-  @override
   final String roleKey;
   @override
   final String uid;
 
-  factory _$CurrentUser([void Function(CurrentUserBuilder)? updates]) =>
-      (new CurrentUserBuilder()..update(updates))._build();
+  factory _$CompanyRegistrationResponse(
+          [void Function(CompanyRegistrationResponseBuilder)? updates]) =>
+      (new CompanyRegistrationResponseBuilder()..update(updates))._build();
 
-  _$CurrentUser._(
+  _$CompanyRegistrationResponse._(
       {required this.companyId,
       required this.email,
       required this.emailVerified,
-      required this.permissions,
       required this.roleKey,
       required this.uid})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(
-        companyId, r'CurrentUser', 'companyId');
-    BuiltValueNullFieldError.checkNotNull(email, r'CurrentUser', 'email');
+        companyId, r'CompanyRegistrationResponse', 'companyId');
     BuiltValueNullFieldError.checkNotNull(
-        emailVerified, r'CurrentUser', 'emailVerified');
+        email, r'CompanyRegistrationResponse', 'email');
     BuiltValueNullFieldError.checkNotNull(
-        permissions, r'CurrentUser', 'permissions');
-    BuiltValueNullFieldError.checkNotNull(roleKey, r'CurrentUser', 'roleKey');
-    BuiltValueNullFieldError.checkNotNull(uid, r'CurrentUser', 'uid');
+        emailVerified, r'CompanyRegistrationResponse', 'emailVerified');
+    BuiltValueNullFieldError.checkNotNull(
+        roleKey, r'CompanyRegistrationResponse', 'roleKey');
+    BuiltValueNullFieldError.checkNotNull(
+        uid, r'CompanyRegistrationResponse', 'uid');
   }
 
   @override
-  CurrentUser rebuild(void Function(CurrentUserBuilder) updates) =>
+  CompanyRegistrationResponse rebuild(
+          void Function(CompanyRegistrationResponseBuilder) updates) =>
       (toBuilder()..update(updates)).build();
 
   @override
-  CurrentUserBuilder toBuilder() => new CurrentUserBuilder()..replace(this);
+  CompanyRegistrationResponseBuilder toBuilder() =>
+      new CompanyRegistrationResponseBuilder()..replace(this);
 
   @override
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
-    return other is CurrentUser &&
+    return other is CompanyRegistrationResponse &&
         companyId == other.companyId &&
         email == other.email &&
         emailVerified == other.emailVerified &&
-        permissions == other.permissions &&
         roleKey == other.roleKey &&
         uid == other.uid;
   }
@@ -67,7 +67,6 @@ class _$CurrentUser extends CurrentUser {
     _$hash = $jc(_$hash, companyId.hashCode);
     _$hash = $jc(_$hash, email.hashCode);
     _$hash = $jc(_$hash, emailVerified.hashCode);
-    _$hash = $jc(_$hash, permissions.hashCode);
     _$hash = $jc(_$hash, roleKey.hashCode);
     _$hash = $jc(_$hash, uid.hashCode);
     _$hash = $jf(_$hash);
@@ -76,19 +75,21 @@ class _$CurrentUser extends CurrentUser {
 
   @override
   String toString() {
-    return (newBuiltValueToStringHelper(r'CurrentUser')
+    return (newBuiltValueToStringHelper(r'CompanyRegistrationResponse')
           ..add('companyId', companyId)
           ..add('email', email)
           ..add('emailVerified', emailVerified)
-          ..add('permissions', permissions)
           ..add('roleKey', roleKey)
           ..add('uid', uid))
         .toString();
   }
 }
 
-class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
-  _$CurrentUser? _$v;
+class CompanyRegistrationResponseBuilder
+    implements
+        Builder<CompanyRegistrationResponse,
+            CompanyRegistrationResponseBuilder> {
+  _$CompanyRegistrationResponse? _$v;
 
   String? _companyId;
   String? get companyId => _$this._companyId;
@@ -103,12 +104,6 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
   set emailVerified(bool? emailVerified) =>
       _$this._emailVerified = emailVerified;
 
-  SetBuilder<String>? _permissions;
-  SetBuilder<String> get permissions =>
-      _$this._permissions ??= new SetBuilder<String>();
-  set permissions(SetBuilder<String>? permissions) =>
-      _$this._permissions = permissions;
-
   String? _roleKey;
   String? get roleKey => _$this._roleKey;
   set roleKey(String? roleKey) => _$this._roleKey = roleKey;
@@ -117,17 +112,16 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
   String? get uid => _$this._uid;
   set uid(String? uid) => _$this._uid = uid;
 
-  CurrentUserBuilder() {
-    CurrentUser._defaults(this);
+  CompanyRegistrationResponseBuilder() {
+    CompanyRegistrationResponse._defaults(this);
   }
 
-  CurrentUserBuilder get _$this {
+  CompanyRegistrationResponseBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
       _companyId = $v.companyId;
       _email = $v.email;
       _emailVerified = $v.emailVerified;
-      _permissions = $v.permissions.toBuilder();
       _roleKey = $v.roleKey;
       _uid = $v.uid;
       _$v = null;
@@ -136,46 +130,32 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
   }
 
   @override
-  void replace(CurrentUser other) {
+  void replace(CompanyRegistrationResponse other) {
     ArgumentError.checkNotNull(other, 'other');
-    _$v = other as _$CurrentUser;
+    _$v = other as _$CompanyRegistrationResponse;
   }
 
   @override
-  void update(void Function(CurrentUserBuilder)? updates) {
+  void update(void Function(CompanyRegistrationResponseBuilder)? updates) {
     if (updates != null) updates(this);
   }
 
   @override
-  CurrentUser build() => _build();
+  CompanyRegistrationResponse build() => _build();
 
-  _$CurrentUser _build() {
-    _$CurrentUser _$result;
-    try {
-      _$result = _$v ??
-          new _$CurrentUser._(
-              companyId: BuiltValueNullFieldError.checkNotNull(
-                  companyId, r'CurrentUser', 'companyId'),
-              email: BuiltValueNullFieldError.checkNotNull(
-                  email, r'CurrentUser', 'email'),
-              emailVerified: BuiltValueNullFieldError.checkNotNull(
-                  emailVerified, r'CurrentUser', 'emailVerified'),
-              permissions: permissions.build(),
-              roleKey: BuiltValueNullFieldError.checkNotNull(
-                  roleKey, r'CurrentUser', 'roleKey'),
-              uid: BuiltValueNullFieldError.checkNotNull(
-                  uid, r'CurrentUser', 'uid'));
-    } catch (_) {
-      late String _$failedField;
-      try {
-        _$failedField = 'permissions';
-        permissions.build();
-      } catch (e) {
-        throw new BuiltValueNestedFieldError(
-            r'CurrentUser', _$failedField, e.toString());
-      }
-      rethrow;
-    }
+  _$CompanyRegistrationResponse _build() {
+    final _$result = _$v ??
+        new _$CompanyRegistrationResponse._(
+            companyId: BuiltValueNullFieldError.checkNotNull(
+                companyId, r'CompanyRegistrationResponse', 'companyId'),
+            email: BuiltValueNullFieldError.checkNotNull(
+                email, r'CompanyRegistrationResponse', 'email'),
+            emailVerified: BuiltValueNullFieldError.checkNotNull(
+                emailVerified, r'CompanyRegistrationResponse', 'emailVerified'),
+            roleKey: BuiltValueNullFieldError.checkNotNull(
+                roleKey, r'CompanyRegistrationResponse', 'roleKey'),
+            uid: BuiltValueNullFieldError.checkNotNull(
+                uid, r'CompanyRegistrationResponse', 'uid'));
     replace(_$result);
     return _$result;
   }

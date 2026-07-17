@@ -11,8 +11,9 @@ class AppThemeController extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final value =
-          (await SharedPreferences.getInstance()).getString(_storageKey);
+      final value = (await SharedPreferences.getInstance()).getString(
+        _storageKey,
+      );
       _mode = value == 'light' ? ThemeMode.light : ThemeMode.dark;
       notifyListeners();
     } catch (_) {
@@ -26,7 +27,9 @@ class AppThemeController extends ChangeNotifier {
     try {
       final preferences = await SharedPreferences.getInstance();
       await preferences.setString(
-          _storageKey, mode == ThemeMode.light ? 'light' : 'dark');
+        _storageKey,
+        mode == ThemeMode.light ? 'light' : 'dark',
+      );
     } catch (_) {
       // Persistence is best-effort; the active in-memory theme remains valid.
     }
@@ -57,15 +60,18 @@ abstract final class AppThemes {
   static ThemeData _build({required Brightness brightness}) {
     final foundation = ThemeData(brightness: brightness, useMaterial3: true);
     final dark = brightness == Brightness.dark;
-    final background =
-        dark ? DsColors.darkBackground : DsColors.lightBackground;
+    final background = dark
+        ? DsColors.darkBackground
+        : DsColors.lightBackground;
     final surface = dark ? DsColors.darkSurface : DsColors.lightSurface;
     final elevated = dark ? DsColors.darkElevated : DsColors.lightElevated;
     final border = dark ? DsColors.darkBorder : DsColors.lightBorder;
-    final textPrimary =
-        dark ? DsColors.darkTextPrimary : DsColors.lightTextPrimary;
-    final textSecondary =
-        dark ? DsColors.darkTextSecondary : DsColors.lightTextSecondary;
+    final textPrimary = dark
+        ? DsColors.darkTextPrimary
+        : DsColors.lightTextPrimary;
+    final textSecondary = dark
+        ? DsColors.darkTextSecondary
+        : DsColors.lightTextSecondary;
     final baseTextTheme = foundation.textTheme.apply(
       fontFamily: DsTypography.sans,
       bodyColor: textPrimary,
@@ -202,8 +208,9 @@ abstract final class AppThemes {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(DsRadius.lg),
           ),
-          textStyle:
-              textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          textStyle: textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       tabBarTheme: foundation.tabBarTheme.copyWith(
@@ -232,10 +239,10 @@ abstract final class AppThemes {
   }
 
   static TextStyle mono(BuildContext context) => TextStyle(
-        fontFamily: DsTypography.mono,
-        fontSize: DsTypography.sizeBodySmall,
-        color: Theme.of(context).colorScheme.onSurface,
-      );
+    fontFamily: DsTypography.mono,
+    fontSize: DsTypography.sizeBodySmall,
+    color: Theme.of(context).colorScheme.onSurface,
+  );
 }
 
 @immutable
@@ -258,13 +265,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? border,
     Color? textSecondary,
     Color? textMuted,
-  }) =>
-      AppSemanticColors(
-        elevated: elevated ?? this.elevated,
-        border: border ?? this.border,
-        textSecondary: textSecondary ?? this.textSecondary,
-        textMuted: textMuted ?? this.textMuted,
-      );
+  }) => AppSemanticColors(
+    elevated: elevated ?? this.elevated,
+    border: border ?? this.border,
+    textSecondary: textSecondary ?? this.textSecondary,
+    textMuted: textMuted ?? this.textMuted,
+  );
 
   @override
   AppSemanticColors lerp(covariant AppSemanticColors? other, double t) {

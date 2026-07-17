@@ -136,9 +136,25 @@ class SeedCounts(StrictModel):
 class CurrentUser(StrictModel):
     uid: str
     email: str
+    email_verified: bool
     company_id: str
     role_key: str
     permissions: frozenset[str]
+
+
+class CompanyRegistrationRequest(StrictModel):
+    company_name: str = Field(min_length=2, max_length=120)
+    display_name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=5, max_length=320)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class CompanyRegistrationResponse(StrictModel):
+    uid: str
+    email: str
+    email_verified: bool
+    company_id: str
+    role_key: str
 
 
 def without_none(values: dict[str, object | None]) -> dict[str, object]:

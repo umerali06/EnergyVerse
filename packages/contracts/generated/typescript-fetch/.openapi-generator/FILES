@@ -8,6 +8,8 @@ src/apis/RbacDemoApi.ts
 src/apis/SystemApi.ts
 src/apis/index.ts
 src/index.ts
+src/models/CompanyRegistrationRequest.ts
+src/models/CompanyRegistrationResponse.ts
 src/models/CurrentUser.ts
 src/models/DemoGateResponse.ts
 src/models/ErrorEnvelope.ts

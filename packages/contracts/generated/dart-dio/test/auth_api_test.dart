@@ -12,5 +12,12 @@ void main() {
     test('test getCurrentUser', () async {
       // TODO
     });
+
+    // Register Company Admin
+    //
+    //Future<CompanyRegistrationResponse> registerCompanyAdmin(CompanyRegistrationRequest companyRegistrationRequest) async
+    test('test registerCompanyAdmin', () async {
+      // TODO
+    });
   });
 }

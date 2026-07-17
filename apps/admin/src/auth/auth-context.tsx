@@ -22,14 +22,32 @@ import {
   type AuthSession,
 } from "./firebase-gateway";
 
-export type AuthStatus = "restoring" | "signedOut" | "signingIn" | "authenticated";
+export type AuthStatus =
+  | "restoring"
+  | "signedOut"
+  | "signingIn"
+  | "signingUp"
+  | "verificationRequired"
+  | "checkingVerification"
+  | "authenticated";
+
+export type RegistrationInput = {
+  companyName: string;
+  displayName: string;
+  email: string;
+  password: string;
+};
 
 type AuthContextValue = {
   currentUser: CurrentUser | null;
   error: string | null;
+  refreshVerification: () => Promise<void>;
+  register: (input: RegistrationInput) => Promise<void>;
+  resendVerification: () => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   status: AuthStatus;
+  verificationSentAt: number | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -53,6 +71,9 @@ export function friendlyAuthMessage(error: unknown): string {
     }
   }
   if (error instanceof ApiClientError) {
+    if (error.code === "email_already_in_use") {
+      return "An account already exists for this email";
+    }
     if (error.status === 403) return "Your account isn't active — contact your admin.";
     if (error.code === "network_error") {
       return "Network unavailable. Check your connection and try again";
@@ -66,7 +87,7 @@ export function AuthProvider({
   children,
   gateway,
 }: {
-  apiClient?: Pick<FevApiClient, "getCurrentUser">;
+  apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin">;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -79,6 +100,7 @@ export function AuthProvider({
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AuthStatus>("restoring");
+  const [verificationSentAt, setVerificationSentAt] = useState<number | null>(null);
   const resolution = useRef<Promise<void> | null>(null);
   const resolutionUid = useRef<string | null>(null);
 
@@ -105,7 +127,7 @@ export function AuthProvider({
           const identity = await client.getCurrentUser();
           setCurrentUser(identity);
           setError(null);
-          setStatus("authenticated");
+          setStatus(identity.emailVerified ? "authenticated" : "verificationRequired");
         } catch (failure) {
           if (failure instanceof ApiClientError && failure.status === 403) {
             await authGateway.signOut();
@@ -152,6 +174,57 @@ export function AuthProvider({
     [authGateway, fail, resolveSession, status],
   );
 
+  const register = useCallback(
+    async (input: RegistrationInput) => {
+      if (status === "signingUp") return;
+      setError(null);
+      setStatus("signingUp");
+      try {
+        await client.registerCompanyAdmin(input);
+        const session = await authGateway.signIn(input.email, input.password);
+        await resolveSession(session);
+        try {
+          await authGateway.sendEmailVerification();
+          setVerificationSentAt(Date.now());
+          toast.success("Verification email sent");
+        } catch (failure) {
+          toast.error(friendlyAuthMessage(failure));
+        }
+      } catch (failure) {
+        fail(failure);
+      }
+    },
+    [authGateway, client, fail, resolveSession, status, toast],
+  );
+
+  const resendVerification = useCallback(async () => {
+    try {
+      await authGateway.sendEmailVerification();
+      setVerificationSentAt(Date.now());
+      toast.success("Verification email sent");
+      return true;
+    } catch (failure) {
+      const message = friendlyAuthMessage(failure);
+      setError(message);
+      toast.error(message);
+      return false;
+    }
+  }, [authGateway, toast]);
+
+  const refreshVerification = useCallback(async () => {
+    setError(null);
+    setStatus("checkingVerification");
+    try {
+      const session = await authGateway.refreshSession();
+      await resolveSession(session);
+    } catch (failure) {
+      const message = friendlyAuthMessage(failure);
+      setError(message);
+      setStatus("verificationRequired");
+      toast.error(message);
+    }
+  }, [authGateway, resolveSession, toast]);
+
   const signOutCurrentUser = useCallback(async () => {
     try {
       await authGateway.signOut();
@@ -163,8 +236,28 @@ export function AuthProvider({
   }, [authGateway]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ currentUser, error, signIn, signOut: signOutCurrentUser, status }),
-    [currentUser, error, signIn, signOutCurrentUser, status],
+    () => ({
+      currentUser,
+      error,
+      refreshVerification,
+      register,
+      resendVerification,
+      signIn,
+      signOut: signOutCurrentUser,
+      status,
+      verificationSentAt,
+    }),
+    [
+      currentUser,
+      error,
+      refreshVerification,
+      register,
+      resendVerification,
+      signIn,
+      signOutCurrentUser,
+      status,
+      verificationSentAt,
+    ],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

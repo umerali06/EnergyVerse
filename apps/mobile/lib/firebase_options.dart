@@ -4,8 +4,9 @@ const firebaseApiKey = String.fromEnvironment('FIREBASE_API_KEY');
 const firebaseAuthDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
 const firebaseProjectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
 const firebaseStorageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
-const firebaseMessagingSenderId =
-    String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
+const firebaseMessagingSenderId = String.fromEnvironment(
+  'FIREBASE_MESSAGING_SENDER_ID',
+);
 const firebaseAppId = String.fromEnvironment('FIREBASE_APP_ID');
 
 FirebaseOptions get firebaseClientOptions {

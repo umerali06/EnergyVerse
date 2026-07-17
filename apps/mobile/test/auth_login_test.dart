@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 const session = AuthSession(
   uid: 'firebase-uid',
   email: 'field_inspector@acme.example.invalid',
+  emailVerified: true,
 );
 
 CurrentUser identity() => CurrentUser(
@@ -22,6 +23,7 @@ CurrentUser identity() => CurrentUser(
         ..email = 'field_inspector@acme.example.invalid'
         ..companyId = 'acme-energy'
         ..roleKey = 'field_inspector'
+        ..emailVerified = true
         ..permissions.addAll([
           'assets.read',
           'inspections.write',
@@ -32,8 +34,9 @@ CurrentUser identity() => CurrentUser(
 class FakeApi implements ApiContract {
   FakeApi(this.result);
 
-  final Object result;
+  Object result;
   int requests = 0;
+  int registrations = 0;
 
   @override
   Future<CurrentUser> getCurrentUser() async {
@@ -44,6 +47,24 @@ class FakeApi implements ApiContract {
 
   @override
   Future<HealthResponse> getHealth() => throw UnimplementedError();
+
+  @override
+  Future<CompanyRegistrationResponse> registerCompanyAdmin({
+    required String companyName,
+    required String displayName,
+    required String email,
+    required String password,
+  }) async {
+    registrations += 1;
+    return CompanyRegistrationResponse(
+      (builder) => builder
+        ..companyId = 'new-company'
+        ..email = email
+        ..emailVerified = false
+        ..roleKey = 'company_admin'
+        ..uid = 'firebase-uid',
+    );
+  }
 }
 
 class FakeGateway implements AuthGateway {
@@ -53,12 +74,22 @@ class FakeGateway implements AuthGateway {
   Object signInResult;
   int signInCalls = 0;
   int signOutCalls = 0;
+  int verificationCalls = 0;
+  AuthSession refreshResult = session;
 
   @override
   Stream<AuthSession?> authStateChanges() => Stream.value(initial);
 
   @override
   Future<String?> getIdToken() async => 'id-token';
+
+  @override
+  Future<AuthSession> refreshSession() async => refreshResult;
+
+  @override
+  Future<void> sendEmailVerification() async {
+    verificationCalls += 1;
+  }
 
   @override
   Future<AuthSession> signIn(String email, String password) async {
@@ -104,8 +135,9 @@ Future<void> enterCredentials(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('validation blocks empty and malformed credentials',
-      (tester) async {
+  testWidgets('validation blocks empty and malformed credentials', (
+    tester,
+  ) async {
     final gateway = FakeGateway();
     await pumpLogin(tester, gateway: gateway);
 
@@ -122,17 +154,15 @@ void main() {
     expect(find.text('Enter a valid email address'), findsOneWidget);
   });
 
-  testWidgets('loading toggles then /me populates home role and permissions',
-      (tester) async {
+  testWidgets('loading toggles then /me populates home role and permissions', (
+    tester,
+  ) async {
     final completer = Completer<AuthSession>();
     final gateway = FakeGateway(signInResult: completer.future);
     await pumpLogin(tester, gateway: gateway);
     await enterCredentials(tester);
 
-    expect(
-      tester.widget<AppButton>(find.byType(AppButton)).loading,
-      isTrue,
-    );
+    expect(tester.widget<AppButton>(find.byType(AppButton)).loading, isTrue);
     completer.complete(session);
     await tester.pumpAndSettle();
     expect(find.text('Role: field_inspector'), findsOneWidget);
@@ -158,26 +188,35 @@ void main() {
     });
   }
 
-  testWidgets('/me 403 signs out and shows inactive-account feedback',
-      (tester) async {
+  testWidgets('/me 403 signs out and shows inactive-account feedback', (
+    tester,
+  ) async {
     final gateway = FakeGateway();
-    final api = FakeApi(const ApiException(
-      code: 'forbidden',
-      message: 'Forbidden',
-      statusCode: 403,
-    ));
+    final api = FakeApi(
+      const ApiException(
+        code: 'forbidden',
+        message: 'Forbidden',
+        statusCode: 403,
+      ),
+    );
     await pumpLogin(tester, gateway: gateway, api: api);
     await enterCredentials(tester);
     await tester.pump();
 
-    expect(find.text("Your account isn't active — contact your admin."),
-        findsWidgets);
+    expect(
+      find.text("Your account isn't active — contact your admin."),
+      findsWidgets,
+    );
     expect(gateway.signOutCalls, 1);
   });
 
   testWidgets('existing Firebase session restores through /me', (tester) async {
     final api = FakeApi(identity());
-    await pumpLogin(tester, gateway: FakeGateway(initial: session), api: api);
+    await pumpLogin(
+      tester,
+      gateway: FakeGateway(initial: session),
+      api: api,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Role: field_inspector'), findsOneWidget);
@@ -215,10 +254,105 @@ void main() {
     );
     await tester.pump();
 
-    final opacityWidgets =
-        tester.widgetList<AnimatedOpacity>(find.byType(AnimatedOpacity));
-    expect(opacityWidgets.any((widget) => widget.duration == Duration.zero),
-        isTrue);
+    final opacityWidgets = tester.widgetList<AnimatedOpacity>(
+      find.byType(AnimatedOpacity),
+    );
+    expect(
+      opacityWidgets.any((widget) => widget.duration == Duration.zero),
+      isTrue,
+    );
     controller.dispose();
   });
+
+  testWidgets('signup validation blocks invalid values', (tester) async {
+    final gateway = FakeGateway();
+    final api = FakeApi(identity());
+    await pumpLogin(tester, gateway: gateway, api: api);
+    await tester.tap(find.byKey(const Key('open-signup')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Create organization'));
+    await tester.tap(find.text('Create organization'));
+    await tester.pump();
+    expect(find.text('Company name is required'), findsOneWidget);
+    expect(find.text('Display name is required'), findsOneWidget);
+    expect(find.text('Email is required'), findsOneWidget);
+    expect(api.registrations, 0);
+  });
+
+  testWidgets('signup provisions then sends verification email', (
+    tester,
+  ) async {
+    final unverified = identity().rebuild(
+      (builder) => builder.emailVerified = false,
+    );
+    final gateway = FakeGateway(
+      signInResult: const AuthSession(
+        uid: 'firebase-uid',
+        email: 'admin@example.com',
+        emailVerified: false,
+      ),
+    );
+    final api = FakeApi(unverified);
+    await pumpLogin(tester, gateway: gateway, api: api);
+    await tester.tap(find.byKey(const Key('open-signup')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('signup-company')),
+      'Northstar',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-display-name')),
+      'Ada Admin',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-email')),
+      'admin@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-password')),
+      'StrongPass1',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-confirm-password')),
+      'StrongPass1',
+    );
+    await tester.ensureVisible(find.text('Create organization'));
+    await tester.tap(find.text('Create organization'));
+    await tester.pumpAndSettle();
+    expect(find.text('Verify your email'), findsOneWidget);
+    expect(api.registrations, 1);
+    expect(gateway.verificationCalls, 1);
+    expect(find.text('Verification email sent'), findsWidgets);
+  });
+
+  testWidgets(
+    'unverified session resends once and verified refresh reaches home',
+    (tester) async {
+      final unverified = identity().rebuild(
+        (builder) => builder.emailVerified = false,
+      );
+      final api = FakeApi(unverified);
+      final gateway = FakeGateway(
+        initial: const AuthSession(
+          uid: 'firebase-uid',
+          email: 'field_inspector@acme.example.invalid',
+          emailVerified: false,
+        ),
+      );
+      await pumpLogin(tester, gateway: gateway, api: api);
+      await tester.pumpAndSettle();
+      expect(find.text('Verify your email'), findsOneWidget);
+
+      await tester.tap(find.text('Resend verification'));
+      await tester.pump();
+      expect(gateway.verificationCalls, 1);
+      expect(find.text('Verification email sent'), findsWidgets);
+
+      api.result = identity();
+      gateway.refreshResult = session;
+      await tester.tap(find.text("I've verified — continue"));
+      await tester.pumpAndSettle();
+      expect(find.text('Role: field_inspector'), findsOneWidget);
+    },
+  );
 }
