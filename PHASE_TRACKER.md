@@ -22,7 +22,8 @@ Only one micro-task may be active at a time.
 | 0.8 | API contract, generated TypeScript/Dart clients, unified errors/request IDs, typed client wrappers, and toast infrastructure | Done |
 | 1 | User-facing authentication and application flows | In progress |
 | 1.1 | Login screen | Done |
-| 1.2 | Signup and email verification | In progress |
+| 1.2 | Signup and email verification | Done |
+| 1.3 | Forgot password and password reset | **In progress** |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |
 | 4 | To be defined | Not started |
