@@ -2,11 +2,12 @@
 
 ## Status
 
-Phase 0 is complete. FastAPI now publishes a committed OpenAPI contract, pinned
-generators produce typed TypeScript and Dart clients, and both applications consume
-those clients through shared token/error/feedback wrappers. Detailed feature
-architecture remains intentionally incremental and is recorded after each tested
-micro-task. Locked platform decisions are tracked in `DECISIONS.md`.
+Phase 0 is complete and Phase 1 user-facing authentication is underway. FastAPI
+publishes a committed OpenAPI contract, pinned generators produce typed TypeScript
+and Dart clients, and both applications consume those clients through shared
+token/error/feedback wrappers. Detailed feature architecture remains intentionally
+incremental and is recorded after each tested micro-task. Locked platform decisions
+are tracked in `DECISIONS.md`.
 
 ## Architecture Goals
 
@@ -134,6 +135,30 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   through the Phase 0.7 toast/snackbar infrastructure. Application code does not
   issue feature-level direct `fetch`, `http`, or raw Dio calls.
 
+### Phase 1.1 Client Login and Identity State
+
+- Next.js initializes the Firebase Web SDK lazily from public environment
+  configuration. Flutter initializes `firebase_core` from compile-time Dart defines;
+  native Android/iOS Firebase files remain a documented follow-up because this slice
+  targets web. Neither client contains committed Firebase configuration or secrets.
+- A single client auth provider owns `restoring`, `signedOut`, `signingIn`, and
+  `authenticated` state. Firebase persists the underlying session; its auth-state
+  observer silently resolves `/api/v1/auth/me` after reload. The provider stores the
+  returned `CurrentUser`, making uid, email, company, role, and effective permissions
+  the client-side identity source of truth.
+- The runtime chain is Firebase email/password sign-in → Firebase ID token → Phase
+  0.8 generated-client wrapper → FastAPI `/api/v1/auth/me` → Phase 0.5 token verifier
+  and Phase 0.4 scoped repositories → `CurrentUser` → authenticated Home placeholder.
+  Phase 0.6 permission helpers consume this resolved permission set; FastAPI remains
+  authoritative for every protected operation.
+- Both login screens compose Phase 0.7 fields, buttons, cards, status primitives,
+  toast/snackbar feedback, shared tokens, and reduced-motion-aware entrance motion.
+  Firebase errors are mapped to non-enumerating friendly messages. A `/me` 403 signs
+  Firebase out and reports an inactive account; network failures remain recoverable.
+- Sign-out clears Firebase and provider state and returns to login. Comprehensive
+  token refresh, route guards, and session hardening remain deferred to Phase 1.4.
+  Signup/verification and forgot/reset links remain disabled until Phases 1.2/1.3.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -172,3 +197,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 0.6 — RBAC enforcement | Connects the Phase 0.5 token → `CurrentUser` chain and Phase 0.4 immutable role matrix to `require_permission` (`all`/`any`) and the narrowly reserved `require_role`. Three temporary `/api/v1/_rbac-demo` routes prove single/all/any gates; permission/role denials attempt a scoped append-only `access.denied` audit without allowing audit failure to weaken or crash the gate. Phase 0.8 now carries 401/403 through the unified envelope with RBAC context under `details`. Super Admin receives no bypass or cross-tenant path. The Next.js permission context and Flutter permission provider consume `/me` once through future-auth token seams and expose matching predicates/wrappers on existing scaffold screens; these client guards are explicitly advisory. CI executes admin and mobile guard tests. | 2026-07-16 |
 | Phase 0.7 — shared design system | Establishes `packages/design-tokens/tokens.json` as the single framework-neutral source and generates committed bindings into Next.js Tailwind/CSS and Flutter `ThemeData`. Both clients default to dark, persist light/dark choice, bundle Inter/JetBrains Mono, share equivalent reusable primitives, and implement the same fast/standard/slow motion feel with reduced-animation paths. Development-only showcases render every primitive and motion behavior without adding feature or auth screens. All future screens must reuse this foundation. | 2026-07-16 |
 | Phase 0.8 — API contract and generated clients | Connects the Phase 0.5 token/current-user chain and Phase 0.6 RBAC routes to a typed OpenAPI 3.1 contract with one request-ID error envelope. Pinned generation commits a TypeScript Fetch client for Next.js and Dart Dio client for Flutter; CI re-exports/regenerates and rejects drift. Client wrappers inject tokens, normalize network/API failures, invoke the 401 seam, and surface Phase 0.7 toast/snackbar feedback. Existing health and `/me` consumers now use these wrappers. No feature screen/module or Phase 1 implementation was added. | 2026-07-16 |
+| Phase 1.1 — client login | Both clients initialize the Firebase client SDK from uncommitted environment configuration, sign in with email/password, inject the Firebase ID token through the Phase 0.8 typed wrapper, and resolve the Phase 0.5 `/me` identity backed by Phase 0.4 tenant/RBAC repositories. One auth provider restores persisted Firebase sessions and owns `CurrentUser`; the authenticated Home placeholder renders role and exact effective permissions for Phase 0.6 guard consumers. Login/Home compose Phase 0.7 primitives, motion, and feedback. Minimal sign-out closes the loop; signup, reset, and full session/route hardening remain deferred. | 2026-07-17 |

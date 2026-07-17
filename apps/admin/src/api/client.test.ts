@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiClientError, FevApiClient } from "./client";
+import { FevApiClient } from "./client";
 
 const identity = {
   uid: "firebase-uid",
@@ -49,7 +49,7 @@ describe("FevApiClient", () => {
     );
     const client = new FevApiClient({ fetchApi, onUnauthorized, toast });
 
-    await expect(client.getCurrentUser()).rejects.toMatchObject<ApiClientError>({
+    await expect(client.getCurrentUser()).rejects.toMatchObject({
       code: "token_expired",
       message: "Token has expired",
       requestId: "bd7deca2-45d0-40ff-81db-758b22c90eaa",

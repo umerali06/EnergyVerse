@@ -110,6 +110,11 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.maxLines = 1,
     this.keyboardType,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.autofillHints,
+    this.textInputAction,
+    this.onSubmitted,
     super.key,
   });
 
@@ -120,6 +125,11 @@ class AppTextField extends StatelessWidget {
   final bool enabled;
   final int maxLines;
   final TextInputType? keyboardType;
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final Iterable<String>? autofillHints;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -128,10 +138,15 @@ class AppTextField extends StatelessWidget {
       enabled: enabled,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      obscureText: obscureText,
+      autofillHints: autofillHints,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         errorText: errorText,
+        suffixIcon: suffixIcon,
       ),
     );
   }

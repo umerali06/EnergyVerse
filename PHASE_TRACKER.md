@@ -21,7 +21,8 @@ Only one micro-task may be active at a time.
 | 0.7 | Shared design system — framework-neutral tokens, dark/light theming, reusable admin/mobile primitives, and reduced-motion-aware animation | Done |
 | 0.8 | API contract, generated TypeScript/Dart clients, unified errors/request IDs, typed client wrappers, and toast infrastructure | Done |
 | 1 | User-facing authentication and application flows | In progress |
-| 1.1 | Login screen | In progress |
+| 1.1 | Login screen | Done |
+| 1.2 | Signup and email verification | In progress |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |
 | 4 | To be defined | Not started |
@@ -42,4 +43,4 @@ Only one micro-task may be active at a time.
 | 19 | To be defined | Not started |
 | 20 | To be defined | Not started |
 
-Detailed scopes after Phase 1.1 have not been fully supplied and must not be invented.
+Detailed scopes after Phase 1.2 have not been fully supplied and must not be invented.

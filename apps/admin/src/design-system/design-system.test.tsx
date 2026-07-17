@@ -75,7 +75,7 @@ describe("admin design system", () => {
 
     expect(screen.getByRole("button", { name: "Primary" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Disabled" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Loading" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Loading, loading" })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "Asset name" })).toHaveAttribute(
       "aria-invalid",
       "true",

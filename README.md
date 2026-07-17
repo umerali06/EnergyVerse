@@ -183,3 +183,44 @@ git diff --exit-code -- packages/contracts
 Admin and mobile application code must call their typed API wrappers, which use
 the generated clients. Direct feature-level `fetch`, `http`, or raw Dio calls are
 not allowed.
+
+## Phase 1.1 Firebase client login
+
+The backend continues to use Admin credentials. Browser/mobile login uses the
+Firebase client SDK and the registered web-app identifiers; do not place a service
+account JSON or `FIREBASE_CREDENTIALS_B64` in either client.
+
+For Next.js, copy `apps/admin/.env.example` to `.env.local` and set:
+
+```powershell
+cd apps\admin
+Copy-Item .env.example .env.local
+$env:NEXT_PUBLIC_API_BASE_URL="http://localhost:8000"
+$env:NEXT_PUBLIC_FIREBASE_API_KEY="<firebase-web-api-key>"
+$env:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="<project>.firebaseapp.com"
+$env:NEXT_PUBLIC_FIREBASE_PROJECT_ID="<project-id>"
+$env:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="<storage-bucket>"
+$env:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="<sender-id>"
+$env:NEXT_PUBLIC_FIREBASE_APP_ID="<firebase-web-app-id>"
+corepack pnpm dev
+```
+
+For Flutter web, pass the same registered web-app values at compile time:
+
+```powershell
+cd apps\mobile
+flutter run -d chrome `
+  --dart-define=API_BASE_URL=http://localhost:8000 `
+  --dart-define=FIREBASE_API_KEY=<firebase-web-api-key> `
+  --dart-define=FIREBASE_AUTH_DOMAIN=<project>.firebaseapp.com `
+  --dart-define=FIREBASE_PROJECT_ID=<project-id> `
+  --dart-define=FIREBASE_STORAGE_BUCKET=<storage-bucket> `
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=<sender-id> `
+  --dart-define=FIREBASE_APP_ID=<firebase-web-app-id>
+```
+
+Firebase Auth persists browser sessions locally by default. On restore, both
+clients mint the current ID token and resolve the authoritative identity and
+permissions through `/api/v1/auth/me`. Native Android/iOS builds will add
+`google-services.json` and `GoogleService-Info.plist` in their platform setup task;
+those native files are intentionally not required for this web-targeted slice.

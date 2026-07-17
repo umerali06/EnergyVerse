@@ -1,7 +1,7 @@
 name: fev_mobile
 description: Flacron EnergyVerse Field App
 publish_to: 'none'
-version: 0.8.0+1
+version: 1.1.0+1
 
 environment:
   sdk: ^3.0.0
@@ -13,6 +13,8 @@ dependencies:
   fev_api_client:
     path: ../../packages/contracts/generated/dart-dio
   shared_preferences: 2.3.2
+  firebase_core: 4.12.1
+  firebase_auth: 6.5.6
 
 dev_dependencies:
   flutter_test:
