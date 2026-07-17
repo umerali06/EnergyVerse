@@ -24,8 +24,9 @@ void main() {
     );
   });
 
-  testWidgets('renders primitive variants and accessible states',
-      (tester) async {
+  testWidgets('renders primitive variants and accessible states', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppThemes.dark,
@@ -51,14 +52,8 @@ void main() {
                 ),
                 const AppCard(child: Text('Card content')),
                 const AppBadge(label: 'Badge'),
-                const StatusPill(
-                  label: 'Critical',
-                  status: AppStatus.critical,
-                ),
-                AppTabs(
-                  labels: ['One'],
-                  children: [Text('Panel one')],
-                ),
+                const StatusPill(label: 'Critical', status: AppStatus.critical),
+                AppTabs(labels: ['One'], children: [Text('Panel one')]),
                 const AppSkeleton(height: 14),
                 const AppLoader(label: 'Loading assets'),
                 const EmptyState(title: 'Empty', description: 'Nothing here'),
@@ -74,8 +69,9 @@ void main() {
     expect(find.byType(AppTextField), findsOneWidget);
     expect(find.byType(AppSkeleton), findsOneWidget);
     expect(find.text('Empty'), findsOneWidget);
-    final primarySize =
-        tester.getSize(find.widgetWithText(ElevatedButton, 'Primary'));
+    final primarySize = tester.getSize(
+      find.widgetWithText(ElevatedButton, 'Primary'),
+    );
     expect(primarySize.height, greaterThanOrEqualTo(48));
     expect(
       tester.getSemantics(find.byType(StatusPill)).label,
@@ -121,8 +117,9 @@ void main() {
     expect(find.text('Saved'), findsOneWidget);
   });
 
-  testWidgets('theme controller toggles and persists light mode',
-      (tester) async {
+  testWidgets('theme controller toggles and persists light mode', (
+    tester,
+  ) async {
     final controller = AppThemeController();
     await controller.load();
     expect(controller.mode, ThemeMode.dark);
@@ -135,8 +132,9 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('reduced-motion disables stagger transition duration',
-      (tester) async {
+  testWidgets('reduced-motion disables stagger transition duration', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppThemes.dark,
@@ -148,8 +146,9 @@ void main() {
     );
     await tester.pump();
 
-    final opacity =
-        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
+    final opacity = tester.widget<AnimatedOpacity>(
+      find.byType(AnimatedOpacity),
+    );
     expect(opacity.duration, Duration.zero);
     expect(opacity.opacity, 1);
   });
@@ -173,13 +172,17 @@ void main() {
     );
     await tester.pump();
     expect(find.text('FEV Design System'), findsOneWidget);
-    expect(Theme.of(tester.element(find.text('FEV Design System'))).brightness,
-        Brightness.dark);
+    expect(
+      Theme.of(tester.element(find.text('FEV Design System'))).brightness,
+      Brightness.dark,
+    );
 
     await controller.setMode(ThemeMode.light);
     await tester.pump(const Duration(milliseconds: 250));
-    expect(Theme.of(tester.element(find.text('FEV Design System'))).brightness,
-        Brightness.light);
+    expect(
+      Theme.of(tester.element(find.text('FEV Design System'))).brightness,
+      Brightness.light,
+    );
     controller.dispose();
   });
 }

@@ -1,6 +1,77 @@
 {
   "components": {
     "schemas": {
+      "CompanyRegistrationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "company_name": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Company Name",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 5,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "company_name",
+          "display_name",
+          "email",
+          "password"
+        ],
+        "title": "CompanyRegistrationRequest",
+        "type": "object"
+      },
+      "CompanyRegistrationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "email_verified": {
+            "title": "Email Verified",
+            "type": "boolean"
+          },
+          "role_key": {
+            "title": "Role Key",
+            "type": "string"
+          },
+          "uid": {
+            "title": "Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "uid",
+          "email",
+          "email_verified",
+          "company_id",
+          "role_key"
+        ],
+        "title": "CompanyRegistrationResponse",
+        "type": "object"
+      },
       "CurrentUser": {
         "additionalProperties": false,
         "properties": {
@@ -11,6 +82,10 @@
           "email": {
             "title": "Email",
             "type": "string"
+          },
+          "email_verified": {
+            "title": "Email Verified",
+            "type": "boolean"
           },
           "permissions": {
             "items": {
@@ -32,6 +107,7 @@
         "required": [
           "uid",
           "email",
+          "email_verified",
           "company_id",
           "role_key",
           "permissions"
@@ -455,6 +531,67 @@
           }
         ],
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "register_company_admin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyRegistrationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request conflicts with current state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "summary": "Register Company Admin",
         "tags": [
           "auth"
         ]

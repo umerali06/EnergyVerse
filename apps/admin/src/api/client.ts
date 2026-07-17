@@ -4,6 +4,8 @@ import {
   FetchError,
   ResponseError,
   SystemApi,
+  type CompanyRegistrationRequest,
+  type CompanyRegistrationResponse,
   type CurrentUser,
   type HealthResponse,
 } from "@fev/api-client";
@@ -79,6 +81,18 @@ export class FevApiClient {
 
   getCurrentUser(signal?: AbortSignal): Promise<CurrentUser> {
     return this.execute(() => this.auth.getCurrentUser(signal ? { signal } : undefined));
+  }
+
+  registerCompanyAdmin(
+    request: CompanyRegistrationRequest,
+    signal?: AbortSignal,
+  ): Promise<CompanyRegistrationResponse> {
+    return this.execute(() =>
+      this.auth.registerCompanyAdmin(
+        { companyRegistrationRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
   }
 
   private async execute<T>(request: () => Promise<T>): Promise<T> {

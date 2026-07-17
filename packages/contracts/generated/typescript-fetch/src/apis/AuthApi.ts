@@ -15,15 +15,25 @@
 
 import * as runtime from '../runtime';
 import type {
+  CompanyRegistrationRequest,
+  CompanyRegistrationResponse,
   CurrentUser,
   ErrorEnvelope,
 } from '../models/index';
 import {
+    CompanyRegistrationRequestFromJSON,
+    CompanyRegistrationRequestToJSON,
+    CompanyRegistrationResponseFromJSON,
+    CompanyRegistrationResponseToJSON,
     CurrentUserFromJSON,
     CurrentUserToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
 } from '../models/index';
+
+export interface RegisterCompanyAdminRequest {
+    companyRegistrationRequest: CompanyRegistrationRequest;
+}
 
 /**
  *
@@ -61,6 +71,42 @@ export class AuthApi extends runtime.BaseAPI {
      */
     async getCurrentUser(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CurrentUser> {
         const response = await this.getCurrentUserRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Register Company Admin
+     */
+    async registerCompanyAdminRaw(requestParameters: RegisterCompanyAdminRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CompanyRegistrationResponse>> {
+        if (requestParameters['companyRegistrationRequest'] == null) {
+            throw new runtime.RequiredError(
+                'companyRegistrationRequest',
+                'Required parameter "companyRegistrationRequest" was null or undefined when calling registerCompanyAdmin().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/api/v1/auth/register`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CompanyRegistrationRequestToJSON(requestParameters['companyRegistrationRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CompanyRegistrationResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Register Company Admin
+     */
+    async registerCompanyAdmin(requestParameters: RegisterCompanyAdminRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CompanyRegistrationResponse> {
+        const response = await this.registerCompanyAdminRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

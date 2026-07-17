@@ -19,12 +19,22 @@ class _IdentityApi implements ApiContract {
         ..email = 'test@example.invalid'
         ..companyId = 'acme-energy'
         ..roleKey = 'custom'
+        ..emailVerified = true
         ..permissions.addAll(permissionKeys),
     );
   }
 
   @override
   Future<HealthResponse> getHealth() => throw UnimplementedError();
+
+  @override
+  Future<CompanyRegistrationResponse> registerCompanyAdmin({
+    required String companyName,
+    required String displayName,
+    required String email,
+    required String password,
+  }) =>
+      throw UnimplementedError();
 }
 
 void main() {
@@ -43,18 +53,20 @@ void main() {
     expect(access.hasAll(const ['assets.read', 'users.manage']), isFalse);
   });
 
-  test('loads permissions once through the generated-client API service seam',
-      () async {
-    final api = _IdentityApi(const ['assets.read', 'assets.write']);
-    final controller = PermissionController(api: api);
+  test(
+    'loads permissions once through the generated-client API service seam',
+    () async {
+      final api = _IdentityApi(const ['assets.read', 'assets.write']);
+      final controller = PermissionController(api: api);
 
-    await controller.loadFromMe();
+      await controller.loadFromMe();
 
-    expect(api.requests, 1);
-    expect(controller.status, PermissionStatus.ready);
-    expect(controller.can('assets.write'), isTrue);
-    controller.dispose();
-  });
+      expect(api.requests, 1);
+      expect(controller.status, PermissionStatus.ready);
+      expect(controller.can('assets.write'), isTrue);
+      controller.dispose();
+    },
+  );
 
   testWidgets('role with permission sees the protected block', (tester) async {
     final controller = PermissionController(
@@ -78,8 +90,9 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('role without permission sees the no-access state',
-      (tester) async {
+  testWidgets('role without permission sees the no-access state', (
+    tester,
+  ) async {
     final controller = PermissionController(
       initialPermissions: const ['assets.read'],
     );

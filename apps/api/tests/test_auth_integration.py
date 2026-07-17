@@ -5,6 +5,7 @@ import pytest
 
 from app.auth.admin import FirebaseAuthAdmin
 from app.core.settings import settings
+from app.db.firestore import reset_firestore_client_for_testing
 from app.main import app
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
 from scripts.seed import ACME_COMPANY_ID, run_seed
@@ -23,6 +24,7 @@ REAL_AUTH_CONFIGURED = bool(
     reason="Firebase Admin credentials, web API key, and demo password are required",
 )
 def test_real_firebase_password_sign_in_and_me() -> None:
+    reset_firestore_client_for_testing()
     async def exercise_auth_chain() -> None:
         await run_seed(with_auth_users=True)
         email = "field_inspector@acme.example.invalid"

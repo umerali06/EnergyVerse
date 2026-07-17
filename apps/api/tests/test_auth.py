@@ -116,16 +116,42 @@ def test_me_returns_seeded_identity_and_exact_permissions(
     _override_repositories(monkeypatch, firestore)
     uid = "demo-acme-field_inspector"
     response = _request_with_verifier(
-        StaticTokenVerifier({"uid": uid, "company_id": ACME_COMPANY_ID})
+        StaticTokenVerifier(
+            {"uid": uid, "company_id": ACME_COMPANY_ID, "email_verified": True}
+        )
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["uid"] == uid
     assert body["email"] == "field_inspector@acme.example.invalid"
+    assert body["email_verified"] is True
     assert body["company_id"] == ACME_COMPANY_ID
     assert body["role_key"] == "field_inspector"
     assert set(body["permissions"]) == set(SYSTEM_ROLE_TEMPLATES["field_inspector"].permission_keys)
+
+
+def test_me_returns_unverified_identity_for_verification_flow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    firestore = FakeAsyncClient()
+    asyncio.run(run_seed(firestore))
+    _override_repositories(monkeypatch, firestore)
+    response = _request_with_verifier(
+        StaticTokenVerifier(
+            {
+                "uid": "demo-acme-executive",
+                "company_id": ACME_COMPANY_ID,
+                "email_verified": False,
+            }
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.json()["email_verified"] is False
+    assert set(response.json()["permissions"]) == set(
+        SYSTEM_ROLE_TEMPLATES["executive"].permission_keys
+    )
 
 
 def test_me_inactive_user_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:

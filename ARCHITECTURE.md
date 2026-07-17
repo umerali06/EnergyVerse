@@ -159,6 +159,29 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   token refresh, route guards, and session hardening remain deferred to Phase 1.4.
   Signup/verification and forgot/reset links remain disabled until Phases 1.2/1.3.
 
+### Phase 1.2 Organization Signup and Email Verification
+
+- Self-service registration always creates a new tenant with an opaque `cmp_...`
+  identifier; company names are display labels and may duplicate. FastAPI creates
+  the company, idempotently installs the Phase 0.4 seven-role matrix, provisions
+  the first Firebase/Firestore user as `company_admin`, synchronizes claims, and
+  writes company/user audit events. No path joins an existing tenant.
+- The contract chain is signup form → Phase 0.8 generated registration client →
+  `POST /api/v1/auth/register` → scoped company/role/user repositories → Firebase
+  client sign-in → Firebase `sendEmailVerification`. Firebase performs delivery;
+  the Phase 0.5 Admin link generator remains reserved for later notification flows.
+- `CurrentUser` now carries `email_verified`. `/api/v1/auth/me` deliberately returns
+  identity with HTTP 200 for verified and unverified callers, allowing both clients
+  to restore context and render verification state. `require_verified_email` wraps
+  application permission/role gates and returns `403 email_unverified` before any
+  protected work. Firestore role data remains authoritative for permissions.
+- Next.js and Flutter auth providers add signing-up, verification-required, and
+  checking-verification states. Their signup and verification views reuse Phase
+  0.7 primitives/motion and Phase 0.8 errors/toasts, enforce matching validation,
+  provide a 60-second resend cooldown, reload Firebase before continuing, and route
+  verified users to the existing Home placeholder. Invite onboarding remains a
+  later admin-portal concern; reset and full session hardening remain Phase 1.3/1.4.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -198,3 +221,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 0.7 — shared design system | Establishes `packages/design-tokens/tokens.json` as the single framework-neutral source and generates committed bindings into Next.js Tailwind/CSS and Flutter `ThemeData`. Both clients default to dark, persist light/dark choice, bundle Inter/JetBrains Mono, share equivalent reusable primitives, and implement the same fast/standard/slow motion feel with reduced-animation paths. Development-only showcases render every primitive and motion behavior without adding feature or auth screens. All future screens must reuse this foundation. | 2026-07-16 |
 | Phase 0.8 — API contract and generated clients | Connects the Phase 0.5 token/current-user chain and Phase 0.6 RBAC routes to a typed OpenAPI 3.1 contract with one request-ID error envelope. Pinned generation commits a TypeScript Fetch client for Next.js and Dart Dio client for Flutter; CI re-exports/regenerates and rejects drift. Client wrappers inject tokens, normalize network/API failures, invoke the 401 seam, and surface Phase 0.7 toast/snackbar feedback. Existing health and `/me` consumers now use these wrappers. No feature screen/module or Phase 1 implementation was added. | 2026-07-16 |
 | Phase 1.1 — client login | Both clients initialize the Firebase client SDK from uncommitted environment configuration, sign in with email/password, inject the Firebase ID token through the Phase 0.8 typed wrapper, and resolve the Phase 0.5 `/me` identity backed by Phase 0.4 tenant/RBAC repositories. One auth provider restores persisted Firebase sessions and owns `CurrentUser`; the authenticated Home placeholder renders role and exact effective permissions for Phase 0.6 guard consumers. Login/Home compose Phase 0.7 primitives, motion, and feedback. Minimal sign-out closes the loop; signup, reset, and full session/route hardening remain deferred. | 2026-07-17 |
+| Phase 1.2 — organization signup and verification | The typed registration operation creates an opaque-ID tenant, installs the shared seven-role matrix, provisions/audits its first `company_admin`, and returns the Firebase identity seam. Both clients sign in, use Firebase built-in verification delivery, and keep unverified identity resolvable through `/me`; server `require_verified_email` gates all application RBAC dependencies until a refreshed token reports verification. Signup/verify UI reuses the design system, generated clients, auth provider, and unified feedback. | 2026-07-17 |

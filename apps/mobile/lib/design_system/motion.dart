@@ -42,11 +42,7 @@ class IndustrialPageRoute<T> extends MaterialPageRoute<T> {
 }
 
 class StaggeredReveal extends StatefulWidget {
-  const StaggeredReveal({
-    required this.index,
-    required this.child,
-    super.key,
-  });
+  const StaggeredReveal({required this.index, required this.child, super.key});
 
   final int index;
   final Widget child;

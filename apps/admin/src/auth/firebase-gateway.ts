@@ -1,12 +1,19 @@
 "use client";
 
 import { FirebaseError } from "firebase/app";
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from "firebase/auth";
 
 import { getFirebaseClientAuth } from "@/firebase/client";
 
 export type AuthSession = {
   email: string | null;
+  emailVerified: boolean;
   getIdToken: () => Promise<string>;
   uid: string;
 };
@@ -24,12 +31,15 @@ export class ClientAuthError extends Error {
 export interface AuthGateway {
   getIdToken(): Promise<string | undefined>;
   observe(listener: (session: AuthSession | null) => void): () => void;
+  refreshSession(): Promise<AuthSession>;
+  sendEmailVerification(): Promise<void>;
   signIn(email: string, password: string): Promise<AuthSession>;
   signOut(): Promise<void>;
 }
 
 const toSession = (user: User): AuthSession => ({
   email: user.email,
+  emailVerified: user.emailVerified,
   getIdToken: () => user.getIdToken(),
   uid: user.uid,
 });
@@ -60,6 +70,30 @@ export class FirebaseAuthGateway implements AuthGateway {
       const credential = await signInWithEmailAndPassword(getFirebaseClientAuth(), email, password);
       return toSession(credential.user);
     } catch (error) {
+      throw translate(error);
+    }
+  }
+
+  async refreshSession(): Promise<AuthSession> {
+    try {
+      const user = getFirebaseClientAuth().currentUser;
+      if (!user) throw new ClientAuthError("auth/no-current-user", "No Firebase session");
+      await user.reload();
+      await user.getIdToken(true);
+      return toSession(user);
+    } catch (error) {
+      if (error instanceof ClientAuthError) throw error;
+      throw translate(error);
+    }
+  }
+
+  async sendEmailVerification(): Promise<void> {
+    try {
+      const user = getFirebaseClientAuth().currentUser;
+      if (!user) throw new ClientAuthError("auth/no-current-user", "No Firebase session");
+      await sendEmailVerification(user);
+    } catch (error) {
+      if (error instanceof ClientAuthError) throw error;
       throw translate(error);
     }
   }

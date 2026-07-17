@@ -3,6 +3,8 @@
 README.md
 analysis_options.yaml
 doc/AuthApi.md
+doc/CompanyRegistrationRequest.md
+doc/CompanyRegistrationResponse.md
 doc/CurrentUser.md
 doc/DemoGateResponse.md
 doc/ErrorEnvelope.md
@@ -22,6 +24,8 @@ lib/src/auth/basic_auth.dart
 lib/src/auth/bearer_auth.dart
 lib/src/auth/oauth.dart
 lib/src/date_serializer.dart
+lib/src/model/company_registration_request.dart
+lib/src/model/company_registration_response.dart
 lib/src/model/current_user.dart
 lib/src/model/date.dart
 lib/src/model/demo_gate_response.dart
@@ -31,6 +35,8 @@ lib/src/model/service_response.dart
 lib/src/serializers.dart
 pubspec.yaml
 test/auth_api_test.dart
+test/company_registration_request_test.dart
+test/company_registration_response_test.dart
 test/current_user_test.dart
 test/demo_gate_response_test.dart
 test/error_envelope_test.dart

@@ -7,6 +7,8 @@ part of 'serializers.dart';
 // **************************************************************************
 
 Serializers _$serializers = (new Serializers().toBuilder()
+      ..add(CompanyRegistrationRequest.serializer)
+      ..add(CompanyRegistrationResponse.serializer)
       ..add(CurrentUser.serializer)
       ..add(DemoGateResponse.serializer)
       ..add(DemoGateResponseOkEnum.serializer)

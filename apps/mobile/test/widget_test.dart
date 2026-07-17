@@ -12,6 +12,12 @@ class _SignedOutGateway implements AuthGateway {
   Future<String?> getIdToken() async => null;
 
   @override
+  Future<AuthSession> refreshSession() => throw UnimplementedError();
+
+  @override
+  Future<void> sendEmailVerification() => throw UnimplementedError();
+
+  @override
   Future<AuthSession> signIn(String email, String password) =>
       throw UnimplementedError();
 
@@ -25,6 +31,15 @@ class _UnusedApi implements ApiContract {
 
   @override
   Future<HealthResponse> getHealth() => throw UnimplementedError();
+
+  @override
+  Future<CompanyRegistrationResponse> registerCompanyAdmin({
+    required String companyName,
+    required String displayName,
+    required String email,
+    required String password,
+  }) =>
+      throw UnimplementedError();
 }
 
 void main() {

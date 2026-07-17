@@ -35,25 +35,25 @@ class _AppButtonState extends State<AppButton> {
     final colors = Theme.of(context).colorScheme;
     final (background, foreground, border) = switch (widget.variant) {
       AppButtonVariant.primary => (
-          DsColors.primary500,
-          Colors.white,
-          Colors.transparent
-        ),
+        DsColors.primary500,
+        Colors.white,
+        Colors.transparent,
+      ),
       AppButtonVariant.accent => (
-          DsColors.accent500,
-          Colors.white,
-          Colors.transparent
-        ),
+        DsColors.accent500,
+        Colors.white,
+        Colors.transparent,
+      ),
       AppButtonVariant.ghost => (
-          Colors.transparent,
-          colors.onSurface,
-          context.semantic.border
-        ),
+        Colors.transparent,
+        colors.onSurface,
+        context.semantic.border,
+      ),
       AppButtonVariant.danger => (
-          DsColors.statusCritical,
-          Colors.white,
-          Colors.transparent
-        ),
+        DsColors.statusCritical,
+        Colors.white,
+        Colors.transparent,
+      ),
     };
     final style = ElevatedButton.styleFrom(
       backgroundColor: background,
@@ -84,8 +84,9 @@ class _AppButtonState extends State<AppButton> {
       child: Listener(
         onPointerDown: enabled ? (_) => setState(() => _pressed = true) : null,
         onPointerUp: enabled ? (_) => setState(() => _pressed = false) : null,
-        onPointerCancel:
-            enabled ? (_) => setState(() => _pressed = false) : null,
+        onPointerCancel: enabled
+            ? (_) => setState(() => _pressed = false)
+            : null,
         child: AnimatedScale(
           duration: motionDuration(context, DsMotion.fast),
           curve: DsMotion.standard,
@@ -199,11 +200,11 @@ enum AppStatus { healthy, warning, critical, info }
 
 extension on AppStatus {
   Color get color => switch (this) {
-        AppStatus.healthy => DsColors.statusSuccess,
-        AppStatus.warning => DsColors.statusWarning,
-        AppStatus.critical => DsColors.statusCritical,
-        AppStatus.info => DsColors.statusInfo,
-      };
+    AppStatus.healthy => DsColors.statusSuccess,
+    AppStatus.warning => DsColors.statusWarning,
+    AppStatus.critical => DsColors.statusCritical,
+    AppStatus.info => DsColors.statusInfo,
+  };
 }
 
 class StatusPill extends StatelessWidget {
@@ -239,9 +240,9 @@ class StatusPill extends StatelessWidget {
               Text(
                 label.toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -275,11 +276,7 @@ class AppBadge extends StatelessWidget {
 }
 
 class AppModal extends StatelessWidget {
-  const AppModal({
-    required this.title,
-    required this.child,
-    super.key,
-  });
+  const AppModal({required this.title, required this.child, super.key});
 
   final String title;
   final Widget child;
@@ -318,31 +315,28 @@ Future<T?> showAppModal<T>(
   BuildContext context, {
   required String title,
   required Widget child,
-}) =>
-    showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: false,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(DsRadius.xl2)),
-      ),
-      builder: (_) => AppModal(title: title, child: child),
-    );
+}) => showModalBottomSheet<T>(
+  context: context,
+  isScrollControlled: true,
+  showDragHandle: false,
+  backgroundColor: Theme.of(context).colorScheme.surface,
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(DsRadius.xl2)),
+  ),
+  builder: (_) => AppModal(title: title, child: child),
+);
 
 void showAppToast(
   BuildContext context,
   String message, {
   AppStatus status = AppStatus.info,
 }) {
-  ScaffoldMessenger.of(context)
-      .showSnackBar(buildAppToast(message, status: status));
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(buildAppToast(message, status: status));
 }
 
-SnackBar buildAppToast(
-  String message, {
-  AppStatus status = AppStatus.info,
-}) =>
+SnackBar buildAppToast(String message, {AppStatus status = AppStatus.info}) =>
     SnackBar(
       content: Row(
         children: [
@@ -354,11 +348,7 @@ SnackBar buildAppToast(
     );
 
 class AppTabs extends StatelessWidget {
-  const AppTabs({
-    required this.labels,
-    required this.children,
-    super.key,
-  });
+  const AppTabs({required this.labels, required this.children, super.key});
 
   final List<String> labels;
   final List<Widget> children;
@@ -371,10 +361,7 @@ class AppTabs extends StatelessWidget {
       child: Column(
         children: [
           TabBar(tabs: labels.map((label) => Tab(text: label)).toList()),
-          SizedBox(
-            height: 120,
-            child: TabBarView(children: children),
-          ),
+          SizedBox(height: 120, child: TabBarView(children: children)),
         ],
       ),
     );
@@ -403,7 +390,9 @@ class _AppSkeletonState extends State<AppSkeleton>
   void initState() {
     super.initState();
     _controller = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1600));
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
   }
 
   @override
@@ -450,11 +439,7 @@ class _AppSkeletonState extends State<AppSkeleton>
 }
 
 class AppLoader extends StatelessWidget {
-  const AppLoader({
-    this.label = 'Loading',
-    this.size = 24,
-    super.key,
-  });
+  const AppLoader({this.label = 'Loading', this.size = 24, super.key});
 
   final String label;
   final double size;
@@ -494,8 +479,11 @@ class EmptyState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.layers_clear_outlined,
-              color: DsColors.primary400, size: 36),
+          const Icon(
+            Icons.layers_clear_outlined,
+            color: DsColors.primary400,
+            size: 36,
+          ),
           const SizedBox(height: DsSpacing.s3),
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: DsSpacing.s2),

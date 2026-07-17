@@ -46,8 +46,10 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
         children: [
           const AppBadge(label: 'DEV-ONLY SHOWCASE'),
           const SizedBox(height: DsSpacing.s3),
-          Text('Industrial energy primitives',
-              style: Theme.of(context).textTheme.headlineLarge),
+          Text(
+            'Industrial energy primitives',
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
           const SizedBox(height: DsSpacing.s2),
           Text(
             'Shared tokens, accessible states, and reduced-motion-aware interaction.',
@@ -104,10 +106,7 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
             'Form controls',
             Column(
               children: [
-                const AppTextField(
-                  label: 'Asset name',
-                  hint: 'Separator A-12',
-                ),
+                const AppTextField(label: 'Asset name', hint: 'Separator A-12'),
                 const SizedBox(height: DsSpacing.s4),
                 const AppTextField(
                   label: 'Asset tag',
@@ -119,9 +118,13 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
                   value: _status,
                   items: const [
                     DropdownMenuItem(
-                        value: 'operational', child: Text('Operational')),
+                      value: 'operational',
+                      child: Text('Operational'),
+                    ),
                     DropdownMenuItem(
-                        value: 'maintenance', child: Text('Maintenance')),
+                      value: 'maintenance',
+                      child: Text('Maintenance'),
+                    ),
                   ],
                   onChanged: (value) =>
                       setState(() => _status = value ?? _status),
@@ -152,7 +155,8 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                            'Shared surface, radius, and motion tokens.'),
+                          'Shared surface, radius, and motion tokens.',
+                        ),
                         const SizedBox(height: DsSpacing.s4),
                         AppButton(
                           label: 'Confirm',
@@ -231,8 +235,11 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: DsSpacing.s4),
-                for (final (index, label)
-                    in ['Inspect', 'Confirm', 'Audit'].indexed)
+                for (final (index, label) in [
+                  'Inspect',
+                  'Confirm',
+                  'Audit',
+                ].indexed)
                   Padding(
                     padding: const EdgeInsets.only(bottom: DsSpacing.s2),
                     child: StaggeredReveal(

@@ -163,6 +163,28 @@
   Signup/verification, reset, comprehensive refresh, and route-guard hardening stay
   in their scheduled Phase 1 slices; client identity never replaces API enforcement.
 
+### D-012 — Self-Serve Tenants and Verified-Email Enforcement
+
+- **Decision owner:** Product owner
+- **Tenant creation:** Public signup creates a new company only. Its ID is an
+  opaque generated value; company display names are not unique. The first user is
+  provisioned as `company_admin`, and the Phase 0.4 seven-role templates are
+  installed for the tenant. Joining an existing company requires a later invite
+  flow and is not inferred from an email domain or company name.
+- **Email delivery:** Clients call Firebase `sendEmailVerification` after backend
+  provisioning and sign-in. Firebase built-in delivery is used now; the Admin SDK
+  link wrapper remains available for the later notifications system. Optional
+  `AUTH_ACTION_URL` behavior from D-007 is unchanged.
+- **Unverified identity:** `/api/v1/auth/me` returns HTTP 200 and an explicit
+  `email_verified` flag so clients can restore identity, resend, and refresh. A
+  separate server dependency, `require_verified_email`, returns the unified
+  `403 email_unverified` envelope on application permission/role gates. Client
+  routing is advisory and cannot replace this check.
+- **Consequences:** Unverified users retain resolvable tenant/role context but
+  cannot perform protected application work. Duplicate organization names coexist
+  safely, no company-discovery side channel is introduced, and invite onboarding,
+  password reset, and comprehensive session guards remain in their scheduled slices.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -192,3 +214,6 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 - **2026-07-17 — Phase 1.1:** Added D-011. Both clients now use Firebase's client
   SDK and one auth provider to turn a persisted Firebase session into the scoped,
   permission-bearing `/me` identity; API authorization remains authoritative.
+- **2026-07-17 — Phase 1.2:** Added D-012. Self-signup always creates a generated-ID
+  tenant and its first company administrator; `/me` remains available to unverified
+  identities while server application gates require a verified Firebase email.

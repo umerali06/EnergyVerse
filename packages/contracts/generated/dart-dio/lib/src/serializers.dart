@@ -14,6 +14,8 @@ import 'package:built_value/iso_8601_date_time_serializer.dart';
 import 'package:fev_api_client/src/date_serializer.dart';
 import 'package:fev_api_client/src/model/date.dart';
 
+import 'package:fev_api_client/src/model/company_registration_request.dart';
+import 'package:fev_api_client/src/model/company_registration_response.dart';
 import 'package:fev_api_client/src/model/current_user.dart';
 import 'package:fev_api_client/src/model/demo_gate_response.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
@@ -23,6 +25,8 @@ import 'package:fev_api_client/src/model/service_response.dart';
 part 'serializers.g.dart';
 
 @SerializersFor([
+  CompanyRegistrationRequest,
+  CompanyRegistrationResponse,
   CurrentUser,
   DemoGateResponse,
   ErrorEnvelope,

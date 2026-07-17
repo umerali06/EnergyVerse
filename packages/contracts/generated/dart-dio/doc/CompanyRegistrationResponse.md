@@ -1,4 +1,4 @@
-# fev_api_client.model.CurrentUser
+# fev_api_client.model.CompanyRegistrationResponse
 
 ## Load the model package
 ```dart
@@ -11,7 +11,6 @@ Name | Type | Description | Notes
 **companyId** | **String** |  |
 **email** | **String** |  |
 **emailVerified** | **bool** |  |
-**permissions** | **BuiltSet&lt;String&gt;** |  |
 **roleKey** | **String** |  |
 **uid** | **String** |  |
 

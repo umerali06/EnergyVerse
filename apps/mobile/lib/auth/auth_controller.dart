@@ -6,7 +6,29 @@ import 'package:flutter/widgets.dart';
 import '../api/api_service.dart';
 import 'firebase_gateway.dart';
 
-enum AuthStatus { restoring, signedOut, signingIn, authenticated }
+enum AuthStatus {
+  restoring,
+  signedOut,
+  signingIn,
+  signingUp,
+  verificationRequired,
+  checkingVerification,
+  authenticated,
+}
+
+class RegistrationInput {
+  const RegistrationInput({
+    required this.companyName,
+    required this.displayName,
+    required this.email,
+    required this.password,
+  });
+
+  final String companyName;
+  final String displayName;
+  final String email;
+  final String password;
+}
 
 typedef AuthFeedback = void Function(String message);
 
@@ -30,24 +52,30 @@ class AuthController extends ChangeNotifier {
   AuthStatus _status = AuthStatus.restoring;
   CurrentUser? _currentUser;
   String? _error;
+  DateTime? _verificationSentAt;
 
   AuthStatus get status => _status;
   CurrentUser? get currentUser => _currentUser;
   String? get error => _error;
+  DateTime? get verificationSentAt => _verificationSentAt;
+  bool get verificationResendAvailable =>
+      _verificationSentAt == null ||
+      DateTime.now().difference(_verificationSentAt!) >=
+          const Duration(seconds: 60);
 
   void start() {
-    _subscription ??= _gateway.authStateChanges().listen(
-      (session) {
-        if (session == null) {
-          _currentUser = null;
-          if (_status != AuthStatus.signingIn) _status = AuthStatus.signedOut;
-          _notify();
-        } else {
-          unawaited(_resolveSession(session));
+    _subscription ??= _gateway.authStateChanges().listen((session) {
+      if (session == null) {
+        _currentUser = null;
+        if (_status != AuthStatus.signingIn &&
+            _status != AuthStatus.signingUp) {
+          _status = AuthStatus.signedOut;
         }
-      },
-      onError: _fail,
-    );
+        _notify();
+      } else {
+        unawaited(_resolveSession(session));
+      }
+    }, onError: (Object error) => _fail(error));
   }
 
   Future<void> signIn(String email, String password) async {
@@ -63,6 +91,65 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<void> register(RegistrationInput input) async {
+    if (_status == AuthStatus.signingUp) return;
+    _error = null;
+    _status = AuthStatus.signingUp;
+    _notify();
+    try {
+      await _api.registerCompanyAdmin(
+        companyName: input.companyName,
+        displayName: input.displayName,
+        email: input.email,
+        password: input.password,
+      );
+      final session = await _gateway.signIn(input.email, input.password);
+      await _resolveSession(session);
+      await _gateway.sendEmailVerification();
+      _verificationSentAt = DateTime.now();
+      _feedback('Verification email sent');
+      _status = AuthStatus.verificationRequired;
+      _notify();
+    } catch (failure) {
+      _fail(
+        failure,
+        fallback: 'Unable to create your account. Please try again',
+      );
+    }
+  }
+
+  Future<void> resendVerification() async {
+    if (!verificationResendAvailable) return;
+    try {
+      await _gateway.sendEmailVerification();
+      _verificationSentAt = DateTime.now();
+      _feedback('Verification email sent');
+      _notify();
+    } catch (failure) {
+      final message = friendlyMessage(failure);
+      _error = message;
+      _feedback(message);
+      _notify();
+    }
+  }
+
+  Future<bool> refreshVerification() async {
+    _status = AuthStatus.checkingVerification;
+    _notify();
+    try {
+      final session = await _gateway.refreshSession();
+      await _resolveSession(session);
+      if (_currentUser?.emailVerified == true) return true;
+      _status = AuthStatus.verificationRequired;
+      _feedback('Your email is not verified yet');
+      _notify();
+      return false;
+    } catch (failure) {
+      _fail(failure);
+      return false;
+    }
+  }
+
   Future<void> _resolveSession(AuthSession session) async {
     if (_resolution != null && _resolutionUid == session.uid) {
       await _resolution;
@@ -74,7 +161,9 @@ class AuthController extends ChangeNotifier {
         final identity = await _api.getCurrentUser();
         _currentUser = identity;
         _error = null;
-        _status = AuthStatus.authenticated;
+        _status = identity.emailVerified
+            ? AuthStatus.authenticated
+            : AuthStatus.verificationRequired;
         _notify();
       } catch (failure) {
         if (failure is ApiException && failure.statusCode == 403) {
@@ -119,8 +208,18 @@ class AuthController extends ChangeNotifier {
       if (failure.code == 'network-request-failed') {
         return 'Network unavailable. Check your connection and try again';
       }
+      if (failure.code == 'email-already-in-use') {
+        return 'An account already exists for this email';
+      }
+      if (failure.code == 'weak-password') {
+        return 'Use a stronger password';
+      }
     }
     if (failure is ApiException) {
+      if (failure.code == 'email_already_in_use' ||
+          failure.code == 'conflict') {
+        return 'An account already exists for this email';
+      }
       if (failure.statusCode == 403) {
         return "Your account isn't active — contact your admin.";
       }
@@ -131,8 +230,11 @@ class AuthController extends ChangeNotifier {
     return 'Unable to sign in. Please try again';
   }
 
-  void _fail(Object failure) {
-    final message = friendlyMessage(failure);
+  void _fail(Object failure, {String? fallback}) {
+    var message = friendlyMessage(failure);
+    if (fallback != null && message == 'Unable to sign in. Please try again') {
+      message = fallback;
+    }
     _currentUser = null;
     _error = message;
     _status = AuthStatus.signedOut;

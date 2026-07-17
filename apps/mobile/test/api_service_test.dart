@@ -43,32 +43,37 @@ ResponseBody _jsonBody(Object body, int statusCode) => ResponseBody.fromString(
     );
 
 void main() {
-  test('injects token and returns typed /me through generated Dart client',
-      () async {
-    final adapter = _StubAdapter(
-      (_) async => _jsonBody({
-        'uid': 'firebase-uid',
-        'email': 'operator@example.invalid',
-        'company_id': 'acme-energy',
-        'role_key': 'operations_manager',
-        'permissions': ['assets.read', 'assets.write'],
-      }, 200),
-    );
-    final dio = Dio()..httpClientAdapter = adapter;
-    final api = ApiService(
-      baseUrl: 'http://api.test',
-      dio: dio,
-      getIdToken: () async => 'real-id-token',
-    );
+  test(
+    'injects token and returns typed /me through generated Dart client',
+    () async {
+      final adapter = _StubAdapter(
+        (_) async => _jsonBody({
+          'uid': 'firebase-uid',
+          'email': 'operator@example.invalid',
+          'company_id': 'acme-energy',
+          'role_key': 'operations_manager',
+          'email_verified': true,
+          'permissions': ['assets.read', 'assets.write'],
+        }, 200),
+      );
+      final dio = Dio()..httpClientAdapter = adapter;
+      final api = ApiService(
+        baseUrl: 'http://api.test',
+        dio: dio,
+        getIdToken: () async => 'real-id-token',
+      );
 
-    final identity = await api.getCurrentUser();
+      final identity = await api.getCurrentUser();
 
-    expect(identity.uid, 'firebase-uid');
-    expect(identity.companyId, 'acme-energy');
-    expect(identity.permissions, contains('assets.write'));
-    expect(
-        adapter.lastRequest?.headers['Authorization'], 'Bearer real-id-token');
-  });
+      expect(identity.uid, 'firebase-uid');
+      expect(identity.companyId, 'acme-energy');
+      expect(identity.permissions, contains('assets.write'));
+      expect(
+        adapter.lastRequest?.headers['Authorization'],
+        'Bearer real-id-token',
+      );
+    },
+  );
 
   test('maps envelope, reports toast feedback, and runs 401 hook', () async {
     final feedback = _Feedback();
@@ -133,5 +138,32 @@ void main() {
       ),
     );
     expect(feedback.errors, ['Unable to reach the API']);
+  });
+
+  test('registers a company admin through the generated client', () async {
+    final adapter = _StubAdapter(
+      (_) async => _jsonBody({
+        'uid': 'firebase-uid',
+        'email': 'admin@northstar.example',
+        'email_verified': false,
+        'company_id': 'cmp_generated',
+        'role_key': 'company_admin',
+      }, 201),
+    );
+    final dio = Dio()..httpClientAdapter = adapter;
+    final api = ApiService(baseUrl: 'http://api.test', dio: dio);
+
+    final result = await api.registerCompanyAdmin(
+      companyName: 'Northstar Energy',
+      displayName: 'First Admin',
+      email: 'admin@northstar.example',
+      password: 'StrongPass1',
+    );
+
+    expect(result.companyId, 'cmp_generated');
+    expect(result.roleKey, 'company_admin');
+    expect(adapter.lastRequest?.path, '/api/v1/auth/register');
+    expect(adapter.lastRequest?.data,
+        containsPair('company_name', 'Northstar Energy'));
   });
 }

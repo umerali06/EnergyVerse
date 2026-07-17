@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, Request, status
 
 from app.audit.service import AuditService
 from app.audit.types import AuditSink
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import require_verified_email
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
@@ -71,7 +71,7 @@ def require_permission(
 
     async def enforce(
         request: Request,
-        current_user: Annotated[CurrentUser, Depends(get_current_user)],
+        current_user: Annotated[CurrentUser, Depends(require_verified_email)],
         audit: Annotated[AuditSink, Depends(get_access_denial_audit)],
     ) -> CurrentUser:
         missing = [key for key in required if key not in current_user.permissions]
@@ -109,7 +109,7 @@ def require_role(*role_keys: str) -> RbacDependency:
 
     async def enforce(
         request: Request,
-        current_user: Annotated[CurrentUser, Depends(get_current_user)],
+        current_user: Annotated[CurrentUser, Depends(require_verified_email)],
         audit: Annotated[AuditSink, Depends(get_access_denial_audit)],
     ) -> CurrentUser:
         if current_user.role_key in required:

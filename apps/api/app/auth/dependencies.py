@@ -109,7 +109,23 @@ async def get_current_user(
     return CurrentUser(
         uid=uid,
         email=user.email,
+        email_verified=decoded_token.get("email_verified") is True,
         company_id=user.company_id,
         role_key=role.key,
         permissions=permissions,
     )
+
+
+async def require_verified_email(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+) -> CurrentUser:
+    """Allow identity resolution while blocking application work before verification."""
+    if not current_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "email_unverified",
+                "message": "Email verification is required",
+            },
+        )
+    return current_user

@@ -49,6 +49,12 @@ class ApiException implements Exception {
 abstract interface class ApiContract {
   Future<HealthResponse> getHealth();
   Future<CurrentUser> getCurrentUser();
+  Future<CompanyRegistrationResponse> registerCompanyAdmin({
+    required String companyName,
+    required String displayName,
+    required String email,
+    required String password,
+  });
 }
 
 class ApiService implements ApiContract {
@@ -127,6 +133,37 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty identity response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<CompanyRegistrationResponse> registerCompanyAdmin({
+    required String companyName,
+    required String displayName,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final request = CompanyRegistrationRequest(
+        (builder) => builder
+          ..companyName = companyName
+          ..displayName = displayName
+          ..email = email
+          ..password = password,
+      );
+      final response = await _client.getAuthApi().registerCompanyAdmin(
+            companyRegistrationRequest: request,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty registration response',
         );
       }
       return value;

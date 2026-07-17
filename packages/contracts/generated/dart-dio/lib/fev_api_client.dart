@@ -14,6 +14,8 @@ export 'package:fev_api_client/src/api/auth_api.dart';
 export 'package:fev_api_client/src/api/rbac_demo_api.dart';
 export 'package:fev_api_client/src/api/system_api.dart';
 
+export 'package:fev_api_client/src/model/company_registration_request.dart';
+export 'package:fev_api_client/src/model/company_registration_response.dart';
 export 'package:fev_api_client/src/model/current_user.dart';
 export 'package:fev_api_client/src/model/demo_gate_response.dart';
 export 'package:fev_api_client/src/model/error_envelope.dart';

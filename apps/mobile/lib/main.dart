@@ -19,12 +19,7 @@ Future<void> main() async {
 }
 
 class FevApp extends StatefulWidget {
-  const FevApp({
-    this.api,
-    this.authGateway,
-    this.initialRoute,
-    super.key,
-  });
+  const FevApp({this.api, this.authGateway, this.initialRoute, super.key});
 
   final ApiContract? api;
   final AuthGateway? authGateway;
@@ -85,10 +80,7 @@ class _FevAppState extends State<FevApp> {
             }
             return null;
           },
-          home: AuthProvider(
-            controller: _auth,
-            child: const AuthExperience(),
-          ),
+          home: AuthProvider(controller: _auth, child: const AuthExperience()),
         ),
       ),
     );
