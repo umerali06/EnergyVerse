@@ -48,7 +48,7 @@ describe.skipIf(!realAuthConfigured)("FevApiClient real Firebase chain", () => {
     expect([...identity.permissions].sort()).toEqual(fieldInspectorPermissions);
   }, 120_000);
 
-  it("maps a real 401 envelope to a toast and preserves request_id", async () => {
+  it("maps a real 401 envelope to the unauthorized hook and preserves request_id", async () => {
     const toast = { error: vi.fn() };
     const onUnauthorized = vi.fn();
     const client = new FevApiClient({
@@ -72,7 +72,9 @@ describe.skipIf(!realAuthConfigured)("FevApiClient real Firebase chain", () => {
     expect(failure?.requestId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
-    expect(toast.error).toHaveBeenCalledWith(failure?.message);
+    // Since Phase 1.4, 401s stay quiet at the client layer: the
+    // onUnauthorized hook owns session-expired messaging.
+    expect(toast.error).not.toHaveBeenCalled();
     expect(onUnauthorized).toHaveBeenCalledOnce();
   });
 });
