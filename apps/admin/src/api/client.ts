@@ -2,11 +2,13 @@ import {
   AuthApi,
   Configuration,
   FetchError,
+  RbacDemoApi,
   ResponseError,
   SystemApi,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
   type CurrentUser,
+  type DemoGateResponse,
   type HealthResponse,
 } from "@fev/api-client";
 
@@ -34,6 +36,7 @@ export type FevApiClientOptions = {
   fetchApi?: typeof fetch;
   getIdToken?: TokenProvider;
   onUnauthorized?: UnauthorizedHook;
+  refreshIdToken?: TokenProvider;
   toast?: ErrorToast;
 };
 
@@ -58,8 +61,10 @@ function isEnvelope(value: unknown): value is WireErrorEnvelope {
 
 export class FevApiClient {
   private readonly auth: AuthApi;
+  private readonly rbacDemo: RbacDemoApi;
   private readonly system: SystemApi;
   private readonly onUnauthorized: UnauthorizedHook;
+  private readonly refreshIdToken?: TokenProvider;
   private readonly toast?: ErrorToast;
 
   constructor(options: FevApiClientOptions = {}) {
@@ -70,8 +75,10 @@ export class FevApiClient {
       fetchApi: options.fetchApi,
     });
     this.auth = new AuthApi(configuration);
+    this.rbacDemo = new RbacDemoApi(configuration);
     this.system = new SystemApi(configuration);
     this.onUnauthorized = options.onUnauthorized ?? (() => undefined);
+    this.refreshIdToken = options.refreshIdToken;
     this.toast = options.toast;
   }
 
@@ -81,6 +88,12 @@ export class FevApiClient {
 
   getCurrentUser(signal?: AbortSignal): Promise<CurrentUser> {
     return this.execute(() => this.auth.getCurrentUser(signal ? { signal } : undefined));
+  }
+
+  getRbacDemoSingle(signal?: AbortSignal): Promise<DemoGateResponse> {
+    return this.execute(() =>
+      this.rbacDemo.rbacDemoSinglePermission(signal ? { signal } : undefined),
+    );
   }
 
   registerCompanyAdmin(
@@ -96,17 +109,34 @@ export class FevApiClient {
   }
 
   private async execute<T>(request: () => Promise<T>): Promise<T> {
+    let typed: ApiClientError;
     try {
       return await request();
     } catch (error) {
-      const typed = await this.toApiError(error);
-      this.toast?.error(typed.message);
-      if (typed.status === 401) await this.onUnauthorized();
-      if (typed.requestId && process.env.NODE_ENV === "development") {
-        console.error(`FEV API error request_id=${typed.requestId}`, typed);
-      }
-      throw typed;
+      typed = await this.toApiError(error);
     }
+    if (typed.status === 401 && this.refreshIdToken) {
+      // A 401 may just mean the cached token expired: force one refresh and retry
+      // once before treating the session as dead.
+      const refreshed = await Promise.resolve()
+        .then(() => this.refreshIdToken!())
+        .then((token) => Boolean(token))
+        .catch(() => false);
+      if (refreshed) {
+        try {
+          return await request();
+        } catch (retryError) {
+          typed = await this.toApiError(retryError);
+        }
+      }
+    }
+    // 401s stay quiet here: the onUnauthorized hook owns session-expired messaging.
+    if (typed.status !== 401) this.toast?.error(typed.message);
+    if (typed.status === 401) await this.onUnauthorized();
+    if (typed.requestId && process.env.NODE_ENV === "development") {
+      console.error(`FEV API error request_id=${typed.requestId}`, typed);
+    }
+    throw typed;
   }
 
   private async toApiError(error: unknown): Promise<ApiClientError> {

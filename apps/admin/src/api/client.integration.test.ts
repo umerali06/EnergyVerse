@@ -20,37 +20,33 @@ const fieldInspectorPermissions = [
 ];
 
 describe.skipIf(!realAuthConfigured)("FevApiClient real Firebase chain", () => {
-  it(
-    "signs in and resolves typed /me through the generated client",
-    async () => {
-      const signIn = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseWebApiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: "field_inspector@acme.example.invalid",
-            password: demoPassword,
-            returnSecureToken: true,
-          }),
-        },
-      );
-      expect(signIn.status).toBe(200);
-      const { idToken } = (await signIn.json()) as { idToken: string };
+  it("signs in and resolves typed /me through the generated client", async () => {
+    const signIn = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseWebApiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "field_inspector@acme.example.invalid",
+          password: demoPassword,
+          returnSecureToken: true,
+        }),
+      },
+    );
+    expect(signIn.status).toBe(200);
+    const { idToken } = (await signIn.json()) as { idToken: string };
 
-      const client = new FevApiClient({
-        baseUrl: apiBaseUrl,
-        getIdToken: () => idToken,
-      });
-      const identity = await client.getCurrentUser();
+    const client = new FevApiClient({
+      baseUrl: apiBaseUrl,
+      getIdToken: () => idToken,
+    });
+    const identity = await client.getCurrentUser();
 
-      expect(identity.email).toBe("field_inspector@acme.example.invalid");
-      expect(identity.companyId).toBe("acme-energy");
-      expect(identity.roleKey).toBe("field_inspector");
-      expect([...identity.permissions].sort()).toEqual(fieldInspectorPermissions);
-    },
-    120_000,
-  );
+    expect(identity.email).toBe("field_inspector@acme.example.invalid");
+    expect(identity.companyId).toBe("acme-energy");
+    expect(identity.roleKey).toBe("field_inspector");
+    expect([...identity.permissions].sort()).toEqual(fieldInspectorPermissions);
+  }, 120_000);
 
   it("maps a real 401 envelope to a toast and preserves request_id", async () => {
     const toast = { error: vi.fn() };

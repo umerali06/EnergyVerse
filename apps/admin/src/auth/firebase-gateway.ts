@@ -2,7 +2,7 @@
 
 import { FirebaseError } from "firebase/app";
 import {
-  onAuthStateChanged,
+  onIdTokenChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -30,7 +30,7 @@ export class ClientAuthError extends Error {
 }
 
 export interface AuthGateway {
-  getIdToken(): Promise<string | undefined>;
+  getIdToken(forceRefresh?: boolean): Promise<string | undefined>;
   observe(listener: (session: AuthSession | null) => void): () => void;
   refreshSession(): Promise<AuthSession>;
   sendEmailVerification(): Promise<void>;
@@ -53,15 +53,14 @@ function translate(error: unknown): ClientAuthError {
 }
 
 export class FirebaseAuthGateway implements AuthGateway {
-  async getIdToken(): Promise<string | undefined> {
-    return getFirebaseClientAuth().currentUser?.getIdToken();
+  async getIdToken(forceRefresh = false): Promise<string | undefined> {
+    return getFirebaseClientAuth().currentUser?.getIdToken(forceRefresh);
   }
 
   observe(listener: (session: AuthSession | null) => void): () => void {
     try {
-      return onAuthStateChanged(getFirebaseClientAuth(), (user) =>
-        listener(user && toSession(user)),
-      );
+      // onIdTokenChanged also fires on token refresh, keeping long sessions warm.
+      return onIdTokenChanged(getFirebaseClientAuth(), (user) => listener(user && toSession(user)));
     } catch (error) {
       throw translate(error);
     }

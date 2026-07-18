@@ -305,3 +305,32 @@ corepack pnpm vitest run src/auth/auth.integration.test.ts
 
 Completing the reset (opening the emailed link, choosing a new password, signing in
 with it) happens in Firebase's hosted flow and is a manual owner step.
+
+## Phase 1.4 session management and route guards
+
+Both clients now run every screen behind route guards: unauthenticated visits to a
+protected route redirect to login and return to the intended destination after
+sign-in; unverified users are routed to the verify screen; already-authenticated
+users are redirected away from login/signup/forgot; and a permission-gated demo
+route (`/rbac-demo`, requires `assets.write`) renders a branded 403 page for roles
+without it. Client guards are UX only — FastAPI's `require_permission` +
+`require_verified_email` stay authoritative.
+
+Token lifecycle: the API layer always sends a current Firebase ID token
+(`onIdTokenChanged` / `idTokenChanges` keep the context warm). A real 401 triggers
+one forced token refresh and a single retry; if that still fails, the session is
+expired cleanly — Firebase sign-out, cleared context, a "Your session has expired"
+toast, and a login redirect. `refreshSession()` on the auth context force-refreshes
+the token and re-resolves `/me`, so server-side role changes take effect on the
+next refresh.
+
+The credential-gated session test (skipped in CI) additionally proves a session
+survives a forced token refresh and that the seeded Field Inspector receives the
+server-side 403 on `/api/v1/_rbac-demo/single`. It needs the running API plus
+`REAL_API_BASE_URL`, `SEED_DEMO_EMAIL`, `SEED_DEMO_PASSWORD`, and the
+`NEXT_PUBLIC_FIREBASE_*` values:
+
+```powershell
+cd apps\admin
+corepack pnpm vitest run src/auth/auth.integration.test.ts
+```

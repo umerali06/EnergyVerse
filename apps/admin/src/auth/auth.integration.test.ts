@@ -78,6 +78,27 @@ describeReal("Firebase login against the real development project", () => {
     await gateway.signOut();
   });
 
+  it("keeps a session valid across a forced token refresh and hits the authoritative 403", async () => {
+    await signInWithTransientNetworkRetry();
+    const api = new FevApiClient({
+      baseUrl: process.env.REAL_API_BASE_URL,
+      getIdToken: () => gateway.getIdToken(),
+      refreshIdToken: () => gateway.getIdToken(true),
+    });
+
+    const before = await api.getCurrentUser();
+    expect(before.roleKey).toBe("field_inspector");
+
+    // Simulate a long-lived session: force a token refresh, then call again.
+    await gateway.getIdToken(true);
+    const after = await api.getCurrentUser();
+    expect(after.uid).toBe(before.uid);
+
+    // The seeded Field Inspector lacks assets.write, so the server-side
+    // require_permission gate must reject the RBAC demo route.
+    await expect(api.getRbacDemoSingle()).rejects.toMatchObject({ status: 403 });
+  }, 60_000);
+
   it("signs in and resolves the seeded Field Inspector through /me", async () => {
     const session = await signInWithTransientNetworkRetry();
     const api = new FevApiClient({

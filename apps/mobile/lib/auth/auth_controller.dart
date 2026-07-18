@@ -50,17 +50,31 @@ class AuthController extends ChangeNotifier {
   String? _resolutionUid;
   bool _disposed = false;
 
+  static const sessionExpiredMessage =
+      'Your session has expired. Please sign in again';
+
   AuthStatus _status = AuthStatus.restoring;
   CurrentUser? _currentUser;
   String? _error;
   DateTime? _verificationSentAt;
   DateTime? _passwordResetSentAt;
+  String? _pendingRoute;
+  bool _expiring = false;
 
   AuthStatus get status => _status;
   CurrentUser? get currentUser => _currentUser;
   String? get error => _error;
   DateTime? get verificationSentAt => _verificationSentAt;
   DateTime? get passwordResetSentAt => _passwordResetSentAt;
+
+  /// Destination captured by a route guard before redirecting to login,
+  /// consumed once after a successful sign-in.
+  set pendingRoute(String? route) => _pendingRoute = route;
+  String? takePendingRoute() {
+    final route = _pendingRoute;
+    _pendingRoute = null;
+    return route;
+  }
   bool get verificationResendAvailable =>
       _verificationSentAt == null ||
       DateTime.now().difference(_verificationSentAt!) >=
@@ -83,6 +97,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> signIn(String email, String password) async {
     if (_status == AuthStatus.signingIn) return;
+    _expiring = false;
     _error = null;
     _status = AuthStatus.signingIn;
     _notify();
@@ -96,6 +111,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> register(RegistrationInput input) async {
     if (_status == AuthStatus.signingUp) return;
+    _expiring = false;
     _error = null;
     _status = AuthStatus.signingUp;
     _notify();
@@ -153,6 +169,49 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Clean local sign-out for a dead session (refresh + retry already failed).
+  /// Idempotent until the next sign-in attempt, so the API hook and resolve
+  /// paths never double-report the same dead session.
+  Future<void> expireSession() async {
+    if (_expiring) return;
+    _expiring = true;
+    try {
+      await _gateway.signOut();
+    } catch (_) {
+      // The local session is cleared regardless of the provider call outcome.
+    } finally {
+      _currentUser = null;
+      _error = null;
+      _status = AuthStatus.signedOut;
+      _feedback(sessionExpiredMessage);
+      _notify();
+    }
+  }
+
+  /// Force-refreshes the Firebase token and re-resolves `/me`, surfacing
+  /// server-side role/claims changes without a fresh login.
+  Future<void> refreshSession() async {
+    try {
+      final session = await _gateway.refreshSession();
+      await _resolveSession(session);
+    } catch (failure) {
+      if (failure is ClientAuthException &&
+          const {
+            'no-current-user',
+            'user-token-expired',
+            'invalid-user-token',
+            'user-disabled',
+          }.contains(failure.code)) {
+        await expireSession();
+        return;
+      }
+      final message = friendlyMessage(failure);
+      _error = message;
+      _feedback(message);
+      _notify();
+    }
+  }
+
   Future<bool> sendPasswordReset(String email) async {
     if (_status == AuthStatus.sendingPasswordReset) return false;
     _error = null;
@@ -194,6 +253,12 @@ class AuthController extends ChangeNotifier {
             : AuthStatus.verificationRequired;
         _notify();
       } catch (failure) {
+        if (failure is ApiException && failure.statusCode == 401) {
+          // Token refresh + retry already failed inside the API layer: the
+          // session is dead. expireSession is idempotent with the API hook.
+          await expireSession();
+          return;
+        }
         if (failure is ApiException && failure.statusCode == 403) {
           await _gateway.signOut();
         }

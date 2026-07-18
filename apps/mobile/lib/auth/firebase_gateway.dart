@@ -23,7 +23,7 @@ class AuthSession {
 
 abstract interface class AuthGateway {
   Stream<AuthSession?> authStateChanges();
-  Future<String?> getIdToken();
+  Future<String?> getIdToken({bool forceRefresh});
   Future<AuthSession> refreshSession();
   Future<void> sendEmailVerification();
   Future<void> sendPasswordResetEmail(String email);
@@ -44,14 +44,15 @@ class FirebaseAuthGateway implements AuthGateway {
       );
 
   @override
-  Stream<AuthSession?> authStateChanges() => _auth.authStateChanges().map(
+  // idTokenChanges also fires on token refresh, keeping long sessions warm.
+  Stream<AuthSession?> authStateChanges() => _auth.idTokenChanges().map(
         (user) => user == null ? null : _session(user),
       );
 
   @override
-  Future<String?> getIdToken() async {
+  Future<String?> getIdToken({bool forceRefresh = false}) async {
     final user = _auth.currentUser;
-    return user == null ? null : await user.getIdToken();
+    return user == null ? null : await user.getIdToken(forceRefresh);
   }
 
   @override

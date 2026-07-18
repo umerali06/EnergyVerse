@@ -1,57 +1,29 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { Badge, Button, Card, Input, MotionSection, Spinner, StatusPill } from "@/design-system";
+import { Badge, Button, Card, Input, MotionSection, StatusPill } from "@/design-system";
 
 import { useAuth } from "./auth-context";
+import { safeInternalPath } from "./route-guards";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 const resendCooldownSeconds = 60;
 
-export function AuthExperience({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
-  const auth = useAuth();
-  const [screen, setScreen] = useState<"forgot" | "login" | "signup">("login");
-  if (auth.status === "restoring") {
-    return (
-      <main className="grid min-h-screen place-items-center bg-background p-6">
-        <Spinner label="Restoring session" />
-      </main>
-    );
-  }
-  if (
-    (auth.status === "verificationRequired" || auth.status === "checkingVerification") &&
-    auth.currentUser
-  ) {
-    return <VerifyEmailScreen reducedMotionOverride={reducedMotionOverride} />;
-  }
-  if (auth.status === "authenticated" && auth.currentUser) {
-    return <AuthenticatedHome reducedMotionOverride={reducedMotionOverride} />;
-  }
-  if (screen === "signup") {
-    return (
-      <SignupScreen
-        onBack={() => setScreen("login")}
-        reducedMotionOverride={reducedMotionOverride}
-      />
-    );
-  }
-  if (screen === "forgot") {
-    return (
-      <ForgotPasswordScreen
-        onBack={() => setScreen("login")}
-        reducedMotionOverride={reducedMotionOverride}
-      />
-    );
-  }
-  return (
-    <LoginScreen
-      onForgot={() => setScreen("forgot")}
-      onSignup={() => setScreen("signup")}
-      reducedMotionOverride={reducedMotionOverride}
-    />
-  );
+/** Navigation between the public auth screens, preserving the intended
+ * destination captured by RequireAuth's login redirect. */
+function usePublicAuthNav() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const next = safeInternalPath(params.get("next"));
+  const suffix = next ? `?next=${encodeURIComponent(next)}` : "";
+  return {
+    toForgotPassword: () => router.push(`/forgot-password${suffix}`),
+    toLogin: () => router.push(`/login${suffix}`),
+    toSignup: () => router.push(`/signup${suffix}`),
+  };
 }
 
 function Brand() {
@@ -95,15 +67,8 @@ function AuthShell({
   );
 }
 
-function LoginScreen({
-  onForgot,
-  onSignup,
-  reducedMotionOverride,
-}: {
-  onForgot: () => void;
-  onSignup: () => void;
-  reducedMotionOverride?: boolean;
-}) {
+export function LoginScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
+  const { toForgotPassword, toSignup } = usePublicAuthNav();
   const { error: authError, signIn, status } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -171,12 +136,16 @@ function LoginScreen({
       <div className="mt-6 flex justify-between gap-4 text-bodySmall">
         <button
           className="font-semibold text-primary-400 hover:text-primary-300"
-          onClick={onForgot}
+          onClick={toForgotPassword}
           type="button"
         >
           Forgot password?
         </button>
-        <button className="font-semibold text-primary-400 hover:text-primary-300" onClick={onSignup} type="button">
+        <button
+          className="font-semibold text-primary-400 hover:text-primary-300"
+          onClick={toSignup}
+          type="button"
+        >
           Sign up
         </button>
       </div>
@@ -184,13 +153,12 @@ function LoginScreen({
   );
 }
 
-function ForgotPasswordScreen({
-  onBack,
+export function ForgotPasswordScreen({
   reducedMotionOverride,
 }: {
-  onBack: () => void;
   reducedMotionOverride?: boolean;
 }) {
+  const { toLogin: onBack } = usePublicAuthNav();
   const auth = useAuth();
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState<string>();
@@ -237,7 +205,11 @@ function ForgotPasswordScreen({
         <p className="mt-3 text-bodySmall text-text-muted">
           Complete the password change in Firebase&apos;s secure hosted flow.
         </p>
-        {auth.error && <div className="mt-5"><InlineError message={auth.error} /></div>}
+        {auth.error && (
+          <div className="mt-5">
+            <InlineError message={auth.error} />
+          </div>
+        )}
         <div className="mt-7 grid gap-3">
           <Button
             disabled={cooldown > 0}
@@ -295,15 +267,12 @@ function ForgotPasswordScreen({
   );
 }
 
-type SignupErrors = Partial<Record<"company" | "display" | "email" | "password" | "confirm", string>>;
+type SignupErrors = Partial<
+  Record<"company" | "display" | "email" | "password" | "confirm", string>
+>;
 
-function SignupScreen({
-  onBack,
-  reducedMotionOverride,
-}: {
-  onBack: () => void;
-  reducedMotionOverride?: boolean;
-}) {
+export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
+  const { toLogin: onBack } = usePublicAuthNav();
   const { error: authError, register, status } = useAuth();
   const [companyName, setCompanyName] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -357,24 +326,75 @@ function SignupScreen({
         You will become the first Company Admin for this new organization.
       </p>
       <form className="mt-7 grid gap-5 md:grid-cols-2" noValidate onSubmit={submit}>
-        <Input disabled={loading} error={errors.company} label="Company name" onChange={(e) => setCompanyName(e.target.value)} value={companyName} />
-        <Input disabled={loading} error={errors.display} label="Display name" onChange={(e) => setDisplayName(e.target.value)} value={displayName} />
+        <Input
+          disabled={loading}
+          error={errors.company}
+          label="Company name"
+          onChange={(e) => setCompanyName(e.target.value)}
+          value={companyName}
+        />
+        <Input
+          disabled={loading}
+          error={errors.display}
+          label="Display name"
+          onChange={(e) => setDisplayName(e.target.value)}
+          value={displayName}
+        />
         <div className="md:col-span-2">
-          <Input autoComplete="email" disabled={loading} error={errors.email} label="Email" onChange={(e) => setEmail(e.target.value)} type="email" value={email} />
+          <Input
+            autoComplete="email"
+            disabled={loading}
+            error={errors.email}
+            label="Email"
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            value={email}
+          />
         </div>
-        <Input autoComplete="new-password" disabled={loading} endAdornment={toggle} error={errors.password} label="Password" onChange={(e) => setPassword(e.target.value)} type={showPassword ? "text" : "password"} value={password} />
-        <Input autoComplete="new-password" disabled={loading} error={errors.confirm} label="Confirm password" onChange={(e) => setConfirm(e.target.value)} type={showPassword ? "text" : "password"} value={confirm} />
-        {authError && <div className="md:col-span-2"><InlineError message={authError} /></div>}
+        <Input
+          autoComplete="new-password"
+          disabled={loading}
+          endAdornment={toggle}
+          error={errors.password}
+          label="Password"
+          onChange={(e) => setPassword(e.target.value)}
+          type={showPassword ? "text" : "password"}
+          value={password}
+        />
+        <Input
+          autoComplete="new-password"
+          disabled={loading}
+          error={errors.confirm}
+          label="Confirm password"
+          onChange={(e) => setConfirm(e.target.value)}
+          type={showPassword ? "text" : "password"}
+          value={confirm}
+        />
+        {authError && (
+          <div className="md:col-span-2">
+            <InlineError message={authError} />
+          </div>
+        )}
         <div className="flex gap-3 md:col-span-2">
-          <Button className="flex-1" disabled={loading} onClick={onBack} type="button" variant="ghost">Back to login</Button>
-          <Button className="flex-1" loading={loading} type="submit">Create organization</Button>
+          <Button
+            className="flex-1"
+            disabled={loading}
+            onClick={onBack}
+            type="button"
+            variant="ghost"
+          >
+            Back to login
+          </Button>
+          <Button className="flex-1" loading={loading} type="submit">
+            Create organization
+          </Button>
         </div>
       </form>
     </AuthShell>
   );
 }
 
-function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
+export function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const auth = useAuth();
   const [cooldown, setCooldown] = useState(0);
   useEffect(() => {
@@ -402,18 +422,30 @@ function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOverride?: 
       <StatusPill tone="warning">Verification required</StatusPill>
       <h1 className="mt-4 text-h2 font-bold">Verify your email</h1>
       <p className="mt-3 text-body text-text-secondary">
-        We sent a verification link to <strong className="text-text-primary">{auth.currentUser?.email}</strong>.
-        Open it, then return here to continue.
+        We sent a verification link to{" "}
+        <strong className="text-text-primary">{auth.currentUser?.email}</strong>. Open it, then
+        return here to continue.
       </p>
-      {auth.error && <div className="mt-5"><InlineError message={auth.error} /></div>}
+      {auth.error && (
+        <div className="mt-5">
+          <InlineError message={auth.error} />
+        </div>
+      )}
       <div className="mt-7 grid gap-3">
-        <Button loading={auth.status === "checkingVerification"} onClick={() => void auth.refreshVerification()}>
+        <Button
+          loading={auth.status === "checkingVerification"}
+          onClick={() => void auth.refreshVerification()}
+        >
           I&apos;ve verified — continue
         </Button>
         <Button disabled={cooldown > 0} onClick={() => void resend()} variant="ghost">
           {cooldown > 0 ? `Resend available in ${cooldown}s` : "Resend verification"}
         </Button>
-        <button className="mt-2 text-bodySmall font-semibold text-primary-400" onClick={() => void auth.signOut()} type="button">
+        <button
+          className="mt-2 text-bodySmall font-semibold text-primary-400"
+          onClick={() => void auth.signOut()}
+          type="button"
+        >
           Back to login
         </button>
       </div>
@@ -422,11 +454,19 @@ function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOverride?: 
 }
 
 function InlineError({ message }: { message: string }) {
-  return <p className="rounded-lg border border-status-critical/40 bg-status-critical/10 p-3 text-bodySmall text-status-critical" role="alert">{message}</p>;
+  return (
+    <p
+      className="rounded-lg border border-status-critical/40 bg-status-critical/10 p-3 text-bodySmall text-status-critical"
+      role="alert"
+    >
+      {message}
+    </p>
+  );
 }
 
-function AuthenticatedHome({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
-  const { currentUser, signOut } = useAuth();
+export function AuthenticatedHome({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
+  const { currentUser, refreshSession, signOut } = useAuth();
+  const router = useRouter();
   if (!currentUser) return null;
   const name = currentUser.email.split("@")[0].replace(/[._-]+/g, " ");
   return (
@@ -434,29 +474,79 @@ function AuthenticatedHome({ reducedMotionOverride }: { reducedMotionOverride?: 
       <MotionSection className="mx-auto max-w-5xl" reducedMotionOverride={reducedMotionOverride}>
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="font-mono text-caption uppercase tracking-[0.22em] text-primary-400">FEV authenticated workspace</p>
+            <p className="font-mono text-caption uppercase tracking-[0.22em] text-primary-400">
+              FEV authenticated workspace
+            </p>
             <h1 className="mt-2 text-h2 font-bold capitalize">Welcome, {name}</h1>
             <p className="mt-2 text-text-secondary">{currentUser.email}</p>
           </div>
-          <Button onClick={() => void signOut()} variant="ghost">Sign out</Button>
+          <div className="flex gap-3">
+            <Button onClick={() => router.push("/rbac-demo")} variant="ghost">
+              Assets demo
+            </Button>
+            <Button onClick={() => void refreshSession()} variant="ghost">
+              Refresh session
+            </Button>
+            <Button onClick={() => void signOut()} variant="ghost">
+              Sign out
+            </Button>
+          </div>
         </header>
         <div className="mt-8 grid gap-6 md:grid-cols-[0.8fr_1.2fr]">
           <Card>
             <StatusPill tone="healthy">Authenticated</StatusPill>
             <dl className="mt-6 grid gap-4 text-body">
-              <div><dt className="text-text-muted">Role</dt><dd className="mt-1 font-semibold">{currentUser.roleKey}</dd></div>
-              <div><dt className="text-text-muted">Company</dt><dd className="mt-1 font-mono text-bodySmall">{currentUser.companyId}</dd></div>
-              <div><dt className="text-text-muted">Firebase UID</dt><dd className="mt-1 break-all font-mono text-bodySmall">{currentUser.uid}</dd></div>
+              <div>
+                <dt className="text-text-muted">Role</dt>
+                <dd className="mt-1 font-semibold">{currentUser.roleKey}</dd>
+              </div>
+              <div>
+                <dt className="text-text-muted">Company</dt>
+                <dd className="mt-1 font-mono text-bodySmall">{currentUser.companyId}</dd>
+              </div>
+              <div>
+                <dt className="text-text-muted">Firebase UID</dt>
+                <dd className="mt-1 break-all font-mono text-bodySmall">{currentUser.uid}</dd>
+              </div>
             </dl>
           </Card>
           <Card>
             <h2 className="text-h4 font-bold">Resolved permissions</h2>
-            <p className="mt-2 text-body text-text-secondary">Authoritative permissions returned by `/api/v1/auth/me`.</p>
+            <p className="mt-2 text-body text-text-secondary">
+              Authoritative permissions returned by `/api/v1/auth/me`.
+            </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              {[...currentUser.permissions].sort().map((permission) => <Badge key={permission}>{permission}</Badge>)}
+              {[...currentUser.permissions].sort().map((permission) => (
+                <Badge key={permission}>{permission}</Badge>
+              ))}
             </div>
           </Card>
         </div>
+      </MotionSection>
+    </main>
+  );
+}
+
+export function RbacDemoScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
+  const router = useRouter();
+  return (
+    <main className="min-h-screen bg-background p-6 md:p-10">
+      <MotionSection className="mx-auto max-w-3xl" reducedMotionOverride={reducedMotionOverride}>
+        <Card className="p-8">
+          <StatusPill tone="healthy">Access granted</StatusPill>
+          <h1 className="mt-4 text-h2 font-bold">Assets demo</h1>
+          <p className="mt-3 text-body text-text-secondary">
+            This page requires the <span className="font-mono text-bodySmall">assets.write</span>{" "}
+            permission. The client gate mirrors the authoritative FastAPI{" "}
+            <span className="font-mono text-bodySmall">require_permission</span> dependency on{" "}
+            <span className="font-mono text-bodySmall">/api/v1/_rbac-demo/single</span>.
+          </p>
+          <div className="mt-7">
+            <Button onClick={() => router.push("/")} variant="ghost">
+              Back to Home
+            </Button>
+          </div>
+        </Card>
       </MotionSection>
     </main>
   );

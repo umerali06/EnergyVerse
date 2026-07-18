@@ -62,6 +62,7 @@ class ApiService implements ApiContract {
     String baseUrl = apiBaseUrl,
     Dio? dio,
     TokenProvider? getIdToken,
+    TokenProvider? refreshIdToken,
     UnauthorizedHook? onUnauthorized,
     ApiFeedback feedback = const NoopApiFeedback(),
   })  : _feedback = feedback,
@@ -85,11 +86,45 @@ class ApiService implements ApiContract {
           handler.next(options);
         },
         onError: (error, handler) async {
+          // A 401 may just mean the cached token expired: force one refresh
+          // and retry once before treating the session as dead.
+          final alreadyRetried =
+              error.requestOptions.extra[_retriedFlag] == true;
+          if (error.response?.statusCode == 401 &&
+              !alreadyRetried &&
+              refreshIdToken != null) {
+            try {
+              final token = await refreshIdToken();
+              if (token != null && token.isNotEmpty) {
+                final retried = error.requestOptions
+                  ..extra[_retriedFlag] = true
+                  ..headers['Authorization'] = 'Bearer $token';
+                final response = await configuredDio.fetch<dynamic>(retried);
+                return handler.resolve(response);
+              }
+            } on DioException catch (retryFailure) {
+              final retryTyped = _fromDio(retryFailure);
+              if (retryTyped.statusCode != 401) {
+                // The refreshed retry failed for a non-auth reason; surface it
+                // instead of expiring the session.
+                return handler.reject(
+                  retryFailure.copyWith(error: retryTyped),
+                );
+              }
+              // Still 401 after a fresh token: the session is dead.
+            } catch (_) {
+              // Refresh itself failed; fall through to unauthorized handling.
+            }
+          }
           final typed = _fromDio(error);
-          if (typed.code != 'request_cancelled') {
+          // 401s stay quiet here: the onUnauthorized hook owns session-expired
+          // messaging.
+          if (typed.code != 'request_cancelled' && typed.statusCode != 401) {
             _feedback.error(typed.message);
           }
-          if (typed.statusCode == 401) await _onUnauthorized();
+          if (typed.statusCode == 401 && !alreadyRetried) {
+            await _onUnauthorized();
+          }
           if (kDebugMode && typed.requestId != null) {
             debugPrint('FEV API error request_id=${typed.requestId}');
           }
@@ -99,6 +134,8 @@ class ApiService implements ApiContract {
     );
     _client = FevApiClient(dio: configuredDio, interceptors: const []);
   }
+
+  static const _retriedFlag = 'fev_auth_retried';
 
   late final FevApiClient _client;
   final ApiFeedback _feedback;

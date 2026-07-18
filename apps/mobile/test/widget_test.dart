@@ -9,7 +9,7 @@ class _SignedOutGateway implements AuthGateway {
   Stream<AuthSession?> authStateChanges() => Stream.value(null);
 
   @override
-  Future<String?> getIdToken() async => null;
+  Future<String?> getIdToken({bool forceRefresh = false}) async => null;
 
   @override
   Future<AuthSession> refreshSession() => throw UnimplementedError();
@@ -51,7 +51,8 @@ void main() {
     await tester.pumpWidget(
       FevApp(api: _UnusedApi(), authGateway: _SignedOutGateway()),
     );
-    await tester.pump();
+    // Signed-out state redirects the protected home route to /login.
+    await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Login'), findsOneWidget);

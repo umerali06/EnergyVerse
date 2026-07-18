@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'api/api_service.dart';
+import 'auth/app_routes.dart';
 import 'auth/auth_controller.dart';
-import 'auth/auth_experience.dart';
 import 'auth/firebase_gateway.dart';
 import 'design_system/motion.dart';
 import 'design_system/primitives.dart';
@@ -41,7 +41,13 @@ class _FevAppState extends State<FevApp> {
     super.initState();
     _theme = AppThemeController()..load();
     _gateway = widget.authGateway ?? FirebaseAuthGateway();
-    _api = widget.api ?? ApiService(getIdToken: _gateway.getIdToken);
+    _api = widget.api ??
+        ApiService(
+          getIdToken: _gateway.getIdToken,
+          refreshIdToken: () => _gateway.getIdToken(forceRefresh: true),
+          // Evaluated lazily at call time, after _auth is initialized below.
+          onUnauthorized: () => _auth.expireSession(),
+        );
     _auth = AuthController(
       gateway: _gateway,
       api: _api,
@@ -70,7 +76,19 @@ class _FevAppState extends State<FevApp> {
           theme: AppThemes.light,
           darkTheme: AppThemes.dark,
           themeMode: _theme.mode,
-          initialRoute: widget.initialRoute,
+          initialRoute: widget.initialRoute ?? AppRoutes.home,
+          // Deep links resolve to exactly one guarded route; the default
+          // behavior would also push every parent path segment.
+          onGenerateInitialRoutes: (initial) => [
+            AppRoutes.onGenerateRoute(RouteSettings(name: initial)) ??
+                AppRoutes.onGenerateRoute(
+                  const RouteSettings(name: AppRoutes.home),
+                )!,
+          ],
+          // AuthProvider sits above the Navigator so every route's guards can
+          // observe auth state.
+          builder: (context, child) =>
+              AuthProvider(controller: _auth, child: child!),
           onGenerateRoute: (settings) {
             if (kDebugMode && settings.name == DesignSystemShowcase.routeName) {
               return IndustrialPageRoute<void>(
@@ -78,9 +96,8 @@ class _FevAppState extends State<FevApp> {
                 builder: (_) => const DesignSystemShowcase(),
               );
             }
-            return null;
+            return AppRoutes.onGenerateRoute(settings);
           },
-          home: AuthProvider(controller: _auth, child: const AuthExperience()),
         ),
       ),
     );
