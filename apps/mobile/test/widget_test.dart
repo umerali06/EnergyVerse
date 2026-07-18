@@ -18,6 +18,10 @@ class _SignedOutGateway implements AuthGateway {
   Future<void> sendEmailVerification() => throw UnimplementedError();
 
   @override
+  Future<void> sendPasswordResetEmail(String email) =>
+      throw UnimplementedError();
+
+  @override
   Future<AuthSession> signIn(String email, String password) =>
       throw UnimplementedError();
 

@@ -75,6 +75,8 @@ class FakeGateway implements AuthGateway {
   int signInCalls = 0;
   int signOutCalls = 0;
   int verificationCalls = 0;
+  int passwordResetCalls = 0;
+  Object? passwordResetResult;
   AuthSession refreshResult = session;
 
   @override
@@ -89,6 +91,14 @@ class FakeGateway implements AuthGateway {
   @override
   Future<void> sendEmailVerification() async {
     verificationCalls += 1;
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    passwordResetCalls += 1;
+    final result = passwordResetResult;
+    if (result is Exception) throw result;
+    if (result is Future<void>) await result;
   }
 
   @override
@@ -355,4 +365,132 @@ void main() {
       expect(find.text('Role: field_inspector'), findsOneWidget);
     },
   );
+
+  testWidgets('forgot-password validation blocks empty and invalid email', (
+    tester,
+  ) async {
+    final gateway = FakeGateway();
+    await pumpLogin(tester, gateway: gateway);
+    await tester.tap(find.byKey(const Key('open-forgot-password')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send reset link'));
+    await tester.pump();
+    expect(find.text('Email is required'), findsOneWidget);
+    expect(gateway.passwordResetCalls, 0);
+    await tester.enterText(find.byKey(const Key('forgot-email')), 'invalid');
+    await tester.tap(find.text('Send reset link'));
+    await tester.pump();
+    expect(find.text('Enter a valid email address'), findsOneWidget);
+  });
+
+  testWidgets('reset loading becomes neutral confirmation with cooldown', (
+    tester,
+  ) async {
+    final completer = Completer<void>();
+    final gateway = FakeGateway()..passwordResetResult = completer.future;
+    await pumpLogin(tester, gateway: gateway);
+    await tester.tap(find.byKey(const Key('open-forgot-password')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('forgot-email')),
+      'known@example.com',
+    );
+    await tester.tap(find.text('Send reset link'));
+    await tester.pump();
+    expect(tester.widget<AppButton>(find.byType(AppButton)).loading, isTrue);
+    completer.complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.text(
+        'If an account exists for that email, a reset link has been sent.',
+      ),
+      findsOneWidget,
+    );
+    expect(gateway.passwordResetCalls, 1);
+    expect(find.textContaining('Resend available in'), findsOneWidget);
+    expect(tester.widget<AppButton>(find.byType(AppButton)).onPressed, isNull);
+    await tester.tap(find.text('Back to login'));
+    await tester.pump();
+  });
+
+  testWidgets('user-not-found produces the same neutral confirmation', (
+    tester,
+  ) async {
+    final gateway = FakeGateway()
+      ..passwordResetResult = const ClientAuthException(
+        'user-not-found',
+        'raw provider response',
+      );
+    await pumpLogin(tester, gateway: gateway);
+    await tester.tap(find.byKey(const Key('open-forgot-password')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('forgot-email')),
+      'missing@example.com',
+    );
+    await tester.tap(find.text('Send reset link'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.text(
+        'If an account exists for that email, a reset link has been sent.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Back to login'));
+    await tester.pump();
+  });
+
+  for (final entry in <String, String>{
+    'too-many-requests': 'Too many reset attempts. Please wait and try again',
+    'network-request-failed':
+        'Network unavailable. Check your connection and try again',
+  }.entries) {
+    testWidgets('reset maps ${entry.key} to genuine error feedback', (
+      tester,
+    ) async {
+      final gateway = FakeGateway()
+        ..passwordResetResult = ClientAuthException(entry.key, 'raw');
+      await pumpLogin(tester, gateway: gateway);
+      await tester.tap(find.byKey(const Key('open-forgot-password')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('forgot-email')),
+        'operator@example.com',
+      );
+      await tester.tap(find.text('Send reset link'));
+      await tester.pump();
+      expect(find.text(entry.value), findsWidgets);
+      expect(find.text('Reset link requested'), findsNothing);
+    });
+  }
+
+  testWidgets('forgot-password entrance honors reduced motion', (tester) async {
+    final controller = AuthController(
+      gateway: FakeGateway(),
+      api: FakeApi(identity()),
+      feedback: (_) {},
+    )..start();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppThemes.dark,
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: AuthProvider(
+            controller: controller,
+            child: const AuthExperience(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('open-forgot-password')));
+    await tester.pump();
+    final opacityWidgets =
+        tester.widgetList<AnimatedOpacity>(find.byType(AnimatedOpacity));
+    expect(opacityWidgets.any((widget) => widget.duration == Duration.zero),
+        isTrue);
+    controller.dispose();
+  });
 }

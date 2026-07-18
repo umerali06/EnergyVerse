@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+const _authActionUrl = String.fromEnvironment('AUTH_ACTION_URL');
+
 class ClientAuthException implements Exception {
   const ClientAuthException(this.code, this.message);
 
@@ -24,6 +26,7 @@ abstract interface class AuthGateway {
   Future<String?> getIdToken();
   Future<AuthSession> refreshSession();
   Future<void> sendEmailVerification();
+  Future<void> sendPasswordResetEmail(String email);
   Future<AuthSession> signIn(String email, String password);
   Future<void> signOut();
 }
@@ -117,6 +120,26 @@ class FirebaseAuthGateway implements AuthGateway {
       throw ClientAuthException(
         error.code,
         error.message ?? 'Unable to send the verification email',
+      );
+    }
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(
+        email: email,
+        actionCodeSettings: _authActionUrl.isEmpty
+            ? null
+            : ActionCodeSettings(
+                url: _authActionUrl,
+                handleCodeInApp: false,
+              ),
+      );
+    } on FirebaseAuthException catch (error) {
+      throw ClientAuthException(
+        error.code,
+        error.message ?? 'Unable to send the reset email',
       );
     }
   }
