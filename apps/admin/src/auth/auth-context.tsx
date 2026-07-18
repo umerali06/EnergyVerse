@@ -27,6 +27,7 @@ export type AuthStatus =
   | "signedOut"
   | "signingIn"
   | "signingUp"
+  | "sendingPasswordReset"
   | "verificationRequired"
   | "checkingVerification"
   | "authenticated";
@@ -44,10 +45,12 @@ type AuthContextValue = {
   refreshVerification: () => Promise<void>;
   register: (input: RegistrationInput) => Promise<void>;
   resendVerification: () => Promise<boolean>;
+  sendPasswordReset: (email: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   status: AuthStatus;
   verificationSentAt: number | null;
+  passwordResetSentAt: number | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -82,6 +85,18 @@ export function friendlyAuthMessage(error: unknown): string {
   return "Unable to sign in. Please try again";
 }
 
+export function friendlyPasswordResetMessage(error: unknown): string {
+  if (error instanceof ClientAuthError) {
+    if (error.code === "auth/too-many-requests") {
+      return "Too many reset attempts. Please wait and try again";
+    }
+    if (error.code === "auth/network-request-failed") {
+      return "Network unavailable. Check your connection and try again";
+    }
+  }
+  return "Unable to send the reset link. Please try again";
+}
+
 export function AuthProvider({
   apiClient,
   children,
@@ -101,6 +116,7 @@ export function AuthProvider({
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AuthStatus>("restoring");
   const [verificationSentAt, setVerificationSentAt] = useState<number | null>(null);
+  const [passwordResetSentAt, setPasswordResetSentAt] = useState<number | null>(null);
   const resolution = useRef<Promise<void> | null>(null);
   const resolutionUid = useRef<string | null>(null);
 
@@ -225,6 +241,34 @@ export function AuthProvider({
     }
   }, [authGateway, resolveSession, toast]);
 
+  const sendPasswordReset = useCallback(
+    async (email: string) => {
+      if (status === "sendingPasswordReset") return false;
+      setError(null);
+      setStatus("sendingPasswordReset");
+      try {
+        await authGateway.sendPasswordResetEmail(email);
+      } catch (failure) {
+        if (
+          failure instanceof ClientAuthError &&
+          ["auth/user-not-found", "auth/user-disabled"].includes(failure.code)
+        ) {
+          // Deliberately indistinguishable from success to prevent account enumeration.
+        } else {
+          const message = friendlyPasswordResetMessage(failure);
+          setError(message);
+          setStatus("signedOut");
+          toast.error(message);
+          return false;
+        }
+      }
+      setPasswordResetSentAt(Date.now());
+      setStatus("signedOut");
+      return true;
+    },
+    [authGateway, status, toast],
+  );
+
   const signOutCurrentUser = useCallback(async () => {
     try {
       await authGateway.signOut();
@@ -239,9 +283,11 @@ export function AuthProvider({
     () => ({
       currentUser,
       error,
+      passwordResetSentAt,
       refreshVerification,
       register,
       resendVerification,
+      sendPasswordReset,
       signIn,
       signOut: signOutCurrentUser,
       status,
@@ -250,9 +296,11 @@ export function AuthProvider({
     [
       currentUser,
       error,
+      passwordResetSentAt,
       refreshVerification,
       register,
       resendVerification,
+      sendPasswordReset,
       signIn,
       signOutCurrentUser,
       status,

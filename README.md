@@ -263,3 +263,45 @@ $env:SEED_DEMO_PASSWORD="a-local-test-password"
 cd apps\api
 poetry run pytest tests/test_registration_integration.py -v
 ```
+
+## Phase 1.3 password reset
+
+Forgot-password email is sent directly by each Firebase client SDK. The response is
+always neutral—`If an account exists for that email, a reset link has been sent`—so
+the UI never discloses account existence. Firebase's hosted reset page handles the
+action code and new password; FEV does not implement a custom reset-code page in
+this slice, and backend notification delivery remains deferred.
+
+By default, Firebase chooses its hosted behavior. To add an authorized continue URL,
+set the same public URL for each client (the URL is not a secret):
+
+```powershell
+$env:NEXT_PUBLIC_AUTH_ACTION_URL="https://app.example.com/auth/action"
+cd apps\admin
+corepack pnpm dev
+
+cd apps\mobile
+flutter run -d chrome `
+  --dart-define=AUTH_ACTION_URL=https://app.example.com/auth/action `
+  # include the API and Firebase --dart-define values documented above
+```
+
+`NEXT_PUBLIC_AUTH_ACTION_URL` is the browser-exposed Next.js binding of the existing
+`AUTH_ACTION_URL` decision; Flutter consumes `AUTH_ACTION_URL` directly. Leave both
+unset until a real application action URL exists. The reset screen enforces a
+60-second resend cooldown and surfaces only network/rate-limit failures.
+
+Real-credential reset checks (skipped in CI) live in
+`apps/admin/src/auth/auth.integration.test.ts`. They dispatch a real Firebase reset
+email to a deliverable demo mailbox (use a Gmail `+alias`) and prove unknown emails
+are indistinguishable from success:
+
+```powershell
+$env:RESET_DEMO_EMAIL="yourname+fev-demo@gmail.com"
+# plus the NEXT_PUBLIC_FIREBASE_* values from apps\admin\.env.local
+cd apps\admin
+corepack pnpm vitest run src/auth/auth.integration.test.ts
+```
+
+Completing the reset (opening the emailed link, choosing a new password, signing in
+with it) happens in Firebase's hosted flow and is a manual owner step.

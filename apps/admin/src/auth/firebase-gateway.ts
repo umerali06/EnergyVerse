@@ -4,6 +4,7 @@ import { FirebaseError } from "firebase/app";
 import {
   onAuthStateChanged,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   type User,
@@ -33,6 +34,7 @@ export interface AuthGateway {
   observe(listener: (session: AuthSession | null) => void): () => void;
   refreshSession(): Promise<AuthSession>;
   sendEmailVerification(): Promise<void>;
+  sendPasswordResetEmail(email: string): Promise<void>;
   signIn(email: string, password: string): Promise<AuthSession>;
   signOut(): Promise<void>;
 }
@@ -94,6 +96,19 @@ export class FirebaseAuthGateway implements AuthGateway {
       await sendEmailVerification(user);
     } catch (error) {
       if (error instanceof ClientAuthError) throw error;
+      throw translate(error);
+    }
+  }
+
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    try {
+      const actionUrl = process.env.NEXT_PUBLIC_AUTH_ACTION_URL?.trim();
+      await sendPasswordResetEmail(
+        getFirebaseClientAuth(),
+        email,
+        actionUrl ? { handleCodeInApp: false, url: actionUrl } : undefined,
+      );
+    } catch (error) {
       throw translate(error);
     }
   }

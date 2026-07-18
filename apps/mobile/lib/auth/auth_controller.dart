@@ -11,6 +11,7 @@ enum AuthStatus {
   signedOut,
   signingIn,
   signingUp,
+  sendingPasswordReset,
   verificationRequired,
   checkingVerification,
   authenticated,
@@ -53,11 +54,13 @@ class AuthController extends ChangeNotifier {
   CurrentUser? _currentUser;
   String? _error;
   DateTime? _verificationSentAt;
+  DateTime? _passwordResetSentAt;
 
   AuthStatus get status => _status;
   CurrentUser? get currentUser => _currentUser;
   String? get error => _error;
   DateTime? get verificationSentAt => _verificationSentAt;
+  DateTime? get passwordResetSentAt => _passwordResetSentAt;
   bool get verificationResendAvailable =>
       _verificationSentAt == null ||
       DateTime.now().difference(_verificationSentAt!) >=
@@ -150,6 +153,31 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<bool> sendPasswordReset(String email) async {
+    if (_status == AuthStatus.sendingPasswordReset) return false;
+    _error = null;
+    _status = AuthStatus.sendingPasswordReset;
+    _notify();
+    try {
+      await _gateway.sendPasswordResetEmail(email);
+    } catch (failure) {
+      if (failure is! ClientAuthException ||
+          !{'user-not-found', 'user-disabled'}.contains(failure.code)) {
+        final message = friendlyPasswordResetMessage(failure);
+        _error = message;
+        _status = AuthStatus.signedOut;
+        _feedback(message);
+        _notify();
+        return false;
+      }
+      // Deliberately indistinguishable from success to prevent enumeration.
+    }
+    _passwordResetSentAt = DateTime.now();
+    _status = AuthStatus.signedOut;
+    _notify();
+    return true;
+  }
+
   Future<void> _resolveSession(AuthSession session) async {
     if (_resolution != null && _resolutionUid == session.uid) {
       await _resolution;
@@ -228,6 +256,18 @@ class AuthController extends ChangeNotifier {
       }
     }
     return 'Unable to sign in. Please try again';
+  }
+
+  static String friendlyPasswordResetMessage(Object failure) {
+    if (failure is ClientAuthException) {
+      if (failure.code == 'too-many-requests') {
+        return 'Too many reset attempts. Please wait and try again';
+      }
+      if (failure.code == 'network-request-failed') {
+        return 'Network unavailable. Check your connection and try again';
+      }
+    }
+    return 'Unable to send the reset link. Please try again';
   }
 
   void _fail(Object failure, {String? fallback}) {

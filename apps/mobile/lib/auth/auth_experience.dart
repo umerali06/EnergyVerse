@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../design_system/motion.dart';
@@ -6,6 +8,9 @@ import '../design_system/tokens_generated.dart';
 import 'auth_controller.dart';
 
 final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+const _resetCooldown = Duration(seconds: 60);
+
+enum _AuthView { login, signup, forgot }
 
 class AuthExperience extends StatefulWidget {
   const AuthExperience({super.key});
@@ -15,7 +20,7 @@ class AuthExperience extends StatefulWidget {
 }
 
 class _AuthExperienceState extends State<AuthExperience> {
-  bool _showSignup = false;
+  _AuthView _view = _AuthView.login;
 
   @override
   Widget build(BuildContext context) {
@@ -31,20 +36,31 @@ class _AuthExperienceState extends State<AuthExperience> {
         VerifyEmailScreen(
           onBack: () async {
             await auth.signOut();
-            if (mounted) setState(() => _showSignup = false);
+            if (mounted) setState(() => _view = _AuthView.login);
           },
         ),
-      _ when _showSignup => SignupScreen(
-          onBack: () => setState(() => _showSignup = false),
+      _ when _view == _AuthView.signup => SignupScreen(
+          onBack: () => setState(() => _view = _AuthView.login),
         ),
-      _ => LoginScreen(onSignup: () => setState(() => _showSignup = true)),
+      _ when _view == _AuthView.forgot => ForgotPasswordScreen(
+          onBack: () => setState(() => _view = _AuthView.login),
+        ),
+      _ => LoginScreen(
+          onForgot: () => setState(() => _view = _AuthView.forgot),
+          onSignup: () => setState(() => _view = _AuthView.signup),
+        ),
     };
   }
 }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({required this.onSignup, super.key});
+  const LoginScreen({
+    required this.onForgot,
+    required this.onSignup,
+    super.key,
+  });
 
+  final VoidCallback onForgot;
   final VoidCallback onSignup;
 
   @override
@@ -182,9 +198,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const TextButton(
-                                  onPressed: null,
-                                  child: Text('Forgot password?'),
+                                TextButton(
+                                  key: const Key('open-forgot-password'),
+                                  onPressed: widget.onForgot,
+                                  child: const Text('Forgot password?'),
                                 ),
                                 TextButton(
                                   key: const Key('open-signup'),
@@ -195,6 +212,176 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({required this.onBack, super.key});
+
+  final VoidCallback onBack;
+
+  @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final _email = TextEditingController();
+  String? _emailError;
+  bool _sent = false;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _email.dispose();
+    super.dispose();
+  }
+
+  int _cooldownSeconds(AuthController auth) {
+    final sentAt = auth.passwordResetSentAt;
+    if (sentAt == null) return 0;
+    final remaining = _resetCooldown - DateTime.now().difference(sentAt);
+    return remaining.isNegative ? 0 : remaining.inSeconds + 1;
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _send() async {
+    final auth = AuthProvider.of(context);
+    final email = _email.text.trim();
+    setState(() {
+      _emailError = email.isEmpty
+          ? 'Email is required'
+          : !_emailPattern.hasMatch(email)
+              ? 'Enter a valid email address'
+              : null;
+    });
+    if (_emailError != null ||
+        auth.status == AuthStatus.sendingPasswordReset ||
+        (_sent && _cooldownSeconds(auth) > 0)) {
+      return;
+    }
+    if (await auth.sendPasswordReset(email) && mounted) {
+      setState(() => _sent = true);
+      _startTimer();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthProvider.of(context);
+    final loading = auth.status == AuthStatus.sendingPasswordReset;
+    final cooldown = _cooldownSeconds(auth);
+    return Scaffold(
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _IndustrialBackdrop()),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(DsSpacing.s6),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: StaggeredReveal(
+                    index: 0,
+                    child: AppCard(
+                      padding: const EdgeInsets.all(DsSpacing.s8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _Wordmark(),
+                          const SizedBox(height: DsSpacing.s6),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: StatusPill(
+                              label: _sent
+                                  ? 'Check your inbox'
+                                  : 'Account recovery',
+                              status:
+                                  _sent ? AppStatus.healthy : AppStatus.info,
+                            ),
+                          ),
+                          const SizedBox(height: DsSpacing.s4),
+                          Text(
+                            _sent ? 'Reset link requested' : 'Forgot password',
+                            style: Theme.of(context).textTheme.headlineMedium,
+                          ),
+                          const SizedBox(height: DsSpacing.s3),
+                          if (_sent) ...[
+                            Semantics(
+                              liveRegion: true,
+                              child: const Text(
+                                'If an account exists for that email, a reset link has been sent.',
+                              ),
+                            ),
+                            const SizedBox(height: DsSpacing.s3),
+                            const Text(
+                              "Complete the password change in Firebase's secure hosted flow.",
+                            ),
+                          ] else ...[
+                            const Text(
+                              "Enter your email and we'll request a secure Firebase reset link.",
+                            ),
+                            const SizedBox(height: DsSpacing.s6),
+                            AppTextField(
+                              key: const Key('forgot-email'),
+                              label: 'Email',
+                              controller: _email,
+                              enabled: !loading,
+                              errorText: _emailError,
+                              keyboardType: TextInputType.emailAddress,
+                              autofillHints: const [AutofillHints.email],
+                              onSubmitted: (_) => _send(),
+                            ),
+                          ],
+                          if (auth.error != null) ...[
+                            const SizedBox(height: DsSpacing.s4),
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                auth.error!,
+                                style: const TextStyle(
+                                  color: DsColors.statusCritical,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: DsSpacing.s6),
+                          AppButton(
+                            label: _sent
+                                ? cooldown > 0
+                                    ? 'Resend available in ${cooldown}s'
+                                    : 'Resend reset link'
+                                : 'Send reset link',
+                            loading: loading,
+                            variant: _sent
+                                ? AppButtonVariant.ghost
+                                : AppButtonVariant.primary,
+                            onPressed: loading || (_sent && cooldown > 0)
+                                ? null
+                                : _send,
+                          ),
+                          const SizedBox(height: DsSpacing.s3),
+                          TextButton(
+                            onPressed: loading ? null : widget.onBack,
+                            child: const Text('Back to login'),
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -12,7 +12,7 @@ const resendCooldownSeconds = 60;
 
 export function AuthExperience({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const auth = useAuth();
-  const [screen, setScreen] = useState<"login" | "signup">("login");
+  const [screen, setScreen] = useState<"forgot" | "login" | "signup">("login");
   if (auth.status === "restoring") {
     return (
       <main className="grid min-h-screen place-items-center bg-background p-6">
@@ -37,8 +37,17 @@ export function AuthExperience({ reducedMotionOverride }: { reducedMotionOverrid
       />
     );
   }
+  if (screen === "forgot") {
+    return (
+      <ForgotPasswordScreen
+        onBack={() => setScreen("login")}
+        reducedMotionOverride={reducedMotionOverride}
+      />
+    );
+  }
   return (
     <LoginScreen
+      onForgot={() => setScreen("forgot")}
       onSignup={() => setScreen("signup")}
       reducedMotionOverride={reducedMotionOverride}
     />
@@ -87,9 +96,11 @@ function AuthShell({
 }
 
 function LoginScreen({
+  onForgot,
   onSignup,
   reducedMotionOverride,
 }: {
+  onForgot: () => void;
   onSignup: () => void;
   reducedMotionOverride?: boolean;
 }) {
@@ -158,13 +169,128 @@ function LoginScreen({
         </Button>
       </form>
       <div className="mt-6 flex justify-between gap-4 text-bodySmall">
-        <button className="cursor-not-allowed text-text-muted" disabled type="button">
+        <button
+          className="font-semibold text-primary-400 hover:text-primary-300"
+          onClick={onForgot}
+          type="button"
+        >
           Forgot password?
         </button>
         <button className="font-semibold text-primary-400 hover:text-primary-300" onClick={onSignup} type="button">
           Sign up
         </button>
       </div>
+    </AuthShell>
+  );
+}
+
+function ForgotPasswordScreen({
+  onBack,
+  reducedMotionOverride,
+}: {
+  onBack: () => void;
+  reducedMotionOverride?: boolean;
+}) {
+  const auth = useAuth();
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string>();
+  const [sent, setSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const loading = auth.status === "sendingPasswordReset";
+
+  useEffect(() => {
+    if (!auth.passwordResetSentAt) {
+      setCooldown(0);
+      return;
+    }
+    const update = () => {
+      const elapsed = Math.floor((Date.now() - auth.passwordResetSentAt!) / 1000);
+      setCooldown(Math.max(0, resendCooldownSeconds - elapsed));
+    };
+    update();
+    const timer = window.setInterval(update, 1_000);
+    return () => window.clearInterval(timer);
+  }, [auth.passwordResetSentAt]);
+
+  async function send(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const normalized = email.trim();
+    const nextError = !normalized
+      ? "Email is required"
+      : !emailPattern.test(normalized)
+        ? "Enter a valid email address"
+        : undefined;
+    setEmailError(nextError);
+    if (nextError || loading || (sent && cooldown > 0)) return;
+    if (await auth.sendPasswordReset(normalized)) setSent(true);
+  }
+
+  if (sent) {
+    return (
+      <AuthShell reducedMotionOverride={reducedMotionOverride}>
+        <Brand />
+        <StatusPill tone="healthy">Check your inbox</StatusPill>
+        <h1 className="mt-4 text-h2 font-bold">Reset link requested</h1>
+        <p className="mt-3 text-body text-text-secondary" role="status">
+          If an account exists for that email, a reset link has been sent.
+        </p>
+        <p className="mt-3 text-bodySmall text-text-muted">
+          Complete the password change in Firebase&apos;s secure hosted flow.
+        </p>
+        {auth.error && <div className="mt-5"><InlineError message={auth.error} /></div>}
+        <div className="mt-7 grid gap-3">
+          <Button
+            disabled={cooldown > 0}
+            loading={loading}
+            onClick={() => void send()}
+            variant="ghost"
+          >
+            {cooldown > 0 ? `Resend available in ${cooldown}s` : "Resend reset link"}
+          </Button>
+          <button
+            className="mt-2 text-bodySmall font-semibold text-primary-400"
+            onClick={onBack}
+            type="button"
+          >
+            Back to login
+          </button>
+        </div>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell reducedMotionOverride={reducedMotionOverride}>
+      <Brand />
+      <StatusPill tone="info">Account recovery</StatusPill>
+      <h1 className="mt-4 text-h2 font-bold">Forgot password</h1>
+      <p className="mt-2 text-body text-text-secondary">
+        Enter your email and we&apos;ll request a secure Firebase reset link.
+      </p>
+      <form className="mt-7 grid gap-5" noValidate onSubmit={send}>
+        <Input
+          autoComplete="email"
+          disabled={loading}
+          error={emailError}
+          label="Email"
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="name@company.com"
+          type="email"
+          value={email}
+        />
+        {auth.error && <InlineError message={auth.error} />}
+        <Button className="w-full" loading={loading} type="submit">
+          Send reset link
+        </Button>
+        <button
+          className="text-bodySmall font-semibold text-primary-400"
+          disabled={loading}
+          onClick={onBack}
+          type="button"
+        >
+          Back to login
+        </button>
+      </form>
     </AuthShell>
   );
 }

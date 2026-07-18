@@ -19,6 +19,42 @@ const requiredEnvironment = [
 const hasRealCredentials = requiredEnvironment.every((key) => Boolean(process.env[key]));
 const describeReal = hasRealCredentials ? describe : describe.skip;
 
+const resetEnvironment = [
+  "RESET_DEMO_EMAIL",
+  "NEXT_PUBLIC_FIREBASE_API_KEY",
+  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "NEXT_PUBLIC_FIREBASE_APP_ID",
+] as const;
+
+const hasResetCredentials = resetEnvironment.every((key) => Boolean(process.env[key]));
+const describeReset = hasResetCredentials ? describe : describe.skip;
+
+describeReset("Firebase password reset against the real development project", () => {
+  const gateway = new FirebaseAuthGateway();
+
+  it("sends a real reset email to the demo mailbox", async () => {
+    await expect(
+      gateway.sendPasswordResetEmail(process.env.RESET_DEMO_EMAIL!),
+    ).resolves.toBeUndefined();
+  }, 30_000);
+
+  it("keeps unknown emails indistinguishable from success (no enumeration)", async () => {
+    // With Firebase email-enumeration protection enabled the SDK resolves for
+    // unknown mailboxes; without it, it throws auth/user-not-found, which the
+    // client maps to the same neutral confirmation. Either outcome is the
+    // documented non-enumerating behavior — anything else fails the test.
+    try {
+      await gateway.sendPasswordResetEmail("fev-reset-probe-no-such-user-a7c91@gmail.com");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ClientAuthError);
+      expect((error as ClientAuthError).code).toBe("auth/user-not-found");
+    }
+  }, 30_000);
+});
+
 describeReal("Firebase login against the real development project", () => {
   const gateway = new FirebaseAuthGateway();
 
@@ -26,10 +62,7 @@ describeReal("Firebase login against the real development project", () => {
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        return await gateway.signIn(
-          process.env.SEED_DEMO_EMAIL!,
-          process.env.SEED_DEMO_PASSWORD!,
-        );
+        return await gateway.signIn(process.env.SEED_DEMO_EMAIL!, process.env.SEED_DEMO_PASSWORD!);
       } catch (error) {
         lastError = error;
         if (!(error instanceof ClientAuthError) || error.code !== "auth/network-request-failed") {

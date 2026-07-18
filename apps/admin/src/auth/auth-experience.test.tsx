@@ -33,6 +33,8 @@ class FakeGateway implements AuthGateway {
 
   signOutCalls = 0;
   sendVerificationCalls = 0;
+  sendPasswordResetCalls = 0;
+  passwordResetResult: Error | Promise<void> | null = null;
 
   async getIdToken() {
     return "id-token";
@@ -49,6 +51,12 @@ class FakeGateway implements AuthGateway {
 
   async sendEmailVerification() {
     this.sendVerificationCalls += 1;
+  }
+
+  async sendPasswordResetEmail() {
+    this.sendPasswordResetCalls += 1;
+    if (this.passwordResetResult instanceof Error) throw this.passwordResetResult;
+    if (this.passwordResetResult) await this.passwordResetResult;
   }
 
   async signIn() {
@@ -125,6 +133,7 @@ describe("admin login experience", () => {
       },
       refreshSession: async () => session,
       sendEmailVerification: async () => undefined,
+      sendPasswordResetEmail: async () => undefined,
       signIn: () => deferred,
       signOut: async () => undefined,
     };
@@ -216,7 +225,9 @@ describe("admin login experience", () => {
       password: "StrongPass1",
     });
     expect(gateway.sendVerificationCalls).toBe(1);
-    expect(screen.getByRole("button", { name: /Resend available/ })).toBeDisabled();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Resend available/ })).toBeDisabled(),
+    );
   });
 
   it("routes an unverified login to verify and resends with cooldown", async () => {
@@ -229,5 +240,76 @@ describe("admin login experience", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Resend available/ })).toBeDisabled(),
     );
+  });
+
+  it("validates forgot-password email before sending", async () => {
+    const gateway = new FakeGateway();
+    renderAuth({ gateway });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Forgot password?" }));
+    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(screen.getByText("Email is required")).toBeInTheDocument();
+    expect(gateway.sendPasswordResetCalls).toBe(0);
+    await user.type(screen.getByLabelText("Email"), "invalid");
+    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(screen.getByText("Enter a valid email address")).toBeInTheDocument();
+  });
+
+  it("shows loading then neutral confirmation and enforces resend cooldown", async () => {
+    let release!: () => void;
+    const gateway = new FakeGateway();
+    gateway.passwordResetResult = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    renderAuth({ gateway });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Forgot password?" }));
+    await user.type(screen.getByLabelText("Email"), "known@example.com");
+    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(screen.getByRole("button", { name: /Send reset link, loading/ })).toBeDisabled();
+    release();
+    expect(
+      await screen.findByText("If an account exists for that email, a reset link has been sent."),
+    ).toBeInTheDocument();
+    expect(gateway.sendPasswordResetCalls).toBe(1);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Resend available/ })).toBeDisabled(),
+    );
+  });
+
+  it("treats user-not-found as the identical neutral success", async () => {
+    const gateway = new FakeGateway();
+    gateway.passwordResetResult = new ClientAuthError("auth/user-not-found", "raw");
+    renderAuth({ gateway });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Forgot password?" }));
+    await user.type(screen.getByLabelText("Email"), "missing@example.com");
+    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(
+      await screen.findByText("If an account exists for that email, a reset link has been sent."),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["auth/too-many-requests", "Too many reset attempts. Please wait and try again"],
+    ["auth/network-request-failed", "Network unavailable. Check your connection and try again"],
+  ])("shows genuine reset error for %s", async (code, message) => {
+    const gateway = new FakeGateway();
+    gateway.passwordResetResult = new ClientAuthError(code, "raw");
+    renderAuth({ gateway });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Forgot password?" }));
+    await user.type(screen.getByLabelText("Email"), "operator@example.com");
+    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect((await screen.findAllByText(message)).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Reset link requested")).not.toBeInTheDocument();
+  });
+
+  it("renders forgot password with reduced motion", async () => {
+    const { container } = renderAuth({ reducedMotionOverride: true });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Forgot password?" }));
+    expect(await screen.findByText("Forgot password")).toBeInTheDocument();
+    expect(container.querySelector('[data-motion="reduced"]')).toBeInTheDocument();
   });
 });
