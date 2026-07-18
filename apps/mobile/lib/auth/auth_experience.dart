@@ -5,63 +5,17 @@ import 'package:flutter/material.dart';
 import '../design_system/motion.dart';
 import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
+import 'app_routes.dart';
 import 'auth_controller.dart';
 
 final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 const _resetCooldown = Duration(seconds: 60);
 
-enum _AuthView { login, signup, forgot }
-
-class AuthExperience extends StatefulWidget {
-  const AuthExperience({super.key});
-
-  @override
-  State<AuthExperience> createState() => _AuthExperienceState();
-}
-
-class _AuthExperienceState extends State<AuthExperience> {
-  _AuthView _view = _AuthView.login;
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = AuthProvider.of(context);
-    return switch (auth.status) {
-      AuthStatus.restoring => const Scaffold(
-          body: Center(child: AppLoader(label: 'Restoring session')),
-        ),
-      AuthStatus.authenticated when auth.currentUser != null =>
-        const AuthenticatedHome(),
-      AuthStatus.verificationRequired ||
-      AuthStatus.checkingVerification =>
-        VerifyEmailScreen(
-          onBack: () async {
-            await auth.signOut();
-            if (mounted) setState(() => _view = _AuthView.login);
-          },
-        ),
-      _ when _view == _AuthView.signup => SignupScreen(
-          onBack: () => setState(() => _view = _AuthView.login),
-        ),
-      _ when _view == _AuthView.forgot => ForgotPasswordScreen(
-          onBack: () => setState(() => _view = _AuthView.login),
-        ),
-      _ => LoginScreen(
-          onForgot: () => setState(() => _view = _AuthView.forgot),
-          onSignup: () => setState(() => _view = _AuthView.signup),
-        ),
-    };
-  }
-}
+void _backToLogin(BuildContext context) =>
+    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({
-    required this.onForgot,
-    required this.onSignup,
-    super.key,
-  });
-
-  final VoidCallback onForgot;
-  final VoidCallback onSignup;
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -200,12 +154,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               children: [
                                 TextButton(
                                   key: const Key('open-forgot-password'),
-                                  onPressed: widget.onForgot,
+                                  onPressed: () => Navigator.of(context)
+                                      .pushNamed(AppRoutes.forgotPassword),
                                   child: const Text('Forgot password?'),
                                 ),
                                 TextButton(
                                   key: const Key('open-signup'),
-                                  onPressed: widget.onSignup,
+                                  onPressed: () => Navigator.of(context)
+                                      .pushNamed(AppRoutes.signup),
                                   child: const Text('Sign up'),
                                 ),
                               ],
@@ -226,9 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({required this.onBack, super.key});
-
-  final VoidCallback onBack;
+  const ForgotPasswordScreen({super.key});
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
@@ -378,7 +332,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                           const SizedBox(height: DsSpacing.s3),
                           TextButton(
-                            onPressed: loading ? null : widget.onBack,
+                            onPressed:
+                                loading ? null : () => _backToLogin(context),
                             child: const Text('Back to login'),
                           ),
                         ],
@@ -396,9 +351,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 }
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({required this.onBack, super.key});
-
-  final VoidCallback onBack;
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -549,7 +502,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         const SizedBox(height: DsSpacing.s3),
                         TextButton(
-                          onPressed: loading ? null : widget.onBack,
+                          onPressed:
+                              loading ? null : () => _backToLogin(context),
                           child: const Text('Back to login'),
                         ),
                       ],
@@ -566,9 +520,7 @@ class _SignupScreenState extends State<SignupScreen> {
 }
 
 class VerifyEmailScreen extends StatelessWidget {
-  const VerifyEmailScreen({required this.onBack, super.key});
-
-  final VoidCallback onBack;
+  const VerifyEmailScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -626,7 +578,9 @@ class VerifyEmailScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: DsSpacing.s3),
                         TextButton(
-                          onPressed: checking ? null : onBack,
+                          // Signing out flips the guard, which redirects to
+                          // login and clears the navigation stack.
+                          onPressed: checking ? null : auth.signOut,
                           child: const Text('Back to login'),
                         ),
                       ],
@@ -768,6 +722,46 @@ class AuthenticatedHome extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    'Session',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: DsSpacing.s2),
+                  const Text(
+                    'Open the permission-gated demo area, or refresh the '
+                    'session to pick up server-side role changes.',
+                  ),
+                  const SizedBox(height: DsSpacing.s4),
+                  Wrap(
+                    spacing: DsSpacing.s3,
+                    runSpacing: DsSpacing.s3,
+                    children: [
+                      AppButton(
+                        key: const Key('open-rbac-demo'),
+                        label: 'Assets demo',
+                        variant: AppButtonVariant.ghost,
+                        onPressed: () => Navigator.of(context)
+                            .pushNamed(AppRoutes.rbacDemo),
+                      ),
+                      AppButton(
+                        key: const Key('refresh-session'),
+                        label: 'Refresh session',
+                        variant: AppButtonVariant.ghost,
+                        onPressed: auth.refreshSession,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: DsSpacing.s6),
+          StaggeredReveal(
+            index: 3,
+            child: AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     'Resolved permissions',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
@@ -782,6 +776,53 @@ class AuthenticatedHome extends StatelessWidget {
                     children: permissions
                         .map((permission) => AppBadge(label: permission))
                         .toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RbacDemoScreen extends StatelessWidget {
+  const RbacDemoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Assets demo')),
+      body: ListView(
+        padding: const EdgeInsets.all(DsSpacing.s6),
+        children: [
+          StaggeredReveal(
+            index: 0,
+            child: AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const StatusPill(
+                    label: 'Access granted',
+                    status: AppStatus.healthy,
+                  ),
+                  const SizedBox(height: DsSpacing.s4),
+                  Text(
+                    'Assets demo',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: DsSpacing.s3),
+                  const Text(
+                    'This page requires the assets.write permission. The '
+                    'client gate mirrors the authoritative FastAPI '
+                    'require_permission dependency on /api/v1/_rbac-demo/single.',
+                  ),
+                  const SizedBox(height: DsSpacing.s5),
+                  TextButton(
+                    onPressed: () => Navigator.of(context)
+                        .pushNamedAndRemoveUntil(AppRoutes.home, (_) => false),
+                    child: const Text('Back to Home'),
                   ),
                 ],
               ),

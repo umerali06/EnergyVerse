@@ -42,6 +42,7 @@ export type RegistrationInput = {
 type AuthContextValue = {
   currentUser: CurrentUser | null;
   error: string | null;
+  refreshSession: () => Promise<void>;
   refreshVerification: () => Promise<void>;
   register: (input: RegistrationInput) => Promise<void>;
   resendVerification: () => Promise<boolean>;
@@ -52,6 +53,8 @@ type AuthContextValue = {
   verificationSentAt: number | null;
   passwordResetSentAt: number | null;
 };
+
+export const sessionExpiredMessage = "Your session has expired. Please sign in again";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -108,8 +111,15 @@ export function AuthProvider({
 }) {
   const toast = useToast();
   const authGateway = useMemo(() => gateway ?? new FirebaseAuthGateway(), [gateway]);
+  const expireRef = useRef<() => Promise<void>>(async () => undefined);
   const client = useMemo(
-    () => apiClient ?? new FevApiClient({ getIdToken: () => authGateway.getIdToken() }),
+    () =>
+      apiClient ??
+      new FevApiClient({
+        getIdToken: () => authGateway.getIdToken(),
+        onUnauthorized: () => expireRef.current(),
+        refreshIdToken: () => authGateway.getIdToken(true),
+      }),
     [apiClient, authGateway],
   );
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -119,6 +129,27 @@ export function AuthProvider({
   const [passwordResetSentAt, setPasswordResetSentAt] = useState<number | null>(null);
   const resolution = useRef<Promise<void> | null>(null);
   const resolutionUid = useRef<string | null>(null);
+  const expiring = useRef(false);
+
+  const expireSession = useCallback(async () => {
+    // The flag stays set until a fresh sign-in attempt: the API hook and the
+    // resolve path both report the same dead session, but only once.
+    if (expiring.current) return;
+    expiring.current = true;
+    try {
+      await authGateway.signOut();
+    } catch {
+      // The local session is cleared regardless of the provider call outcome.
+    } finally {
+      setCurrentUser(null);
+      setError(null);
+      setStatus("signedOut");
+      toast.error(sessionExpiredMessage);
+    }
+  }, [authGateway, toast]);
+  useEffect(() => {
+    expireRef.current = expireSession;
+  }, [expireSession]);
 
   const fail = useCallback(
     (failure: unknown) => {
@@ -145,6 +176,13 @@ export function AuthProvider({
           setError(null);
           setStatus(identity.emailVerified ? "authenticated" : "verificationRequired");
         } catch (failure) {
+          if (failure instanceof ApiClientError && failure.status === 401) {
+            // Token refresh + retry already failed inside the client: the session
+            // is dead. expireSession is idempotent, so the client's own
+            // onUnauthorized hook and this path never double-toast.
+            await expireSession();
+            return;
+          }
           if (failure instanceof ApiClientError && failure.status === 403) {
             await authGateway.signOut();
           }
@@ -156,7 +194,7 @@ export function AuthProvider({
       })();
       await resolution.current;
     },
-    [authGateway, client, fail],
+    [authGateway, client, expireSession, fail],
   );
 
   useEffect(() => {
@@ -178,6 +216,7 @@ export function AuthProvider({
   const signIn = useCallback(
     async (email: string, password: string) => {
       if (status === "signingIn") return;
+      expiring.current = false;
       setError(null);
       setStatus("signingIn");
       try {
@@ -193,6 +232,7 @@ export function AuthProvider({
   const register = useCallback(
     async (input: RegistrationInput) => {
       if (status === "signingUp") return;
+      expiring.current = false;
       setError(null);
       setStatus("signingUp");
       try {
@@ -241,6 +281,29 @@ export function AuthProvider({
     }
   }, [authGateway, resolveSession, toast]);
 
+  const refreshSession = useCallback(async () => {
+    try {
+      const session = await authGateway.refreshSession();
+      await resolveSession(session);
+    } catch (failure) {
+      if (
+        failure instanceof ClientAuthError &&
+        [
+          "auth/no-current-user",
+          "auth/user-token-expired",
+          "auth/invalid-user-token",
+          "auth/user-disabled",
+        ].includes(failure.code)
+      ) {
+        await expireSession();
+        return;
+      }
+      const message = friendlyAuthMessage(failure);
+      setError(message);
+      toast.error(message);
+    }
+  }, [authGateway, expireSession, resolveSession, toast]);
+
   const sendPasswordReset = useCallback(
     async (email: string) => {
       if (status === "sendingPasswordReset") return false;
@@ -284,6 +347,7 @@ export function AuthProvider({
       currentUser,
       error,
       passwordResetSentAt,
+      refreshSession,
       refreshVerification,
       register,
       resendVerification,
@@ -297,6 +361,7 @@ export function AuthProvider({
       currentUser,
       error,
       passwordResetSentAt,
+      refreshSession,
       refreshVerification,
       register,
       resendVerification,
