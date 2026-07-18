@@ -17,6 +17,7 @@
 | D-011 | Client authentication state | **Firebase client SDK + one auth provider resolving authoritative `/me` identity** | **RESOLVED — LOCKED** | 2026-07-17 |
 | D-012 | Self-serve tenants and verified-email enforcement | **Public signup creates a new generated-ID tenant; application gates require a verified Firebase email** | **RESOLVED — LOCKED** | 2026-07-17 |
 | D-013 | Password reset flow and account privacy | **Client-SDK reset send with Firebase hosted completion; responses never disclose account existence** | **RESOLVED — LOCKED** | 2026-07-18 |
+| D-014 | Session lifecycle and route-guard strategy | **Client-layout guards over one auth provider; 401 → one forced refresh + retry, then clean expiry; server gates stay authoritative** | **RESOLVED — LOCKED** | 2026-07-18 |
 
 ## Decision Details
 
@@ -210,6 +211,37 @@
   reset page and notification-service delivery remain scheduled later; session,
   token refresh, and route-guard hardening remain Phase 1.4.
 
+### D-014 — Session Lifecycle and Client-Layout Route Guards
+
+- **Decision owner:** Product owner
+- **Guard placement:** Route protection is a client-layout concern composed from
+  guard components/widgets over the single D-011 auth provider. Next.js
+  middleware was explicitly rejected: the Firebase session lives only in the
+  browser SDK, so no cookie or header exists for server middleware to inspect,
+  and introducing a session-cookie layer is out of scope for this slice. Client
+  guards are UX only; FastAPI's `require_permission` and
+  `require_verified_email` remain the enforcement authority (D-008, D-012).
+- **Redirect contract:** Unauthenticated visits to protected routes redirect to
+  login and remember the intended destination — admin as an internal-path-only
+  `?next=` parameter (never an absolute or protocol-relative URL, preventing
+  open redirects), mobile as a controller-held `pendingRoute` consumed once.
+  Authenticated users are redirected away from login/signup/forgot; unverified
+  identities are held at the verify screen; missing permissions render a branded
+  403 page in place via the 0.6 `can()` helpers seeded from `/me`. Mobile guard
+  redirects replace the whole navigation stack so back-navigation cannot reveal
+  protected content.
+- **Token lifecycle:** Token-refresh events (`onIdTokenChanged` /
+  `idTokenChanges`) drive the provider. The typed API layer retries a real 401
+  exactly once after a forced token refresh; a second 401 expires the session —
+  Firebase sign-out, cleared context, one session-expired toast (idempotent
+  until the next sign-in attempt), and a guard-driven login redirect. A public
+  `refreshSession()` re-resolves `/me` after a forced refresh; role changes take
+  effect on the next refresh, not mid-token.
+- **Consequences:** Long-lived sessions no longer 401 mid-use, restore never
+  flashes the wrong surface, deep links survive the login round-trip, and every
+  client gate has an authoritative server twin. A server-session/cookie layer,
+  SSR-aware guards, and richer 403 telemetry remain future concerns.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -246,3 +278,8 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   emails directly and always answer with the same neutral confirmation, so account
   existence is never disclosed; Firebase's hosted action page performs the actual
   password change until a custom reset surface is scheduled.
+- **2026-07-18 — Phase 1.4:** Added D-014, completing Phase 1. Client-layout
+  guards (middleware rejected under D-011's browser-only session) enforce
+  login/verify/permission routing with safe return-to destinations, and the API
+  layer's single refresh-and-retry policy turns dead sessions into one clean
+  sign-out. Server dependencies remain the authority on every protected call.

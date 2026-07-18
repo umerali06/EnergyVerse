@@ -20,12 +20,13 @@ Only one micro-task may be active at a time.
 | 0.6 | RBAC enforcement — permission/role dependencies, demo route gates, denial audits, and admin/mobile guard helpers | Done |
 | 0.7 | Shared design system — framework-neutral tokens, dark/light theming, reusable admin/mobile primitives, and reduced-motion-aware animation | Done |
 | 0.8 | API contract, generated TypeScript/Dart clients, unified errors/request IDs, typed client wrappers, and toast infrastructure | Done |
-| 1 | User-facing authentication and application flows | In progress |
+| 1 | User-facing authentication and application flows | **COMPLETE** |
 | 1.1 | Login screen | Done |
 | 1.2 | Signup and email verification | Done |
 | 1.3 | Forgot password and password reset | Done |
-| 1.4 | Session, token refresh, and route guards | **In progress** |
-| 2 | To be defined | Not started |
+| 1.4 | Session, token refresh, and route guards | Done |
+| 2 | To be defined | In progress |
+| 2.1 | To be defined — awaiting supplied scope | **In progress** |
 | 3 | To be defined | Not started |
 | 4 | To be defined | Not started |
 | 5 | To be defined | Not started |
