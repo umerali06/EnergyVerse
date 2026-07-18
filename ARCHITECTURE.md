@@ -182,6 +182,23 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   verified users to the existing Home placeholder. Invite onboarding remains a
   later admin-portal concern; reset and full session hardening remain Phase 1.3/1.4.
 
+### Phase 1.3 Forgot / Reset Password
+
+- The Phase 1.1 login screens' "Forgot password?" links now open a forgot-password
+  view on both clients, composed from Phase 0.7 primitives with entrance motion and
+  reduced-motion parity. The flow mirrors Phase 1.2's client-send pattern: each
+  Firebase client SDK sends the email via `sendPasswordResetEmail`, honoring the
+  optional `AUTH_ACTION_URL` continue URL (`NEXT_PUBLIC_AUTH_ACTION_URL` in Next.js)
+  and otherwise Firebase's default; Firebase's hosted action page completes the
+  actual password change. No backend endpoint or transactional email was added —
+  delivery remains reserved for the notifications phase.
+- Responses never disclose account existence: `user-not-found`/`user-disabled`
+  resolve to the identical neutral "If an account exists for that email, a reset
+  link has been sent" confirmation, while only genuine rate-limit and network
+  failures surface through the Phase 0.8 error/toast mapping. A 60-second resend
+  cooldown and a back-to-login path complete the flow. Session, token refresh, and
+  route guards remain deferred to Phase 1.4.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
