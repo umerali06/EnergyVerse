@@ -15,6 +15,8 @@
 | D-009 | Cross-client design language and motion | **Industrial blue/orange brand with one generated token source and reduced-motion-aware client implementations** | **RESOLVED — LOCKED** | 2026-07-16 |
 | D-010 | API contract, generated clients, and error strategy | **OpenAPI 3.1 → pinned TypeScript Fetch/Dart Dio clients; unified request-ID error envelope; CI drift rejection** | **RESOLVED — LOCKED** | 2026-07-16 |
 | D-011 | Client authentication state | **Firebase client SDK + one auth provider resolving authoritative `/me` identity** | **RESOLVED — LOCKED** | 2026-07-17 |
+| D-012 | Self-serve tenants and verified-email enforcement | **Public signup creates a new generated-ID tenant; application gates require a verified Firebase email** | **RESOLVED — LOCKED** | 2026-07-17 |
+| D-013 | Password reset flow and account privacy | **Client-SDK reset send with Firebase hosted completion; responses never disclose account existence** | **RESOLVED — LOCKED** | 2026-07-18 |
 
 ## Decision Details
 
@@ -185,6 +187,29 @@
   safely, no company-discovery side channel is introduced, and invite onboarding,
   password reset, and comprehensive session guards remain in their scheduled slices.
 
+### D-013 — Password Reset via Client SDK and No-Account-Enumeration Policy
+
+- **Decision owner:** Product owner
+- **Reset delivery:** Both clients call Firebase `sendPasswordResetEmail` directly,
+  mirroring the D-012 verification client-send pattern. Firebase's built-in delivery
+  and hosted action page perform the email and the actual password change; no custom
+  in-app reset-code handler exists in this slice, and backend transactional email
+  remains reserved for the notifications system. The optional `AUTH_ACTION_URL`
+  continue URL from D-007 (exposed to Next.js as `NEXT_PUBLIC_AUTH_ACTION_URL`)
+  is honored when set; unset keeps Firebase's default hosted flow.
+- **Account privacy:** The forgot-password flow always renders the same neutral
+  confirmation — "If an account exists for that email, a reset link has been sent."
+  `user-not-found` and `user-disabled` are deliberately indistinguishable from
+  success; only genuine `too-many-requests` and `network-request-failed` errors
+  surface. This extends the D-011 non-enumerating login-message policy to recovery.
+- **Abuse posture:** A 60-second client resend cooldown complements Firebase's
+  server-side rate limiting; rate-limit errors are reported honestly without
+  revealing account state.
+- **Consequences:** Password recovery works end-to-end with zero new backend
+  surface, and the UI cannot be used to probe registered emails. A custom-branded
+  reset page and notification-service delivery remain scheduled later; session,
+  token refresh, and route-guard hardening remain Phase 1.4.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -217,3 +242,7 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 - **2026-07-17 — Phase 1.2:** Added D-012. Self-signup always creates a generated-ID
   tenant and its first company administrator; `/me` remains available to unverified
   identities while server application gates require a verified Firebase email.
+- **2026-07-18 — Phase 1.3:** Added D-013. Both clients send Firebase password-reset
+  emails directly and always answer with the same neutral confirmation, so account
+  existence is never disclosed; Firebase's hosted action page performs the actual
+  password change until a custom reset surface is scheduled.

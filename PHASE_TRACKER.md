@@ -23,7 +23,8 @@ Only one micro-task may be active at a time.
 | 1 | User-facing authentication and application flows | In progress |
 | 1.1 | Login screen | Done |
 | 1.2 | Signup and email verification | Done |
-| 1.3 | Forgot password and password reset | **In progress** |
+| 1.3 | Forgot password and password reset | Done |
+| 1.4 | Session, token refresh, and route guards | **In progress** |
 | 2 | To be defined | Not started |
 | 3 | To be defined | Not started |
 | 4 | To be defined | Not started |
