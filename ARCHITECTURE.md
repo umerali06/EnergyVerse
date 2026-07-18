@@ -199,6 +199,31 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   cooldown and a back-to-login path complete the flow. Session, token refresh, and
   route guards remain deferred to Phase 1.4.
 
+### Phase 1.4 Session Management and Route Guards
+
+- Session lifecycle: on load each client restores the Firebase session behind a
+  branded splash — `onIdTokenChanged` (Next.js) / `idTokenChanges` (Flutter) feed
+  one auth provider, which resolves `/api/v1/auth/me` before any screen renders,
+  so an authenticated user never sees a login flash and an anonymous one never
+  sees protected content. The Firebase SDK keeps ID tokens fresh; the Phase 0.8
+  typed API layer additionally retries a real 401 exactly once after a forced
+  token refresh. A still-dead session is expired cleanly: Firebase sign-out,
+  cleared identity/permission context, a session-expired toast, and a guard-driven
+  login redirect. `refreshSession()` force-refreshes the token and re-resolves
+  `/me`, so server-side role changes (0.5 claims sync) surface on the next refresh.
+- Route guards tie 0.6 RBAC to 1.1–1.3's screens: protected routes sit behind
+  RequireAuth (login redirect preserving the intended destination via an
+  internal-only `?next` / `pendingRoute`), verify-email gating for unverified
+  identities, PublicOnly redirects away from login/signup/forgot when already
+  authenticated, and a RequirePermission wrapper over the 0.6 `can()` helpers —
+  seeded from the authoritative `/me` permissions — that renders a branded 403
+  page (demo: `/rbac-demo` requires `assets.write`). Mobile guard redirects
+  replace the navigation stack so back-navigation cannot reveal protected
+  content. Next.js middleware was rejected: under D-011 the Firebase session
+  exists only in the browser, so guarding is a client-layout concern. Client
+  guards remain UX; FastAPI's `require_permission` + `require_verified_email`
+  stay authoritative for every protected operation.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
