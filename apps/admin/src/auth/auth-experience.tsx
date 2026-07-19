@@ -29,7 +29,7 @@ function usePublicAuthNav() {
 function Brand() {
   return (
     <div className="mb-8">
-      <Logo height={64} variant="wordmark" />
+      <Logo height={64} priority variant="wordmark" />
     </div>
   );
 }

@@ -22,6 +22,7 @@ abstract final class DsColors {
   static const accent700 = Color(0xFFA62B03);
   static const accent800 = Color(0xFF841F01);
   static const accent900 = Color(0xFF661802);
+  static const accentInk = Color(0xFF001A49);
   static const statusSuccess = Color(0xFF1B9E4B);
   static const statusWarning = Color(0xFFE8A317);
   static const statusCritical = Color(0xFFC1123F);

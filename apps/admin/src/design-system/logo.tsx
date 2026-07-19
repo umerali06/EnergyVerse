@@ -23,11 +23,14 @@ export function Logo({
   variant = "wordmark",
   height = 32,
   decorative = false,
+  priority = false,
   className,
 }: {
   variant?: LogoVariant;
   height?: number;
   decorative?: boolean;
+  /** Set on above-the-fold brand placements (login hero) to help LCP. */
+  priority?: boolean;
   className?: string;
 }) {
   const { theme } = useTheme();
@@ -38,7 +41,9 @@ export function Logo({
       alt={decorative ? "" : "Flacron EnergyVerse"}
       aria-hidden={decorative || undefined}
       className={className}
+      fetchPriority={priority ? "high" : undefined}
       height={height}
+      loading={priority ? "eager" : undefined}
       src={`/brand/logo-${variant}-${theme}.png`}
       width={width}
     />

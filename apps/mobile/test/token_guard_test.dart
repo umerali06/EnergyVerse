@@ -17,7 +17,7 @@ void main() {
         .whereType<File>()
         .where((file) => file.path.endsWith('.dart'));
     final rawColor = RegExp(r'Color\(0x|Color\.fromARGB|Color\.fromRGBO');
-    final rawFont = RegExp("fontFamily:\s*'");
+    final rawFont = RegExp(r"fontFamily:\s*'");
     for (final file in files) {
       final normalized = file.path.replaceAll(r'\', '/');
       if (allowed.contains(normalized)) continue;
