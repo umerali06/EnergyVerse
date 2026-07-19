@@ -13,7 +13,7 @@ import {
 
 import { useAuth } from "@/auth/auth-context";
 import { usePermissions } from "@/auth/permissions";
-import { Badge, Button, cn, MotionSection, ThemeSwitch, Tooltip } from "@/design-system";
+import { Badge, Button, cn, Logo, MotionSection, ThemeSwitch, Tooltip } from "@/design-system";
 import {
   findNavItem,
   isRouteActive,
@@ -87,11 +87,11 @@ function NavList({
                 <a
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-bodySmall font-semibold outline-none transition-colors",
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-bodySmall font-semibold outline-none transition-colors",
                     "focus-visible:ring-2 focus-visible:ring-primary-400",
                     active
-                      ? "bg-primary-500/15 text-primary-300"
-                      : "text-text-secondary hover:bg-elevated hover:text-text-primary",
+                      ? "border-l-2 border-primary-400 bg-primary-500/10 pl-[10px] text-primary-600 dark:text-primary-300"
+                      : "border-l-2 border-transparent pl-[10px] text-text-secondary hover:bg-elevated hover:text-text-primary",
                     collapsed && "justify-center px-2",
                   )}
                   href={item.route}
@@ -122,16 +122,10 @@ function SidebarBrand({ collapsed }: { collapsed: boolean }) {
     <div
       className={cn("flex items-center gap-3 px-4 pb-4 pt-5", collapsed && "justify-center px-2")}
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-500 font-mono text-h6 font-black text-white shadow-glow">
-        F
-      </span>
-      {!collapsed && (
-        <div className="min-w-0">
-          <p className="truncate text-body font-bold tracking-tight">Flacron EnergyVerse</p>
-          <p className="truncate text-caption uppercase tracking-[0.18em] text-text-muted">
-            Field operations
-          </p>
-        </div>
+      {collapsed ? (
+        <Logo height={26} variant="mark" />
+      ) : (
+        <Logo height={40} variant="wordmark" />
       )}
     </div>
   );
@@ -173,7 +167,7 @@ function Sidebar({
     <aside
       className={cn(
         "flex h-screen shrink-0 flex-col border-r border-border bg-surface/80 transition-[width] duration-200 motion-reduce:transition-none",
-        collapsed ? "w-[76px]" : "w-64",
+        collapsed ? "w-16" : "w-60",
       )}
       data-collapsed={collapsed}
       data-testid="app-sidebar"
@@ -260,7 +254,7 @@ function MobileDrawer({
       <div
         aria-label="Navigation menu"
         aria-modal="true"
-        className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] translate-x-0 animate-none flex-col border-r border-border bg-surface shadow-xl transition-transform duration-200 motion-reduce:transition-none"
+        className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] translate-x-0 animate-none flex-col border-r border-border bg-surface transition-transform duration-200 motion-reduce:transition-none"
         onKeyDown={trapKeys}
         ref={panelRef}
         role="dialog"
@@ -321,7 +315,7 @@ function UserMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="User menu"
-        className="grid size-10 place-items-center rounded-full bg-primary-500/20 font-mono text-bodySmall font-bold text-primary-300 outline-none ring-1 ring-border transition hover:ring-primary-400 focus-visible:ring-2 focus-visible:ring-primary-400"
+        className="grid size-10 place-items-center rounded-full bg-primary-500/20 font-mono text-bodySmall font-bold text-primary-600 outline-none dark:text-primary-300 ring-1 ring-border transition hover:ring-primary-400 focus-visible:ring-2 focus-visible:ring-primary-400"
         onClick={() => setOpen((value) => !value)}
         type="button"
       >
@@ -330,11 +324,11 @@ function UserMenu() {
       {open && (
         <div
           aria-label="User menu"
-          className="absolute right-0 top-12 z-50 w-72 rounded-xl border border-border bg-surface p-4 shadow-xl"
+          className="absolute right-0 top-12 z-50 w-72 rounded-lg border border-border bg-surface p-4 shadow-lg"
           role="menu"
         >
           <p className="text-body font-bold">{displayNameFor(user.email)}</p>
-          <p className="truncate text-bodySmall text-text-muted">{user.email}</p>
+          <p className="truncate font-mono text-bodySmall text-text-muted">{user.email}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Badge>{user.roleKey}</Badge>
             <span className="text-bodySmall text-text-secondary">{user.companyName}</span>
@@ -375,7 +369,7 @@ function Header({
   const located = findNavItem(pathname);
   const title = located?.item.label ?? (pathname === "/" ? "Dashboard" : "Not found");
   return (
-    <header className="flex items-center gap-3 border-b border-border bg-surface/60 px-4 py-3 md:px-6">
+    <header className="flex items-center gap-3 border-b border-border bg-surface/60 px-4 py-2.5 md:px-6">
       {showMenuButton && (
         <button
           aria-label="Open navigation menu"

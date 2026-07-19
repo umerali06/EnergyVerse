@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/auth_controller.dart';
 import '../auth/permissions.dart';
+import '../design_system/logo.dart';
 import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
@@ -90,7 +91,18 @@ class AppShellScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const BrandLogo(
+              decorative: true,
+              height: 22,
+              variant: LogoVariant.mark,
+            ),
+            const SizedBox(width: DsSpacing.s3),
+            Flexible(child: Text(title, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
         actions: [
           IconButton(
             key: const Key('theme-toggle'),

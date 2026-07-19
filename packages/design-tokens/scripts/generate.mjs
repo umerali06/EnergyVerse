@@ -25,6 +25,12 @@ for (const [name, scale] of Object.entries(tokens.color.accent)) {
 for (const [name, value] of Object.entries(tokens.color.status)) {
   variableLines.push(`  --color-status-${name}: ${value};`);
 }
+for (const [name, value] of Object.entries(tokens.color.statusStrong)) {
+  variableLines.push(`  --color-status-strong-${name}: ${value};`);
+}
+for (const [name, value] of Object.entries(tokens.color.statusSoft)) {
+  variableLines.push(`  --color-status-soft-${name}: ${value};`);
+}
 for (const [name, value] of Object.entries(tokens.spacing)) {
   variableLines.push(`  --space-${name}: ${value}px;`);
 }
@@ -78,13 +84,14 @@ abstract final class DsColors {
 ${dartMap("primary", tokens.color.primary, color)}
 ${dartMap("accent", tokens.color.accent, color)}
 ${dartMap("status", tokens.color.status, color)}
+${dartMap("statusStrong", tokens.color.statusStrong, color)}
+${dartMap("statusSoft", tokens.color.statusSoft, color)}
 ${dartMap("dark", tokens.color.theme.dark, color)}
 ${dartMap("light", tokens.color.theme.light, color)}
 }
 
 abstract final class DsTypography {
-  static const sans = '${tokens.typography.fontFamily.sans}';
-  static const mono = '${tokens.typography.fontFamily.mono}';
+${Object.entries(tokens.typography.fontFamily).map(([name, value]) => `  static const ${name} = '${value}';`).join("\n")}
 ${dartMap("size", tokens.typography.fontSize, (value) => `${value}.0`)}
 }
 

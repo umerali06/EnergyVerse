@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../design_system/logo.dart';
 import '../design_system/motion.dart';
 import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
@@ -618,44 +619,8 @@ class _Wordmark extends StatelessWidget {
   const _Wordmark();
 
   @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: DsColors.primary500,
-              borderRadius: BorderRadius.circular(DsRadius.lg),
-            ),
-            child: const Text(
-              'F',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: 'JetBrains Mono',
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          const SizedBox(width: DsSpacing.s3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Flacron EnergyVerse',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                Text(
-                  'FIELD OPERATIONS INTELLIGENCE',
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
+  Widget build(BuildContext context) =>
+      const Center(child: BrandLogo(height: 56));
 }
 
 class AuthenticatedHome extends StatelessWidget {
@@ -698,7 +663,7 @@ class AuthenticatedHome extends StatelessWidget {
                   const SizedBox(height: DsSpacing.s2),
                   Text(
                     'UID: ${user.uid}',
-                    style: const TextStyle(fontFamily: 'JetBrains Mono'),
+                    style: const TextStyle(fontFamily: DsTypography.mono),
                   ),
                 ],
               ),

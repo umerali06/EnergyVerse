@@ -13,6 +13,8 @@ const config: Config = {
         primary: designTokens.color.primary,
         accent: designTokens.color.accent,
         status: designTokens.color.status,
+        statusStrong: designTokens.color.statusStrong,
+        statusSoft: designTokens.color.statusSoft,
         background: "var(--color-background)",
         surface: "var(--color-surface)",
         elevated: "var(--color-elevated)",
@@ -28,8 +30,13 @@ const config: Config = {
         Object.entries(designTokens.zIndex).map(([key, value]) => [key, String(value)]),
       ),
       fontFamily: {
-        sans: ["var(--font-inter)", designTokens.typography.fontFamily.sans, "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", designTokens.typography.fontFamily.mono, "monospace"],
+        sans: ["var(--font-plex-sans)", designTokens.typography.fontFamily.sans, "sans-serif"],
+        heading: [
+          "var(--font-space-grotesk)",
+          designTokens.typography.fontFamily.heading,
+          "sans-serif",
+        ],
+        mono: ["var(--font-plex-mono)", designTokens.typography.fontFamily.mono, "monospace"],
       },
       fontSize: Object.fromEntries(
         Object.entries(designTokens.typography.fontSize).map(([key, value]) => [

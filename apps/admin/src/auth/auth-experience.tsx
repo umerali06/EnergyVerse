@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { Badge, Button, Card, Input, MotionSection, StatusPill } from "@/design-system";
+import { Badge, Button, Card, Input, Logo, MotionSection, StatusPill } from "@/design-system";
 
 import { useAuth } from "./auth-context";
 import { safeInternalPath } from "./route-guards";
@@ -28,16 +28,8 @@ function usePublicAuthNav() {
 
 function Brand() {
   return (
-    <div className="mb-8 flex items-center gap-3">
-      <span className="grid size-12 place-items-center rounded-xl bg-primary-500 font-mono text-h5 font-black text-white shadow-glow">
-        F
-      </span>
-      <div>
-        <p className="text-h4 font-bold tracking-tight">Flacron EnergyVerse</p>
-        <p className="text-caption uppercase tracking-[0.22em] text-text-muted">
-          Field operations intelligence
-        </p>
-      </div>
+    <div className="mb-8">
+      <Logo height={64} priority variant="wordmark" />
     </div>
   );
 }
@@ -52,16 +44,12 @@ function AuthShell({
   wide?: boolean;
 }) {
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background p-6">
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(37,99,235,0.2),transparent_35%),radial-gradient(circle_at_85%_85%,rgba(249,115,22,0.12),transparent_32%)]"
-      />
+    <main className="relative grid min-h-screen place-items-center bg-background p-6">
       <MotionSection
         className={`relative z-10 w-full ${wide ? "max-w-2xl" : "max-w-md"}`}
         reducedMotionOverride={reducedMotionOverride}
       >
-        <Card className="border-border/90 bg-surface/95 p-8 backdrop-blur">{children}</Card>
+        <Card className="border-t-2 border-t-primary-500/70 p-6 md:p-8">{children}</Card>
       </MotionSection>
     </main>
   );
@@ -114,7 +102,7 @@ export function LoginScreen({ reducedMotionOverride }: { reducedMotionOverride?:
           endAdornment={
             <button
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="rounded-md px-2 py-1 text-caption font-semibold text-primary-400"
+              className="rounded-md px-2 py-1 text-caption font-semibold text-primary-600 dark:text-primary-400"
               onClick={() => setShowPassword((value) => !value)}
               type="button"
             >
@@ -129,20 +117,20 @@ export function LoginScreen({ reducedMotionOverride }: { reducedMotionOverride?:
           value={password}
         />
         {authError && <InlineError message={authError} />}
-        <Button className="w-full" loading={loading} type="submit">
+        <Button className="w-full" loading={loading} type="submit" variant="accent">
           Login
         </Button>
       </form>
       <div className="mt-6 flex justify-between gap-4 text-bodySmall">
         <button
-          className="font-semibold text-primary-400 hover:text-primary-300"
+          className="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
           onClick={toForgotPassword}
           type="button"
         >
           Forgot password?
         </button>
         <button
-          className="font-semibold text-primary-400 hover:text-primary-300"
+          className="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
           onClick={toSignup}
           type="button"
         >
@@ -220,7 +208,7 @@ export function ForgotPasswordScreen({
             {cooldown > 0 ? `Resend available in ${cooldown}s` : "Resend reset link"}
           </Button>
           <button
-            className="mt-2 text-bodySmall font-semibold text-primary-400"
+            className="mt-2 text-bodySmall font-semibold text-primary-600 dark:text-primary-400"
             onClick={onBack}
             type="button"
           >
@@ -251,11 +239,11 @@ export function ForgotPasswordScreen({
           value={email}
         />
         {auth.error && <InlineError message={auth.error} />}
-        <Button className="w-full" loading={loading} type="submit">
+        <Button className="w-full" loading={loading} type="submit" variant="accent">
           Send reset link
         </Button>
         <button
-          className="text-bodySmall font-semibold text-primary-400"
+          className="text-bodySmall font-semibold text-primary-600 dark:text-primary-400"
           disabled={loading}
           onClick={onBack}
           type="button"
@@ -309,7 +297,7 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
   const toggle = (
     <button
       aria-label={showPassword ? "Hide passwords" : "Show passwords"}
-      className="rounded-md px-2 py-1 text-caption font-semibold text-primary-400"
+      className="rounded-md px-2 py-1 text-caption font-semibold text-primary-600 dark:text-primary-400"
       onClick={() => setShowPassword((value) => !value)}
       type="button"
     >
@@ -385,7 +373,7 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
           >
             Back to login
           </Button>
-          <Button className="flex-1" loading={loading} type="submit">
+          <Button className="flex-1" loading={loading} type="submit" variant="accent">
             Create organization
           </Button>
         </div>
@@ -442,7 +430,7 @@ export function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOver
           {cooldown > 0 ? `Resend available in ${cooldown}s` : "Resend verification"}
         </Button>
         <button
-          className="mt-2 text-bodySmall font-semibold text-primary-400"
+          className="mt-2 text-bodySmall font-semibold text-primary-600 dark:text-primary-400"
           onClick={() => void auth.signOut()}
           type="button"
         >
@@ -456,7 +444,7 @@ export function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOver
 function InlineError({ message }: { message: string }) {
   return (
     <p
-      className="rounded-lg border border-status-critical/40 bg-status-critical/10 p-3 text-bodySmall text-status-critical"
+      className="rounded-lg border border-status-critical/40 bg-status-critical/10 p-3 text-bodySmall text-statusStrong-critical dark:text-statusSoft-critical"
       role="alert"
     >
       {message}
@@ -475,23 +463,23 @@ export function AuthenticatedHome({ reducedMotionOverride }: { reducedMotionOver
       <MotionSection className="mx-auto max-w-5xl" reducedMotionOverride={reducedMotionOverride}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="font-mono text-caption uppercase tracking-[0.22em] text-primary-400">
+            <p className="font-mono text-caption uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">
               FEV authenticated workspace
             </p>
             <h2 className="mt-2 text-h2 font-bold capitalize">Welcome, {name}</h2>
-            <p className="mt-2 text-text-secondary">{currentUser.email}</p>
+            <p className="mt-2 font-mono text-bodySmall text-text-secondary">{currentUser.email}</p>
           </div>
           <Button onClick={() => router.push("/rbac-demo")} variant="ghost">
             Assets demo
           </Button>
         </div>
-        <div className="mt-8 grid gap-6 md:grid-cols-[0.8fr_1.2fr]">
+        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(240px,300px)_1fr]">
           <Card>
             <StatusPill tone="healthy">Authenticated</StatusPill>
             <dl className="mt-6 grid gap-4 text-body">
               <div>
                 <dt className="text-text-muted">Role</dt>
-                <dd className="mt-1 font-semibold">{currentUser.roleKey}</dd>
+                <dd className="mt-1 font-mono font-semibold">{currentUser.roleKey}</dd>
               </div>
               <div>
                 <dt className="text-text-muted">Company</dt>

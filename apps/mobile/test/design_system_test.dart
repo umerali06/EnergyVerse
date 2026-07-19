@@ -15,8 +15,10 @@ void main() {
   test('dark and light ThemeData resolve the shared semantic tokens', () {
     expect(AppThemes.dark.brightness, Brightness.dark);
     expect(AppThemes.dark.scaffoldBackgroundColor, DsColors.darkBackground);
-    expect(AppThemes.dark.colorScheme.primary, DsColors.primary500);
+    // Brand navy actions: lightened tint in dark, deep navy in light (2.1c).
+    expect(AppThemes.dark.colorScheme.primary, DsColors.primary400);
     expect(AppThemes.light.brightness, Brightness.light);
+    expect(AppThemes.light.colorScheme.primary, DsColors.primary800);
     expect(AppThemes.light.scaffoldBackgroundColor, DsColors.lightBackground);
     expect(
       AppThemes.dark.textTheme.displayLarge?.fontSize,

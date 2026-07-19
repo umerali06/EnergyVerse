@@ -1,95 +1,110 @@
 // GENERATED from packages/design-tokens/tokens.json. Do not edit.
 export const designTokens = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  meta: {
-    name: "FEV Industrial Energy",
-    version: "0.7.0",
-    defaultTheme: "dark",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "meta": {
+    "name": "FEV Industrial Energy",
+    "version": "2.1.2",
+    "defaultTheme": "dark"
   },
-  color: {
-    primary: {
-      "50": "#EFF6FF",
-      "100": "#DBEAFE",
-      "200": "#BFDBFE",
-      "300": "#93C5FD",
-      "400": "#60A5FA",
-      "500": "#2563EB",
-      "600": "#1D4ED8",
-      "700": "#1E40AF",
-      "800": "#1E3A8A",
-      "900": "#172554",
+  "color": {
+    "primary": {
+      "50": "#F1F6FE",
+      "100": "#DFEAFD",
+      "200": "#BDD4F7",
+      "300": "#95B7EC",
+      "400": "#6F99DC",
+      "500": "#4D7BC5",
+      "600": "#3160AA",
+      "700": "#17468E",
+      "800": "#002865",
+      "900": "#001A49"
     },
-    accent: {
-      "50": "#FFF7ED",
-      "100": "#FFEDD5",
-      "200": "#FED7AA",
-      "300": "#FDBA74",
-      "400": "#FB923C",
-      "500": "#F97316",
-      "600": "#EA580C",
-      "700": "#C2410C",
-      "800": "#9A3412",
-      "900": "#7C2D12",
+    "accent": {
+      "50": "#FFF2EE",
+      "100": "#FEE0D8",
+      "200": "#FBC1B2",
+      "300": "#F59E87",
+      "400": "#EE7A5C",
+      "500": "#FB4402",
+      "600": "#C93B12",
+      "700": "#A62B03",
+      "800": "#841F01",
+      "900": "#661802",
+      "ink": "#001A49"
     },
-    status: {
-      success: "#16A34A",
-      warning: "#F59E0B",
-      critical: "#DC2626",
-      info: "#2563EB",
+    "status": {
+      "success": "#1B9E4B",
+      "warning": "#E8A317",
+      "critical": "#C1123F",
+      "info": "#6F99DC"
     },
-    theme: {
-      dark: {
-        background: "#0A0E1A",
-        surface: "#111827",
-        elevated: "#1A2234",
-        border: "#334155",
-        textPrimary: "#F8FAFC",
-        textSecondary: "#CBD5E1",
-        textMuted: "#94A3B8",
+    "theme": {
+      "dark": {
+        "background": "#040E20",
+        "surface": "#0A182E",
+        "elevated": "#13223B",
+        "border": "#21334F",
+        "textPrimary": "#F7F9FD",
+        "textSecondary": "#C6D0E2",
+        "textMuted": "#8C9CB8"
       },
-      light: {
-        background: "#F8FAFC",
-        surface: "#FFFFFF",
-        elevated: "#E2E8F0",
-        border: "#CBD5E1",
-        textPrimary: "#0F172A",
-        textSecondary: "#334155",
-        textMuted: "#64748B",
-      },
+      "light": {
+        "background": "#F7F9FC",
+        "surface": "#FFFFFF",
+        "elevated": "#E3E8F0",
+        "border": "#C6CEDB",
+        "textPrimary": "#011C49",
+        "textSecondary": "#2B4267",
+        "textMuted": "#54647D"
+      }
     },
+    "statusStrong": {
+      "success": "#15803D",
+      "warning": "#8A5A00",
+      "critical": "#C1123F",
+      "info": "#2F5FA9"
+    },
+    "statusSoft": {
+      "success": "#57C983",
+      "warning": "#EFAF3D",
+      "critical": "#F26D84",
+      "info": "#7FA6E3"
+    }
   },
-  typography: {
-    fontFamily: {
-      sans: "Inter",
-      mono: "JetBrains Mono",
+  "typography": {
+    "fontFamily": {
+      "heading": "Space Grotesk",
+      "sans": "IBM Plex Sans",
+      "mono": "IBM Plex Mono"
     },
-    fontSize: {
-      display: 48,
-      h1: 36,
-      h2: 30,
-      h3: 24,
-      h4: 20,
-      h5: 18,
-      h6: 16,
-      bodyLarge: 16,
-      body: 14,
-      bodySmall: 12,
-      caption: 11,
+    "fontSize": {
+      "display": 40,
+      "h1": 30,
+      "h2": 24,
+      "h3": 20,
+      "h4": 17,
+      "h5": 15,
+      "h6": 13,
+      "bodyLarge": 15,
+      "body": 13,
+      "bodySmall": 12,
+      "caption": 11,
+      "micro": 10
     },
-    lineHeight: {
-      tight: 1.15,
-      heading: 1.25,
-      body: 1.5,
-      relaxed: 1.65,
+    "lineHeight": {
+      "tight": 1.1,
+      "heading": 1.2,
+      "body": 1.45,
+      "relaxed": 1.6
     },
-    fontWeight: {
-      regular: 400,
-      medium: 500,
-      semibold: 600,
-      bold: 700,
-    },
+    "fontWeight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
   },
-  spacing: {
+  "spacing": {
     "0": 0,
     "1": 4,
     "2": 8,
@@ -102,47 +117,68 @@ export const designTokens = {
     "12": 48,
     "16": 64,
     "20": 80,
-    "24": 96,
+    "24": 96
   },
-  radius: {
-    none: 0,
-    sm: 4,
-    md: 8,
-    lg: 12,
-    xl: 16,
-    "2xl": 24,
-    full: 9999,
+  "radius": {
+    "none": 0,
+    "sm": 2,
+    "md": 4,
+    "lg": 6,
+    "xl": 10,
+    "2xl": 14,
+    "full": 9999
   },
-  shadow: {
-    sm: "0 1px 2px rgba(2, 6, 23, 0.35)",
-    md: "0 8px 20px rgba(2, 6, 23, 0.32)",
-    lg: "0 16px 40px rgba(2, 6, 23, 0.38)",
-    glow: "0 0 24px rgba(37, 99, 235, 0.28)",
+  "shadow": {
+    "sm": "0 1px 0 rgba(2, 6, 23, 0.4)",
+    "md": "0 1px 0 rgba(2, 6, 23, 0.5)",
+    "lg": "0 2px 0 rgba(2, 6, 23, 0.5)",
+    "glow": "0 0 16px rgba(59, 105, 197, 0.35)",
+    "glowCritical": "0 0 16px rgba(204, 36, 54, 0.35)"
   },
-  zIndex: {
-    base: 0,
-    raised: 10,
-    dropdown: 100,
-    sticky: 200,
-    overlay: 400,
-    modal: 500,
-    toast: 600,
-    tooltip: 700,
+  "zIndex": {
+    "base": 0,
+    "raised": 10,
+    "dropdown": 100,
+    "sticky": 200,
+    "overlay": 400,
+    "modal": 500,
+    "toast": 600,
+    "tooltip": 700
   },
-  motion: {
-    duration: {
-      instant: 0,
-      fast: 120,
-      normal: 200,
-      slow: 320,
-      deliberate: 480,
+  "motion": {
+    "duration": {
+      "instant": 0,
+      "fast": 120,
+      "normal": 180,
+      "slow": 240,
+      "deliberate": 320
     },
-    easing: {
-      standard: [0.2, 0, 0, 1],
-      enter: [0, 0, 0.2, 1],
-      exit: [0.4, 0, 1, 1],
-      emphasized: [0.2, 0.8, 0.2, 1],
+    "easing": {
+      "standard": [
+        0.16,
+        1,
+        0.3,
+        1
+      ],
+      "enter": [
+        0.16,
+        1,
+        0.3,
+        1
+      ],
+      "exit": [
+        0.7,
+        0,
+        0.84,
+        0
+      ],
+      "emphasized": [
+        0.16,
+        1,
+        0.3,
+        1
+      ]
     },
-    staggerMs: 55,
-  },
+    "staggerMs": 55
+  }
 } as const;

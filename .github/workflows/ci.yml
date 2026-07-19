@@ -51,6 +51,8 @@ jobs:
         run: pnpm test
       - name: Build
         run: pnpm build
+      - name: Bundle budget
+        run: pnpm check-bundle
 
   mobile:
     name: Mobile — analyze

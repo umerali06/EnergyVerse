@@ -103,11 +103,37 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   Framer Motion helpers honor `prefers-reduced-motion`.
 - Flutter builds dark-default and light `ThemeData` from generated Dart constants,
   persists the theme locally, and uses `MediaQuery.disableAnimations` to remove
-  non-essential motion. Inter and JetBrains Mono are bundled locally in both
-  clients for deterministic/offline typography.
+  non-essential motion. Space Grotesk (headings), IBM Plex Sans (body), and IBM
+  Plex Mono (all machine values: IDs, emails, role/permission keys, timestamps,
+  readings) are bundled locally in both clients as Latin-subset files for
+  deterministic/offline typography.
 - Admin and mobile expose parity primitives for actions, fields, surfaces, status,
   overlays, feedback, tabs, loading, and empty states. Development-only showcases
   exercise those primitives without entering normal navigation.
+- The 2.1b design language is locked for every future screen: layered dark
+  surfaces (#0A0E1A → #111827 → #1A2234) with luminous 1px borders carry depth —
+  no decorative drop shadows or gradients; glow shadows exist only for status
+  emphasis. Blue is structural, the orange accent is reserved for the primary
+  action or critical emphasis, and status colors carry information only.
+  Enterprise density (13px body baseline, min-h-9 controls, tight rows), a
+  monospace "instrumentation label" idiom for group headers and status pills,
+  asymmetric primary-region/secondary-rail layouts, and 120–240ms motion on
+  cubic-bezier(0.16, 1, 0.3, 1) apply everywhere.
+- The 2.1c brand system derives every color from the official logo (sampled
+  orange #FB4402 and navy #002865) as OKLCH 50–900 scales in tokens.json;
+  theme-aware Logo components in both clients select light/dark assets from
+  the active theme so call sites never reference files. Raw hex colors and
+  font families outside the token layer fail CI (admin ESLint rule, Flutter
+  guard test); allowed exceptions are the generated token bindings and the
+  static Flutter web shell (documented). Admin metadata is declarative and
+  colocated per route via `src/seo/site.ts` helpers: public routes are fully
+  indexed with canonical/OG/Twitter tags, everything inside the shell is
+  noindex with a unique tab title, and robots/sitemap/manifest/theme-color
+  are generated from the same config and tokens. Motion policy: Framer
+  Motion only (GSAP, if ever needed, route-dynamic), transform+opacity only,
+  token durations ≤240ms, reduced-motion respected; a CI bundle budget
+  (430 KB over the 342 KB baseline) and recorded Lighthouse baselines guard
+  regressions.
 - **Rule:** every future screen must compose these primitives and shared tokens.
   Feature modules may extend the system centrally but may not introduce parallel
   color, spacing, typography, elevation, or motion constants.
