@@ -79,47 +79,47 @@ abstract final class AppThemes {
     );
     final textTheme = baseTextTheme.copyWith(
       displayLarge: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.heading,
         fontSize: DsTypography.sizeDisplay,
         fontWeight: FontWeight.w700,
         height: 1.15,
         color: textPrimary,
       ),
       headlineLarge: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.heading,
         fontSize: DsTypography.sizeH1,
         fontWeight: FontWeight.w700,
         height: 1.25,
         color: textPrimary,
       ),
       headlineMedium: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.heading,
         fontSize: DsTypography.sizeH2,
         fontWeight: FontWeight.w700,
         height: 1.25,
         color: textPrimary,
       ),
       headlineSmall: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.heading,
         fontSize: DsTypography.sizeH3,
         fontWeight: FontWeight.w600,
         height: 1.25,
         color: textPrimary,
       ),
       titleLarge: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.heading,
         fontSize: DsTypography.sizeH4,
         fontWeight: FontWeight.w600,
         color: textPrimary,
       ),
       titleMedium: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.heading,
         fontSize: DsTypography.sizeH5,
         fontWeight: FontWeight.w600,
         color: textPrimary,
       ),
       titleSmall: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.heading,
         fontSize: DsTypography.sizeH6,
         fontWeight: FontWeight.w600,
         color: textPrimary,
@@ -127,25 +127,26 @@ abstract final class AppThemes {
       bodyLarge: TextStyle(
         fontFamily: DsTypography.sans,
         fontSize: DsTypography.sizeBodyLarge,
-        height: 1.5,
+        height: 1.45,
         color: textPrimary,
       ),
       bodyMedium: TextStyle(
         fontFamily: DsTypography.sans,
         fontSize: DsTypography.sizeBody,
-        height: 1.5,
+        height: 1.45,
         color: textSecondary,
       ),
       bodySmall: TextStyle(
         fontFamily: DsTypography.sans,
         fontSize: DsTypography.sizeBodySmall,
-        height: 1.5,
+        height: 1.45,
         color: textSecondary,
       ),
       labelSmall: TextStyle(
-        fontFamily: DsTypography.sans,
+        fontFamily: DsTypography.mono,
         fontSize: DsTypography.sizeCaption,
         fontWeight: FontWeight.w600,
+        letterSpacing: 0.8,
         color: textSecondary,
       ),
     );
@@ -174,7 +175,7 @@ abstract final class AppThemes {
       textTheme: textTheme,
       cardTheme: foundation.cardTheme.copyWith(
         color: surface,
-        elevation: 4,
+        elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(DsRadius.xl),
@@ -198,13 +199,13 @@ abstract final class AppThemes {
           borderSide: const BorderSide(color: DsColors.statusCritical),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: DsSpacing.s4,
-          vertical: DsSpacing.s3,
+          horizontal: DsSpacing.s3,
+          vertical: DsSpacing.s2,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          minimumSize: const Size(48, 48),
+          minimumSize: const Size(44, 40),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(DsRadius.lg),
           ),

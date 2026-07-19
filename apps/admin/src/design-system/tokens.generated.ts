@@ -1,13 +1,13 @@
 // GENERATED from packages/design-tokens/tokens.json. Do not edit.
 export const designTokens = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  meta: {
-    name: "FEV Industrial Energy",
-    version: "0.7.0",
-    defaultTheme: "dark",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "meta": {
+    "name": "FEV Industrial Energy",
+    "version": "2.1.1",
+    "defaultTheme": "dark"
   },
-  color: {
-    primary: {
+  "color": {
+    "primary": {
       "50": "#EFF6FF",
       "100": "#DBEAFE",
       "200": "#BFDBFE",
@@ -17,9 +17,9 @@ export const designTokens = {
       "600": "#1D4ED8",
       "700": "#1E40AF",
       "800": "#1E3A8A",
-      "900": "#172554",
+      "900": "#172554"
     },
-    accent: {
+    "accent": {
       "50": "#FFF7ED",
       "100": "#FFEDD5",
       "200": "#FED7AA",
@@ -30,66 +30,74 @@ export const designTokens = {
       "700": "#C2410C",
       "800": "#9A3412",
       "900": "#7C2D12",
+      "ink": "#0A0E1A"
     },
-    status: {
-      success: "#16A34A",
-      warning: "#F59E0B",
-      critical: "#DC2626",
-      info: "#2563EB",
+    "status": {
+      "success": "#16A34A",
+      "warning": "#F59E0B",
+      "critical": "#DC2626",
+      "info": "#2563EB",
+      "successDeep": "#15803D",
+      "warningDeep": "#B45309",
+      "criticalDeep": "#B91C1C",
+      "infoDeep": "#1D4ED8",
+      "criticalBright": "#F87171"
     },
-    theme: {
-      dark: {
-        background: "#0A0E1A",
-        surface: "#111827",
-        elevated: "#1A2234",
-        border: "#334155",
-        textPrimary: "#F8FAFC",
-        textSecondary: "#CBD5E1",
-        textMuted: "#94A3B8",
+    "theme": {
+      "dark": {
+        "background": "#0A0E1A",
+        "surface": "#111827",
+        "elevated": "#1A2234",
+        "border": "#263349",
+        "textPrimary": "#F8FAFC",
+        "textSecondary": "#CBD5E1",
+        "textMuted": "#8A9BB5"
       },
-      light: {
-        background: "#F8FAFC",
-        surface: "#FFFFFF",
-        elevated: "#E2E8F0",
-        border: "#CBD5E1",
-        textPrimary: "#0F172A",
-        textSecondary: "#334155",
-        textMuted: "#64748B",
-      },
-    },
+      "light": {
+        "background": "#F8FAFC",
+        "surface": "#FFFFFF",
+        "elevated": "#E2E8F0",
+        "border": "#CBD5E1",
+        "textPrimary": "#0F172A",
+        "textSecondary": "#334155",
+        "textMuted": "#64748B"
+      }
+    }
   },
-  typography: {
-    fontFamily: {
-      sans: "Inter",
-      mono: "JetBrains Mono",
+  "typography": {
+    "fontFamily": {
+      "heading": "Space Grotesk",
+      "sans": "IBM Plex Sans",
+      "mono": "IBM Plex Mono"
     },
-    fontSize: {
-      display: 48,
-      h1: 36,
-      h2: 30,
-      h3: 24,
-      h4: 20,
-      h5: 18,
-      h6: 16,
-      bodyLarge: 16,
-      body: 14,
-      bodySmall: 12,
-      caption: 11,
+    "fontSize": {
+      "display": 40,
+      "h1": 30,
+      "h2": 24,
+      "h3": 20,
+      "h4": 17,
+      "h5": 15,
+      "h6": 13,
+      "bodyLarge": 15,
+      "body": 13,
+      "bodySmall": 12,
+      "caption": 11,
+      "micro": 10
     },
-    lineHeight: {
-      tight: 1.15,
-      heading: 1.25,
-      body: 1.5,
-      relaxed: 1.65,
+    "lineHeight": {
+      "tight": 1.1,
+      "heading": 1.2,
+      "body": 1.45,
+      "relaxed": 1.6
     },
-    fontWeight: {
-      regular: 400,
-      medium: 500,
-      semibold: 600,
-      bold: 700,
-    },
+    "fontWeight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
   },
-  spacing: {
+  "spacing": {
     "0": 0,
     "1": 4,
     "2": 8,
@@ -102,47 +110,68 @@ export const designTokens = {
     "12": 48,
     "16": 64,
     "20": 80,
-    "24": 96,
+    "24": 96
   },
-  radius: {
-    none: 0,
-    sm: 4,
-    md: 8,
-    lg: 12,
-    xl: 16,
-    "2xl": 24,
-    full: 9999,
+  "radius": {
+    "none": 0,
+    "sm": 2,
+    "md": 4,
+    "lg": 6,
+    "xl": 10,
+    "2xl": 14,
+    "full": 9999
   },
-  shadow: {
-    sm: "0 1px 2px rgba(2, 6, 23, 0.35)",
-    md: "0 8px 20px rgba(2, 6, 23, 0.32)",
-    lg: "0 16px 40px rgba(2, 6, 23, 0.38)",
-    glow: "0 0 24px rgba(37, 99, 235, 0.28)",
+  "shadow": {
+    "sm": "0 1px 0 rgba(2, 6, 23, 0.4)",
+    "md": "0 1px 0 rgba(2, 6, 23, 0.5)",
+    "lg": "0 2px 0 rgba(2, 6, 23, 0.5)",
+    "glow": "0 0 16px rgba(37, 99, 235, 0.35)",
+    "glowCritical": "0 0 16px rgba(220, 38, 38, 0.35)"
   },
-  zIndex: {
-    base: 0,
-    raised: 10,
-    dropdown: 100,
-    sticky: 200,
-    overlay: 400,
-    modal: 500,
-    toast: 600,
-    tooltip: 700,
+  "zIndex": {
+    "base": 0,
+    "raised": 10,
+    "dropdown": 100,
+    "sticky": 200,
+    "overlay": 400,
+    "modal": 500,
+    "toast": 600,
+    "tooltip": 700
   },
-  motion: {
-    duration: {
-      instant: 0,
-      fast: 120,
-      normal: 200,
-      slow: 320,
-      deliberate: 480,
+  "motion": {
+    "duration": {
+      "instant": 0,
+      "fast": 120,
+      "normal": 180,
+      "slow": 240,
+      "deliberate": 320
     },
-    easing: {
-      standard: [0.2, 0, 0, 1],
-      enter: [0, 0, 0.2, 1],
-      exit: [0.4, 0, 1, 1],
-      emphasized: [0.2, 0.8, 0.2, 1],
+    "easing": {
+      "standard": [
+        0.16,
+        1,
+        0.3,
+        1
+      ],
+      "enter": [
+        0.16,
+        1,
+        0.3,
+        1
+      ],
+      "exit": [
+        0.7,
+        0,
+        0.84,
+        0
+      ],
+      "emphasized": [
+        0.16,
+        1,
+        0.3,
+        1
+      ]
     },
-    staggerMs: 55,
-  },
+    "staggerMs": 55
+  }
 } as const;

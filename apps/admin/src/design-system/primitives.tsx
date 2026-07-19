@@ -11,9 +11,9 @@ export const cn = (...classes: Array<string | false | null | undefined>) =>
 export type ButtonVariant = "primary" | "accent" | "ghost" | "danger";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-primary-500 text-white hover:bg-primary-600 shadow-glow",
-  accent: "bg-accent-500 text-white hover:bg-accent-600",
-  ghost: "border border-border bg-transparent text-text-primary hover:bg-elevated",
+  primary: "bg-primary-500 text-white hover:bg-primary-400",
+  accent: "bg-accent-500 text-accent-ink hover:bg-accent-400",
+  ghost: "border border-border bg-transparent text-text-primary hover:border-primary-400/60 hover:bg-elevated",
   danger: "bg-status-critical text-white hover:brightness-110",
 };
 
@@ -34,7 +34,7 @@ export function Button({
     <motion.button
       aria-label={loading && typeof children === "string" ? `${children}, loading` : undefined}
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-body font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex min-h-9 items-center justify-center gap-2 rounded-md px-3.5 py-1.5 text-bodySmall font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         buttonVariants[variant],
         className,
       )}
@@ -65,7 +65,7 @@ function FieldFrame({
 }: FieldProps & { children: ReactNode; id: string }) {
   const descriptionId = `${id}-description`;
   return (
-    <div className="grid gap-2 text-body font-medium text-text-secondary">
+    <div className="grid gap-1.5 text-bodySmall font-medium text-text-secondary">
       <label htmlFor={id}>{label}</label>
       {children}
       {(error || hint) && (
@@ -81,7 +81,7 @@ function FieldFrame({
 }
 
 const fieldClass =
-  "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-body text-text-primary placeholder:text-text-muted transition-colors hover:border-primary-400 focus:border-primary-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-9 w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-text-primary placeholder:text-text-muted transition-colors hover:border-primary-400 focus:border-primary-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50";
 
 export function Input({
   endAdornment,
@@ -161,7 +161,7 @@ export function Textarea({
 export function Card({ className, ...props }: HTMLAttributes<HTMLElement>) {
   return (
     <section
-      className={cn("rounded-xl border border-border bg-surface p-6 shadow-md", className)}
+      className={cn("rounded-lg border border-border bg-surface p-4 md:p-5", className)}
       {...props}
     />
   );
@@ -171,7 +171,7 @@ export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) 
   return (
     <span
       className={cn(
-        "inline-flex rounded-full bg-elevated px-3 py-1 text-caption font-semibold text-text-secondary",
+        "inline-flex rounded-sm border border-border bg-elevated px-2 py-0.5 font-mono text-caption text-text-secondary",
         className,
       )}
       {...props}
@@ -181,17 +181,17 @@ export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) 
 
 export type StatusTone = "healthy" | "warning" | "critical" | "info";
 const statusStyles: Record<StatusTone, string> = {
-  healthy: "bg-status-success/15 text-status-success",
-  warning: "bg-status-warning/15 text-status-warning",
-  critical: "bg-status-critical/15 text-status-critical",
-  info: "bg-status-info/15 text-primary-400",
+  healthy: "bg-status-success/15 text-status-successDeep dark:text-status-success",
+  warning: "bg-status-warning/15 text-status-warningDeep dark:text-status-warning",
+  critical: "bg-status-critical/15 text-status-criticalDeep dark:text-status-criticalBright",
+  info: "bg-status-info/15 text-status-infoDeep dark:text-primary-400",
 };
 
 export function StatusPill({ children, tone }: { children: ReactNode; tone: StatusTone }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-caption font-bold uppercase tracking-wide",
+        "inline-flex items-center gap-1.5 rounded-sm border border-current/25 px-2 py-0.5 font-mono text-micro font-semibold uppercase tracking-[0.14em]",
         statusStyles[tone],
       )}
     >
@@ -248,7 +248,7 @@ export function Modal({
             aria-labelledby={titleId}
             aria-modal="true"
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-lg"
+            className="w-full max-w-lg rounded-xl border border-border bg-surface p-5 shadow-lg"
             exit={{ opacity: 0, scale: reduced ? 1 : 0.98, y: reduced ? 0 : 8 }}
             initial={reduced ? false : { opacity: 0, scale: 0.97, y: 14 }}
             onMouseDown={(event) => event.stopPropagation()}
@@ -284,7 +284,7 @@ export function Tabs({ items }: { items: readonly TabItem[] }) {
             aria-controls={`panel-${item.id}`}
             aria-selected={item.id === active}
             className={cn(
-              "min-h-11 border-b-2 px-4 text-body font-semibold",
+              "min-h-9 border-b-2 px-3 text-bodySmall font-semibold",
               item.id === active
                 ? "border-primary-500 text-primary-400"
                 : "border-transparent text-text-muted hover:text-text-primary",
@@ -383,9 +383,9 @@ export function EmptyState({
   title: string;
 }) {
   return (
-    <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
-      <span aria-hidden className="mb-3 text-h2 text-primary-400">
-        ◇
+    <div className="grid place-items-center rounded-lg border border-dashed border-border p-6 text-center">
+      <span aria-hidden className="mb-3 font-mono text-micro uppercase tracking-[0.2em] text-text-muted">
+        no data
       </span>
       <h3 className="text-h5 font-bold">{title}</h3>
       <p className="mt-2 max-w-sm text-body text-text-muted">{description}</p>

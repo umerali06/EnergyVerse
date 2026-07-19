@@ -22,17 +22,23 @@ abstract final class DsColors {
   static const accent700 = Color(0xFFC2410C);
   static const accent800 = Color(0xFF9A3412);
   static const accent900 = Color(0xFF7C2D12);
+  static const accentInk = Color(0xFF0A0E1A);
   static const statusSuccess = Color(0xFF16A34A);
   static const statusWarning = Color(0xFFF59E0B);
   static const statusCritical = Color(0xFFDC2626);
   static const statusInfo = Color(0xFF2563EB);
+  static const statusSuccessDeep = Color(0xFF15803D);
+  static const statusWarningDeep = Color(0xFFB45309);
+  static const statusCriticalDeep = Color(0xFFB91C1C);
+  static const statusInfoDeep = Color(0xFF1D4ED8);
+  static const statusCriticalBright = Color(0xFFF87171);
   static const darkBackground = Color(0xFF0A0E1A);
   static const darkSurface = Color(0xFF111827);
   static const darkElevated = Color(0xFF1A2234);
-  static const darkBorder = Color(0xFF334155);
+  static const darkBorder = Color(0xFF263349);
   static const darkTextPrimary = Color(0xFFF8FAFC);
   static const darkTextSecondary = Color(0xFFCBD5E1);
-  static const darkTextMuted = Color(0xFF94A3B8);
+  static const darkTextMuted = Color(0xFF8A9BB5);
   static const lightBackground = Color(0xFFF8FAFC);
   static const lightSurface = Color(0xFFFFFFFF);
   static const lightElevated = Color(0xFFE2E8F0);
@@ -43,19 +49,21 @@ abstract final class DsColors {
 }
 
 abstract final class DsTypography {
-  static const sans = 'Inter';
-  static const mono = 'JetBrains Mono';
-  static const sizeDisplay = 48.0;
-  static const sizeH1 = 36.0;
-  static const sizeH2 = 30.0;
-  static const sizeH3 = 24.0;
-  static const sizeH4 = 20.0;
-  static const sizeH5 = 18.0;
-  static const sizeH6 = 16.0;
-  static const sizeBodyLarge = 16.0;
-  static const sizeBody = 14.0;
+  static const heading = 'Space Grotesk';
+  static const sans = 'IBM Plex Sans';
+  static const mono = 'IBM Plex Mono';
+  static const sizeDisplay = 40.0;
+  static const sizeH1 = 30.0;
+  static const sizeH2 = 24.0;
+  static const sizeH3 = 20.0;
+  static const sizeH4 = 17.0;
+  static const sizeH5 = 15.0;
+  static const sizeH6 = 13.0;
+  static const sizeBodyLarge = 15.0;
+  static const sizeBody = 13.0;
   static const sizeBodySmall = 12.0;
   static const sizeCaption = 11.0;
+  static const sizeMicro = 10.0;
 }
 
 abstract final class DsSpacing {
@@ -76,11 +84,11 @@ abstract final class DsSpacing {
 
 abstract final class DsRadius {
   static const none = 0.0;
-  static const sm = 4.0;
-  static const md = 8.0;
-  static const lg = 12.0;
-  static const xl = 16.0;
-  static const xl2 = 24.0;
+  static const sm = 2.0;
+  static const md = 4.0;
+  static const lg = 6.0;
+  static const xl = 10.0;
+  static const xl2 = 14.0;
   static const full = 9999.0;
 }
 
@@ -98,12 +106,12 @@ abstract final class DsZIndex {
 abstract final class DsMotion {
   static const instant = Duration(milliseconds: 0);
   static const fast = Duration(milliseconds: 120);
-  static const normal = Duration(milliseconds: 200);
-  static const slow = Duration(milliseconds: 320);
-  static const deliberate = Duration(milliseconds: 480);
-  static const standard = Cubic(0.2, 0, 0, 1);
-  static const enter = Cubic(0, 0, 0.2, 1);
-  static const exit = Cubic(0.4, 0, 1, 1);
-  static const emphasized = Cubic(0.2, 0.8, 0.2, 1);
+  static const normal = Duration(milliseconds: 180);
+  static const slow = Duration(milliseconds: 240);
+  static const deliberate = Duration(milliseconds: 320);
+  static const standard = Cubic(0.16, 1, 0.3, 1);
+  static const enter = Cubic(0.16, 1, 0.3, 1);
+  static const exit = Cubic(0.7, 0, 0.84, 0);
+  static const emphasized = Cubic(0.16, 1, 0.3, 1);
   static const stagger = Duration(milliseconds: 55);
 }

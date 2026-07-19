@@ -41,7 +41,7 @@ class _AppButtonState extends State<AppButton> {
       ),
       AppButtonVariant.accent => (
         DsColors.accent500,
-        Colors.white,
+        DsColors.accentInk,
         Colors.transparent,
       ),
       AppButtonVariant.ghost => (
@@ -189,7 +189,7 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: padding ?? const EdgeInsets.all(DsSpacing.s6),
+        padding: padding ?? const EdgeInsets.all(DsSpacing.s4),
         child: child,
       ),
     );
@@ -205,6 +205,16 @@ extension on AppStatus {
     AppStatus.critical => DsColors.statusCritical,
     AppStatus.info => DsColors.statusInfo,
   };
+
+  /// WCAG-safe text color per brightness: deep variants on light surfaces,
+  /// a brightened critical on dark ones.
+  Color textColor(bool dark) => switch (this) {
+    AppStatus.healthy => dark ? DsColors.statusSuccess : DsColors.statusSuccessDeep,
+    AppStatus.warning => dark ? DsColors.statusWarning : DsColors.statusWarningDeep,
+    AppStatus.critical =>
+      dark ? DsColors.statusCriticalBright : DsColors.statusCriticalDeep,
+    AppStatus.info => dark ? DsColors.primary400 : DsColors.statusInfoDeep,
+  };
 }
 
 class StatusPill extends StatelessWidget {
@@ -215,13 +225,15 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = status.color;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final color = status.textColor(dark);
     return Semantics(
       label: 'Status: $label',
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: color.withAlpha(36),
-          borderRadius: BorderRadius.circular(DsRadius.full),
+          color: status.color.withAlpha(30),
+          border: Border.all(color: color.withAlpha(70)),
+          borderRadius: BorderRadius.circular(DsRadius.sm),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -262,12 +274,13 @@ class AppBadge extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.semantic.elevated,
-        borderRadius: BorderRadius.circular(DsRadius.full),
+        border: Border.all(color: context.semantic.border),
+        borderRadius: BorderRadius.circular(DsRadius.sm),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: DsSpacing.s3,
-          vertical: DsSpacing.s1,
+          horizontal: DsSpacing.s2,
+          vertical: 2,
         ),
         child: Text(label, style: Theme.of(context).textTheme.labelSmall),
       ),

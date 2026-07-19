@@ -83,8 +83,7 @@ ${dartMap("light", tokens.color.theme.light, color)}
 }
 
 abstract final class DsTypography {
-  static const sans = '${tokens.typography.fontFamily.sans}';
-  static const mono = '${tokens.typography.fontFamily.mono}';
+${Object.entries(tokens.typography.fontFamily).map(([name, value]) => `  static const ${name} = '${value}';`).join("\n")}
 ${dartMap("size", tokens.typography.fontSize, (value) => `${value}.0`)}
 }
 

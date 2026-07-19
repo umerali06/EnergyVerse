@@ -26,8 +26,11 @@ import {
 } from "@/design-system";
 
 const Section = ({ children, title }: { children: React.ReactNode; title: string }) => (
-  <MotionSection className="grid gap-4">
-    <h2 className="text-h3 font-bold">{title}</h2>
+  <MotionSection className="grid gap-3">
+    <div className="flex items-baseline gap-3">
+      <h2 className="shrink-0 text-h4 font-bold">{title}</h2>
+      <span aria-hidden className="h-px flex-1 self-center bg-border" />
+    </div>
     <Card>{children}</Card>
   </MotionSection>
 );
@@ -171,16 +174,19 @@ export function DesignSystemShowcase() {
           </p>
           <motion.div
             animate="visible"
-            className="grid gap-3 sm:grid-cols-3"
+            className="grid gap-2 sm:grid-cols-[2fr_1fr]"
             initial={reduced ? false : "hidden"}
             variants={listStagger}
           >
-            {["Inspect", "Confirm", "Audit"].map((label) => (
+            {["Inspect", "Confirm", "Audit"].map((label, index) => (
               <motion.div
-                className="rounded-lg border bg-elevated p-4 font-semibold"
+                className="flex items-center gap-3 rounded-md border bg-elevated px-3 py-2 text-bodySmall font-semibold"
                 key={label}
                 variants={listItem}
               >
+                <span className="font-mono text-micro text-text-muted">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
                 {label}
               </motion.div>
             ))}
