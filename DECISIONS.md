@@ -18,6 +18,7 @@
 | D-012 | Self-serve tenants and verified-email enforcement | **Public signup creates a new generated-ID tenant; application gates require a verified Firebase email** | **RESOLVED — LOCKED** | 2026-07-17 |
 | D-013 | Password reset flow and account privacy | **Client-SDK reset send with Firebase hosted completion; responses never disclose account existence** | **RESOLVED — LOCKED** | 2026-07-18 |
 | D-014 | Session lifecycle and route-guard strategy | **Client-layout guards over one auth provider; 401 → one forced refresh + retry, then clean expiry; server gates stay authoritative** | **RESOLVED — LOCKED** | 2026-07-18 |
+| D-015 | Shell navigation and unbuilt-module policy | **One declarative nav config per client (documented mirror contract); permission-filtered via 0.6 helpers; unbuilt modules show branded "Coming soon"; unfinished platform features render visibly disabled** | **RESOLVED — LOCKED** | 2026-07-19 |
 
 ## Decision Details
 
@@ -242,6 +243,40 @@
   client gate has an authoritative server twin. A server-session/cookie layer,
   SSR-aware guards, and richer 403 telemetry remain future concerns.
 
+### D-015 — Shell Navigation Config and Unbuilt-Module Policy
+
+- **Decision owner:** Product owner
+- **Nav config strategy:** Each client owns one declarative navigation config —
+  `apps/admin/src/navigation/nav-config.tsx` and
+  `apps/mobile/lib/navigation/nav_config.dart` — as its single source of truth.
+  Every item declares `label`, `icon`, `route`, and an optional
+  `requiredPermission` drawn from the locked Phase 0.4 catalog, and is filtered
+  through the Phase 0.6 `can()` helpers over the authoritative `/me`
+  permissions. The two files mirror one another item-for-item and both carry a
+  header comment naming the counterpart; table-driven tests in both apps pin
+  the same role → visible-items expectations, so drift fails tests on either
+  side. Dashboard and Documents carry no permission (no `documents.*` key
+  exists in the 0.4 catalog and inventing one is out of scope);
+  Admin & Settings gates on `company.settings`. Grouping (Overview /
+  Operations / Safety & Insights / Administration) and the mobile primary set
+  (Home / Assets / Work / More) are presentational defaults, adjustable in the
+  config without touching shell code.
+- **"Coming soon" convention:** Roadmap modules whose screens are not built
+  yet stay visible in the nav (the roadmap is not hidden) and route to a
+  branded in-shell placeholder that states the module is planned and fakes no
+  functionality. Placeholder routes flip to real screens by changing only the
+  route's page content — the nav entry is already final.
+- **Disabled-placeholder policy:** Cross-cutting platform affordances that
+  belong to later phases render in their final header position but visibly
+  disabled with the owning phase named — global search (Phase 16) and
+  notifications (Phase 15). No fake results, no dead dropdowns.
+- **Consequences:** Every future screen mounts inside the shell and inherits
+  role-aware navigation for free; per-role UX is testable without new wiring;
+  unbuilt scope is honest in both clients. `/me` gained `company_name` so the
+  user menu shows the tenant without a new endpoint. Custom roles that hold
+  `users.manage`/`roles.manage` but not `company.settings` do not see
+  Admin & Settings until a finer split is scheduled.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -283,3 +318,8 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   login/verify/permission routing with safe return-to destinations, and the API
   layer's single refresh-and-retry policy turns dead sessions into one clean
   sign-out. Server dependencies remain the authority on every protected call.
+- **2026-07-19 — Phase 2.1:** Added D-015. Both clients render every protected
+  screen inside one persistent shell whose navigation comes from a single
+  declarative, permission-filtered config per client (mirrored contract);
+  unbuilt modules show a branded "Coming soon" page and future platform
+  affordances render visibly disabled rather than faked.

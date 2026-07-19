@@ -663,22 +663,12 @@ class AuthenticatedHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sign-out and refresh-session live in the shell's user menu since 2.1.
     final auth = AuthProvider.of(context);
     final user = auth.currentUser!;
     final name = user.email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
     final permissions = user.permissions.toList()..sort();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('FEV Field App'),
-        actions: [
-          TextButton.icon(
-            onPressed: auth.signOut,
-            icon: const Icon(Icons.logout),
-            label: const Text('Sign out'),
-          ),
-        ],
-      ),
-      body: ListView(
+    return ListView(
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
           StaggeredReveal(
@@ -727,28 +717,16 @@ class AuthenticatedHome extends StatelessWidget {
                   ),
                   const SizedBox(height: DsSpacing.s2),
                   const Text(
-                    'Open the permission-gated demo area, or refresh the '
-                    'session to pick up server-side role changes.',
+                    'Open the permission-gated demo area. Session refresh and '
+                    'sign-out live in the user menu.',
                   ),
                   const SizedBox(height: DsSpacing.s4),
-                  Wrap(
-                    spacing: DsSpacing.s3,
-                    runSpacing: DsSpacing.s3,
-                    children: [
-                      AppButton(
-                        key: const Key('open-rbac-demo'),
-                        label: 'Assets demo',
-                        variant: AppButtonVariant.ghost,
-                        onPressed: () => Navigator.of(context)
-                            .pushNamed(AppRoutes.rbacDemo),
-                      ),
-                      AppButton(
-                        key: const Key('refresh-session'),
-                        label: 'Refresh session',
-                        variant: AppButtonVariant.ghost,
-                        onPressed: auth.refreshSession,
-                      ),
-                    ],
+                  AppButton(
+                    key: const Key('open-rbac-demo'),
+                    label: 'Assets demo',
+                    variant: AppButtonVariant.ghost,
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed(AppRoutes.rbacDemo),
                   ),
                 ],
               ),
@@ -782,7 +760,6 @@ class AuthenticatedHome extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }
@@ -792,9 +769,7 @@ class RbacDemoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Assets demo')),
-      body: ListView(
+    return ListView(
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
           StaggeredReveal(
@@ -829,7 +804,6 @@ class RbacDemoScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }

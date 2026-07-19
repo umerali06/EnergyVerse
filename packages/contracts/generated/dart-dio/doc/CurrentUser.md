@@ -9,6 +9,7 @@ import 'package:fev_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **companyId** | **String** |  |
+**companyName** | **String** |  |
 **email** | **String** |  |
 **emailVerified** | **bool** |  |
 **permissions** | **BuiltSet&lt;String&gt;** |  |

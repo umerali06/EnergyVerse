@@ -6,6 +6,7 @@ const identity = {
   uid: "firebase-uid",
   email: "operator@example.invalid",
   company_id: "acme-energy",
+  company_name: "Acme Energy",
   role_key: "operations_manager",
   permissions: ["assets.read", "assets.write"],
 };

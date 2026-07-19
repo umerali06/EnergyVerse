@@ -132,12 +132,9 @@ export function NoAccessScreen({
   reducedMotionOverride?: boolean;
 }) {
   const router = useRouter();
+  // Rendered inside the 2.1 app shell's content area, not full-screen.
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background p-6">
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(37,99,235,0.2),transparent_35%),radial-gradient(circle_at_85%_85%,rgba(249,115,22,0.12),transparent_32%)]"
-      />
+    <section className="relative grid min-h-[60vh] place-items-center p-6">
       <MotionSection
         className="relative z-10 w-full max-w-md"
         reducedMotionOverride={reducedMotionOverride}
@@ -160,6 +157,6 @@ export function NoAccessScreen({
           </div>
         </Card>
       </MotionSection>
-    </main>
+    </section>
   );
 }

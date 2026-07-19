@@ -22,6 +22,7 @@ CurrentUser identity() => CurrentUser(
         ..uid = 'firebase-uid'
         ..email = 'field_inspector@acme.example.invalid'
         ..companyId = 'acme-energy'
+        ..companyName = 'Acme Energy'
         ..roleKey = 'field_inspector'
         ..emailVerified = true
         ..permissions.addAll([
@@ -218,6 +219,7 @@ void main() {
     completer.complete(session);
     await tester.pumpAndSettle();
     expect(find.text('Role: field_inspector'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('inspections.write'), 200);
     expect(find.text('inspections.write'), findsOneWidget);
   });
 
@@ -320,7 +322,7 @@ void main() {
     await enterCredentials(tester);
     await tester.pumpAndSettle();
 
-    expect(find.text('Assets demo'), findsWidgets);
+    expect(find.textContaining('client gate mirrors'), findsOneWidget);
     expect(find.text("You can't view this area"), findsNothing);
   });
 
@@ -336,7 +338,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("You can't view this area"), findsOneWidget);
-    expect(find.text('Assets demo'), findsNothing);
+    expect(find.textContaining('client gate mirrors'), findsNothing);
     await tester.ensureVisible(find.text('Back to Home'));
     await tester.tap(find.text('Back to Home'));
     await tester.pumpAndSettle();
@@ -378,7 +380,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Verify your email'), findsOneWidget);
-    expect(find.text('Assets demo'), findsNothing);
+    expect(find.textContaining('client gate mirrors'), findsNothing);
     expect(find.text("You can't view this area"), findsNothing);
   });
 
@@ -387,6 +389,8 @@ void main() {
   ) async {
     final gateway = FakeGateway(initial: session);
     await pumpApp(tester, gateway: gateway, initialRoute: AppRoutes.home);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('user-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
@@ -413,12 +417,14 @@ void main() {
     expect(find.text('assets.write'), findsNothing);
 
     api.result = writerIdentity();
-    await tester.ensureVisible(find.byKey(const Key('refresh-session')));
-    await tester.tap(find.byKey(const Key('refresh-session')));
+    await tester.tap(find.byKey(const Key('user-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Refresh session'));
     await tester.pumpAndSettle();
 
     expect(gateway.refreshCalls, 1);
     expect(api.requests, 2);
+    await tester.scrollUntilVisible(find.text('assets.write'), 200);
     expect(find.text('assets.write'), findsOneWidget);
   });
 

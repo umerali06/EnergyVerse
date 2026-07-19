@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.verifier import TokenVerificationError, TokenVerifier, get_token_verifier
+from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
@@ -89,6 +90,16 @@ async def get_current_user(
                 "message": "User role is unavailable",
             },
         )
+
+    company = await CompanyRepository().get(scope)
+    if company is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "company_not_found",
+                "message": "Company is unavailable",
+            },
+        )
     resolver = PermissionResolver(
         users,
         roles,
@@ -111,6 +122,7 @@ async def get_current_user(
         email=user.email,
         email_verified=decoded_token.get("email_verified") is True,
         company_id=user.company_id,
+        company_name=company.name,
         role_key=role.key,
         permissions=permissions,
     )

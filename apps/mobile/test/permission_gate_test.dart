@@ -18,6 +18,7 @@ class _IdentityApi implements ApiContract {
         ..uid = 'test-uid'
         ..email = 'test@example.invalid'
         ..companyId = 'acme-energy'
+        ..companyName = 'Acme Energy'
         ..roleKey = 'custom'
         ..emailVerified = true
         ..permissions.addAll(permissionKeys),

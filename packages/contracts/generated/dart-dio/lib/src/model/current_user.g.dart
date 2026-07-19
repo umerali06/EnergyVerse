@@ -10,6 +10,8 @@ class _$CurrentUser extends CurrentUser {
   @override
   final String companyId;
   @override
+  final String companyName;
+  @override
   final String email;
   @override
   final bool emailVerified;
@@ -25,6 +27,7 @@ class _$CurrentUser extends CurrentUser {
 
   _$CurrentUser._(
       {required this.companyId,
+      required this.companyName,
       required this.email,
       required this.emailVerified,
       required this.permissions,
@@ -33,6 +36,8 @@ class _$CurrentUser extends CurrentUser {
       : super._() {
     BuiltValueNullFieldError.checkNotNull(
         companyId, r'CurrentUser', 'companyId');
+    BuiltValueNullFieldError.checkNotNull(
+        companyName, r'CurrentUser', 'companyName');
     BuiltValueNullFieldError.checkNotNull(email, r'CurrentUser', 'email');
     BuiltValueNullFieldError.checkNotNull(
         emailVerified, r'CurrentUser', 'emailVerified');
@@ -54,6 +59,7 @@ class _$CurrentUser extends CurrentUser {
     if (identical(other, this)) return true;
     return other is CurrentUser &&
         companyId == other.companyId &&
+        companyName == other.companyName &&
         email == other.email &&
         emailVerified == other.emailVerified &&
         permissions == other.permissions &&
@@ -65,6 +71,7 @@ class _$CurrentUser extends CurrentUser {
   int get hashCode {
     var _$hash = 0;
     _$hash = $jc(_$hash, companyId.hashCode);
+    _$hash = $jc(_$hash, companyName.hashCode);
     _$hash = $jc(_$hash, email.hashCode);
     _$hash = $jc(_$hash, emailVerified.hashCode);
     _$hash = $jc(_$hash, permissions.hashCode);
@@ -78,6 +85,7 @@ class _$CurrentUser extends CurrentUser {
   String toString() {
     return (newBuiltValueToStringHelper(r'CurrentUser')
           ..add('companyId', companyId)
+          ..add('companyName', companyName)
           ..add('email', email)
           ..add('emailVerified', emailVerified)
           ..add('permissions', permissions)
@@ -93,6 +101,10 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
   String? _companyId;
   String? get companyId => _$this._companyId;
   set companyId(String? companyId) => _$this._companyId = companyId;
+
+  String? _companyName;
+  String? get companyName => _$this._companyName;
+  set companyName(String? companyName) => _$this._companyName = companyName;
 
   String? _email;
   String? get email => _$this._email;
@@ -125,6 +137,7 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
     final $v = _$v;
     if ($v != null) {
       _companyId = $v.companyId;
+      _companyName = $v.companyName;
       _email = $v.email;
       _emailVerified = $v.emailVerified;
       _permissions = $v.permissions.toBuilder();
@@ -156,6 +169,8 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
           new _$CurrentUser._(
               companyId: BuiltValueNullFieldError.checkNotNull(
                   companyId, r'CurrentUser', 'companyId'),
+              companyName: BuiltValueNullFieldError.checkNotNull(
+                  companyName, r'CurrentUser', 'companyName'),
               email: BuiltValueNullFieldError.checkNotNull(
                   email, r'CurrentUser', 'email'),
               emailVerified: BuiltValueNullFieldError.checkNotNull(

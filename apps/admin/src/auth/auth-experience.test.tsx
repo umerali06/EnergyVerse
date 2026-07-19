@@ -4,7 +4,8 @@ import { useSyncExternalStore } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "@/api";
-import { ToastProvider } from "@/design-system";
+import { ThemeProvider, ToastProvider } from "@/design-system";
+import { AppShell } from "@/shell/app-shell";
 
 import { AuthProvider } from "./auth-context";
 import {
@@ -86,6 +87,7 @@ const identity = {
   email: "field_inspector@acme.example.invalid",
   emailVerified: true,
   companyId: "acme-energy",
+  companyName: "Acme Energy",
   roleKey: "field_inspector",
   permissions: new Set(["assets.read", "inspections.write", "reports.generate"]),
 };
@@ -171,18 +173,22 @@ function AppRouterHarness({ reducedMotionOverride }: { reducedMotionOverride?: b
     case "/rbac-demo":
       return (
         <RequireAuth>
-          <RequirePermission
-            permission="assets.write"
-            reducedMotionOverride={reducedMotionOverride}
-          >
-            <RbacDemoScreen reducedMotionOverride={reducedMotionOverride} />
-          </RequirePermission>
+          <AppShell reducedMotionOverride={reducedMotionOverride}>
+            <RequirePermission
+              permission="assets.write"
+              reducedMotionOverride={reducedMotionOverride}
+            >
+              <RbacDemoScreen reducedMotionOverride={reducedMotionOverride} />
+            </RequirePermission>
+          </AppShell>
         </RequireAuth>
       );
     default:
       return (
         <RequireAuth>
-          <AuthenticatedHome reducedMotionOverride={reducedMotionOverride} />
+          <AppShell reducedMotionOverride={reducedMotionOverride}>
+            <AuthenticatedHome reducedMotionOverride={reducedMotionOverride} />
+          </AppShell>
         </RequireAuth>
       );
   }
@@ -212,11 +218,13 @@ function renderAuth({
     roleKey: "company_admin",
   }));
   const view = render(
-    <ToastProvider>
-      <AuthProvider apiClient={{ getCurrentUser, registerCompanyAdmin }} gateway={gateway}>
-        <AppRouterHarness reducedMotionOverride={reducedMotionOverride} />
-      </AuthProvider>
-    </ToastProvider>,
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider apiClient={{ getCurrentUser, registerCompanyAdmin }} gateway={gateway}>
+          <AppRouterHarness reducedMotionOverride={reducedMotionOverride} />
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>,
   );
   return { ...view, getCurrentUser, registerCompanyAdmin };
 }
@@ -319,7 +327,8 @@ describe("admin login experience", () => {
     renderAuth({ gateway });
     const user = userEvent.setup();
     await screen.findByText("field_inspector");
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await user.click(screen.getByRole("button", { name: "User menu" }));
+    await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(await screen.findByRole("button", { name: "Login" })).toBeInTheDocument();
     expect(gateway.signOutCalls).toBe(1);
     // Simulate back/deep navigation to the protected URL after logout.
@@ -385,7 +394,8 @@ describe("admin login experience", () => {
     const { getCurrentUser } = renderAuth({ gateway });
     const user = userEvent.setup();
     await screen.findByText("field_inspector");
-    await user.click(screen.getByRole("button", { name: "Refresh session" }));
+    await user.click(screen.getByRole("button", { name: "User menu" }));
+    await user.click(screen.getByRole("menuitem", { name: "Refresh session" }));
     await waitFor(() => expect(refreshSpy).toHaveBeenCalledOnce());
     await waitFor(() => expect(getCurrentUser).toHaveBeenCalledTimes(2));
   });
