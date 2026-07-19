@@ -28,6 +28,7 @@ Only one micro-task may be active at a time.
 | 2 | Application shell and dashboard foundation | In progress |
 | 2.1 | App shell — persistent navigation frame on both clients | Done |
 | 2.1b | Design language elevation — industrial art-direction pass | Done |
+| 2.1c | Brand identity, SEO/metadata, dynamic theming enforcement, motion policy | Done |
 | 2.2 | Dashboard content | **In progress** |
 | 3 | To be defined | Not started |
 | 4 | To be defined | Not started |

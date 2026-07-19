@@ -119,6 +119,21 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   monospace "instrumentation label" idiom for group headers and status pills,
   asymmetric primary-region/secondary-rail layouts, and 120–240ms motion on
   cubic-bezier(0.16, 1, 0.3, 1) apply everywhere.
+- The 2.1c brand system derives every color from the official logo (sampled
+  orange #FB4402 and navy #002865) as OKLCH 50–900 scales in tokens.json;
+  theme-aware Logo components in both clients select light/dark assets from
+  the active theme so call sites never reference files. Raw hex colors and
+  font families outside the token layer fail CI (admin ESLint rule, Flutter
+  guard test); allowed exceptions are the generated token bindings and the
+  static Flutter web shell (documented). Admin metadata is declarative and
+  colocated per route via `src/seo/site.ts` helpers: public routes are fully
+  indexed with canonical/OG/Twitter tags, everything inside the shell is
+  noindex with a unique tab title, and robots/sitemap/manifest/theme-color
+  are generated from the same config and tokens. Motion policy: Framer
+  Motion only (GSAP, if ever needed, route-dynamic), transform+opacity only,
+  token durations ≤240ms, reduced-motion respected; a CI bundle budget
+  (430 KB over the 342 KB baseline) and recorded Lighthouse baselines guard
+  regressions.
 - **Rule:** every future screen must compose these primitives and shared tokens.
   Feature modules may extend the system centrally but may not introduce parallel
   color, spacing, typography, elevation, or motion constants.

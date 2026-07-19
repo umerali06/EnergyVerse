@@ -20,6 +20,8 @@
 | D-014 | Session lifecycle and route-guard strategy | **Client-layout guards over one auth provider; 401 → one forced refresh + retry, then clean expiry; server gates stay authoritative** | **RESOLVED — LOCKED** | 2026-07-18 |
 | D-015 | Shell navigation and unbuilt-module policy | **One declarative nav config per client (documented mirror contract); permission-filtered via 0.6 helpers; unbuilt modules show branded "Coming soon"; unfinished platform features render visibly disabled** | **RESOLVED — LOCKED** | 2026-07-19 |
 | D-016 | Design language direction | **Industrial instrumentation identity: Space Grotesk / IBM Plex Sans / IBM Plex Mono (machine values), layered dark surfaces with luminous 1px borders instead of drop shadows, rare orange accent, enterprise density, 120–240ms motion on cubic-bezier(0.16, 1, 0.3, 1) — all via tokens.json only** | **RESOLVED — LOCKED** | 2026-07-19 |
+| D-017 | Brand palette and logo assets | **All brand color derives from the official logo — sampled orange #FB4402 and navy #002865 as OKLCH 50–900 scales; navy-hue dark surfaces; theme-specific action lightness; crimson #C1123F critical distinct from brand orange; statusStrong/statusSoft per-theme text sets; logo variants derived mechanically from the supplied master, consumed only through theme-aware Logo components** | **RESOLVED — LOCKED** | 2026-07-19 |
+| D-018 | SEO, theming enforcement, and motion/performance policy | **Public routes fully indexed with colocated declarative metadata, in-shell routes noindex with unique titles; raw hex/font-family outside the token layer fails CI in both clients; Framer Motion only (GSAP route-dynamic if ever needed), transform+opacity, token durations; 430 KB bundle budget and Lighthouse baselines recorded** | **RESOLVED — LOCKED** | 2026-07-19 |
 
 ## Decision Details
 
@@ -308,6 +310,68 @@
 - **Consequences:** Every future screen inherits this language automatically
   by composing the shell and primitives. Deviations require editing
   tokens.json (a reviewable, cross-client change), not local overrides.
+
+### D-017 — Brand Palette and Logo Assets (Phase 2.1c)
+
+- **Decision owner:** Product owner (logo supplied as the source of truth)
+- **Sampled brand values (authoritative, from the logo file):** brand orange
+  `#FB4402` (OKLCH L 0.653, C 0.226, H 35.3°) and brand navy `#002865`
+  (OKLCH L 0.296, C 0.116, H 259.3°). The brief's approximations (#F4470E /
+  #1A2A6C) were measurably off and are not used anywhere.
+- **Decision:** Primary and accent are perceptually even OKLCH 50–900 scales
+  at the sampled hues, with the sampled values pinned at their natural
+  positions (navy = primary-800, orange = accent-500). Light theme uses deep
+  navy (700–900) for text/structure/actions, matching the logo; dark theme
+  uses lightened tints of the same hue (400–500) for interactive elements,
+  while surfaces re-tint the 2.1b lightness ladder toward the navy hue.
+  Orange stays rare (single primary CTA / critical emphasis) with a
+  token-defined navy ink (`accent.ink`, 4.77:1) for its labels. Critical
+  moved to crimson `#C1123F` so a safety alert can never be confused with a
+  CTA. Because no single status hex passes AA on both white and near-black,
+  `statusStrong` (light-theme text) and `statusSoft` (dark-theme text) token
+  sets exist alongside the status fills.
+- **Logo assets:** The owner supplied one raster master (full lockup, white
+  background). Variants were derived mechanically — white un-matte with an
+  alpha floor, band-cropping into mark/wordmark/full, and the permitted
+  navy→light recolor for dark themes (orange unchanged) — never redrawn.
+  Favicon, apple-touch-icon, PWA icons, and the og-image are generated from
+  those masters. Both clients consume assets only through theme-aware Logo
+  components (`Logo` / `BrandLogo`); call sites never reference file paths.
+  Vector originals can replace the derived PNGs file-for-file later.
+
+### D-018 — SEO, Theming Enforcement, and Motion/Performance Policy (Phase 2.1c)
+
+- **Decision owner:** Product owner
+- **Indexing policy:** This is a private enterprise app. Public routes
+  (login, signup, forgot-password) carry full SEO — canonical, OpenGraph,
+  Twitter cards, JSON-LD, `index, follow`. Every route inside the shell is
+  `noindex, nofollow` but keeps a unique descriptive title for tabs,
+  history, and bookmarks. robots.txt disallows the app, sitemap.xml lists
+  only public routes, and the PWA manifest and theme-color come from tokens.
+  Metadata is declarative and colocated with each route through the
+  `publicPage`/`protectedPage` helpers in `src/seo/site.ts` — future screens
+  set their own title without touching a central file. `<html lang="en">`.
+- **Theming enforcement:** Nothing outside `packages/design-tokens` may
+  declare a raw hex color or font family. Admin enforces this with an ESLint
+  `no-restricted-syntax` rule (a planted violation fails lint — proven);
+  Flutter with a source-scanning guard test. Allowed exceptions, documented:
+  the generated token bindings and the static Flutter web shell
+  (`web/index.html`, `web/manifest.json`), which cannot import Dart tokens.
+  Tokens flow to CSS custom properties per theme, so a runtime theme change
+  needs no rebuild; a token-propagation proof (brand token → both clients)
+  is part of the phase evidence.
+- **Motion & performance policy (every future screen):** Framer Motion is
+  the only admin animation library; GSAP may only ever arrive dynamically
+  imported on a route that proves it needs timeline/scroll sequencing —
+  never in the global bundle. Flutter uses its native system. Animate
+  transform and opacity only; durations come from motion tokens (≤240ms,
+  hard ceiling ~300ms); `will-change` sparingly; virtualize long lists and
+  never animate hundreds of rows; no infinite/decorative loops; no animation
+  on scroll-heavy data tables; `prefers-reduced-motion` always respected.
+  The shared admin bundle is budgeted in CI at 430 KB (baseline 342 KB,
+  ~25% headroom); raising the budget requires a documented decision.
+  Lighthouse login baselines (locally throttled): Performance 56,
+  Accessibility 100, Best Practices 100, SEO 100.
 
 ## Locked Principles
 
