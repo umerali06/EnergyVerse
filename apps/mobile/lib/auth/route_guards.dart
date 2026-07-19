@@ -238,48 +238,45 @@ class NoAccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(DsSpacing.s6),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: AppCard(
-                padding: const EdgeInsets.all(DsSpacing.s8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: StatusPill(
-                        label: '403 — No access',
-                        status: AppStatus.critical,
-                      ),
-                    ),
-                    const SizedBox(height: DsSpacing.s4),
-                    Text(
-                      "You can't view this area",
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: DsSpacing.s3),
-                    Text(
-                      "Your role doesn't include the permission required for "
-                      'this page ($permission). If you believe this is a '
-                      'mistake, contact your company admin.',
-                    ),
-                    const SizedBox(height: DsSpacing.s6),
-                    AppButton(
-                      label: 'Back to Home',
-                      onPressed: () => Navigator.of(context)
-                          .pushNamedAndRemoveUntil(
-                        AppRoutes.home,
-                        (_) => false,
-                      ),
-                    ),
-                  ],
+    // Rendered inside the 2.1 app shell's content area, not full-screen.
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(DsSpacing.s6),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: AppCard(
+            padding: const EdgeInsets.all(DsSpacing.s8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: StatusPill(
+                    label: '403 — No access',
+                    status: AppStatus.critical,
+                  ),
                 ),
-              ),
+                const SizedBox(height: DsSpacing.s4),
+                Text(
+                  "You can't view this area",
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: DsSpacing.s3),
+                Text(
+                  "Your role doesn't include the permission required for "
+                  'this page ($permission). If you believe this is a '
+                  'mistake, contact your company admin.',
+                ),
+                const SizedBox(height: DsSpacing.s6),
+                AppButton(
+                  label: 'Back to Home',
+                  onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                    AppRoutes.home,
+                    (_) => false,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

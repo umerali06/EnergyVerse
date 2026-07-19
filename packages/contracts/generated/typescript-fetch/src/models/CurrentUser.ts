@@ -31,6 +31,12 @@ export interface CurrentUser {
      * @type {string}
      * @memberof CurrentUser
      */
+    companyName: string;
+    /**
+     *
+     * @type {string}
+     * @memberof CurrentUser
+     */
     email: string;
     /**
      *
@@ -63,6 +69,7 @@ export interface CurrentUser {
  */
 export function instanceOfCurrentUser(value: object): value is CurrentUser {
     if (!('companyId' in value) || value['companyId'] === undefined) return false;
+    if (!('companyName' in value) || value['companyName'] === undefined) return false;
     if (!('email' in value) || value['email'] === undefined) return false;
     if (!('emailVerified' in value) || value['emailVerified'] === undefined) return false;
     if (!('permissions' in value) || value['permissions'] === undefined) return false;
@@ -83,6 +90,7 @@ export function CurrentUserFromJSONTyped(json: any, ignoreDiscriminator: boolean
 
             ...json,
         'companyId': json['company_id'],
+        'companyName': json['company_name'],
         'email': json['email'],
         'emailVerified': json['email_verified'],
         'permissions': new Set(json['permissions']),
@@ -104,6 +112,7 @@ export function CurrentUserToJSONTyped(value?: CurrentUser | null, ignoreDiscrim
 
             ...value,
         'company_id': value['companyId'],
+        'company_name': value['companyName'],
         'email': value['email'],
         'email_verified': value['emailVerified'],
         'permissions': Array.from(value['permissions'] as Set<any>),

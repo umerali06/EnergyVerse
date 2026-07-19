@@ -13,6 +13,7 @@ from app.auth.claims import ClaimsService
 from app.auth.provisioning import UserProvisioningService
 from app.auth.verifier import TokenVerificationError, TokenVerifier, get_token_verifier
 from app.db.repositories.audit_logs import AuditLogRepository
+from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
@@ -46,6 +47,11 @@ def _override_repositories(
     monkeypatch: pytest.MonkeyPatch,
     client: FakeAsyncClient,
 ) -> None:
+    monkeypatch.setattr(
+        auth_dependencies,
+        "CompanyRepository",
+        lambda: CompanyRepository(client),
+    )
     monkeypatch.setattr(
         auth_dependencies,
         "UserRepository",
@@ -127,6 +133,7 @@ def test_me_returns_seeded_identity_and_exact_permissions(
     assert body["email"] == "field_inspector@acme.example.invalid"
     assert body["email_verified"] is True
     assert body["company_id"] == ACME_COMPANY_ID
+    assert body["company_name"] == "Acme Energy"
     assert body["role_key"] == "field_inspector"
     assert set(body["permissions"]) == set(SYSTEM_ROLE_TEMPLATES["field_inspector"].permission_keys)
 

@@ -14,6 +14,7 @@ part 'current_user.g.dart';
 ///
 /// Properties:
 /// * [companyId]
+/// * [companyName]
 /// * [email]
 /// * [emailVerified]
 /// * [permissions]
@@ -23,6 +24,9 @@ part 'current_user.g.dart';
 abstract class CurrentUser implements Built<CurrentUser, CurrentUserBuilder> {
   @BuiltValueField(wireName: r'company_id')
   String get companyId;
+
+  @BuiltValueField(wireName: r'company_name')
+  String get companyName;
 
   @BuiltValueField(wireName: r'email')
   String get email;
@@ -65,6 +69,11 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
     yield r'company_id';
     yield serializers.serialize(
       object.companyId,
+      specifiedType: const FullType(String),
+    );
+    yield r'company_name';
+    yield serializers.serialize(
+      object.companyName,
       specifiedType: const FullType(String),
     );
     yield r'email';
@@ -123,6 +132,13 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
             specifiedType: const FullType(String),
           ) as String;
           result.companyId = valueDes;
+          break;
+        case r'company_name':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.companyName = valueDes;
           break;
         case r'email':
           final valueDes = serializers.deserialize(

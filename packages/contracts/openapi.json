@@ -79,6 +79,10 @@
             "title": "Company Id",
             "type": "string"
           },
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -109,6 +113,7 @@
           "email",
           "email_verified",
           "company_id",
+          "company_name",
           "role_key",
           "permissions"
         ],

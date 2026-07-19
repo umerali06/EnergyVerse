@@ -12,6 +12,11 @@ void main() {
       // TODO
     });
 
+    // String companyName
+    test('to test the property `companyName`', () async {
+      // TODO
+    });
+
     // String email
     test('to test the property `email`', () async {
       // TODO

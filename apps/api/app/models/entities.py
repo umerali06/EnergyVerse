@@ -138,6 +138,7 @@ class CurrentUser(StrictModel):
     email: str
     email_verified: bool
     company_id: str
+    company_name: str
     role_key: str
     permissions: frozenset[str]
 

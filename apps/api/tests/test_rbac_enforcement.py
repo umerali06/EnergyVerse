@@ -39,6 +39,7 @@ def _identity(role_key: str, permissions: frozenset[str]) -> CurrentUser:
         email=f"{role_key}@example.invalid",
         email_verified=True,
         company_id=ACME_COMPANY_ID,
+        company_name="Acme Energy",
         role_key=role_key,
         permissions=permissions,
     )

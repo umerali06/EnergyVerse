@@ -465,33 +465,26 @@ function InlineError({ message }: { message: string }) {
 }
 
 export function AuthenticatedHome({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
-  const { currentUser, refreshSession, signOut } = useAuth();
+  // Sign-out and refresh-session live in the shell's user menu since 2.1.
+  const { currentUser } = useAuth();
   const router = useRouter();
   if (!currentUser) return null;
   const name = currentUser.email.split("@")[0].replace(/[._-]+/g, " ");
   return (
-    <main className="min-h-screen bg-background p-6 md:p-10">
+    <section className="p-6 md:p-10">
       <MotionSection className="mx-auto max-w-5xl" reducedMotionOverride={reducedMotionOverride}>
-        <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-mono text-caption uppercase tracking-[0.22em] text-primary-400">
               FEV authenticated workspace
             </p>
-            <h1 className="mt-2 text-h2 font-bold capitalize">Welcome, {name}</h1>
+            <h2 className="mt-2 text-h2 font-bold capitalize">Welcome, {name}</h2>
             <p className="mt-2 text-text-secondary">{currentUser.email}</p>
           </div>
-          <div className="flex gap-3">
-            <Button onClick={() => router.push("/rbac-demo")} variant="ghost">
-              Assets demo
-            </Button>
-            <Button onClick={() => void refreshSession()} variant="ghost">
-              Refresh session
-            </Button>
-            <Button onClick={() => void signOut()} variant="ghost">
-              Sign out
-            </Button>
-          </div>
-        </header>
+          <Button onClick={() => router.push("/rbac-demo")} variant="ghost">
+            Assets demo
+          </Button>
+        </div>
         <div className="mt-8 grid gap-6 md:grid-cols-[0.8fr_1.2fr]">
           <Card>
             <StatusPill tone="healthy">Authenticated</StatusPill>
@@ -523,14 +516,14 @@ export function AuthenticatedHome({ reducedMotionOverride }: { reducedMotionOver
           </Card>
         </div>
       </MotionSection>
-    </main>
+    </section>
   );
 }
 
 export function RbacDemoScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const router = useRouter();
   return (
-    <main className="min-h-screen bg-background p-6 md:p-10">
+    <section className="p-6 md:p-10">
       <MotionSection className="mx-auto max-w-3xl" reducedMotionOverride={reducedMotionOverride}>
         <Card className="p-8">
           <StatusPill tone="healthy">Access granted</StatusPill>
@@ -548,6 +541,6 @@ export function RbacDemoScreen({ reducedMotionOverride }: { reducedMotionOverrid
           </div>
         </Card>
       </MotionSection>
-    </main>
+    </section>
   );
 }
