@@ -19,6 +19,7 @@
 | D-013 | Password reset flow and account privacy | **Client-SDK reset send with Firebase hosted completion; responses never disclose account existence** | **RESOLVED — LOCKED** | 2026-07-18 |
 | D-014 | Session lifecycle and route-guard strategy | **Client-layout guards over one auth provider; 401 → one forced refresh + retry, then clean expiry; server gates stay authoritative** | **RESOLVED — LOCKED** | 2026-07-18 |
 | D-015 | Shell navigation and unbuilt-module policy | **One declarative nav config per client (documented mirror contract); permission-filtered via 0.6 helpers; unbuilt modules show branded "Coming soon"; unfinished platform features render visibly disabled** | **RESOLVED — LOCKED** | 2026-07-19 |
+| D-016 | Design language direction | **Industrial instrumentation identity: Space Grotesk / IBM Plex Sans / IBM Plex Mono (machine values), layered dark surfaces with luminous 1px borders instead of drop shadows, rare orange accent, enterprise density, 120–240ms motion on cubic-bezier(0.16, 1, 0.3, 1) — all via tokens.json only** | **RESOLVED — LOCKED** | 2026-07-19 |
 
 ## Decision Details
 
@@ -276,6 +277,37 @@
   user menu shows the tenant without a new endpoint. Custom roles that hold
   `users.manage`/`roles.manage` but not `company.settings` do not see
   Admin & Settings until a finer split is scheduled.
+
+### D-016 — Design Language Direction (Phase 2.1b)
+
+- **Decision owner:** Product owner (direction locked in the phase brief)
+- **Decision:** The product reads as a deliberately designed enterprise
+  industrial monitoring tool. Typography is a three-role system — Space
+  Grotesk for headings, IBM Plex Sans for body/UI, and IBM Plex Mono for
+  every machine value (asset IDs, work-order numbers, timestamps,
+  coordinates, readings, emails, role and permission keys) — self-hosted as
+  Latin-subset files in both clients; no CDN fonts. Depth comes from layered
+  dark surfaces (#0A0E1A → #111827 → #1A2234) with luminous 1px borders;
+  decorative drop shadows and gradients are banned, and glow shadows exist
+  only for status emphasis. Blue is structural; the orange accent is rare and
+  meaningful (primary action / critical); status colors carry information,
+  never decoration. Density is enterprise-grade: a 13px body baseline on a
+  tightened type scale with real hierarchy, compact controls, and asymmetric
+  primary-region/secondary-rail layouts rather than uniform card grids.
+  Motion runs 120–240ms on cubic-bezier(0.16, 1, 0.3, 1), purposeful only
+  (entrance, state change, feedback), with reduced-motion respected.
+- **Mechanics:** All values live in `packages/design-tokens/tokens.json` and
+  flow through the generator into Tailwind/CSS and Flutter `ThemeData`; raw
+  values in components remain prohibited. The recurring monospace
+  "instrumentation label" idiom (micro uppercase mono eyebrows on group
+  headers, status pills, and section rules) is the signature element; the
+  0.7 component APIs were restyled, not rewritten.
+- **Verification:** Both clients' full suites pass unchanged; 14 foreground/
+  background pairs checked for WCAG AA in dark and light; two screenshot-led
+  refinement rounds recorded under `docs/evidence/phase-2.1b/`.
+- **Consequences:** Every future screen inherits this language automatically
+  by composing the shell and primitives. Deviations require editing
+  tokens.json (a reviewable, cross-client change), not local overrides.
 
 ## Locked Principles
 

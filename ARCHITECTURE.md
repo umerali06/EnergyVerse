@@ -103,11 +103,22 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   Framer Motion helpers honor `prefers-reduced-motion`.
 - Flutter builds dark-default and light `ThemeData` from generated Dart constants,
   persists the theme locally, and uses `MediaQuery.disableAnimations` to remove
-  non-essential motion. Inter and JetBrains Mono are bundled locally in both
-  clients for deterministic/offline typography.
+  non-essential motion. Space Grotesk (headings), IBM Plex Sans (body), and IBM
+  Plex Mono (all machine values: IDs, emails, role/permission keys, timestamps,
+  readings) are bundled locally in both clients as Latin-subset files for
+  deterministic/offline typography.
 - Admin and mobile expose parity primitives for actions, fields, surfaces, status,
   overlays, feedback, tabs, loading, and empty states. Development-only showcases
   exercise those primitives without entering normal navigation.
+- The 2.1b design language is locked for every future screen: layered dark
+  surfaces (#0A0E1A → #111827 → #1A2234) with luminous 1px borders carry depth —
+  no decorative drop shadows or gradients; glow shadows exist only for status
+  emphasis. Blue is structural, the orange accent is reserved for the primary
+  action or critical emphasis, and status colors carry information only.
+  Enterprise density (13px body baseline, min-h-9 controls, tight rows), a
+  monospace "instrumentation label" idiom for group headers and status pills,
+  asymmetric primary-region/secondary-rail layouts, and 120–240ms motion on
+  cubic-bezier(0.16, 1, 0.3, 1) apply everywhere.
 - **Rule:** every future screen must compose these primitives and shared tokens.
   Feature modules may extend the system centrally but may not introduce parallel
   color, spacing, typography, elevation, or motion constants.
