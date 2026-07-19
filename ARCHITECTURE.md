@@ -224,6 +224,36 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   guards remain UX; FastAPI's `require_permission` + `require_verified_email`
   stay authoritative for every protected operation.
 
+### Phase 2.1 Application Shell
+
+- Every protected route on both clients now renders inside one persistent
+  shell mounted directly under the Phase 1.4 guards: Next.js wraps the
+  `(protected)` layout as RequireAuth → AppShell → page, and Flutter's route
+  table builds RequireAuthGuard → AppShellScaffold → screen. Public auth
+  screens (login/signup/forgot/verify) stay outside. Future screens are pages
+  dropped into this composition — they inherit navigation, header, guards,
+  and permission context without new wiring.
+- Navigation is data, not markup: a single declarative config per client
+  (`apps/admin/src/navigation/nav-config.tsx`,
+  `apps/mobile/lib/navigation/nav_config.dart` — a documented mirrored
+  contract, D-015) declares label/icon/route/`requiredPermission` per module
+  and is filtered at render time through the Phase 0.6 `can()` helpers over
+  the authoritative `/me` permissions, seeded by the 1.4 session context.
+  Admin renders it as a grouped collapsible sidebar (persisted preference,
+  icon-only tablet rail, focus-trapped mobile drawer); mobile renders the
+  primary set as bottom navigation (Home / Assets / Work / More) with a
+  permission-filtered "More" sheet. Client visibility remains UX only —
+  FastAPI's require_permission stays authoritative.
+- The shell header carries breadcrumbs/title derived from the nav config, the
+  0.7 theme toggle, a user menu built from `/me` (initials, display name,
+  role badge, company name — `company_name` was added to `/me` for this, the
+  only backend change — plus the 1.4 refresh-session and sign-out actions),
+  and visibly disabled placeholders for global search (Phase 16) and
+  notifications (Phase 15). Unbuilt roadmap modules route to a branded
+  "Coming soon" page inside the shell; unknown paths hit a branded 404 and
+  the 1.4 branded 403 renders in the shell content area, so no protected
+  navigation ever dead-ends outside the frame.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
