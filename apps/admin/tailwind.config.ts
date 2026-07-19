@@ -13,6 +13,8 @@ const config: Config = {
         primary: designTokens.color.primary,
         accent: designTokens.color.accent,
         status: designTokens.color.status,
+        statusStrong: designTokens.color.statusStrong,
+        statusSoft: designTokens.color.statusSoft,
         background: "var(--color-background)",
         surface: "var(--color-surface)",
         elevated: "var(--color-elevated)",

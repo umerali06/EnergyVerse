@@ -11,7 +11,7 @@ export const cn = (...classes: Array<string | false | null | undefined>) =>
 export type ButtonVariant = "primary" | "accent" | "ghost" | "danger";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-primary-500 text-white hover:bg-primary-400",
+  primary: "bg-primary-800 text-white hover:bg-primary-700 dark:bg-primary-400 dark:text-primary-900 dark:hover:bg-primary-300",
   accent: "bg-accent-500 text-accent-ink hover:bg-accent-400",
   ghost: "border border-border bg-transparent text-text-primary hover:border-primary-400/60 hover:bg-elevated",
   danger: "bg-status-critical text-white hover:brightness-110",
@@ -70,7 +70,7 @@ function FieldFrame({
       {children}
       {(error || hint) && (
         <span
-          className={cn("text-bodySmall", error ? "text-status-critical" : "text-text-muted")}
+          className={cn("text-bodySmall", error ? "text-statusStrong-critical dark:text-statusSoft-critical" : "text-text-muted")}
           id={descriptionId}
         >
           {error ?? hint}

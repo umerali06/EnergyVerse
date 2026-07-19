@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { Badge, Button, Card, Input, MotionSection, StatusPill } from "@/design-system";
+import { Badge, Button, Card, Input, Logo, MotionSection, StatusPill } from "@/design-system";
 
 import { useAuth } from "./auth-context";
 import { safeInternalPath } from "./route-guards";
@@ -28,16 +28,8 @@ function usePublicAuthNav() {
 
 function Brand() {
   return (
-    <div className="mb-8 flex items-center gap-3">
-      <span className="grid size-12 place-items-center rounded-xl bg-primary-500 font-mono text-h5 font-black text-white ring-1 ring-primary-400/50">
-        F
-      </span>
-      <div>
-        <p className="text-h4 font-bold tracking-tight">Flacron EnergyVerse</p>
-        <p className="text-caption uppercase tracking-[0.22em] text-text-muted">
-          Field operations intelligence
-        </p>
-      </div>
+    <div className="mb-8">
+      <Logo height={64} variant="wordmark" />
     </div>
   );
 }
@@ -452,7 +444,7 @@ export function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOver
 function InlineError({ message }: { message: string }) {
   return (
     <p
-      className="rounded-lg border border-status-critical/40 bg-status-critical/10 p-3 text-bodySmall text-status-critical"
+      className="rounded-lg border border-status-critical/40 bg-status-critical/10 p-3 text-bodySmall text-statusStrong-critical dark:text-statusSoft-critical"
       role="alert"
     >
       {message}

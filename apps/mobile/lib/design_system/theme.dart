@@ -153,10 +153,12 @@ abstract final class AppThemes {
 
     final colorScheme = ColorScheme(
       brightness: brightness,
-      primary: DsColors.primary500,
-      onPrimary: Colors.white,
+      // Brand navy actions: deep in light, lightened tint of the same hue in
+      // dark (deep navy fails contrast on near-black surfaces).
+      primary: dark ? DsColors.primary400 : DsColors.primary800,
+      onPrimary: dark ? DsColors.primary900 : Colors.white,
       secondary: DsColors.accent500,
-      onSecondary: Colors.white,
+      onSecondary: DsColors.primary900,
       error: DsColors.statusCritical,
       onError: Colors.white,
       surface: surface,
@@ -215,8 +217,8 @@ abstract final class AppThemes {
         ),
       ),
       tabBarTheme: foundation.tabBarTheme.copyWith(
-        indicatorColor: DsColors.primary500,
-        labelColor: DsColors.primary400,
+        indicatorColor: dark ? DsColors.primary400 : DsColors.primary700,
+        labelColor: dark ? DsColors.primary300 : DsColors.primary700,
         unselectedLabelColor: textSecondary,
       ),
       snackBarTheme: SnackBarThemeData(

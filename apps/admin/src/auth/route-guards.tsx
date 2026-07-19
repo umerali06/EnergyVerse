@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
 
-import { Button, Card, MotionSection, Spinner, StatusPill } from "@/design-system";
+import { Button, Card, Logo, MotionSection, Spinner, StatusPill } from "@/design-system";
 
 import { useAuth } from "./auth-context";
 import { PermissionProvider, usePermissions } from "./permissions";
@@ -29,7 +29,10 @@ export function SplashScreen({ label = "Restoring session" }: { label?: string }
       className="grid min-h-screen place-items-center bg-background p-6"
       data-testid="auth-splash"
     >
-      <Spinner label={label} />
+      <div className="grid place-items-center gap-5">
+        <Logo decorative height={34} variant="mark" />
+        <Spinner label={label} />
+      </div>
     </main>
   );
 }

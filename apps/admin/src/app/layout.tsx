@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { AuthProvider } from "@/auth/auth-context";
 import { ThemeProvider, ToastProvider } from "@/design-system";
@@ -23,9 +23,44 @@ const plexMono = localFont({
   variable: "--font-plex-mono",
 });
 
+import { site } from "@/seo/site";
+
 export const metadata: Metadata = {
-  title: "FEV Admin",
-  description: "Flacron EnergyVerse Admin Dashboard",
+  metadataBase: new URL(site.baseUrl),
+  title: { default: site.name, template: site.titleTemplate },
+  description: site.description,
+  applicationName: site.name,
+  appleWebApp: { title: site.shortName },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/brand/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: site.themeColor },
+    { media: "(prefers-color-scheme: light)", color: site.lightThemeColor },
+  ],
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "Flacron Enterprises",
+      url: site.baseUrl,
+      logo: `${site.baseUrl}/brand/logo-mark-light.png`,
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: site.name,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web, Android, iOS",
+      description: site.description,
+    },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +72,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body>
+        <script
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          type="application/ld+json"
+        />
         <ThemeProvider>
           <ToastProvider>
             <AuthProvider>{children}</AuthProvider>

@@ -41,7 +41,7 @@ class _AppButtonState extends State<AppButton> {
       ),
       AppButtonVariant.accent => (
         DsColors.accent500,
-        DsColors.accentInk,
+        DsColors.primary900,
         Colors.transparent,
       ),
       AppButtonVariant.ghost => (
@@ -209,11 +209,11 @@ extension on AppStatus {
   /// WCAG-safe text color per brightness: deep variants on light surfaces,
   /// a brightened critical on dark ones.
   Color textColor(bool dark) => switch (this) {
-    AppStatus.healthy => dark ? DsColors.statusSuccess : DsColors.statusSuccessDeep,
-    AppStatus.warning => dark ? DsColors.statusWarning : DsColors.statusWarningDeep,
+    AppStatus.healthy => dark ? DsColors.statusSoftSuccess : DsColors.statusStrongSuccess,
+    AppStatus.warning => dark ? DsColors.statusSoftWarning : DsColors.statusStrongWarning,
     AppStatus.critical =>
-      dark ? DsColors.statusCriticalBright : DsColors.statusCriticalDeep,
-    AppStatus.info => dark ? DsColors.primary400 : DsColors.statusInfoDeep,
+      dark ? DsColors.statusSoftCritical : DsColors.statusStrongCritical,
+    AppStatus.info => dark ? DsColors.statusSoftInfo : DsColors.statusStrongInfo,
   };
 }
 

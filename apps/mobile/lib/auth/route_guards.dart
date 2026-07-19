@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../design_system/logo.dart';
 import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
 import 'app_routes.dart';
@@ -19,23 +20,10 @@ class AuthSplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: DsColors.primary500,
-                borderRadius: BorderRadius.circular(DsRadius.lg),
-              ),
-              child: const Text(
-                'F',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'JetBrains Mono',
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+            const BrandLogo(
+              decorative: true,
+              height: 40,
+              variant: LogoVariant.mark,
             ),
             const SizedBox(height: DsSpacing.s6),
             const SizedBox(

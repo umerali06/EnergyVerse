@@ -13,7 +13,7 @@ import {
 
 import { useAuth } from "@/auth/auth-context";
 import { usePermissions } from "@/auth/permissions";
-import { Badge, Button, cn, MotionSection, ThemeSwitch, Tooltip } from "@/design-system";
+import { Badge, Button, cn, Logo, MotionSection, ThemeSwitch, Tooltip } from "@/design-system";
 import {
   findNavItem,
   isRouteActive,
@@ -122,16 +122,10 @@ function SidebarBrand({ collapsed }: { collapsed: boolean }) {
     <div
       className={cn("flex items-center gap-3 px-4 pb-4 pt-5", collapsed && "justify-center px-2")}
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-500 font-mono text-h6 font-black text-white ring-1 ring-primary-400/50">
-        F
-      </span>
-      {!collapsed && (
-        <div className="min-w-0">
-          <p className="truncate text-body font-bold tracking-tight">Flacron EnergyVerse</p>
-          <p className="truncate text-caption uppercase tracking-[0.18em] text-text-muted">
-            Field operations
-          </p>
-        </div>
+      {collapsed ? (
+        <Logo height={26} variant="mark" />
+      ) : (
+        <Logo height={40} variant="wordmark" />
       )}
     </div>
   );

@@ -1,4 +1,8 @@
-"use client";
+import type { Metadata } from "next";
+
+import { protectedPage } from "@/seo/site";
+
+export const metadata: Metadata = protectedPage("Verify your email");
 
 import { Suspense } from "react";
 

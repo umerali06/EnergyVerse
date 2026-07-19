@@ -3,65 +3,71 @@ export const designTokens = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "meta": {
     "name": "FEV Industrial Energy",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "defaultTheme": "dark"
   },
   "color": {
     "primary": {
-      "50": "#EFF6FF",
-      "100": "#DBEAFE",
-      "200": "#BFDBFE",
-      "300": "#93C5FD",
-      "400": "#60A5FA",
-      "500": "#2563EB",
-      "600": "#1D4ED8",
-      "700": "#1E40AF",
-      "800": "#1E3A8A",
-      "900": "#172554"
+      "50": "#F1F6FE",
+      "100": "#DFEAFD",
+      "200": "#BDD4F7",
+      "300": "#95B7EC",
+      "400": "#6F99DC",
+      "500": "#4D7BC5",
+      "600": "#3160AA",
+      "700": "#17468E",
+      "800": "#002865",
+      "900": "#001A49"
     },
     "accent": {
-      "50": "#FFF7ED",
-      "100": "#FFEDD5",
-      "200": "#FED7AA",
-      "300": "#FDBA74",
-      "400": "#FB923C",
-      "500": "#F97316",
-      "600": "#EA580C",
-      "700": "#C2410C",
-      "800": "#9A3412",
-      "900": "#7C2D12",
-      "ink": "#0A0E1A"
+      "50": "#FFF2EE",
+      "100": "#FEE0D8",
+      "200": "#FBC1B2",
+      "300": "#F59E87",
+      "400": "#EE7A5C",
+      "500": "#FB4402",
+      "600": "#C93B12",
+      "700": "#A62B03",
+      "800": "#841F01",
+      "900": "#661802"
     },
     "status": {
-      "success": "#16A34A",
-      "warning": "#F59E0B",
-      "critical": "#DC2626",
-      "info": "#2563EB",
-      "successDeep": "#15803D",
-      "warningDeep": "#B45309",
-      "criticalDeep": "#B91C1C",
-      "infoDeep": "#1D4ED8",
-      "criticalBright": "#F87171"
+      "success": "#1B9E4B",
+      "warning": "#E8A317",
+      "critical": "#C1123F",
+      "info": "#6F99DC"
     },
     "theme": {
       "dark": {
-        "background": "#0A0E1A",
-        "surface": "#111827",
-        "elevated": "#1A2234",
-        "border": "#263349",
-        "textPrimary": "#F8FAFC",
-        "textSecondary": "#CBD5E1",
-        "textMuted": "#8A9BB5"
+        "background": "#040E20",
+        "surface": "#0A182E",
+        "elevated": "#13223B",
+        "border": "#21334F",
+        "textPrimary": "#F7F9FD",
+        "textSecondary": "#C6D0E2",
+        "textMuted": "#8C9CB8"
       },
       "light": {
-        "background": "#F8FAFC",
+        "background": "#F7F9FC",
         "surface": "#FFFFFF",
-        "elevated": "#E2E8F0",
-        "border": "#CBD5E1",
-        "textPrimary": "#0F172A",
-        "textSecondary": "#334155",
-        "textMuted": "#64748B"
+        "elevated": "#E3E8F0",
+        "border": "#C6CEDB",
+        "textPrimary": "#011C49",
+        "textSecondary": "#2B4267",
+        "textMuted": "#54647D"
       }
+    },
+    "statusStrong": {
+      "success": "#15803D",
+      "warning": "#8A5A00",
+      "critical": "#C1123F",
+      "info": "#2F5FA9"
+    },
+    "statusSoft": {
+      "success": "#57C983",
+      "warning": "#EFAF3D",
+      "critical": "#F26D84",
+      "info": "#7FA6E3"
     }
   },
   "typography": {
@@ -125,8 +131,8 @@ export const designTokens = {
     "sm": "0 1px 0 rgba(2, 6, 23, 0.4)",
     "md": "0 1px 0 rgba(2, 6, 23, 0.5)",
     "lg": "0 2px 0 rgba(2, 6, 23, 0.5)",
-    "glow": "0 0 16px rgba(37, 99, 235, 0.35)",
-    "glowCritical": "0 0 16px rgba(220, 38, 38, 0.35)"
+    "glow": "0 0 16px rgba(59, 105, 197, 0.35)",
+    "glowCritical": "0 0 16px rgba(204, 36, 54, 0.35)"
   },
   "zIndex": {
     "base": 0,
