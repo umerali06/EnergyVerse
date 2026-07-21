@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.api.v1.dashboard as dashboard_module
+from app.audit.service import AuditService
 from app.auth.dependencies import get_current_user
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.companies import CompanyRepository
@@ -15,6 +16,7 @@ from app.db.repositories.users import UserRepository
 from app.main import app
 from app.models.base import utc_now
 from app.models.entities import AuditLog, CurrentUser
+from app.rbac.dependencies import get_access_denial_audit
 from scripts.seed import ACME_COMPANY_ID, run_seed
 from tests.fakes.firestore import FakeAsyncClient
 
@@ -31,7 +33,14 @@ def fake_client(monkeypatch: pytest.MonkeyPatch) -> FakeAsyncClient:
     monkeypatch.setattr(
         dashboard_module, "AuditLogRepository", lambda: AuditLogRepository(client)
     )
-    return client
+    # require_permission's dependency graph always resolves
+    # get_access_denial_audit (even on the success path), which otherwise
+    # constructs a real Firestore-backed AuditService.
+    app.dependency_overrides[get_access_denial_audit] = lambda: AuditService(
+        AuditLogRepository(client)
+    )
+    yield client
+    app.dependency_overrides.pop(get_access_denial_audit, None)
 
 
 def _identity(
