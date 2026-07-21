@@ -114,6 +114,20 @@ class FakeApi implements ApiContract {
   @override
   Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
       _series(window: window);
+
+  @override
+  Future<UserListPage> getUsers({
+    String? search,
+    String? roleId,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<UserDetail> getUser(String userId) => throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {

@@ -62,6 +62,53 @@ class DashboardActivitySeries(BaseModel):
     points: list[DashboardSeriesPoint]
 
 
+class UserListItem(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    role_id: str
+    role_key: str
+    role_name: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserListPage(BaseModel):
+    items: list[UserListItem]
+    next_cursor: str | None = None
+
+
+class UserDetail(UserListItem):
+    permissions: list[str]
+
+
+class InviteUserRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=320)
+    display_name: str = Field(min_length=2, max_length=120)
+    role_id: str = Field(min_length=1)
+
+
+class UpdateUserRequest(BaseModel):
+    display_name: str | None = Field(default=None, min_length=2, max_length=120)
+    role_id: str | None = Field(default=None, min_length=1)
+
+
+class UpdateUserStatusRequest(BaseModel):
+    status: Literal["active", "inactive"]
+
+
+class RoleSummary(BaseModel):
+    id: str
+    key: str
+    name: str
+    is_system: bool
+
+
+class RoleList(BaseModel):
+    items: list[RoleSummary]
+
+
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
         201: "Resource created",

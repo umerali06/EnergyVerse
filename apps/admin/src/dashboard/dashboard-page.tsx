@@ -144,6 +144,14 @@ function QuickActionsCard() {
   const isDev = process.env.NODE_ENV === "development";
   const actions = [
     {
+      key: "users",
+      label: "Users",
+      description: "Invite, edit, and deactivate people in your company.",
+      route: "/users",
+      icon: navIcons.users,
+      visible: can("users.manage"),
+    },
+    {
       key: "assets-demo",
       label: "Assets demo",
       description: "See the assets.write permission gate in action.",

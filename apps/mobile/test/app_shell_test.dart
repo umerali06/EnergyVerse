@@ -107,6 +107,20 @@ class FakeApi implements ApiContract {
   @override
   Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) async =>
       dashboardSeriesFixture(windowDays: window);
+
+  @override
+  Future<UserListPage> getUsers({
+    String? search,
+    String? roleId,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<UserDetail> getUser(String userId) => throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {
@@ -174,6 +188,7 @@ void main() {
         '/safety',
         '/reports',
         '/documents',
+        '/users',
         '/settings',
       ]) {
         await tester.scrollUntilVisible(
@@ -199,6 +214,7 @@ void main() {
       await tester.tap(find.byKey(const Key('nav-more')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('more-/settings')), findsNothing);
+      expect(find.byKey(const Key('more-/users')), findsNothing);
       expect(find.byKey(const Key('more-/safety')), findsOneWidget);
     });
 

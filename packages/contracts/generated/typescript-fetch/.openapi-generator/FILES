@@ -6,7 +6,9 @@ package.json
 src/apis/AuthApi.ts
 src/apis/DashboardApi.ts
 src/apis/RbacDemoApi.ts
+src/apis/RolesApi.ts
 src/apis/SystemApi.ts
+src/apis/UsersApi.ts
 src/apis/index.ts
 src/index.ts
 src/models/CompanyRegistrationRequest.ts
@@ -20,7 +22,15 @@ src/models/DashboardSummary.ts
 src/models/DemoGateResponse.ts
 src/models/ErrorEnvelope.ts
 src/models/HealthResponse.ts
+src/models/InviteUserRequest.ts
+src/models/RoleList.ts
+src/models/RoleSummary.ts
 src/models/ServiceResponse.ts
+src/models/UpdateUserRequest.ts
+src/models/UpdateUserStatusRequest.ts
+src/models/UserDetail.ts
+src/models/UserListItem.ts
+src/models/UserListPage.ts
 src/models/index.ts
 src/runtime.ts
 tsconfig.esm.json

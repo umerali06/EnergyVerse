@@ -47,8 +47,13 @@ export type DashboardApiClient = Pick<
   "getDashboardActivity" | "getDashboardActivitySeries" | "getDashboardSummary"
 >;
 
+export type UsersApiClient = Pick<
+  FevApiClient,
+  "getUser" | "inviteUser" | "listRoles" | "listUsers" | "setUserStatus" | "updateUser"
+>;
+
 type AuthContextValue = {
-  apiClient: DashboardApiClient;
+  apiClient: DashboardApiClient & UsersApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -56,6 +61,10 @@ type AuthContextValue = {
   register: (input: RegistrationInput) => Promise<void>;
   resendVerification: () => Promise<boolean>;
   sendPasswordReset: (email: string) => Promise<boolean>;
+  /** Sends the same "set your password" reset email 1.3 sends, on behalf of
+   * a just-invited user (Phase 3.1) -- unlike sendPasswordReset, this never
+   * touches the acting admin's own auth status. */
+  sendUserInviteEmail: (email: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   status: AuthStatus;
@@ -115,7 +124,8 @@ export function AuthProvider({
   gateway,
 }: {
   apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin"> &
-    Partial<DashboardApiClient>;
+    Partial<DashboardApiClient> &
+    Partial<UsersApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -342,6 +352,19 @@ export function AuthProvider({
     [authGateway, status, toast],
   );
 
+  const sendUserInviteEmail = useCallback(
+    async (email: string) => {
+      try {
+        await authGateway.sendPasswordResetEmail(email);
+        return true;
+      } catch (failure) {
+        toast.error(friendlyPasswordResetMessage(failure));
+        return false;
+      }
+    },
+    [authGateway, toast],
+  );
+
   const signOutCurrentUser = useCallback(async () => {
     try {
       await authGateway.signOut();
@@ -355,9 +378,9 @@ export function AuthProvider({
   const value = useMemo<AuthContextValue>(
     () => ({
       // Narrowed from the constructor's test-seam type: a test that renders
-      // dashboard data without supplying these three methods gets an
+      // dashboard or users data without supplying these methods gets an
       // immediate, easy-to-diagnose TypeError rather than a silent gap.
-      apiClient: client as DashboardApiClient,
+      apiClient: client as DashboardApiClient & UsersApiClient,
       currentUser,
       error,
       passwordResetSentAt,
@@ -366,6 +389,7 @@ export function AuthProvider({
       register,
       resendVerification,
       sendPasswordReset,
+      sendUserInviteEmail,
       signIn,
       signOut: signOutCurrentUser,
       status,
@@ -381,6 +405,7 @@ export function AuthProvider({
       register,
       resendVerification,
       sendPasswordReset,
+      sendUserInviteEmail,
       signIn,
       signOutCurrentUser,
       status,

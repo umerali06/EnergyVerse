@@ -118,6 +118,7 @@ const allNavLabels = [
   "Safety",
   "Reports",
   "Documents",
+  "Users",
   "Admin & Settings",
 ];
 
@@ -277,11 +278,12 @@ function navLabels(): string[] {
 }
 
 describe("app shell", () => {
+  const adminOnlyLabels = new Set(["Users", "Admin & Settings"]);
   it.each([
     ["company_admin", allNavLabels],
-    ["operations_manager", allNavLabels.filter((label) => label !== "Admin & Settings")],
-    ["field_inspector", allNavLabels.filter((label) => label !== "Admin & Settings")],
-    ["executive", allNavLabels.filter((label) => label !== "Admin & Settings")],
+    ["operations_manager", allNavLabels.filter((label) => !adminOnlyLabels.has(label))],
+    ["field_inspector", allNavLabels.filter((label) => !adminOnlyLabels.has(label))],
+    ["executive", allNavLabels.filter((label) => !adminOnlyLabels.has(label))],
   ])("renders exactly the permitted nav items for %s", async (roleKey, expected) => {
     renderShell({ permissions: roleMatrix[roleKey], roleKey });
     await screen.findByRole("navigation", { name: "Primary" });

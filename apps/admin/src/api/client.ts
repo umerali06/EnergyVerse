@@ -5,7 +5,9 @@ import {
   FetchError,
   RbacDemoApi,
   ResponseError,
+  RolesApi,
   SystemApi,
+  UsersApi,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
   type CurrentUser,
@@ -14,6 +16,12 @@ import {
   type DashboardSummary,
   type DemoGateResponse,
   type HealthResponse,
+  type InviteUserRequest,
+  type RoleList,
+  type UpdateUserRequest,
+  type UpdateUserStatusRequest,
+  type UserDetail,
+  type UserListPage,
 } from "@fev/api-client";
 
 import type { ToastApi } from "@/design-system/toast";
@@ -65,11 +73,22 @@ function isEnvelope(value: unknown): value is WireErrorEnvelope {
 
 export type ActivityWindowDays = 7 | 30 | 90;
 
+export type ListUsersOptions = {
+  search?: string;
+  roleId?: string;
+  status?: string;
+  sort?: string;
+  cursor?: string;
+  limit?: number;
+};
+
 export class FevApiClient {
   private readonly auth: AuthApi;
   private readonly dashboard: DashboardApi;
   private readonly rbacDemo: RbacDemoApi;
+  private readonly roles: RolesApi;
   private readonly system: SystemApi;
+  private readonly users: UsersApi;
   private readonly onUnauthorized: UnauthorizedHook;
   private readonly refreshIdToken?: TokenProvider;
   private readonly toast?: ErrorToast;
@@ -84,7 +103,9 @@ export class FevApiClient {
     this.auth = new AuthApi(configuration);
     this.dashboard = new DashboardApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
+    this.roles = new RolesApi(configuration);
     this.system = new SystemApi(configuration);
+    this.users = new UsersApi(configuration);
     this.onUnauthorized = options.onUnauthorized ?? (() => undefined);
     this.refreshIdToken = options.refreshIdToken;
     this.toast = options.toast;
@@ -147,6 +168,64 @@ export class FevApiClient {
         signal ? { signal } : undefined,
       ),
     );
+  }
+
+  listUsers(options: ListUsersOptions = {}, signal?: AbortSignal): Promise<UserListPage> {
+    return this.execute(() =>
+      this.users.listUsers(
+        {
+          search: options.search,
+          roleId: options.roleId,
+          status: options.status,
+          sort: options.sort,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getUser(userId: string, signal?: AbortSignal): Promise<UserDetail> {
+    return this.execute(() =>
+      this.users.getUser({ userId }, signal ? { signal } : undefined),
+    );
+  }
+
+  inviteUser(request: InviteUserRequest, signal?: AbortSignal): Promise<UserDetail> {
+    return this.execute(() =>
+      this.users.inviteUser({ inviteUserRequest: request }, signal ? { signal } : undefined),
+    );
+  }
+
+  updateUser(
+    userId: string,
+    request: UpdateUserRequest,
+    signal?: AbortSignal,
+  ): Promise<UserDetail> {
+    return this.execute(() =>
+      this.users.updateUser(
+        { userId, updateUserRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  setUserStatus(
+    userId: string,
+    request: UpdateUserStatusRequest,
+    signal?: AbortSignal,
+  ): Promise<UserDetail> {
+    return this.execute(() =>
+      this.users.setUserStatus(
+        { userId, updateUserStatusRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  listRoles(signal?: AbortSignal): Promise<RoleList> {
+    return this.execute(() => this.roles.listRoles(signal ? { signal } : undefined));
   }
 
   private async execute<T>(request: () => Promise<T>): Promise<T> {

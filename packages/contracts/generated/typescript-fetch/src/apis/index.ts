@@ -3,4 +3,6 @@
 export * from './AuthApi';
 export * from './DashboardApi';
 export * from './RbacDemoApi';
+export * from './RolesApi';
 export * from './SystemApi';
+export * from './UsersApi';
