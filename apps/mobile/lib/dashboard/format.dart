@@ -56,6 +56,12 @@ String formatRelativeTime(DateTime then, {DateTime? now}) {
   return '${deltaSeconds}mo ago';
 }
 
+/// "route" + "/api/v1/x" -> "route/api/v1/x", not "route//api/v1/x" — some
+/// target ids (e.g. access.denied's route path) already carry a leading
+/// slash.
+String formatTarget(String targetType, String targetId) =>
+    targetId.startsWith('/') ? '$targetType$targetId' : '$targetType/$targetId';
+
 String formatChartDay(DateTime date) {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //

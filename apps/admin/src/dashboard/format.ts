@@ -53,6 +53,13 @@ export function formatChartDay(iso: string | Date): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** "route" + "/api/v1/x" -> "route/api/v1/x", not "route//api/v1/x" — some
+ * target ids (e.g. access.denied's route path) already carry a leading
+ * slash. */
+export function formatTarget(targetType: string, targetId: string): string {
+  return targetId.startsWith("/") ? `${targetType}${targetId}` : `${targetType}/${targetId}`;
+}
+
 export function formatCompanyDate(iso: string | Date): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
   return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });

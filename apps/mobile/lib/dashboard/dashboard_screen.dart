@@ -455,7 +455,7 @@ class _ActivityRow extends StatelessWidget {
                   ),
                   TextSpan(text: ' ${describeAction(item.action)} '),
                   TextSpan(
-                    text: '${item.targetType}/${item.targetId}',
+                    text: formatTarget(item.targetType, item.targetId),
                     style: TextStyle(
                       fontFamily: DsTypography.mono,
                       fontSize: DsTypography.sizeCaption,

@@ -25,7 +25,14 @@ import {
   type ActivityWindowDays,
 } from "./dashboard-data";
 import { actionIcons } from "./icons";
-import { actionIconKey, describeAction, formatChartDay, formatCompanyDate, formatRelativeTime } from "./format";
+import {
+  actionIconKey,
+  describeAction,
+  formatChartDay,
+  formatCompanyDate,
+  formatRelativeTime,
+  formatTarget,
+} from "./format";
 
 function greetingName(email: string): string {
   return email
@@ -248,7 +255,7 @@ function ActivityFeedItem({
       <p className="flex-1 text-bodySmall">
         <span className="font-semibold">{actorName ?? actorUid}</span> {describeAction(action)}{" "}
         <span className="font-mono text-caption text-text-muted">
-          {targetType}/{targetId}
+          {formatTarget(targetType, targetId)}
         </span>
       </p>
       <span className="shrink-0 font-mono text-caption text-text-muted">
