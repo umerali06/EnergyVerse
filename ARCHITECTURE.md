@@ -329,6 +329,65 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   this static region with a pluggable widget framework; the tile shape and
   gating rule established here is the contract it must preserve.
 
+### Phase 3.1 Company-Scoped User Management
+
+- **Data flow.** Five `users.manage`-gated FastAPI routes under
+  `/api/v1/users` (`GET` list, `GET /{id}`, `POST /invite`,
+  `PATCH /{id}`, `PATCH /{id}/status`) plus a sixth, read-only
+  `GET /api/v1/roles`, are the only server surface for this module. All
+  five mutation-adjacent routes share one service,
+  `app/users/service.py::UserManagementService`, which is the single
+  place the four safety rules below are enforced — the FastAPI route
+  handlers stay thin request/response wiring, matching the
+  `CompanyRegistrationService`/`UserProvisioningService` pattern from
+  0.5/1.2. List/search/filter/sort all happen in Python over
+  `UserRepository.list(scope)` (never a new Firestore query shape),
+  consistent with the "list the tenant, filter in memory" pattern every
+  existing repository already uses — this tenant's dataset is small
+  enough that this stays cheap, and it avoids adding new composite
+  indexes for a feature this size. Pagination reuses the 2.2 opaque
+  base64url cursor idiom, but encodes only the cursor row's document ID
+  (index-lookup into the already-sorted, already-filtered in-memory
+  list) rather than a sort-value tuple, since sort key type varies
+  (string for name, datetime for created_at).
+- **Invite delivery (D-021).** `POST /invite` calls the existing 0.5
+  `UserProvisioningService.provision_user` with `password=None` — Firebase
+  Auth assigns a random password the invitee never sees. The admin
+  client then calls the Firebase client SDK's `sendPasswordResetEmail`
+  (the same call 1.3's forgot-password flow already uses) so the
+  invitee receives a "set your password" email and can sign in the
+  moment they do. No transactional-email service was added; see D-021 in
+  DECISIONS.md for why this reuse is exact, not approximate.
+- **Safety rules** live entirely in `UserManagementService`, not the
+  route layer or the client: a user can never deactivate or demote
+  themselves out of an admin role; the last active `company_admin` in a
+  tenant can't be deactivated or demoted (even though every company also
+  has a seeded `super_admin` role document per 0.4's seven-role
+  template, this UI never offers it — `role.key == "super_admin"` is
+  rejected on both invite and role-change); a Company Admin can only
+  assign a role that already belongs to their own company (enforced
+  implicitly by `RoleRepository.get(scope, role_id)`'s tenant scoping);
+  and re-inviting an email already backing a Firebase Auth account
+  anywhere returns a clean 409 rather than a duplicate. See D-022.
+- **Role change and claims.** `PATCH /{id}` reuses the 1.4
+  `ClaimsService.sync_claims_from_role` after any `role_id` change, so
+  the new permission set takes effect on the user's next token refresh —
+  the same mechanism 1.4's session hardening already established, not a
+  new claims path.
+- **Admin UI** (`apps/admin/src/users/`) follows the 2.2 dashboard's
+  hook-plus-page shape: `users-data.ts` (`useUsersData`) owns list/roles
+  fetch state, filters, and the five mutation calls; `users-page.tsx`
+  composes the toolbar, `TableShell`-based table, and pagination;
+  `user-modals.tsx` holds the invite form and the detail/edit/status-
+  confirm modal. The route (`/users`) is gated by `RequirePermission`
+  the same way `/rbac-demo` already is, and the nav entry
+  (`nav-config.tsx`) is the first "Administration" item besides the
+  still-stubbed "Admin & Settings".
+- **Mobile (D-023)** ships list + detail only
+  (`apps/mobile/lib/users/`) — no invite/edit UI. The `/users` route and
+  bottom-nav "Users" destination are gated by `users.manage` exactly
+  like the admin web nav item.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
