@@ -9,6 +9,8 @@ from app.api.health import router as health_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
+from app.api.v1.roles import router as roles_router
+from app.api.v1.users import router as users_router
 from app.core.errors import (
     ApiError,
     api_error_response,
@@ -41,6 +43,9 @@ app = FastAPI(
         {"name": "system", "description": "Service status and diagnostics"},
         {"name": "auth", "description": "Authenticated identity"},
         {"name": "rbac-demo", "description": "Temporary RBAC contract proof routes"},
+        {"name": "dashboard", "description": "Real-tenant dashboard summary, activity, and series"},
+        {"name": "users", "description": "Company-scoped user management"},
+        {"name": "roles", "description": "Read-only company role catalog"},
     ],
 )
 app.add_exception_handler(ApiError, api_error_response)
@@ -59,6 +64,8 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(rbac_demo_router)
+app.include_router(users_router)
+app.include_router(roles_router)
 
 
 @app.get(

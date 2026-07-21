@@ -12,7 +12,9 @@ import 'package:fev_api_client/src/auth/oauth.dart';
 import 'package:fev_api_client/src/api/auth_api.dart';
 import 'package:fev_api_client/src/api/dashboard_api.dart';
 import 'package:fev_api_client/src/api/rbac_demo_api.dart';
+import 'package:fev_api_client/src/api/roles_api.dart';
 import 'package:fev_api_client/src/api/system_api.dart';
+import 'package:fev_api_client/src/api/users_api.dart';
 
 class FevApiClient {
   static const String basePath = r'http://localhost';
@@ -97,9 +99,21 @@ class FevApiClient {
     return RbacDemoApi(dio, serializers);
   }
 
+  /// Get RolesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  RolesApi getRolesApi() {
+    return RolesApi(dio, serializers);
+  }
+
   /// Get SystemApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   SystemApi getSystemApi() {
     return SystemApi(dio, serializers);
+  }
+
+  /// Get UsersApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  UsersApi getUsersApi() {
+    return UsersApi(dio, serializers);
   }
 }

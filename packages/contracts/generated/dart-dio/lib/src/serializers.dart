@@ -25,7 +25,15 @@ import 'package:fev_api_client/src/model/dashboard_summary.dart';
 import 'package:fev_api_client/src/model/demo_gate_response.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
 import 'package:fev_api_client/src/model/health_response.dart';
+import 'package:fev_api_client/src/model/invite_user_request.dart';
+import 'package:fev_api_client/src/model/role_list.dart';
+import 'package:fev_api_client/src/model/role_summary.dart';
 import 'package:fev_api_client/src/model/service_response.dart';
+import 'package:fev_api_client/src/model/update_user_request.dart';
+import 'package:fev_api_client/src/model/update_user_status_request.dart';
+import 'package:fev_api_client/src/model/user_detail.dart';
+import 'package:fev_api_client/src/model/user_list_item.dart';
+import 'package:fev_api_client/src/model/user_list_page.dart';
 
 part 'serializers.g.dart';
 
@@ -41,7 +49,15 @@ part 'serializers.g.dart';
   DemoGateResponse,
   ErrorEnvelope,
   HealthResponse,
+  InviteUserRequest,
+  RoleList,
+  RoleSummary,
   ServiceResponse,
+  UpdateUserRequest,
+  UpdateUserStatusRequest,
+  UserDetail,
+  UserListItem,
+  UserListPage,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..add(const OneOfSerializer())

@@ -72,8 +72,14 @@ Class | Method | HTTP request | Description
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAllPermissions**](doc/RbacDemoApi.md#rbacdemoallpermissions) | **GET** /api/v1/_rbac-demo/all | All Permissions
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAnyPermission**](doc/RbacDemoApi.md#rbacdemoanypermission) | **GET** /api/v1/_rbac-demo/any | Any Permission
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoSinglePermission**](doc/RbacDemoApi.md#rbacdemosinglepermission) | **GET** /api/v1/_rbac-demo/single | Single Permission
+[*RolesApi*](doc/RolesApi.md) | [**listRoles**](doc/RolesApi.md#listroles) | **GET** /api/v1/roles | List Roles
 [*SystemApi*](doc/SystemApi.md) | [**getHealth**](doc/SystemApi.md#gethealth) | **GET** /health | Health
 [*SystemApi*](doc/SystemApi.md) | [**getRoot**](doc/SystemApi.md#getroot) | **GET** / | Root
+[*UsersApi*](doc/UsersApi.md) | [**getUser**](doc/UsersApi.md#getuser) | **GET** /api/v1/users/{user_id} | Get User
+[*UsersApi*](doc/UsersApi.md) | [**inviteUser**](doc/UsersApi.md#inviteuser) | **POST** /api/v1/users/invite | Invite User
+[*UsersApi*](doc/UsersApi.md) | [**listUsers**](doc/UsersApi.md#listusers) | **GET** /api/v1/users | List Users
+[*UsersApi*](doc/UsersApi.md) | [**setUserStatus**](doc/UsersApi.md#setuserstatus) | **PATCH** /api/v1/users/{user_id}/status | Set User Status
+[*UsersApi*](doc/UsersApi.md) | [**updateUser**](doc/UsersApi.md#updateuser) | **PATCH** /api/v1/users/{user_id} | Update User
 
 
 ## Documentation For Models
@@ -89,7 +95,15 @@ Class | Method | HTTP request | Description
  - [DemoGateResponse](doc/DemoGateResponse.md)
  - [ErrorEnvelope](doc/ErrorEnvelope.md)
  - [HealthResponse](doc/HealthResponse.md)
+ - [InviteUserRequest](doc/InviteUserRequest.md)
+ - [RoleList](doc/RoleList.md)
+ - [RoleSummary](doc/RoleSummary.md)
  - [ServiceResponse](doc/ServiceResponse.md)
+ - [UpdateUserRequest](doc/UpdateUserRequest.md)
+ - [UpdateUserStatusRequest](doc/UpdateUserStatusRequest.md)
+ - [UserDetail](doc/UserDetail.md)
+ - [UserListItem](doc/UserListItem.md)
+ - [UserListPage](doc/UserListPage.md)
 
 
 ## Documentation For Authorization

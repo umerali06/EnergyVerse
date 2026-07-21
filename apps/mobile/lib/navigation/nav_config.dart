@@ -43,6 +43,7 @@ class AppNav {
   static const safety = '/safety';
   static const reports = '/reports';
   static const documents = '/documents';
+  static const users = '/users';
   static const settings = '/settings';
 
   static const destinations = <NavDestination>[
@@ -101,6 +102,12 @@ class AppNav {
       icon: Icons.folder_outlined,
       route: documents,
       comingSoon: true,
+    ),
+    NavDestination(
+      label: 'Users',
+      icon: Icons.people_outline,
+      route: users,
+      requiredPermission: 'users.manage',
     ),
     NavDestination(
       label: 'Admin & Settings',

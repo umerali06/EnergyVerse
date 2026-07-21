@@ -14,6 +14,12 @@ EXPECTED_OPERATIONS = {
     "rbac_demo_single_permission",
     "rbac_demo_all_permissions",
     "rbac_demo_any_permission",
+    "list_users",
+    "get_user",
+    "invite_user",
+    "update_user",
+    "set_user_status",
+    "list_roles",
 }
 
 

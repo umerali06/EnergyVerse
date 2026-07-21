@@ -22,9 +22,18 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(HealthResponseFirestoreEnum.serializer)
       ..add(HealthResponseServiceEnum.serializer)
       ..add(HealthResponseStatusEnum.serializer)
+      ..add(InviteUserRequest.serializer)
+      ..add(RoleList.serializer)
+      ..add(RoleSummary.serializer)
       ..add(ServiceResponse.serializer)
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
+      ..add(UpdateUserRequest.serializer)
+      ..add(UpdateUserStatusRequest.serializer)
+      ..add(UpdateUserStatusRequestStatusEnum.serializer)
+      ..add(UserDetail.serializer)
+      ..add(UserListItem.serializer)
+      ..add(UserListPage.serializer)
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(DashboardActivityItem)]),
@@ -33,6 +42,15 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(DashboardSeriesPoint)]),
           () => new ListBuilder<DashboardSeriesPoint>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(RoleSummary)]),
+          () => new ListBuilder<RoleSummary>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(UserListItem)]),
+          () => new ListBuilder<UserListItem>())
       ..addBuilderFactory(
           const FullType(BuiltMap, const [
             const FullType(String),

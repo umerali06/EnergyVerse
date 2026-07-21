@@ -60,6 +60,20 @@ class _UnusedApi implements ApiContract {
   @override
   Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
       throw UnimplementedError();
+
+  @override
+  Future<UserListPage> getUsers({
+    String? search,
+    String? roleId,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<UserDetail> getUser(String userId) => throw UnimplementedError();
 }
 
 void main() {

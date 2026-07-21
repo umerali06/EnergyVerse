@@ -30,8 +30,10 @@ Only one micro-task may be active at a time.
 | 2.1b | Design language elevation — industrial art-direction pass | Done |
 | 2.1c | Brand identity, SEO/metadata, dynamic theming enforcement, motion policy | Done |
 | 2.2 | Dashboard content — real-data dashboard + chart infrastructure | Done |
-| 2.3 | Pluggable KPI widget framework | **In progress** |
-| 3 | To be defined | Not started |
+| 2.3 | Pluggable KPI widget framework | Not started |
+| 3 | Administration — user, role/permission, company settings, audit, and Super-Admin cross-tenant management | In progress |
+| 3.1 | Company-scoped user management (Admin Portal) — invite, edit, deactivate/activate | Done |
+| 3.2 | Role and permission editing | **In progress** |
 | 4 | To be defined | Not started |
 | 5 | To be defined | Not started |
 | 6 | To be defined | Not started |

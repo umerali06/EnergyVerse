@@ -24,6 +24,9 @@
 | D-018 | SEO, theming enforcement, and motion/performance policy | **Public routes fully indexed with colocated declarative metadata, in-shell routes noindex with unique titles; raw hex/font-family outside the token layer fails CI in both clients; Framer Motion only (GSAP route-dynamic if ever needed), transform+opacity, token durations; 430 KB bundle budget and Lighthouse baselines recorded** | **RESOLVED — LOCKED** | 2026-07-19 |
 | D-019 | Dashboard read-cost and no-invented-data policy | **Every dashboard number/chart/feed row comes from real companies/users/roles/audit_logs — no placeholder counts or sample charts, ever; audit aggregation is bounded to one composite-indexed query per request (company_id ==, created_at >=, ≤90-day window, 5000-doc in-memory cap); unbuilt-module KPIs render a fixed honest empty-state tile, gated by that module's own future permission** | **RESOLVED — LOCKED** | 2026-07-21 |
 | D-020 | Reusable chart infrastructure | **One themed chart wrapper per client (Recharts on admin, fl_chart on mobile) is the only way any screen renders a chart — token colors only, shared loading/error/empty/ready states, reduced-motion-capped entry animation; future modules extend it rather than hand-rolling chart theming** | **RESOLVED — LOCKED** | 2026-07-21 |
+| D-021 | Invite delivery mechanism | **Invited users never receive a backend-generated password; `provision_user` creates the Firebase Auth account with `password=None` and the admin client sends the same `sendPasswordResetEmail` the 1.3 forgot-password flow already uses — no transactional-email service is built for this** | **RESOLVED — LOCKED** | 2026-07-21 |
+| D-022 | Last-admin and self-action protection | **A user can never deactivate or demote themselves out of an admin role; the last active `company_admin` in a tenant can't be deactivated or demoted by anyone; Super Admin is never an assignable role from the user-management UI even though every tenant has a seeded `super_admin` role document** | **RESOLVED — LOCKED** | 2026-07-21 |
+| D-023 | Mobile read-only user management scope | **Mobile ships list + detail only for Phase 3.1; invite, edit, and status changes are admin-web-only — a deliberate scope choice, not an omission, since field users rarely administer accounts from a phone** | **RESOLVED — LOCKED** | 2026-07-21 |
 
 ## Decision Details
 
@@ -422,6 +425,66 @@
 - **Consequences:** A brand or motion-token change repaints every chart
   automatically; a future module adds a chart by supplying data to an
   existing wrapper, not by importing a charting library directly.
+
+### D-021 — Invite Delivery Mechanism (Phase 3.1)
+
+- **Decision owner:** Product owner
+- **Decision:** Inviting a user never routes a password through the
+  backend. `POST /api/v1/users/invite` calls the existing
+  `UserProvisioningService.provision_user` with `password=None`, so
+  Firebase Auth assigns a random password the invitee never sees and
+  never needs to. The admin client then calls the Firebase client SDK's
+  `sendPasswordResetEmail(invitedEmail)` — the exact same call the 1.3
+  forgot-password screen already makes — which sends Firebase's own
+  "set your password" email. The invited user clicks the link, sets a
+  password through Firebase's hosted flow, and can sign in immediately
+  with whatever role was assigned. No transactional-email service,
+  template, or queue was built for this phase; that infrastructure is
+  reserved for the dedicated Notifications phase.
+- **Consequences:** Every future "add a person to the system" flow
+  (invite, re-invite, bulk import) should reuse this exact
+  provision-with-no-password-then-send-reset-email sequence rather than
+  inventing a new delivery path; a real transactional-email system, when
+  built, should absorb this call site rather than bypass it.
+
+### D-022 — Last-Admin and Self-Action Protection (Phase 3.1)
+
+- **Decision owner:** Product owner
+- **Decision:** `UserManagementService` enforces four safety rules
+  server-side, never only in the UI: (1) a user can never deactivate or
+  demote themselves out of an admin role (`company_admin`/`super_admin`);
+  (2) the last active `company_admin` in a tenant can't be deactivated or
+  demoted by anyone, including a `super_admin` acting on their behalf —
+  the check counts active `company_admin` holders before allowing either
+  action; (3) `role.key == "super_admin"` is rejected on both invite and
+  role-change even though every tenant's seven seeded system roles
+  (0.4/0.6) include a `super_admin` role document — tenant scoping alone
+  would otherwise let a Company Admin grant it; (4) re-inviting an email
+  that already backs a Firebase Auth account (in this tenant or any
+  other, since Firebase Auth email uniqueness is global) returns a clean
+  409 rather than a duplicate or a confusing 500.
+- **Consequences:** Any future endpoint that can change a user's role or
+  status must reuse these same checks (via `UserManagementService`, not
+  reimplement them) — a tenant can never be left with zero active admins,
+  and no UI path can hand out platform-level access.
+
+### D-023 — Mobile Read-Only User Management Scope (Phase 3.1)
+
+- **Decision owner:** Product owner
+- **Decision:** The Flutter app ships `users_screen.dart` as list +
+  detail only — no invite form, no edit, no status toggle. This mirrors
+  the read-only-by-design precedent already set for other admin-heavy
+  surfaces and reflects that inviting/editing teammates is an
+  occasional desk task, not a field task. The same `users.manage`
+  permission gates the route and bottom-nav destination on both
+  clients, so a role that can't manage users on web can't see the
+  screen on mobile either — this is a client capability choice, not a
+  server permission difference.
+- **Consequences:** If a future need for mobile invite/edit emerges
+  (e.g. a site supervisor onboarding a new hire on-site), it should be
+  scoped as its own explicit phase rather than silently added; today,
+  Phase 3.1 is done when mobile shows the same real people and roles
+  admin web does, without the mutation surface.
 
 ## Locked Principles
 

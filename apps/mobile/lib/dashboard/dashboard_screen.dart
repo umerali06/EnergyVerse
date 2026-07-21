@@ -489,6 +489,13 @@ class _QuickActionsCard extends StatelessWidget {
     final permissions = PermissionProvider.of(context);
     final actions = <(String, String, String, IconData, bool)>[
       (
+        'Users',
+        'Invite, edit, and deactivate people in your company.',
+        AppRoutes.users,
+        Icons.people_outline,
+        permissions.can('users.manage'),
+      ),
+      (
         'Assets demo',
         'See the assets.write permission gate in action.',
         AppRoutes.rbacDemo,

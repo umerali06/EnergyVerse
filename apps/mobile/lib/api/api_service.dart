@@ -62,6 +62,15 @@ abstract interface class ApiContract {
     String? action,
   });
   Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30});
+  Future<UserListPage> getUsers({
+    String? search,
+    String? roleId,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  });
+  Future<UserDetail> getUser(String userId);
 }
 
 class ApiService implements ApiContract {
@@ -268,6 +277,54 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty activity series',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<UserListPage> getUsers({
+    String? search,
+    String? roleId,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getUsersApi().listUsers(
+            search: search,
+            roleId: roleId,
+            status: status,
+            sort: sort,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty user list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<UserDetail> getUser(String userId) async {
+    try {
+      final response = await _client.getUsersApi().getUser(userId: userId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty user detail',
         );
       }
       return value;

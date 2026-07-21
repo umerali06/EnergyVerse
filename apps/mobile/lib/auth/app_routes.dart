@@ -4,6 +4,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
 import '../navigation/nav_config.dart';
 import '../shell/app_shell.dart';
+import '../users/users_screen.dart';
 import 'auth_experience.dart';
 import 'permissions.dart';
 import 'route_guards.dart';
@@ -20,6 +21,7 @@ class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const verifyEmail = '/verify-email';
   static const rbacDemo = '/rbac-demo';
+  static const users = AppNav.users;
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -56,6 +58,18 @@ class AppRoutes {
                   permission: 'assets.write',
                   fallback: NoAccessScreen(permission: 'assets.write'),
                   child: RbacDemoScreen(),
+                ),
+              ),
+            );
+      case users:
+        return (_) => const RequireAuthGuard(
+              routeName: users,
+              child: AppShellScaffold(
+                currentRoute: users,
+                child: PermissionGate(
+                  permission: 'users.manage',
+                  fallback: NoAccessScreen(permission: 'users.manage'),
+                  child: UsersScreen(),
                 ),
               ),
             );
