@@ -22,6 +22,8 @@
 | D-016 | Design language direction | **Industrial instrumentation identity: Space Grotesk / IBM Plex Sans / IBM Plex Mono (machine values), layered dark surfaces with luminous 1px borders instead of drop shadows, rare orange accent, enterprise density, 120–240ms motion on cubic-bezier(0.16, 1, 0.3, 1) — all via tokens.json only** | **RESOLVED — LOCKED** | 2026-07-19 |
 | D-017 | Brand palette and logo assets | **All brand color derives from the official logo — sampled orange #FB4402 and navy #002865 as OKLCH 50–900 scales; navy-hue dark surfaces; theme-specific action lightness; crimson #C1123F critical distinct from brand orange; statusStrong/statusSoft per-theme text sets; logo variants derived mechanically from the supplied master, consumed only through theme-aware Logo components** | **RESOLVED — LOCKED** | 2026-07-19 |
 | D-018 | SEO, theming enforcement, and motion/performance policy | **Public routes fully indexed with colocated declarative metadata, in-shell routes noindex with unique titles; raw hex/font-family outside the token layer fails CI in both clients; Framer Motion only (GSAP route-dynamic if ever needed), transform+opacity, token durations; 430 KB bundle budget and Lighthouse baselines recorded** | **RESOLVED — LOCKED** | 2026-07-19 |
+| D-019 | Dashboard read-cost and no-invented-data policy | **Every dashboard number/chart/feed row comes from real companies/users/roles/audit_logs — no placeholder counts or sample charts, ever; audit aggregation is bounded to one composite-indexed query per request (company_id ==, created_at >=, ≤90-day window, 5000-doc in-memory cap); unbuilt-module KPIs render a fixed honest empty-state tile, gated by that module's own future permission** | **RESOLVED — LOCKED** | 2026-07-21 |
+| D-020 | Reusable chart infrastructure | **One themed chart wrapper per client (Recharts on admin, fl_chart on mobile) is the only way any screen renders a chart — token colors only, shared loading/error/empty/ready states, reduced-motion-capped entry animation; future modules extend it rather than hand-rolling chart theming** | **RESOLVED — LOCKED** | 2026-07-21 |
 
 ## Decision Details
 
@@ -372,6 +374,54 @@
   ~25% headroom); raising the budget requires a documented decision.
   Lighthouse login baselines (locally throttled): Performance 56,
   Accessibility 100, Best Practices 100, SEO 100.
+
+### D-019 — Dashboard Read-Cost and No-Invented-Data Policy (Phase 2.2)
+
+- **Decision owner:** Product owner
+- **No-invented-data rule:** As of this phase, real data exists only for
+  `companies`, `users`, `roles`, `permissions`, `role_permissions`, and
+  `audit_logs` — assets, work orders, permits, and incidents don't exist
+  yet (Phases 4/10/11). The dashboard may only ever render real values
+  from those collections; anywhere a future module's KPI would go, the UI
+  shows the reserved-KPI empty-state tile (see ARCHITECTURE, Phase 2.2)
+  instead of a placeholder number or sample chart. This rule binds every
+  future addition to the dashboard, not just this phase's scope.
+- **Read-cost policy:** `AuditLogRepository.list_since` is the single entry
+  point for audit aggregation across summary, activity, and
+  activity-series. Every call is one Firestore query scoped to
+  `company_id ==` and `created_at >=` the window start, with the window
+  capped at 90 days and results hard-capped at 5000 documents in memory as
+  a backstop against unbounded tenants. This compound query requires a
+  Firestore composite index; it's committed as IaC
+  (`infra/firebase/firestore.indexes.json`, referenced from
+  `firebase.json`) rather than created ad hoc per environment, exactly the
+  gap that surfaced during this phase's real-creds evidence-gathering (the
+  local service account also lacks index-admin IAM, so the index needs one
+  `firebase deploy --only firestore:indexes` — or the console's
+  auto-create link — before real-Firestore runs work end-to-end).
+- **Consequences:** Every future module that adds dashboard content must
+  reuse `list_since`-style bounded queries rather than unbounded
+  collection scans, and must extend the reserved-KPI pattern (permission
+  gate + honest empty copy) until it has real data to show.
+
+### D-020 — Reusable Chart Infrastructure (Phase 2.2)
+
+- **Decision owner:** Product owner
+- **Decision:** Charts are never hand-rolled per screen. Admin's
+  `src/design-system/chart.tsx` (Recharts) and mobile's
+  `lib/design_system/chart.dart` (fl_chart) are the only sanctioned way to
+  render a chart in either client, matching the 2.1c theming-enforcement
+  policy: colors resolve live from design tokens (CSS custom properties on
+  admin, `DsColors` on mobile), never a literal hex at the call site.
+  Both wrappers share one contract across loading/error/empty/ready states
+  and cap entry animation at the 2.1c motion-token durations, skipped
+  entirely under `prefers-reduced-motion` — an entry animation is exactly
+  the kind of decorative motion the phase 2.1c ADR asks charts to avoid.
+  Admin additionally ships bar and donut variants against the same
+  contract for modules that need them.
+- **Consequences:** A brand or motion-token change repaints every chart
+  automatically; a future module adds a chart by supplying data to an
+  existing wrapper, not by importing a charting library directly.
 
 ## Locked Principles
 
