@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -23,6 +24,42 @@ class ServiceResponse(BaseModel):
 
 class DemoGateResponse(BaseModel):
     ok: Literal[True]
+
+
+class DashboardSummary(BaseModel):
+    company_name: str
+    subscription_tier: str
+    company_created_at: datetime
+    users_total: int
+    users_active: int
+    roles_total: int
+    audit_events: int
+    window_days: int
+
+
+class DashboardActivityItem(BaseModel):
+    id: str
+    actor_uid: str
+    actor_name: str | None = None
+    action: str
+    target_type: str
+    target_id: str
+    created_at: datetime
+
+
+class DashboardActivityPage(BaseModel):
+    items: list[DashboardActivityItem]
+    next_cursor: str | None = None
+
+
+class DashboardSeriesPoint(BaseModel):
+    date: date
+    count: int
+
+
+class DashboardActivitySeries(BaseModel):
+    window_days: int
+    points: list[DashboardSeriesPoint]
 
 
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:

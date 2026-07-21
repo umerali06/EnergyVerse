@@ -55,6 +55,13 @@ abstract interface class ApiContract {
     required String email,
     required String password,
   });
+  Future<DashboardSummary> getDashboardSummary({int window = 30});
+  Future<DashboardActivityPage> getDashboardActivity({
+    int limit = 20,
+    String? cursor,
+    String? action,
+  });
+  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30});
 }
 
 class ApiService implements ApiContract {
@@ -201,6 +208,66 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty registration response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) async {
+    try {
+      final response = await _client.getDashboardApi().getDashboardSummary(window: window);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty dashboard summary',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DashboardActivityPage> getDashboardActivity({
+    int limit = 20,
+    String? cursor,
+    String? action,
+  }) async {
+    try {
+      final response = await _client.getDashboardApi().getDashboardActivity(
+            limit: limit,
+            cursor: cursor,
+            action: action,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty activity page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) async {
+    try {
+      final response =
+          await _client.getDashboardApi().getDashboardActivitySeries(window: window);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty activity series',
         );
       }
       return value;

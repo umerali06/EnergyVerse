@@ -4,6 +4,9 @@ from pathlib import Path
 from scripts.export_openapi import export_openapi
 
 EXPECTED_OPERATIONS = {
+    "get_dashboard_summary",
+    "get_dashboard_activity",
+    "get_dashboard_activity_series",
     "get_root",
     "get_health",
     "get_current_user",

@@ -280,6 +280,55 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   the 1.4 branded 403 renders in the shell content area, so no protected
   navigation ever dead-ends outside the frame.
 
+### Phase 2.2 Dashboard and Chart Infrastructure
+
+- **Data flow.** Three read-only, `reports.read`-gated FastAPI routes under
+  `/api/v1/dashboard` are the dashboard's only data source:
+  `GET /summary` (real user/role/audit counts for a 7/30/90-day window plus
+  company profile), `GET /activity` (cursor-paginated, actor-enriched audit
+  events, optional action-type filter), and `GET /activity-series`
+  (zero-filled per-day event counts for the same window, for charting).
+  Every field traces to the Phase 0.4 `companies`/`users`/`roles`/
+  `audit_logs` collections — the phase's hard rule is that nothing here may
+  render a fabricated number; where a future module has no data yet, the
+  UI shows an explicit empty state instead (see Reserved-KPI contract
+  below). `reports.read` is held by every system role in the 0.4 matrix, so
+  the dashboard route itself carries no `requiredPermission` in the nav
+  config; individual stat cards are gated client-side by finer permissions
+  (`users.manage`, `roles.manage`).
+- **Read-cost policy (D-019).** `AuditLogRepository.list_since` is the only
+  query path into `audit_logs` for aggregation: one Firestore query
+  filtered by `company_id` and `created_at >=` the window start (max 90
+  days), hard-capped at 5000 documents in memory as a backstop. This
+  compound equality+range query requires a Firestore composite index,
+  provisioned as IaC at `infra/firebase/firestore.indexes.json` (apply via
+  `firebase deploy --only firestore:indexes`) rather than left to ad hoc
+  console creation.
+- **Chart infrastructure** is this phase's reusable surface for every future
+  module: `apps/admin/src/design-system/chart.tsx` (Recharts) and
+  `apps/mobile/lib/design_system/chart.dart` (fl_chart) both expose a
+  `TimeSeriesChart` (plus bar/donut variants on admin) that resolves colors
+  live from design tokens (CSS custom properties on admin, `DsColors` on
+  mobile) — never a literal hex at a call site — and share one
+  loading/error/empty/ready state contract. Entry animation is capped at
+  the 2.1c motion-token durations and skipped entirely under
+  `prefers-reduced-motion`.
+- **Dashboard composition** replaces the Phase 1.1 placeholder Home on both
+  clients: a greeting/role/company header, permission-gated stat cards, the
+  activity chart with a 7/30/90 window switcher, a paginated human-readable
+  activity feed, permission-filtered quick actions, and the reserved-KPI
+  region below. `AuthProvider`/`AuthController` now expose the single
+  already-wired API client instance (token injection, 401 retry, unified
+  envelope feedback all in one place per the 1.4 session hardening) so
+  dashboard data-fetching is just another consumer of it, not a new client.
+- **Reserved-KPI contract (the visual contract 2.3 makes pluggable).** Each
+  not-yet-built module (Assets, Work Orders, Permits, Safety) gets one tile
+  gated by that module's own future `requiredPermission`, rendering a fixed
+  honest copy ("`<Module>` metrics appear once the `<Module>` module is
+  enabled.") — never a placeholder number or fake chart. Phase 2.3 replaces
+  this static region with a pluggable widget framework; the tile shape and
+  gating rule established here is the contract it must preserve.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue

@@ -63,6 +63,12 @@ class AuthController extends ChangeNotifier {
 
   AuthStatus get status => _status;
   CurrentUser? get currentUser => _currentUser;
+
+  /// The single ApiContract instance the app constructed (token injection,
+  /// 401 retry, and error-feedback interceptor all live on it already) —
+  /// dashboard and future modules read through here rather than each owning
+  /// a separate client.
+  ApiContract get api => _api;
   String? get error => _error;
   DateTime? get verificationSentAt => _verificationSentAt;
   DateTime? get passwordResetSentAt => _passwordResetSentAt;

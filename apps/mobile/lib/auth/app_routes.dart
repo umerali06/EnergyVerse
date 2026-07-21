@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
 import '../navigation/nav_config.dart';
 import '../shell/app_shell.dart';
@@ -43,7 +44,7 @@ class AppRoutes {
               routeName: home,
               child: AppShellScaffold(
                 currentRoute: home,
-                child: AuthenticatedHome(),
+                child: DashboardScreen(),
               ),
             );
       case rbacDemo:

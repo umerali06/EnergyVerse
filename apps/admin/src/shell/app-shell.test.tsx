@@ -4,10 +4,10 @@ import { useSyncExternalStore } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AuthProvider } from "@/auth/auth-context";
-import { AuthenticatedHome } from "@/auth/auth-experience";
 import type { AuthGateway, AuthSession } from "@/auth/firebase-gateway";
 import { RequireAuth } from "@/auth/route-guards";
 import { ThemeProvider, ToastProvider } from "@/design-system";
+import { DashboardPage } from "@/dashboard/dashboard-page";
 
 import { AppShell, ComingSoonScreen, NotFoundScreen, sidebarPreferenceKey } from "./app-shell";
 
@@ -192,7 +192,7 @@ function ShellHarness({ reducedMotionOverride }: { reducedMotionOverride?: boole
   const path = useSyncExternalStore(routerControl.subscribe, () => routerControl.current.path);
   let page: React.ReactNode;
   if (path === "/") {
-    page = <AuthenticatedHome reducedMotionOverride={reducedMotionOverride} />;
+    page = <DashboardPage reducedMotionOverride={reducedMotionOverride} />;
   } else if (comingSoonRoutes[path]) {
     page = <ComingSoonScreen moduleName={comingSoonRoutes[path]} />;
   } else if (path === "/login") {
@@ -236,6 +236,26 @@ function renderShell({
   const apiClient = {
     getCurrentUser: vi.fn(async () => identity),
     registerCompanyAdmin: vi.fn(),
+    // Real-shaped fixtures so DashboardPage (mounted at "/" by every test
+    // that doesn't override initialPath) resolves to a stable ready state.
+    getDashboardSummary: vi.fn(async () => ({
+      companyName: "Acme Energy",
+      subscriptionTier: "standard",
+      companyCreatedAt: new Date("2026-01-01T00:00:00Z"),
+      usersTotal: 7,
+      usersActive: 7,
+      rolesTotal: 7,
+      auditEvents: 3,
+      windowDays: 30,
+    })),
+    getDashboardActivity: vi.fn(async () => ({ items: [], nextCursor: null })),
+    getDashboardActivitySeries: vi.fn(async () => ({
+      windowDays: 30,
+      points: Array.from({ length: 30 }, (_, index) => ({
+        date: new Date(Date.now() - (29 - index) * 86_400_000),
+        count: 0,
+      })),
+    })),
   };
   const view = render(
     <ThemeProvider>

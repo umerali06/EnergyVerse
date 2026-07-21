@@ -10,6 +10,11 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
       ..add(CurrentUser.serializer)
+      ..add(DashboardActivityItem.serializer)
+      ..add(DashboardActivityPage.serializer)
+      ..add(DashboardActivitySeries.serializer)
+      ..add(DashboardSeriesPoint.serializer)
+      ..add(DashboardSummary.serializer)
       ..add(DemoGateResponse.serializer)
       ..add(DemoGateResponseOkEnum.serializer)
       ..add(ErrorEnvelope.serializer)
@@ -20,6 +25,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ServiceResponse.serializer)
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(DashboardActivityItem)]),
+          () => new ListBuilder<DashboardActivityItem>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(DashboardSeriesPoint)]),
+          () => new ListBuilder<DashboardSeriesPoint>())
       ..addBuilderFactory(
           const FullType(BuiltMap, const [
             const FullType(String),

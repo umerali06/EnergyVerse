@@ -250,4 +250,59 @@ void main() {
     expect(adapter.lastRequest?.data,
         containsPair('company_name', 'Northstar Energy'));
   });
+
+  test('returns typed dashboard summary with the window forwarded', () async {
+    final adapter = _StubAdapter(
+      (options) async {
+        expect(options.queryParameters['window'], 7);
+        return _jsonBody({
+          'company_name': 'Acme Energy',
+          'subscription_tier': 'standard',
+          'company_created_at': '2026-01-01T00:00:00Z',
+          'users_total': 7,
+          'users_active': 6,
+          'roles_total': 7,
+          'audit_events': 4,
+          'window_days': 7,
+        }, 200);
+      },
+    );
+    final dio = Dio()..httpClientAdapter = adapter;
+    final api = ApiService(baseUrl: 'http://api.test', dio: dio);
+
+    final summary = await api.getDashboardSummary(window: 7);
+
+    expect(summary.usersTotal, 7);
+    expect(summary.windowDays, 7);
+  });
+
+  test(
+    'maps a dashboard endpoint failure through the unified envelope and feedback — same seam every method shares',
+    () async {
+      final feedback = _Feedback();
+      final adapter = _StubAdapter(
+        (_) async => _jsonBody({
+          'error': 'internal_error',
+          'message': 'Something went wrong generating the summary',
+          'request_id': '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+        }, 500),
+      );
+      final dio = Dio()..httpClientAdapter = adapter;
+      final api = ApiService(
+        baseUrl: 'http://api.test',
+        dio: dio,
+        feedback: feedback,
+      );
+
+      await expectLater(
+        api.getDashboardSummary(),
+        throwsA(
+          isA<ApiException>()
+              .having((error) => error.code, 'code', 'internal_error')
+              .having((error) => error.statusCode, 'statusCode', 500),
+        ),
+      );
+      expect(feedback.errors, ['Something went wrong generating the summary']);
+    },
+  );
 }

@@ -5,11 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "@/api";
 import { ThemeProvider, ToastProvider } from "@/design-system";
+import { DashboardPage } from "@/dashboard/dashboard-page";
 import { AppShell } from "@/shell/app-shell";
 
 import { AuthProvider } from "./auth-context";
 import {
-  AuthenticatedHome,
   ForgotPasswordScreen,
   LoginScreen,
   RbacDemoScreen,
@@ -187,11 +187,38 @@ function AppRouterHarness({ reducedMotionOverride }: { reducedMotionOverride?: b
       return (
         <RequireAuth>
           <AppShell reducedMotionOverride={reducedMotionOverride}>
-            <AuthenticatedHome reducedMotionOverride={reducedMotionOverride} />
+            <DashboardPage reducedMotionOverride={reducedMotionOverride} />
           </AppShell>
         </RequireAuth>
       );
   }
+}
+
+/** Minimal real-shaped fixtures for the three dashboard endpoints so any
+ * test that reaches "/" (the Dashboard) resolves to a stable ready state
+ * without asserting on dashboard content itself — that's covered by
+ * dashboard-page.test.tsx. */
+function defaultDashboardApi() {
+  return {
+    getDashboardSummary: vi.fn(async () => ({
+      companyName: "Acme Energy",
+      subscriptionTier: "standard",
+      companyCreatedAt: new Date("2026-01-01T00:00:00Z"),
+      usersTotal: 7,
+      usersActive: 7,
+      rolesTotal: 7,
+      auditEvents: 3,
+      windowDays: 30,
+    })),
+    getDashboardActivity: vi.fn(async () => ({ items: [], nextCursor: null })),
+    getDashboardActivitySeries: vi.fn(async () => ({
+      windowDays: 30,
+      points: Array.from({ length: 30 }, (_, index) => ({
+        date: new Date(Date.now() - (29 - index) * 86_400_000),
+        count: 0,
+      })),
+    })),
+  };
 }
 
 function renderAuth({
@@ -220,7 +247,10 @@ function renderAuth({
   const view = render(
     <ThemeProvider>
       <ToastProvider>
-        <AuthProvider apiClient={{ getCurrentUser, registerCompanyAdmin }} gateway={gateway}>
+        <AuthProvider
+          apiClient={{ getCurrentUser, registerCompanyAdmin, ...defaultDashboardApi() }}
+          gateway={gateway}
+        >
           <AppRouterHarness reducedMotionOverride={reducedMotionOverride} />
         </AuthProvider>
       </ToastProvider>
@@ -272,7 +302,7 @@ describe("admin login experience", () => {
     expect(screen.getByRole("button", { name: /Login, loading/ })).toBeDisabled();
     release(session);
     expect(await screen.findByText("field_inspector")).toBeInTheDocument();
-    expect(screen.getByText("inspections.write")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Welcome, Field Inspector/ })).toBeInTheDocument();
     expect(routerControl.current.path).toBe("/");
   });
 

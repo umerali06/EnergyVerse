@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
 from app.core.errors import (
     ApiError,
@@ -56,6 +57,7 @@ app.add_middleware(
 app.add_middleware(RequestIdMiddleware)
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(dashboard_router)
 app.include_router(rbac_demo_router)
 
 

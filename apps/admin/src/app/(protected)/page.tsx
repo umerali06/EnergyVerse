@@ -4,8 +4,8 @@ import { protectedPage } from "@/seo/site";
 
 export const metadata: Metadata = protectedPage("Dashboard");
 
-import { AuthenticatedHome } from "@/auth/auth-experience";
+import { DashboardPage } from "@/dashboard/dashboard-page";
 
 export default function HomePage() {
-  return <AuthenticatedHome />;
+  return <DashboardPage />;
 }

@@ -11,12 +11,18 @@ export 'package:fev_api_client/src/serializers.dart';
 export 'package:fev_api_client/src/model/date.dart';
 
 export 'package:fev_api_client/src/api/auth_api.dart';
+export 'package:fev_api_client/src/api/dashboard_api.dart';
 export 'package:fev_api_client/src/api/rbac_demo_api.dart';
 export 'package:fev_api_client/src/api/system_api.dart';
 
 export 'package:fev_api_client/src/model/company_registration_request.dart';
 export 'package:fev_api_client/src/model/company_registration_response.dart';
 export 'package:fev_api_client/src/model/current_user.dart';
+export 'package:fev_api_client/src/model/dashboard_activity_item.dart';
+export 'package:fev_api_client/src/model/dashboard_activity_page.dart';
+export 'package:fev_api_client/src/model/dashboard_activity_series.dart';
+export 'package:fev_api_client/src/model/dashboard_series_point.dart';
+export 'package:fev_api_client/src/model/dashboard_summary.dart';
 export 'package:fev_api_client/src/model/demo_gate_response.dart';
 export 'package:fev_api_client/src/model/error_envelope.dart';
 export 'package:fev_api_client/src/model/health_response.dart';
