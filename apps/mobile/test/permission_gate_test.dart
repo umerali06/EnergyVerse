@@ -36,6 +36,22 @@ class _IdentityApi implements ApiContract {
     required String password,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<DashboardActivityPage> getDashboardActivity({
+    int limit = 20,
+    String? cursor,
+    String? action,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
+      throw UnimplementedError();
 }
 
 void main() {

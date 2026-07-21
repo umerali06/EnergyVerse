@@ -6,6 +6,8 @@ import 'package:fev_mobile/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/dashboard_fixtures.dart';
+
 const session = AuthSession(
   uid: 'firebase-uid',
   email: 'field_inspector@acme.example.invalid',
@@ -89,6 +91,22 @@ class FakeApi implements ApiContract {
     required String password,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) async =>
+      dashboardSummaryFixture(windowDays: window);
+
+  @override
+  Future<DashboardActivityPage> getDashboardActivity({
+    int limit = 20,
+    String? cursor,
+    String? action,
+  }) async =>
+      emptyDashboardActivityPage();
+
+  @override
+  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) async =>
+      dashboardSeriesFixture(windowDays: window);
 }
 
 class FakeGateway implements AuthGateway {
@@ -242,7 +260,7 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
     await tester.tap(find.text('Back to Home'));
     await tester.pumpAndSettle();
-    expect(find.text('Role: field_inspector'), findsOneWidget);
+    expect(find.textContaining('Welcome,'), findsOneWidget);
   });
 
   testWidgets('user menu shows identity and role/company details', (
@@ -252,9 +270,9 @@ void main() {
     await tester.tap(find.byKey(const Key('user-menu')));
     await tester.pumpAndSettle();
     expect(find.text('Field Inspector'), findsOneWidget);
-    // The email also appears in the dashboard content behind the menu.
+    // The email/company also appear in the dashboard content behind the menu.
     expect(find.text('field_inspector@acme.example.invalid'), findsWidgets);
-    expect(find.text('Acme Energy'), findsOneWidget);
+    expect(find.text('Acme Energy'), findsWidgets);
     expect(find.text('Refresh session'), findsOneWidget);
     expect(find.text('Sign out'), findsOneWidget);
   });

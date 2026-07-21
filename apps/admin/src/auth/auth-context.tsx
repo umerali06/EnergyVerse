@@ -39,7 +39,16 @@ export type RegistrationInput = {
   password: string;
 };
 
+/** Data-fetching hooks (dashboard and future modules) share the single
+ * FevApiClient instance AuthProvider constructs, so token injection, 401
+ * retry, and session-expiry all stay centralized in one place. */
+export type DashboardApiClient = Pick<
+  FevApiClient,
+  "getDashboardActivity" | "getDashboardActivitySeries" | "getDashboardSummary"
+>;
+
 type AuthContextValue = {
+  apiClient: DashboardApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -105,7 +114,8 @@ export function AuthProvider({
   children,
   gateway,
 }: {
-  apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin">;
+  apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin"> &
+    Partial<DashboardApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -344,6 +354,10 @@ export function AuthProvider({
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      // Narrowed from the constructor's test-seam type: a test that renders
+      // dashboard data without supplying these three methods gets an
+      // immediate, easy-to-diagnose TypeError rather than a silent gap.
+      apiClient: client as DashboardApiClient,
       currentUser,
       error,
       passwordResetSentAt,
@@ -358,6 +372,7 @@ export function AuthProvider({
       verificationSentAt,
     }),
     [
+      client,
       currentUser,
       error,
       passwordResetSentAt,

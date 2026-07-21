@@ -4,6 +4,7 @@
 README.md
 package.json
 src/apis/AuthApi.ts
+src/apis/DashboardApi.ts
 src/apis/RbacDemoApi.ts
 src/apis/SystemApi.ts
 src/apis/index.ts
@@ -11,6 +12,11 @@ src/index.ts
 src/models/CompanyRegistrationRequest.ts
 src/models/CompanyRegistrationResponse.ts
 src/models/CurrentUser.ts
+src/models/DashboardActivityItem.ts
+src/models/DashboardActivityPage.ts
+src/models/DashboardActivitySeries.ts
+src/models/DashboardSeriesPoint.ts
+src/models/DashboardSummary.ts
 src/models/DemoGateResponse.ts
 src/models/ErrorEnvelope.ts
 src/models/HealthResponse.ts

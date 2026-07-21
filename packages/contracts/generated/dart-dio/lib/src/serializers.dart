@@ -17,6 +17,11 @@ import 'package:fev_api_client/src/model/date.dart';
 import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
 import 'package:fev_api_client/src/model/current_user.dart';
+import 'package:fev_api_client/src/model/dashboard_activity_item.dart';
+import 'package:fev_api_client/src/model/dashboard_activity_page.dart';
+import 'package:fev_api_client/src/model/dashboard_activity_series.dart';
+import 'package:fev_api_client/src/model/dashboard_series_point.dart';
+import 'package:fev_api_client/src/model/dashboard_summary.dart';
 import 'package:fev_api_client/src/model/demo_gate_response.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
 import 'package:fev_api_client/src/model/health_response.dart';
@@ -28,6 +33,11 @@ part 'serializers.g.dart';
   CompanyRegistrationRequest,
   CompanyRegistrationResponse,
   CurrentUser,
+  DashboardActivityItem,
+  DashboardActivityPage,
+  DashboardActivitySeries,
+  DashboardSeriesPoint,
+  DashboardSummary,
   DemoGateResponse,
   ErrorEnvelope,
   HealthResponse,

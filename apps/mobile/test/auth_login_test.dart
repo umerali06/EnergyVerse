@@ -11,6 +11,8 @@ import 'package:fev_mobile/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/dashboard_fixtures.dart';
+
 const session = AuthSession(
   uid: 'firebase-uid',
   email: 'field_inspector@acme.example.invalid',
@@ -74,6 +76,22 @@ class FakeApi implements ApiContract {
         ..uid = 'firebase-uid',
     );
   }
+
+  @override
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) async =>
+      dashboardSummaryFixture(windowDays: window);
+
+  @override
+  Future<DashboardActivityPage> getDashboardActivity({
+    int limit = 20,
+    String? cursor,
+    String? action,
+  }) async =>
+      emptyDashboardActivityPage();
+
+  @override
+  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) async =>
+      dashboardSeriesFixture(windowDays: window);
 }
 
 class FakeGateway implements AuthGateway {
@@ -218,9 +236,8 @@ void main() {
     expect(tester.widget<AppButton>(find.byType(AppButton)).loading, isTrue);
     completer.complete(session);
     await tester.pumpAndSettle();
-    expect(find.text('Role: field_inspector'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('inspections.write'), 200);
-    expect(find.text('inspections.write'), findsOneWidget);
+    expect(find.textContaining('Welcome,'), findsOneWidget);
+    expect(find.text('field_inspector'), findsOneWidget);
   });
 
   for (final entry in <String, String>{
@@ -279,11 +296,11 @@ void main() {
 
     expect(find.byKey(const Key('auth-splash')), findsOneWidget);
     expect(find.text('Welcome back'), findsNothing);
-    expect(find.text('Role: field_inspector'), findsNothing);
+    expect(find.textContaining('Welcome,'), findsNothing);
 
     gate.complete();
     await tester.pumpAndSettle();
-    expect(find.text('Role: field_inspector'), findsOneWidget);
+    expect(find.textContaining('Welcome,'), findsOneWidget);
     expect(api.requests, 1);
   });
 
@@ -342,7 +359,7 @@ void main() {
     await tester.ensureVisible(find.text('Back to Home'));
     await tester.tap(find.text('Back to Home'));
     await tester.pumpAndSettle();
-    expect(find.text('Role: field_inspector'), findsOneWidget);
+    expect(find.textContaining('Welcome,'), findsOneWidget);
   });
 
   testWidgets('an authenticated user is redirected away from login', (
@@ -355,7 +372,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Role: field_inspector'), findsOneWidget);
+    expect(find.textContaining('Welcome,'), findsOneWidget);
     expect(find.text('Welcome back'), findsNothing);
   });
 
@@ -414,7 +431,8 @@ void main() {
     final api = FakeApi(identity());
     await pumpApp(tester, gateway: gateway, api: api, initialRoute: AppRoutes.home);
     await tester.pumpAndSettle();
-    expect(find.text('assets.write'), findsNothing);
+    // field_inspector lacks assets.write, so the gated quick action is hidden.
+    expect(find.text('Assets demo'), findsNothing);
 
     api.result = writerIdentity();
     await tester.tap(find.byKey(const Key('user-menu')));
@@ -424,8 +442,9 @@ void main() {
 
     expect(gateway.refreshCalls, 1);
     expect(api.requests, 2);
-    await tester.scrollUntilVisible(find.text('assets.write'), 200);
-    expect(find.text('assets.write'), findsOneWidget);
+    // operations_manager (writerIdentity) holds assets.write: it now appears.
+    await tester.scrollUntilVisible(find.text('Assets demo'), 200);
+    expect(find.text('Assets demo'), findsOneWidget);
   });
 
   testWidgets('login entrance honors reduced motion', (tester) async {
@@ -534,7 +553,7 @@ void main() {
       gateway.refreshResult = session;
       await tester.tap(find.text("I've verified — continue"));
       await tester.pumpAndSettle();
-      expect(find.text('Role: field_inspector'), findsOneWidget);
+      expect(find.textContaining('Welcome,'), findsOneWidget);
     },
   );
 

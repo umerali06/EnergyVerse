@@ -32,6 +32,13 @@ export const listItem: Variants = {
   },
 };
 
+/** Shared reduced-motion read for any component outside MotionSection that
+ * needs to gate its own animation (e.g. chart entry animation). */
+export function useReducedMotionPreference(override?: boolean): boolean {
+  const systemReduced = useReducedMotion();
+  return override ?? Boolean(systemReduced);
+}
+
 export function MotionSection({
   children,
   className,

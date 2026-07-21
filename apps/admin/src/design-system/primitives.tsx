@@ -340,7 +340,13 @@ export function Tooltip({ children, content }: { children: ReactNode; content: s
   );
 }
 
-export function Skeleton({ className }: { className?: string }) {
+export function Skeleton({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <span
       aria-hidden="true"
@@ -348,6 +354,7 @@ export function Skeleton({ className }: { className?: string }) {
         "block animate-shimmer rounded-md bg-[linear-gradient(90deg,var(--color-elevated)_25%,var(--color-border)_50%,var(--color-elevated)_75%)] bg-[length:200%_100%]",
         className,
       )}
+      style={style}
     />
   );
 }

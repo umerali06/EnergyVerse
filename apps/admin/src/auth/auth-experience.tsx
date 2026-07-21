@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { Badge, Button, Card, Input, Logo, MotionSection, StatusPill } from "@/design-system";
+import { Button, Card, Input, Logo, MotionSection, StatusPill } from "@/design-system";
 
 import { useAuth } from "./auth-context";
 import { safeInternalPath } from "./route-guards";
@@ -452,61 +452,10 @@ function InlineError({ message }: { message: string }) {
   );
 }
 
-export function AuthenticatedHome({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
-  // Sign-out and refresh-session live in the shell's user menu since 2.1.
-  const { currentUser } = useAuth();
-  const router = useRouter();
-  if (!currentUser) return null;
-  const name = currentUser.email.split("@")[0].replace(/[._-]+/g, " ");
-  return (
-    <section className="p-6 md:p-10">
-      <MotionSection className="mx-auto max-w-5xl" reducedMotionOverride={reducedMotionOverride}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-mono text-caption uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">
-              FEV authenticated workspace
-            </p>
-            <h2 className="mt-2 text-h2 font-bold capitalize">Welcome, {name}</h2>
-            <p className="mt-2 font-mono text-bodySmall text-text-secondary">{currentUser.email}</p>
-          </div>
-          <Button onClick={() => router.push("/rbac-demo")} variant="ghost">
-            Assets demo
-          </Button>
-        </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(240px,300px)_1fr]">
-          <Card>
-            <StatusPill tone="healthy">Authenticated</StatusPill>
-            <dl className="mt-6 grid gap-4 text-body">
-              <div>
-                <dt className="text-text-muted">Role</dt>
-                <dd className="mt-1 font-mono font-semibold">{currentUser.roleKey}</dd>
-              </div>
-              <div>
-                <dt className="text-text-muted">Company</dt>
-                <dd className="mt-1 font-mono text-bodySmall">{currentUser.companyId}</dd>
-              </div>
-              <div>
-                <dt className="text-text-muted">Firebase UID</dt>
-                <dd className="mt-1 break-all font-mono text-bodySmall">{currentUser.uid}</dd>
-              </div>
-            </dl>
-          </Card>
-          <Card>
-            <h2 className="text-h4 font-bold">Resolved permissions</h2>
-            <p className="mt-2 text-body text-text-secondary">
-              Authoritative permissions returned by `/api/v1/auth/me`.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {[...currentUser.permissions].sort().map((permission) => (
-                <Badge key={permission}>{permission}</Badge>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </MotionSection>
-    </section>
-  );
-}
+// The authenticated Home placeholder (welcome + role + raw permission chips)
+// from Phase 1.1 has been replaced by the real dashboard — see
+// @/dashboard/dashboard-page. This module now only owns the public auth
+// screens, verify-email, and the RBAC demo route below.
 
 export function RbacDemoScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const router = useRouter();

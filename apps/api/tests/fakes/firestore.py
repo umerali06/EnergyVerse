@@ -51,7 +51,8 @@ class FakeQuery:
     async def stream(self, **_: Any) -> AsyncIterator[FakeDocumentSnapshot]:
         for document_id, data in sorted(self._client._store.get(self._collection, {}).items()):
             if all(
-                operator == "==" and data.get(field) == value
+                (operator == "==" and data.get(field) == value)
+                or (operator == ">=" and data.get(field) is not None and data.get(field) >= value)
                 for field, operator, value in self._filters
             ):
                 yield FakeDocumentSnapshot(document_id, data)

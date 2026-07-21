@@ -66,6 +66,9 @@ Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 [*AuthApi*](doc/AuthApi.md) | [**getCurrentUser**](doc/AuthApi.md#getcurrentuser) | **GET** /api/v1/auth/me | Me
 [*AuthApi*](doc/AuthApi.md) | [**registerCompanyAdmin**](doc/AuthApi.md#registercompanyadmin) | **POST** /api/v1/auth/register | Register Company Admin
+[*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivity**](doc/DashboardApi.md#getdashboardactivity) | **GET** /api/v1/dashboard/activity | Dashboard Activity
+[*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivitySeries**](doc/DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
+[*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSummary**](doc/DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAllPermissions**](doc/RbacDemoApi.md#rbacdemoallpermissions) | **GET** /api/v1/_rbac-demo/all | All Permissions
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAnyPermission**](doc/RbacDemoApi.md#rbacdemoanypermission) | **GET** /api/v1/_rbac-demo/any | Any Permission
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoSinglePermission**](doc/RbacDemoApi.md#rbacdemosinglepermission) | **GET** /api/v1/_rbac-demo/single | Single Permission
@@ -78,6 +81,11 @@ Class | Method | HTTP request | Description
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
  - [CurrentUser](doc/CurrentUser.md)
+ - [DashboardActivityItem](doc/DashboardActivityItem.md)
+ - [DashboardActivityPage](doc/DashboardActivityPage.md)
+ - [DashboardActivitySeries](doc/DashboardActivitySeries.md)
+ - [DashboardSeriesPoint](doc/DashboardSeriesPoint.md)
+ - [DashboardSummary](doc/DashboardSummary.md)
  - [DemoGateResponse](doc/DemoGateResponse.md)
  - [ErrorEnvelope](doc/ErrorEnvelope.md)
  - [HealthResponse](doc/HealthResponse.md)

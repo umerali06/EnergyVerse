@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import uuid4
 
 from google.cloud.firestore_v1 import FieldFilter
@@ -59,6 +60,31 @@ class AuditLogRepository:
         if data is None or data.get("company_id") != scope.company_id:
             return None
         return AuditLog.model_validate(data)
+
+    async def list_since(
+        self,
+        scope: CompanyScope,
+        since: datetime,
+        max_events: int = 5000,
+    ) -> list[AuditLog]:
+        """Bounded-window tenant audit read for dashboard aggregation.
+
+        Read cost: one query filtered to the tenant and the window start, so
+        Firestore reads are capped by the tenant's audit volume inside the
+        window (max 90 days) with a hard in-memory cap as a backstop.
+        """
+        query = (
+            self._client.collection(self.collection_name)
+            .where(filter=FieldFilter("company_id", "==", scope.company_id))
+            .where(filter=FieldFilter("created_at", ">=", since))
+        )
+        audit_logs = []
+        async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+            data = snapshot.to_dict()
+            if data is not None and data.get("company_id") == scope.company_id:
+                audit_logs.append(AuditLog.model_validate(data))
+        audit_logs.sort(key=lambda log: (log.created_at, log.id), reverse=True)
+        return audit_logs[:max_events]
 
     async def list(self, scope: CompanyScope) -> list[AuditLog]:
         query = self._client.collection(self.collection_name).where(

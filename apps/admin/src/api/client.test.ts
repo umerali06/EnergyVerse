@@ -160,4 +160,51 @@ describe("FevApiClient", () => {
     });
     expect(toast.error).toHaveBeenCalledWith("Unable to reach the API");
   });
+
+  it("returns typed dashboard summary data with the window forwarded as a query param", async () => {
+    const fetchApi = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain("window=7");
+      return new Response(
+        JSON.stringify({
+          company_name: "Acme Energy",
+          subscription_tier: "standard",
+          company_created_at: "2026-01-01T00:00:00Z",
+          users_total: 7,
+          users_active: 6,
+          roles_total: 7,
+          audit_events: 4,
+          window_days: 7,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    const client = new FevApiClient({ fetchApi, getIdToken: async () => "token" });
+
+    const summary = await client.getDashboardSummary(7);
+
+    expect(summary.usersTotal).toBe(7);
+    expect(summary.windowDays).toBe(7);
+  });
+
+  it("maps a dashboard endpoint failure through the unified envelope and toast — same seam every method shares", async () => {
+    const toast = { error: vi.fn() };
+    const fetchApi = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            error: "internal_error",
+            message: "Something went wrong generating the summary",
+            request_id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    const client = new FevApiClient({ fetchApi, toast });
+
+    await expect(client.getDashboardSummary()).rejects.toMatchObject({
+      code: "internal_error",
+      status: 500,
+    });
+    expect(toast.error).toHaveBeenCalledWith("Something went wrong generating the summary");
+  });
 });

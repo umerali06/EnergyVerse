@@ -6,6 +6,12 @@ doc/AuthApi.md
 doc/CompanyRegistrationRequest.md
 doc/CompanyRegistrationResponse.md
 doc/CurrentUser.md
+doc/DashboardActivityItem.md
+doc/DashboardActivityPage.md
+doc/DashboardActivitySeries.md
+doc/DashboardApi.md
+doc/DashboardSeriesPoint.md
+doc/DashboardSummary.md
 doc/DemoGateResponse.md
 doc/ErrorEnvelope.md
 doc/HealthResponse.md
@@ -15,6 +21,7 @@ doc/SystemApi.md
 lib/fev_api_client.dart
 lib/src/api.dart
 lib/src/api/auth_api.dart
+lib/src/api/dashboard_api.dart
 lib/src/api/rbac_demo_api.dart
 lib/src/api/system_api.dart
 lib/src/api_util.dart
@@ -27,6 +34,11 @@ lib/src/date_serializer.dart
 lib/src/model/company_registration_request.dart
 lib/src/model/company_registration_response.dart
 lib/src/model/current_user.dart
+lib/src/model/dashboard_activity_item.dart
+lib/src/model/dashboard_activity_page.dart
+lib/src/model/dashboard_activity_series.dart
+lib/src/model/dashboard_series_point.dart
+lib/src/model/dashboard_summary.dart
 lib/src/model/date.dart
 lib/src/model/demo_gate_response.dart
 lib/src/model/error_envelope.dart
@@ -38,6 +50,12 @@ test/auth_api_test.dart
 test/company_registration_request_test.dart
 test/company_registration_response_test.dart
 test/current_user_test.dart
+test/dashboard_activity_item_test.dart
+test/dashboard_activity_page_test.dart
+test/dashboard_activity_series_test.dart
+test/dashboard_api_test.dart
+test/dashboard_series_point_test.dart
+test/dashboard_summary_test.dart
 test/demo_gate_response_test.dart
 test/error_envelope_test.dart
 test/health_response_test.dart

@@ -1,6 +1,7 @@
 import {
   AuthApi,
   Configuration,
+  DashboardApi,
   FetchError,
   RbacDemoApi,
   ResponseError,
@@ -8,6 +9,9 @@ import {
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
   type CurrentUser,
+  type DashboardActivityPage,
+  type DashboardActivitySeries,
+  type DashboardSummary,
   type DemoGateResponse,
   type HealthResponse,
 } from "@fev/api-client";
@@ -59,8 +63,11 @@ function isEnvelope(value: unknown): value is WireErrorEnvelope {
   );
 }
 
+export type ActivityWindowDays = 7 | 30 | 90;
+
 export class FevApiClient {
   private readonly auth: AuthApi;
+  private readonly dashboard: DashboardApi;
   private readonly rbacDemo: RbacDemoApi;
   private readonly system: SystemApi;
   private readonly onUnauthorized: UnauthorizedHook;
@@ -75,6 +82,7 @@ export class FevApiClient {
       fetchApi: options.fetchApi,
     });
     this.auth = new AuthApi(configuration);
+    this.dashboard = new DashboardApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
     this.system = new SystemApi(configuration);
     this.onUnauthorized = options.onUnauthorized ?? (() => undefined);
@@ -103,6 +111,39 @@ export class FevApiClient {
     return this.execute(() =>
       this.auth.registerCompanyAdmin(
         { companyRegistrationRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getDashboardSummary(
+    window: ActivityWindowDays = 30,
+    signal?: AbortSignal,
+  ): Promise<DashboardSummary> {
+    return this.execute(() =>
+      this.dashboard.getDashboardSummary({ window }, signal ? { signal } : undefined),
+    );
+  }
+
+  getDashboardActivity(
+    options: { limit?: number; cursor?: string; action?: string } = {},
+    signal?: AbortSignal,
+  ): Promise<DashboardActivityPage> {
+    return this.execute(() =>
+      this.dashboard.getDashboardActivity(
+        { limit: options.limit, cursor: options.cursor, action: options.action },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getDashboardActivitySeries(
+    window: ActivityWindowDays = 30,
+    signal?: AbortSignal,
+  ): Promise<DashboardActivitySeries> {
+    return this.execute(() =>
+      this.dashboard.getDashboardActivitySeries(
+        { window },
         signal ? { signal } : undefined,
       ),
     );
