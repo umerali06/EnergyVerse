@@ -30,6 +30,8 @@
 | D-024 | System-role immutability and visibility | **`is_system=true` roles can never be renamed, re-permissioned, or deleted through any 3.2 endpoint — only custom roles are mutable; `super_admin` stays invisible to every company-scoped roles endpoint, same as the 3.1 role picker** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-025 | `platform.admin` grant restriction and claims-sync timing | **`platform.admin` can never be included in a Company Admin's create/update payload (403, not silently dropped); a role-permission edit still triggers a batched `sync_claims_from_role` for every current holder for claims consistency, even though `/me` already resolves permissions live from Firestore on every request, so enforcement is immediate — only the client's cached permission view waits for the next login/session refresh** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-026 | Mobile read-only role management scope | **Mobile ships list + detail only for Phase 3.2, mirroring D-023 — creating, editing, and deleting roles remain admin-web-only** | **RESOLVED — LOCKED** | 2026-07-22 |
+| D-027 | Firebase Storage security model and path convention | **Storage is server-mediated only, mirroring D-002's Firestore precedent — `storage.rules` denies all client read/write unconditionally; every upload/delete goes through the Admin SDK and every read is a fresh request-time V4 signed URL, never a public object or a persisted URL; every object lives under a fixed `companies/{company_id}/{feature}/...` path (3.3's logo at `companies/{company_id}/branding/logo`, always overwritten in place) that later phases (assets, inspections) must reuse rather than inventing their own convention** | **RESOLVED — LOCKED** | 2026-07-22 |
+| D-028 | Company settings scope policy | **Only settings with a real, working consumer today ship in 3.3 (industry, timezone/locale threaded into existing date displays, contact info, logo); `subscription_tier` stays read-only with tier-limit enforcement explicitly deferred to a later phase, and no placeholder settings for unbuilt modules (e.g. AI thresholds, IoT config) are added ahead of their own phases** | **RESOLVED — LOCKED** | 2026-07-22 |
 
 ## Decision Details
 
@@ -560,6 +562,46 @@
 - **Consequences:** Same as D-023 — a future mobile-authoring need for
   roles should be scoped as its own explicit phase, not silently added.
 
+### D-027 — Firebase Storage Security Model and Path Convention (Phase 3.3)
+
+- **Decision owner:** Product owner
+- **Decision:** Company logo upload (the first feature to touch Firebase
+  Storage) is entirely server-mediated, mirroring D-002's "Firestore is
+  server-side only via the Admin SDK" precedent. `infra/firebase/storage.rules`
+  denies all client read/write unconditionally — no client anywhere in
+  this codebase ever calls the Storage SDK directly. Uploads go through
+  `POST /api/v1/company/logo`; reads never expose a public object or a
+  persisted URL — `GET /api/v1/company` generates a fresh 1-hour V4
+  signed URL on every response instead. Every object lives under a
+  fixed, company-scoped path (`companies/{company_id}/{feature}/...`;
+  3.3's logo is always `companies/{company_id}/branding/logo`, one path
+  per company, overwritten in place on replace).
+- **Consequences:** Assets/inspections/any future feature that stores
+  files in Storage must reuse this exact convention (fixed company-scoped
+  path, server-mediated upload, signed-URL read) rather than adding
+  public buckets, client-side Storage SDK usage, or a divergent path
+  scheme. `FIREBASE_STORAGE_BUCKET` must be set explicitly per
+  environment if the project's bucket doesn't match the
+  `<project-id>.appspot.com` fallback guess (confirmed wrong for
+  `thinking-case-469504-c0`, which uses the newer
+  `<project-id>.firebasestorage.app` domain).
+
+### D-028 — Company Settings Scope Policy (Phase 3.3)
+
+- **Decision owner:** Product owner
+- **Decision:** 3.3 ships exactly the company settings that have a real,
+  working consumer today: name, industry, contact email/phone, a logo,
+  and timezone/locale (which now actually drive the date formatting
+  already shown on the dashboard and this settings page — not stored
+  inertly). `subscription_tier` is displayed read-only; enforcing tier
+  limits is explicitly deferred to a later phase rather than faked with
+  client-side gating. No settings were invented for modules that don't
+  exist yet (no "AI inspection thresholds", no "IoT config").
+- **Consequences:** A future phase that needs a new tenant-wide setting
+  must show it has a real consumer (a place that setting actually
+  changes behavior) before adding it here — settings-as-a-junk-drawer is
+  explicitly rejected.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -612,3 +654,13 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   are enforced immediately server-side (live resolution, not claims-dependent)
   while claims sync and mobile stay read-only/consistency-only, mirroring the
   3.1 pattern.
+- **2026-07-22 — Phase 3.3:** Added D-027 and D-028. Firebase Storage (its
+  first use in this codebase) is fully server-mediated exactly like D-002's
+  Firestore precedent — deny-all `storage.rules`, signed URLs generated
+  per-request, one fixed company-scoped path convention for logo assets that
+  later Storage features must reuse; only settings with a real, working
+  consumer today shipped, with tier-limit enforcement explicitly deferred. A
+  real bug was found and fixed during real-creds testing: `CompanyRepository.update`
+  filtered `null` the same as "not provided," so clearing an optional field
+  (industry, contact info) via PATCH silently did nothing — fixed by switching
+  to Pydantic's `exclude_unset` semantics, which distinguish the two.
