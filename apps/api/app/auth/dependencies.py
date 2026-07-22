@@ -100,6 +100,20 @@ async def get_current_user(
                 "message": "Company is unavailable",
             },
         )
+    if company.status == "suspended":
+        # Stricter than the D-012 unverified-email case (which resolves identity
+        # with 200): a suspended tenant is blocked entirely, at /me itself, since
+        # get_current_user is the one dependency every protected route shares.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "company_suspended",
+                "message": (
+                    "This organization has been suspended. "
+                    "Contact your platform administrator."
+                ),
+            },
+        )
     resolver = PermissionResolver(
         users,
         roles,

@@ -29,23 +29,32 @@ import 'package:fev_api_client/src/model/dashboard_series_point.dart';
 import 'package:fev_api_client/src/model/dashboard_summary.dart';
 import 'package:fev_api_client/src/model/demo_gate_response.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
+import 'package:fev_api_client/src/model/http_validation_error.dart';
 import 'package:fev_api_client/src/model/health_response.dart';
 import 'package:fev_api_client/src/model/invite_user_request.dart';
 import 'package:fev_api_client/src/model/permission_catalog.dart';
 import 'package:fev_api_client/src/model/permission_catalog_group.dart';
 import 'package:fev_api_client/src/model/permission_catalog_item.dart';
+import 'package:fev_api_client/src/model/platform_company_detail.dart';
+import 'package:fev_api_client/src/model/platform_company_page.dart';
+import 'package:fev_api_client/src/model/platform_company_summary.dart';
+import 'package:fev_api_client/src/model/platform_stats.dart';
 import 'package:fev_api_client/src/model/role_deleted.dart';
 import 'package:fev_api_client/src/model/role_detail.dart';
 import 'package:fev_api_client/src/model/role_list.dart';
 import 'package:fev_api_client/src/model/role_summary.dart';
 import 'package:fev_api_client/src/model/service_response.dart';
 import 'package:fev_api_client/src/model/update_company_request.dart';
+import 'package:fev_api_client/src/model/update_company_status_request.dart';
+import 'package:fev_api_client/src/model/update_platform_company_request.dart';
 import 'package:fev_api_client/src/model/update_role_request.dart';
 import 'package:fev_api_client/src/model/update_user_request.dart';
 import 'package:fev_api_client/src/model/update_user_status_request.dart';
 import 'package:fev_api_client/src/model/user_detail.dart';
 import 'package:fev_api_client/src/model/user_list_item.dart';
 import 'package:fev_api_client/src/model/user_list_page.dart';
+import 'package:fev_api_client/src/model/validation_error.dart';
+import 'package:fev_api_client/src/model/validation_error_loc_inner.dart';
 
 part 'serializers.g.dart';
 
@@ -65,23 +74,32 @@ part 'serializers.g.dart';
   DashboardSummary,
   DemoGateResponse,
   ErrorEnvelope,
+  HTTPValidationError,
   HealthResponse,
   InviteUserRequest,
   PermissionCatalog,
   PermissionCatalogGroup,
   PermissionCatalogItem,
+  PlatformCompanyDetail,
+  PlatformCompanyPage,
+  PlatformCompanySummary,
+  PlatformStats,
   RoleDeleted,
   RoleDetail,
   RoleList,
   RoleSummary,
   ServiceResponse,
   UpdateCompanyRequest,
+  UpdateCompanyStatusRequest,
+  UpdatePlatformCompanyRequest,
   UpdateRoleRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,
   UserDetail,
   UserListItem,
   UserListPage,
+  ValidationError,
+  ValidationErrorLocInner,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..add(const OneOfSerializer())

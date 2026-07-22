@@ -6,6 +6,10 @@ import type { ReactNode } from "react";
  * The mobile app mirrors this contract in
  * apps/mobile/lib/navigation/nav_config.dart — same items, same routes, same
  * `requiredPermission` keys from the Phase 0.4 catalog. Change them together.
+ * Exception (Phase 3.5, D-030): the "Platform" group/item is admin-web-only,
+ * deliberately not mirrored on mobile — platform administration is a desk
+ * task, same reasoning as the 3.1/3.2 (D-023/D-026) mobile-read-only-scope
+ * precedent, just extended to a whole module rather than a subset of actions.
  *
  * `requiredPermission` is filtered through the Phase 0.6 `can()` helper with
  * the authoritative permissions from `/api/v1/auth/me`. Items without a
@@ -74,6 +78,9 @@ export const navIcons = {
   ),
   audit: (
     <GlyphIcon path="M9 3h6a1 1 0 0 1 1 1v1h1a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a1 1 0 0 1 1-1zM8 12h8M8 16h5M9 9h6" />
+  ),
+  platform: (
+    <GlyphIcon path="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
   ),
 } as const;
 
@@ -166,6 +173,20 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.audit,
         route: "/audit",
         requiredPermission: "audit.read",
+      },
+    ],
+  },
+  {
+    // A separate group (not folded into Administration) so a super_admin
+    // always sees the platform/tenant boundary visually, even before the
+    // page itself renders its own "Platform" badge (D-030).
+    label: "Platform",
+    items: [
+      {
+        label: "Platform Admin",
+        icon: navIcons.platform,
+        route: "/platform",
+        requiredPermission: "platform.admin",
       },
     ],
   },

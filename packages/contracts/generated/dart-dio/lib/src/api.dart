@@ -14,6 +14,7 @@ import 'package:fev_api_client/src/api/auth_api.dart';
 import 'package:fev_api_client/src/api/company_api.dart';
 import 'package:fev_api_client/src/api/dashboard_api.dart';
 import 'package:fev_api_client/src/api/permissions_api.dart';
+import 'package:fev_api_client/src/api/platform_api.dart';
 import 'package:fev_api_client/src/api/rbac_demo_api.dart';
 import 'package:fev_api_client/src/api/roles_api.dart';
 import 'package:fev_api_client/src/api/system_api.dart';
@@ -112,6 +113,12 @@ class FevApiClient {
   /// by doing that all interceptors will not be executed
   PermissionsApi getPermissionsApi() {
     return PermissionsApi(dio, serializers);
+  }
+
+  /// Get PlatformApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  PlatformApi getPlatformApi() {
+    return PlatformApi(dio, serializers);
   }
 
   /// Get RbacDemoApi instance, base route and serializer can be overridden by a given but be careful,

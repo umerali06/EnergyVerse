@@ -205,6 +205,45 @@ class UpdateCompanyRequest(BaseModel):
     contact_phone: str | None = Field(default=None, min_length=3, max_length=40)
 
 
+SUBSCRIPTION_TIERS = ("demo", "starter", "professional", "enterprise")
+
+
+class PlatformCompanySummary(BaseModel):
+    id: str
+    name: str
+    status: str
+    subscription_tier: str
+    users_total: int
+    created_at: datetime
+
+
+class PlatformCompanyPage(BaseModel):
+    items: list[PlatformCompanySummary]
+    next_cursor: str | None = None
+
+
+class PlatformCompanyDetail(PlatformCompanySummary):
+    industry: str | None = None
+    contact_email: str | None = None
+    roles_total: int
+
+
+class UpdateCompanyStatusRequest(BaseModel):
+    status: Literal["active", "suspended"]
+
+
+class UpdatePlatformCompanyRequest(BaseModel):
+    subscription_tier: Literal["demo", "starter", "professional", "enterprise"]
+
+
+class PlatformStats(BaseModel):
+    total_companies: int
+    total_users: int
+    active_tenants: int
+    recent_signups: int
+    window_days: int
+
+
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
         201: "Resource created",

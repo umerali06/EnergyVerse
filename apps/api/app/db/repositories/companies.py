@@ -18,6 +18,22 @@ class CompanyRepository:
         self._client = client or get_firestore_client()
         self._audit = audit
 
+    async def list_all(self) -> list[Company]:
+        """Unscoped read of every tenant -- platform administration only (D-030).
+
+        Modeled on `PermissionRepository.list()`, the only other collection this
+        codebase reads in full with no `company_id` filter: `companies` is itself
+        the tenant-root collection, so there is no scope to filter by.
+        """
+        companies = []
+        async for snapshot in self._client.collection(self.collection_name).stream(
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS
+        ):
+            data = snapshot.to_dict()
+            if data is not None:
+                companies.append(Company.model_validate(data))
+        return companies
+
     async def get(self, scope: CompanyScope) -> Company | None:
         snapshot = (
             await self._client.collection(self.collection_name)

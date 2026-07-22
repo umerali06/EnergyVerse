@@ -11,6 +11,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.company import router as company_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.permissions import router as permissions_router
+from app.api.v1.platform import router as platform_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
 from app.api.v1.roles import router as roles_router
 from app.api.v1.users import router as users_router
@@ -52,6 +53,10 @@ app = FastAPI(
         {"name": "permissions", "description": "Global permission catalog, grouped by category"},
         {"name": "company", "description": "Company profile, branding, and tenant-wide settings"},
         {"name": "audit", "description": "Company audit trail — read-only compliance view"},
+        {
+            "name": "platform",
+            "description": "Super-Admin cross-tenant platform administration (platform.admin only)",
+        },
     ],
 )
 app.add_exception_handler(ApiError, api_error_response)
@@ -75,6 +80,7 @@ app.include_router(roles_router)
 app.include_router(permissions_router)
 app.include_router(company_router)
 app.include_router(audit_router)
+app.include_router(platform_router)
 
 
 @app.get(

@@ -23,6 +23,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(DemoGateResponse.serializer)
       ..add(DemoGateResponseOkEnum.serializer)
       ..add(ErrorEnvelope.serializer)
+      ..add(HTTPValidationError.serializer)
       ..add(HealthResponse.serializer)
       ..add(HealthResponseFirestoreEnum.serializer)
       ..add(HealthResponseServiceEnum.serializer)
@@ -31,6 +32,10 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(PermissionCatalog.serializer)
       ..add(PermissionCatalogGroup.serializer)
       ..add(PermissionCatalogItem.serializer)
+      ..add(PlatformCompanyDetail.serializer)
+      ..add(PlatformCompanyPage.serializer)
+      ..add(PlatformCompanySummary.serializer)
+      ..add(PlatformStats.serializer)
       ..add(RoleDeleted.serializer)
       ..add(RoleDetail.serializer)
       ..add(RoleList.serializer)
@@ -39,6 +44,10 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
       ..add(UpdateCompanyRequest.serializer)
+      ..add(UpdateCompanyStatusRequest.serializer)
+      ..add(UpdateCompanyStatusRequestStatusEnum.serializer)
+      ..add(UpdatePlatformCompanyRequest.serializer)
+      ..add(UpdatePlatformCompanyRequestSubscriptionTierEnum.serializer)
       ..add(UpdateRoleRequest.serializer)
       ..add(UpdateUserRequest.serializer)
       ..add(UpdateUserStatusRequest.serializer)
@@ -46,6 +55,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(UserDetail.serializer)
       ..add(UserListItem.serializer)
       ..add(UserListPage.serializer)
+      ..add(ValidationError.serializer)
+      ..add(ValidationErrorLocInner.serializer)
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AuditLogEntry)]),
           () => new ListBuilder<AuditLogEntry>())
@@ -65,6 +76,10 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(PermissionCatalogItem)]),
           () => new ListBuilder<PermissionCatalogItem>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(PlatformCompanySummary)]),
+          () => new ListBuilder<PlatformCompanySummary>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(RoleSummary)]),
           () => new ListBuilder<RoleSummary>())
@@ -89,6 +104,13 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(UserListItem)]),
           () => new ListBuilder<UserListItem>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(ValidationError)]),
+          () => new ListBuilder<ValidationError>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ValidationErrorLocInner)]),
+          () => new ListBuilder<ValidationErrorLocInner>())
       ..addBuilderFactory(
           const FullType(BuiltMap, const [
             const FullType(String),

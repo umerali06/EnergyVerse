@@ -6,6 +6,7 @@ import {
   DashboardApi,
   FetchError,
   PermissionsApi,
+  PlatformApi,
   RbacDemoApi,
   ResponseError,
   RolesApi,
@@ -25,10 +26,15 @@ import {
   type HealthResponse,
   type InviteUserRequest,
   type PermissionCatalog,
+  type PlatformCompanyDetail,
+  type PlatformCompanyPage,
+  type PlatformStats,
   type RoleDeleted,
   type RoleDetail,
   type RoleList,
   type UpdateCompanyRequest,
+  type UpdateCompanyStatusRequest,
+  type UpdatePlatformCompanyRequest,
   type UpdateRoleRequest,
   type UpdateUserRequest,
   type UpdateUserStatusRequest,
@@ -118,6 +124,7 @@ export class FevApiClient {
   private readonly company: CompanyApi;
   private readonly dashboard: DashboardApi;
   private readonly permissions: PermissionsApi;
+  private readonly platform: PlatformApi;
   private readonly rbacDemo: RbacDemoApi;
   private readonly roles: RolesApi;
   private readonly system: SystemApi;
@@ -138,6 +145,7 @@ export class FevApiClient {
     this.company = new CompanyApi(configuration);
     this.dashboard = new DashboardApi(configuration);
     this.permissions = new PermissionsApi(configuration);
+    this.platform = new PlatformApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
     this.roles = new RolesApi(configuration);
     this.system = new SystemApi(configuration);
@@ -370,6 +378,56 @@ export class FevApiClient {
         },
         signal ? { signal } : undefined,
       ),
+    );
+  }
+
+  listPlatformCompanies(
+    options: { cursor?: string; limit?: number } = {},
+    signal?: AbortSignal,
+  ): Promise<PlatformCompanyPage> {
+    return this.execute(() =>
+      this.platform.listPlatformCompanies(
+        { cursor: options.cursor, limit: options.limit },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getPlatformCompany(companyId: string, signal?: AbortSignal): Promise<PlatformCompanyDetail> {
+    return this.execute(() =>
+      this.platform.getPlatformCompany({ companyId }, signal ? { signal } : undefined),
+    );
+  }
+
+  updatePlatformCompanyStatus(
+    companyId: string,
+    request: UpdateCompanyStatusRequest,
+    signal?: AbortSignal,
+  ): Promise<PlatformCompanyDetail> {
+    return this.execute(() =>
+      this.platform.updatePlatformCompanyStatus(
+        { companyId, updateCompanyStatusRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  updatePlatformCompany(
+    companyId: string,
+    request: UpdatePlatformCompanyRequest,
+    signal?: AbortSignal,
+  ): Promise<PlatformCompanyDetail> {
+    return this.execute(() =>
+      this.platform.updatePlatformCompany(
+        { companyId, updatePlatformCompanyRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getPlatformStats(signal?: AbortSignal): Promise<PlatformStats> {
+    return this.execute(() =>
+      this.platform.getPlatformStats(signal ? { signal } : undefined),
     );
   }
 
