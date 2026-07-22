@@ -7,6 +7,16 @@ void main() {
   // TODO add properties to the builder and call build()
 
   group(RoleSummary, () {
+    // int assignedUserCount
+    test('to test the property `assignedUserCount`', () async {
+      // TODO
+    });
+
+    // String description
+    test('to test the property `description`', () async {
+      // TODO
+    });
+
     // String id
     test('to test the property `id`', () async {
       // TODO
@@ -24,6 +34,11 @@ void main() {
 
     // String name
     test('to test the property `name`', () async {
+      // TODO
+    });
+
+    // int permissionCount
+    test('to test the property `permissionCount`', () async {
       // TODO
     });
   });

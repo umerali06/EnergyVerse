@@ -3,6 +3,7 @@ import {
   Configuration,
   DashboardApi,
   FetchError,
+  PermissionsApi,
   RbacDemoApi,
   ResponseError,
   RolesApi,
@@ -10,6 +11,7 @@ import {
   UsersApi,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
+  type CreateRoleRequest,
   type CurrentUser,
   type DashboardActivityPage,
   type DashboardActivitySeries,
@@ -17,7 +19,11 @@ import {
   type DemoGateResponse,
   type HealthResponse,
   type InviteUserRequest,
+  type PermissionCatalog,
+  type RoleDeleted,
+  type RoleDetail,
   type RoleList,
+  type UpdateRoleRequest,
   type UpdateUserRequest,
   type UpdateUserStatusRequest,
   type UserDetail,
@@ -85,6 +91,7 @@ export type ListUsersOptions = {
 export class FevApiClient {
   private readonly auth: AuthApi;
   private readonly dashboard: DashboardApi;
+  private readonly permissions: PermissionsApi;
   private readonly rbacDemo: RbacDemoApi;
   private readonly roles: RolesApi;
   private readonly system: SystemApi;
@@ -102,6 +109,7 @@ export class FevApiClient {
     });
     this.auth = new AuthApi(configuration);
     this.dashboard = new DashboardApi(configuration);
+    this.permissions = new PermissionsApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
     this.roles = new RolesApi(configuration);
     this.system = new SystemApi(configuration);
@@ -226,6 +234,43 @@ export class FevApiClient {
 
   listRoles(signal?: AbortSignal): Promise<RoleList> {
     return this.execute(() => this.roles.listRoles(signal ? { signal } : undefined));
+  }
+
+  getRole(roleId: string, signal?: AbortSignal): Promise<RoleDetail> {
+    return this.execute(() =>
+      this.roles.getRole({ roleId }, signal ? { signal } : undefined),
+    );
+  }
+
+  createRole(request: CreateRoleRequest, signal?: AbortSignal): Promise<RoleDetail> {
+    return this.execute(() =>
+      this.roles.createRole({ createRoleRequest: request }, signal ? { signal } : undefined),
+    );
+  }
+
+  updateRole(
+    roleId: string,
+    request: UpdateRoleRequest,
+    signal?: AbortSignal,
+  ): Promise<RoleDetail> {
+    return this.execute(() =>
+      this.roles.updateRole(
+        { roleId, updateRoleRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  deleteRole(roleId: string, signal?: AbortSignal): Promise<RoleDeleted> {
+    return this.execute(() =>
+      this.roles.deleteRole({ roleId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listPermissionCatalog(signal?: AbortSignal): Promise<PermissionCatalog> {
+    return this.execute(() =>
+      this.permissions.listPermissionCatalog(signal ? { signal } : undefined),
+    );
   }
 
   private async execute<T>(request: () => Promise<T>): Promise<T> {

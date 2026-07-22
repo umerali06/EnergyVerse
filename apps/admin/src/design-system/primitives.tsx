@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion, type HTMLMotionProps } from "framer-motion";
-import { type HTMLAttributes, type ReactNode, useEffect, useId, useState } from "react";
+import { type HTMLAttributes, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import { motionSpec } from "./motion";
 
@@ -155,6 +155,52 @@ export function Textarea({
         {...props}
       />
     </FieldFrame>
+  );
+}
+
+export function Checkbox({
+  checked,
+  className,
+  disabled,
+  hint,
+  id: suppliedId,
+  indeterminate = false,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  className?: string;
+  disabled?: boolean;
+  hint?: string;
+  id?: string;
+  indeterminate?: boolean;
+  label: ReactNode;
+  onChange: (checked: boolean) => void;
+}) {
+  const generatedId = useId();
+  const id = suppliedId ?? generatedId;
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate && !checked;
+  }, [indeterminate, checked]);
+
+  return (
+    <div className={cn("flex items-start gap-2.5", className)}>
+      <input
+        checked={checked}
+        className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-border text-primary-600 accent-primary-600 disabled:cursor-not-allowed disabled:opacity-50 dark:accent-primary-400"
+        disabled={disabled}
+        id={id}
+        onChange={(event) => onChange(event.target.checked)}
+        ref={ref}
+        type="checkbox"
+      />
+      <label className="grid text-bodySmall text-text-primary" htmlFor={id}>
+        <span className={cn("font-medium", disabled && "opacity-50")}>{label}</span>
+        {hint && <span className="text-caption text-text-muted">{hint}</span>}
+      </label>
+    </div>
   );
 }
 

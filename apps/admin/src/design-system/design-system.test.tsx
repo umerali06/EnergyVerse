@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
 import { MotionSection } from "./motion";
@@ -7,6 +8,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   EmptyState,
   Input,
   Modal,
@@ -85,6 +87,27 @@ describe("admin design system", () => {
     expect(screen.getByRole("tab", { name: "One" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByRole("status").length).toBeGreaterThan(0);
     expect(screen.getByText("Empty")).toBeInTheDocument();
+  });
+
+  it("toggles a checkbox and reports indeterminate state visually", async () => {
+    const user = userEvent.setup();
+    function Probe() {
+      const [checked, setChecked] = useState(false);
+      return (
+        <Checkbox
+          checked={checked}
+          hint="Optional detail"
+          label="Manage users"
+          onChange={setChecked}
+        />
+      );
+    }
+    render(<Probe />);
+    const checkbox = screen.getByLabelText("Manage users", { exact: false });
+    expect(checkbox).not.toBeChecked();
+    await user.click(checkbox);
+    expect(checkbox).toBeChecked();
+    expect(screen.getByText("Optional detail")).toBeInTheDocument();
   });
 
   it("switches and persists the document theme", async () => {

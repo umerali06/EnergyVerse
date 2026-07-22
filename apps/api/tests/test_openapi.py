@@ -20,6 +20,11 @@ EXPECTED_OPERATIONS = {
     "update_user",
     "set_user_status",
     "list_roles",
+    "get_role",
+    "create_role",
+    "update_role",
+    "delete_role",
+    "list_permission_catalog",
 }
 
 

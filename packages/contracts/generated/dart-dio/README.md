@@ -69,10 +69,15 @@ Class | Method | HTTP request | Description
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivity**](doc/DashboardApi.md#getdashboardactivity) | **GET** /api/v1/dashboard/activity | Dashboard Activity
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivitySeries**](doc/DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSummary**](doc/DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
+[*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAllPermissions**](doc/RbacDemoApi.md#rbacdemoallpermissions) | **GET** /api/v1/_rbac-demo/all | All Permissions
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAnyPermission**](doc/RbacDemoApi.md#rbacdemoanypermission) | **GET** /api/v1/_rbac-demo/any | Any Permission
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoSinglePermission**](doc/RbacDemoApi.md#rbacdemosinglepermission) | **GET** /api/v1/_rbac-demo/single | Single Permission
+[*RolesApi*](doc/RolesApi.md) | [**createRole**](doc/RolesApi.md#createrole) | **POST** /api/v1/roles | Create Role
+[*RolesApi*](doc/RolesApi.md) | [**deleteRole**](doc/RolesApi.md#deleterole) | **DELETE** /api/v1/roles/{role_id} | Delete Role
+[*RolesApi*](doc/RolesApi.md) | [**getRole**](doc/RolesApi.md#getrole) | **GET** /api/v1/roles/{role_id} | Get Role
 [*RolesApi*](doc/RolesApi.md) | [**listRoles**](doc/RolesApi.md#listroles) | **GET** /api/v1/roles | List Roles
+[*RolesApi*](doc/RolesApi.md) | [**updateRole**](doc/RolesApi.md#updaterole) | **PATCH** /api/v1/roles/{role_id} | Update Role
 [*SystemApi*](doc/SystemApi.md) | [**getHealth**](doc/SystemApi.md#gethealth) | **GET** /health | Health
 [*SystemApi*](doc/SystemApi.md) | [**getRoot**](doc/SystemApi.md#getroot) | **GET** / | Root
 [*UsersApi*](doc/UsersApi.md) | [**getUser**](doc/UsersApi.md#getuser) | **GET** /api/v1/users/{user_id} | Get User
@@ -86,6 +91,7 @@ Class | Method | HTTP request | Description
 
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
+ - [CreateRoleRequest](doc/CreateRoleRequest.md)
  - [CurrentUser](doc/CurrentUser.md)
  - [DashboardActivityItem](doc/DashboardActivityItem.md)
  - [DashboardActivityPage](doc/DashboardActivityPage.md)
@@ -96,9 +102,15 @@ Class | Method | HTTP request | Description
  - [ErrorEnvelope](doc/ErrorEnvelope.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [InviteUserRequest](doc/InviteUserRequest.md)
+ - [PermissionCatalog](doc/PermissionCatalog.md)
+ - [PermissionCatalogGroup](doc/PermissionCatalogGroup.md)
+ - [PermissionCatalogItem](doc/PermissionCatalogItem.md)
+ - [RoleDeleted](doc/RoleDeleted.md)
+ - [RoleDetail](doc/RoleDetail.md)
  - [RoleList](doc/RoleList.md)
  - [RoleSummary](doc/RoleSummary.md)
  - [ServiceResponse](doc/ServiceResponse.md)
+ - [UpdateRoleRequest](doc/UpdateRoleRequest.md)
  - [UpdateUserRequest](doc/UpdateUserRequest.md)
  - [UpdateUserStatusRequest](doc/UpdateUserStatusRequest.md)
  - [UserDetail](doc/UserDetail.md)

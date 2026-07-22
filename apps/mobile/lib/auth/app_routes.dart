@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
 import '../navigation/nav_config.dart';
+import '../roles/roles_screen.dart';
 import '../shell/app_shell.dart';
 import '../users/users_screen.dart';
 import 'auth_experience.dart';
@@ -22,6 +23,7 @@ class AppRoutes {
   static const verifyEmail = '/verify-email';
   static const rbacDemo = '/rbac-demo';
   static const users = AppNav.users;
+  static const roles = AppNav.roles;
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -70,6 +72,18 @@ class AppRoutes {
                   permission: 'users.manage',
                   fallback: NoAccessScreen(permission: 'users.manage'),
                   child: UsersScreen(),
+                ),
+              ),
+            );
+      case roles:
+        return (_) => const RequireAuthGuard(
+              routeName: roles,
+              child: AppShellScaffold(
+                currentRoute: roles,
+                child: PermissionGate(
+                  permission: 'roles.manage',
+                  fallback: NoAccessScreen(permission: 'roles.manage'),
+                  child: RolesScreen(),
                 ),
               ),
             );

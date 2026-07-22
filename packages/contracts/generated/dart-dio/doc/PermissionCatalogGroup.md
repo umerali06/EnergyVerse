@@ -1,0 +1,14 @@
+# fev_api_client.model.PermissionCatalogGroup
+
+## Load the model package
+```dart
+import 'package:fev_api_client/api.dart';
+```
+
+## Properties
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**group** | **String** |  |
+**items** | [**BuiltList&lt;PermissionCatalogItem&gt;**](PermissionCatalogItem.md) |  |
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -2,6 +2,7 @@
 /* eslint-disable */
 export * from './AuthApi';
 export * from './DashboardApi';
+export * from './PermissionsApi';
 export * from './RbacDemoApi';
 export * from './RolesApi';
 export * from './SystemApi';

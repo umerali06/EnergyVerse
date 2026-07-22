@@ -69,6 +69,9 @@ export const navIcons = {
   users: (
     <GlyphIcon path="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
   ),
+  roles: (
+    <GlyphIcon path="M12 2 3 6v6c0 5 3.8 8.4 9 10 5.2-1.6 9-5 9-10V6l-9-4zM9 12l2 2 4-4" />
+  ),
 } as const;
 
 export const navGroups: readonly NavGroup[] = [
@@ -142,6 +145,12 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.users,
         route: "/users",
         requiredPermission: "users.manage",
+      },
+      {
+        label: "Roles",
+        icon: navIcons.roles,
+        route: "/roles",
+        requiredPermission: "roles.manage",
       },
       {
         label: "Admin & Settings",
