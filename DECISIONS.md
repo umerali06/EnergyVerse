@@ -33,6 +33,7 @@
 | D-027 | Firebase Storage security model and path convention | **Storage is server-mediated only, mirroring D-002's Firestore precedent — `storage.rules` denies all client read/write unconditionally; every upload/delete goes through the Admin SDK and every read is a fresh request-time V4 signed URL, never a public object or a persisted URL; every object lives under a fixed `companies/{company_id}/{feature}/...` path (3.3's logo at `companies/{company_id}/branding/logo`, always overwritten in place) that later phases (assets, inspections) must reuse rather than inventing their own convention** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-028 | Company settings scope policy | **Only settings with a real, working consumer today ship in 3.3 (industry, timezone/locale threaded into existing date displays, contact info, logo); `subscription_tier` stays read-only with tier-limit enforcement explicitly deferred to a later phase, and no placeholder settings for unbuilt modules (e.g. AI thresholds, IoT config) are added ahead of their own phases** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-029 | Audit viewer role mapping, query shape, and export policy | **`audit.read` added to the catalog and granted to `company_admin`/`super_admin` (automatic), `hse_manager`, and `executive`, not field/technician roles; the viewer's date range is the real Firestore query bound (reusing the single existing `company_id + created_at` index, zero new indexes) with actor/action/target/text filters applied in-memory over that bounded read; CSV export streams the same bounded/filtered set directly (no Storage round trip), capped at 25,000 rows; reading the audit log is itself never audited** | **RESOLVED — LOCKED** | 2026-07-22 |
+| D-030 | Super-Admin cross-tenant trust model (resolves D-006) | **A new `AdminScope`, constructible only from a verified `platform.admin` permission, is the sole path to `/api/v1/platform/*`; every existing company-scoped route stays untouched; cross-tenant mutations dual-write to the target tenant's own audit trail and a reserved `"__platform__"` pseudo-tenant trail; a suspended company blocks its users at `get_current_user` itself (stricter than unverified-email); `subscription_tier` becomes a locked 4-value enum; platform administration is web-only** | **RESOLVED — LOCKED** | 2026-07-23 |
 
 ## Decision Details
 
@@ -639,6 +640,69 @@
   once to backfill `audit.read` onto existing `hse_manager`/`executive`
   role assignments.
 
+### D-030 — Super-Admin Cross-Tenant Trust Model (Phase 3.5, resolves D-006)
+
+- **Decision owner:** Product owner
+- **Decision:** D-006 deferred all cross-tenant repository access until "a
+  verified post-auth trusted context exists." That context is a Firebase ID
+  token whose `get_current_user`-resolved permission set includes
+  `platform.admin` — held only by `super_admin` per the 0.4 matrix, and
+  already walled off from every company-scoped grant path since 3.2/3.1
+  (`roles/service.py`'s `platform_admin_not_grantable`,
+  `users/service.py`'s rejection of the `super_admin` role key). 3.5 builds
+  the one legitimate cross-tenant path on top of that seam:
+  - **`AdminScope`** (`app/models/base.py`) is a new model carrying only
+    `acting_uid`/`acting_company_id`. It is constructed by exactly one
+    function, `app/admin/dependencies.py::get_admin_scope`, which itself
+    depends on `require_permission("platform.admin")` — so an `AdminScope`
+    cannot exist without an already-verified platform-admin token, and is
+    never built from a client-supplied field. Every `/api/v1/platform/*`
+    route depends on `AdminScope`, never a raw `CurrentUser`.
+  - **Existing company-scoped routes are provably untouched.** A new test,
+    `test_super_admin_home_company_route_stays_tenant_scoped`, proves a
+    super-admin's elevated permission does not widen `GET /api/v1/company`
+    or `GET /api/v1/users` — both still resolve `CompanyScope` from
+    `current_user.company_id` exactly as before, so the only cross-tenant
+    read/write path in the codebase is `/api/v1/platform/*`.
+  - **Dual audit write.** Every cross-tenant mutation writes two entries:
+    one into the target tenant's own `audit_logs` (`action="company.<verb>"`,
+    `metadata.cross_tenant=true`, `metadata.acting_company_id=<admin's home
+    tenant>`) so that tenant's own compliance trail shows the external
+    action, and one into a reserved pseudo-tenant scope,
+    `CompanyScope(company_id="__platform__")`
+    (`action="platform.company.<verb>"`), reusing `AuditLogRepository`'s
+    existing methods with zero new code — `AuditLogRepository.append` never
+    dereferences `companies`, so a `company_id` with no matching document is
+    safe. No platform-audit *viewer* route was built in this phase; the
+    scope is queryable later with the same existing methods if needed.
+  - **Suspension is enforced in `get_current_user` itself**, immediately
+    after the home-company load and before permission resolution — stricter
+    than D-012's unverified-email case (which resolves identity with HTTP
+    200): a suspended tenant's `/me` (and therefore every protected route)
+    returns 403 `company_suspended` right away.
+  - **`subscription_tier` is now a locked 4-value enum** (`demo`, `starter`,
+    `professional`, `enterprise`) enforced at the new
+    `UpdatePlatformCompanyRequest`/`UpdateCompanyStatusRequest` boundary; the
+    `Company`/`CompanyUpdate` entities stay bare `str` (no migration). The
+    platform-level `PATCH /api/v1/platform/companies/{id}` edits
+    `subscription_tier` only — name/industry/contact/logo remain exclusively
+    owned by the tenant's own `company_admin` via the existing
+    `/api/v1/company` route, so no field ever has two competing write paths.
+  - **Scope is deliberately narrow — platform administration only.** The
+    five endpoints (list/detail/status/tier/stats) never expose tenant
+    business data (inspections, assets, permits) — no god-mode data browser
+    was built, per the brief's explicit instruction.
+  - **Mobile is out of scope**, extending the D-023/D-026 mobile-read-only
+    precedent to a whole module rather than a subset of actions: platform
+    administration is a desk task, not a field task.
+- **Consequences:** Any future phase that needs a new cross-tenant read/write
+  must extend `AdminScope`/`app/admin/` rather than adding a second
+  `platform.admin`-gated seam; a future platform-audit viewer can reuse the
+  `"__platform__"` scope directly. `CompanyRepository.list_all()` (new,
+  unscoped, modeled on `PermissionRepository.list()`) is now the only
+  unscoped read of the `companies` collection and should be reused, not
+  reimplemented, by any future platform-wide company query.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -710,3 +774,23 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   one `reconcile_roles.py` run to backfill it. CSV export streams the same
   bounded/filtered query directly, capped and rejecting rather than truncating
   past the cap.
+- **2026-07-23 — Phase 3.5:** Added D-030, resolving D-006 and completing
+  Phase 3. Prerequisite closed first: `reconcile_roles.py` was run against
+  the one real non-demo tenant on `thinking-case-469504-c0`
+  (`cmp_feee017b83914cdd8323745e6359cc32`), backfilling `audit.read` per
+  D-029. The new `AdminScope` seam is constructible only from a verified
+  `platform.admin` token; a new reverse-guard test proves existing
+  company-scoped routes stay tenant-scoped even for a super-admin caller;
+  cross-tenant mutations dual-write to the target tenant's own trail and a
+  reserved `"__platform__"` platform trail; a suspended company is blocked at
+  `get_current_user` itself; `subscription_tier` is now a locked 4-value
+  enum. Real-creds proof against the live project: seeded the real
+  `super_admin` Firebase Auth user (`scripts.seed --with-auth-users`,
+  previously never provisioned for this role), listed all 3 real tenants,
+  assigned a real tier and suspended/reactivated the real non-demo tenant,
+  confirmed its admin users were blocked then restored, verified the dual
+  audit entries landed, and restored the tenant to its exact original state
+  (including its pre-3.5 legacy `"unassigned"` tier value, which the new
+  enum-enforcing endpoint can't itself reproduce, so that one restoration
+  step went directly through the repository layer, matching every prior
+  phase's "leave the tenant exactly as found" convention).

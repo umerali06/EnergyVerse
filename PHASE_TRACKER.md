@@ -31,13 +31,13 @@ Only one micro-task may be active at a time.
 | 2.1c | Brand identity, SEO/metadata, dynamic theming enforcement, motion policy | Done |
 | 2.2 | Dashboard content — real-data dashboard + chart infrastructure | Done |
 | 2.3 | Pluggable KPI widget framework | Not started |
-| 3 | Administration — user, role/permission, company settings, audit, and Super-Admin cross-tenant management | In progress |
+| 3 | Administration — user, role/permission, company settings, audit, and Super-Admin cross-tenant management | **COMPLETE** |
 | 3.1 | Company-scoped user management (Admin Portal) — invite, edit, deactivate/activate | Done |
 | 3.2 | Role and permission editing | Done |
 | 3.3 | Company settings | Done |
 | 3.4 | Audit viewer | Done |
-| 3.5 | Super-Admin cross-tenant management | **In progress** |
-| 4 | To be defined | Not started |
+| 3.5 | Super-Admin cross-tenant management | Done |
+| 4 | To be defined | **In progress** |
 | 5 | To be defined | Not started |
 | 6 | To be defined | Not started |
 | 7 | To be defined | Not started |

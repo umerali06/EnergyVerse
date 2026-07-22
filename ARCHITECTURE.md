@@ -642,6 +642,90 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   omission" precedent — CSV export stays admin-web-only, since a
   downloadable compliance file is a desktop workflow.
 
+### Phase 3.5 Super-Admin Cross-Tenant Platform Administration
+
+- **Resolves D-006.** Phase 0.4 deferred all cross-tenant repository access
+  until a verified post-auth trusted context existed. That context is a
+  Firebase ID token whose `get_current_user`-resolved permission set
+  includes `platform.admin` (held only by `super_admin`, per the 0.4
+  matrix). This is the FINAL Phase 3 task and the first legitimate
+  cross-tenant path in the codebase — see D-030 for the full trust model.
+- **`AdminScope` (`app/models/base.py`)** carries only `acting_uid`/
+  `acting_company_id` and is constructed by exactly one dependency,
+  `app/admin/dependencies.py::get_admin_scope`, which itself depends on
+  `require_permission("platform.admin")`. Every `/api/v1/platform/*` route
+  (`app/api/v1/platform.py`, thin-route/fat-service like `app/audit/`/
+  `app/company/`) depends on `AdminScope` alone — never a raw `CurrentUser`,
+  never a client-supplied `company_id`/`role` field. `app/admin/service.py`'s
+  `AdminCompanyService` is the sole business-logic home:
+  `GET /companies` (cursor-paginated, page-bounded N+1 user-count fan-out —
+  not a full-collection scan, per D-019's cost precedent), `GET
+  /companies/{id}` (platform-level detail: profile + counts + status, never
+  business records), `PATCH /companies/{id}/status` (suspend/reactivate),
+  `PATCH /companies/{id}` (subscription tier only), and `GET /stats`
+  (platform-wide totals, an unavoidable full N+1 today given the small real
+  tenant count — flagged, not solved, for when that stops being true).
+- **`CompanyRepository.list_all()`** (new) is the only unscoped read of the
+  `companies` collection, modeled directly on `PermissionRepository.list()`
+  — the codebase's only other "whole collection, no tenant filter" read.
+- **The reverse-guard test.** `test_super_admin_home_company_route_stays_tenant_scoped`
+  proves a super-admin's elevated `platform.admin` permission never widens
+  any *existing* company-scoped route: `GET /api/v1/company` and `GET
+  /api/v1/users` still resolve `CompanyScope(company_id=current_user.company_id)`
+  exactly as before. The only cross-tenant path in the entire system is
+  `/api/v1/platform/*`.
+- **Suspend/reactivate blocks at `get_current_user` itself** — immediately
+  after the home-company load, before permission resolution, returning 403
+  `company_suspended`. This is deliberately stricter than the D-012
+  unverified-email case (which resolves identity with HTTP 200): a
+  suspended tenant's `/me` and every protected route are blocked outright.
+- **Dual audit write.** `AdminCompanyService` writes two entries per
+  cross-tenant mutation: one into the target tenant's own `audit_logs`
+  (`action="company.suspended"`/`"company.reactivated"`/
+  `"company.subscription_tier_changed"`, `metadata.cross_tenant=true`,
+  `metadata.acting_company_id`) so that tenant's own compliance trail shows
+  the external action, and one into a reserved pseudo-tenant scope
+  (`CompanyScope(company_id="__platform__")`, `action="platform.<verb>"`),
+  reusing the existing `AuditLogRepository` methods with zero new query
+  code — confirmed safe because `AuditLogRepository.append` never
+  dereferences the `companies` collection. No platform-audit *viewer* route
+  was built this phase; a future one can query `"__platform__"` directly.
+- **`subscription_tier`** becomes a locked `Literal["demo", "starter",
+  "professional", "enterprise"]` at the new
+  `UpdatePlatformCompanyRequest`/`UpdateCompanyStatusRequest` request-model
+  boundary; `Company`/`CompanyUpdate` stay bare `str` (no schema migration).
+  The platform-level `PATCH /api/v1/platform/companies/{id}` edits
+  `subscription_tier` only — name/industry/contact/logo remain exclusively
+  owned by the tenant's own `company_admin` via the existing 3.3
+  `/api/v1/company` route, so no field ever has two competing write paths.
+  This is the real lever behind 3.3's read-only tier display.
+- **Scope is deliberately narrow.** The five endpoints never expose tenant
+  business data (inspections, assets, permits) — no god-mode data browser,
+  per the brief's explicit instruction. `roles/service.py`'s
+  `platform_admin_not_grantable` guard and `users/service.py`'s rejection of
+  the `super_admin` role key (both already in place since 3.1/3.2) remain
+  the only ways to prevent `platform.admin` from leaking into normal
+  company-scoped role/user management — 3.5 adds no new grant path there.
+- **Admin UI** (`apps/admin/src/platform/`) mirrors the 3.4 `apps/admin/src/audit/`
+  hook-plus-page shape: `platform-data.ts` (`usePlatformCompaniesData`) owns
+  list/stats fetch state and the three mutation calls; `platform-page.tsx`
+  composes stat tiles, a `DonutChart` (D-020) active/suspended breakdown,
+  and a `TableShell` companies list; `platform-company-modal.tsx` holds the
+  detail view, tier edit, and suspend/reactivate action. A new shared
+  `ConfirmDialog` primitive (`design-system/primitives.tsx`) is this phase's
+  extracted-on-second-consumer addition (mirroring Checkbox in 3.2,
+  FilterChip in 3.4) — 3.1's inline `confirmingStatus` pattern was the only
+  prior "strong confirm" precedent, and this action (suspending a whole
+  tenant) is consequential enough to earn its own component; 3.1's own code
+  was left untouched. The route (`/platform`) is gated by
+  `RequirePermission permission="platform.admin"`; `nav-config.tsx` gains
+  its own "Platform" group (not folded into Administration) so the
+  tenant/platform boundary is visually distinct before the page's own
+  "Platform" badge ever renders — visible only to `super_admin`.
+- **Mobile is explicitly out of scope**, extending the 3.1/3.2 (D-023/D-026)
+  mobile-read-only precedent to an entire module rather than a subset of
+  actions: platform administration is a desk task, not a field task.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -704,3 +788,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 1.2 — organization signup and verification | The typed registration operation creates an opaque-ID tenant, installs the shared seven-role matrix, provisions/audits its first `company_admin`, and returns the Firebase identity seam. Both clients sign in, use Firebase built-in verification delivery, and keep unverified identity resolvable through `/me`; server `require_verified_email` gates all application RBAC dependencies until a refreshed token reports verification. Signup/verify UI reuses the design system, generated clients, auth provider, and unified feedback. | 2026-07-17 |
 | Phase 3.2 — role and permission management | Extends the 3.1 `RoleRepository`/`RolePermissionRepository` (0.4) with a create/update/delete surface and a new global permission-catalog route, gated by `roles.manage` (0.6) and sharing 3.1's `UserRepository` for the last-holder guard and claims batch sync (0.5's `ClaimsService`). No Firestore schema change. Admin gains a new `apps/admin/src/roles/` module plus a `Checkbox` design-system primitive (0.7); mobile gains a read-only `apps/mobile/lib/roles/` mirror. Contracts regenerated for `RoleDetail`/`CreateRoleRequest`/`UpdateRoleRequest`/`PermissionCatalog`/`RoleDeleted`. | 2026-07-22 |
 | Phase 3.3 — company profile and settings | Extends the 0.4 `Company` entity with six optional/defaulted fields and a new `app/company/service.py::CompanyProfileService` behind four `company.settings`-gated routes, sharing 3.1's `UserRepository`/`RoleRepository` for the Overview counts. First use of Firebase Storage in this codebase: a new `app/storage/` package wraps the Admin SDK bucket behind a fixed company-scoped path, server-mediated in both directions (deny-all `storage.rules`, request-time V4 signed URLs, never a public object) — the pattern assets/inspections will reuse. `CurrentUser` (0.5) gains `company_timezone`/`company_locale`, mirroring how `company_name` already reaches every authenticated user regardless of permission. Admin gains `apps/admin/src/settings/` (profile edit, drag-drop logo upload, read-only overview) and threads locale/timezone through the existing `apps/admin/src/dashboard/format.ts` date helpers; mobile gains a read-only `apps/mobile/lib/company/` mirror and the same threading via a new `timezone` package dependency. Contracts regenerated for `CompanyProfile`/`UpdateCompanyRequest` and the new `CompanyApi`. | 2026-07-22 |
+| Phase 3.5 — Super-Admin cross-tenant platform administration | Resolves D-006. Adds a new `app/admin/` package (`AdminScope`, `AdminCompanyService`) behind five `platform.admin`-gated routes at `/api/v1/platform/*`, plus `CompanyRepository.list_all()` (new unscoped read, modeled on `PermissionRepository.list()`) and a suspension check inside `get_current_user` itself (stricter than 1.2's unverified-email 200). Every cross-tenant mutation dual-writes to the target tenant's own `audit_logs` and a reserved `"__platform__"` pseudo-tenant scope, reusing `AuditLogRepository`'s existing methods with zero new query code. A new reverse-guard test proves existing company-scoped routes (`/api/v1/company`, `/api/v1/users`) stay tenant-scoped even for a super-admin caller — the only cross-tenant path in the system is `/api/v1/platform/*`. Admin gains `apps/admin/src/platform/` (mirroring 3.4's hook-plus-page shape) and a new shared `ConfirmDialog` design-system primitive; `nav-config.tsx` gains its own "Platform" group, visible only to `super_admin`. Mobile is explicitly out of scope, extending D-023/D-026 to a whole module. Contracts regenerated for `PlatformApi`/`PlatformCompanySummary`/`PlatformCompanyDetail`/`PlatformCompanyPage`/`PlatformStats`/`UpdateCompanyStatusRequest`/`UpdatePlatformCompanyRequest`. Phase 3 is now **COMPLETE**. | 2026-07-23 |
