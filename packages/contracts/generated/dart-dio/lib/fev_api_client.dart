@@ -10,6 +10,7 @@ export 'package:fev_api_client/src/auth/oauth.dart';
 export 'package:fev_api_client/src/serializers.dart';
 export 'package:fev_api_client/src/model/date.dart';
 
+export 'package:fev_api_client/src/api/audit_api.dart';
 export 'package:fev_api_client/src/api/auth_api.dart';
 export 'package:fev_api_client/src/api/company_api.dart';
 export 'package:fev_api_client/src/api/dashboard_api.dart';
@@ -19,6 +20,9 @@ export 'package:fev_api_client/src/api/roles_api.dart';
 export 'package:fev_api_client/src/api/system_api.dart';
 export 'package:fev_api_client/src/api/users_api.dart';
 
+export 'package:fev_api_client/src/model/audit_log_entry.dart';
+export 'package:fev_api_client/src/model/audit_log_facets.dart';
+export 'package:fev_api_client/src/model/audit_log_page.dart';
 export 'package:fev_api_client/src/model/company_profile.dart';
 export 'package:fev_api_client/src/model/company_registration_request.dart';
 export 'package:fev_api_client/src/model/company_registration_response.dart';

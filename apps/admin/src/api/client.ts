@@ -1,4 +1,5 @@
 import {
+  AuditApi,
   AuthApi,
   CompanyApi,
   Configuration,
@@ -10,6 +11,8 @@ import {
   RolesApi,
   SystemApi,
   UsersApi,
+  type AuditLogFacets,
+  type AuditLogPage,
   type CompanyProfile,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
@@ -91,7 +94,26 @@ export type ListUsersOptions = {
   limit?: number;
 };
 
+export type AuditLogFilterOptions = {
+  fromDate?: string;
+  toDate?: string;
+  actorUid?: string;
+  action?: string;
+  targetType?: string;
+  q?: string;
+};
+
+export type ListAuditLogsOptions = AuditLogFilterOptions & {
+  cursor?: string;
+  limit?: number;
+};
+
+function toDate(value?: string): Date | undefined {
+  return value ? new Date(value) : undefined;
+}
+
 export class FevApiClient {
+  private readonly audit: AuditApi;
   private readonly auth: AuthApi;
   private readonly company: CompanyApi;
   private readonly dashboard: DashboardApi;
@@ -111,6 +133,7 @@ export class FevApiClient {
       basePath: (options.baseUrl ?? defaultBaseUrl).replace(/\/$/, ""),
       fetchApi: options.fetchApi,
     });
+    this.audit = new AuditApi(configuration);
     this.auth = new AuthApi(configuration);
     this.company = new CompanyApi(configuration);
     this.dashboard = new DashboardApi(configuration);
@@ -299,6 +322,55 @@ export class FevApiClient {
 
   removeCompanyLogo(signal?: AbortSignal): Promise<CompanyProfile> {
     return this.execute(() => this.company.removeCompanyLogo(signal ? { signal } : undefined));
+  }
+
+  listAuditLogs(
+    options: ListAuditLogsOptions = {},
+    signal?: AbortSignal,
+  ): Promise<AuditLogPage> {
+    return this.execute(() =>
+      this.audit.listAuditLogs(
+        {
+          fromDate: toDate(options.fromDate),
+          toDate: toDate(options.toDate),
+          actorUid: options.actorUid,
+          action: options.action,
+          targetType: options.targetType,
+          q: options.q,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getAuditLogFacets(
+    options: Pick<AuditLogFilterOptions, "fromDate" | "toDate"> = {},
+    signal?: AbortSignal,
+  ): Promise<AuditLogFacets> {
+    return this.execute(() =>
+      this.audit.getAuditLogFacets(
+        { fromDate: toDate(options.fromDate), toDate: toDate(options.toDate) },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  exportAuditLogs(options: AuditLogFilterOptions = {}, signal?: AbortSignal): Promise<string> {
+    return this.execute(() =>
+      this.audit.exportAuditLogs(
+        {
+          fromDate: toDate(options.fromDate),
+          toDate: toDate(options.toDate),
+          actorUid: options.actorUid,
+          action: options.action,
+          targetType: options.targetType,
+          q: options.q,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
   }
 
   private async execute<T>(request: () => Promise<T>): Promise<T> {

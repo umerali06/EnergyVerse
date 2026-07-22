@@ -2,6 +2,10 @@
 .openapi-generator-ignore
 README.md
 analysis_options.yaml
+doc/AuditApi.md
+doc/AuditLogEntry.md
+doc/AuditLogFacets.md
+doc/AuditLogPage.md
 doc/AuthApi.md
 doc/CompanyApi.md
 doc/CompanyProfile.md
@@ -41,6 +45,7 @@ doc/UserListPage.md
 doc/UsersApi.md
 lib/fev_api_client.dart
 lib/src/api.dart
+lib/src/api/audit_api.dart
 lib/src/api/auth_api.dart
 lib/src/api/company_api.dart
 lib/src/api/dashboard_api.dart
@@ -56,6 +61,9 @@ lib/src/auth/basic_auth.dart
 lib/src/auth/bearer_auth.dart
 lib/src/auth/oauth.dart
 lib/src/date_serializer.dart
+lib/src/model/audit_log_entry.dart
+lib/src/model/audit_log_facets.dart
+lib/src/model/audit_log_page.dart
 lib/src/model/company_profile.dart
 lib/src/model/company_registration_request.dart
 lib/src/model/company_registration_response.dart
@@ -88,6 +96,10 @@ lib/src/model/user_list_item.dart
 lib/src/model/user_list_page.dart
 lib/src/serializers.dart
 pubspec.yaml
+test/audit_api_test.dart
+test/audit_log_entry_test.dart
+test/audit_log_facets_test.dart
+test/audit_log_page_test.dart
 test/auth_api_test.dart
 test/company_api_test.dart
 test/company_profile_test.dart

@@ -28,6 +28,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "users.manage",
             "roles.manage",
             "company.settings",
+            "audit.read",
             "platform.admin",
         }
     ),
@@ -48,6 +49,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "users.manage",
             "roles.manage",
             "company.settings",
+            "audit.read",
         }
     ),
     "operations_manager": frozenset(
@@ -98,6 +100,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "reports.generate",
             "safety.read",
             "safety.write",
+            "audit.read",
         }
     ),
     "executive": frozenset(
@@ -108,6 +111,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "work_orders.read",
             "reports.read",
             "safety.read",
+            "audit.read",
         }
     ),
 }
@@ -124,6 +128,7 @@ def test_permission_catalog_is_exact() -> None:
         "users": {"users.manage"},
         "roles": {"roles.manage"},
         "company": {"company.settings"},
+        "audit": {"audit.read"},
         "platform": {"platform.admin"},
     }
     actual = {
@@ -131,7 +136,7 @@ def test_permission_catalog_is_exact() -> None:
         for group in grouped
     }
     assert actual == grouped
-    assert len(PERMISSION_CATALOG) == 16
+    assert len(PERMISSION_CATALOG) == 17
 
 
 def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
@@ -147,7 +152,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first == second
         assert client.counts() == counts_after_first
         assert first.companies == 2
-        assert first.permissions == 16
+        assert first.permissions == 17
         assert first.roles == 8
         assert first.role_permissions == expected_mappings
         assert first.users == 8

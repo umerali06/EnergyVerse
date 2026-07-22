@@ -47,13 +47,19 @@ Please follow the [installation procedure](#installation--usage) and then run th
 import 'package:fev_api_client/fev_api_client.dart';
 
 
-final api = FevApiClient().getAuthApi();
+final api = FevApiClient().getAuditApi();
+final Date fromDate = 2013-10-20; // Date |
+final Date toDate = 2013-10-20; // Date |
+final String actorUid = actorUid_example; // String |
+final String action = action_example; // String |
+final String targetType = targetType_example; // String |
+final String q = q_example; // String |
 
 try {
-    final response = await api.getCurrentUser();
+    final response = await api.exportAuditLogs(fromDate, toDate, actorUid, action, targetType, q);
     print(response);
 } catch on DioException (e) {
-    print("Exception when calling AuthApi->getCurrentUser: $e\n");
+    print("Exception when calling AuditApi->exportAuditLogs: $e\n");
 }
 
 ```
@@ -64,6 +70,9 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*AuditApi*](doc/AuditApi.md) | [**exportAuditLogs**](doc/AuditApi.md#exportauditlogs) | **GET** /api/v1/audit-logs/export | Export Audit Logs
+[*AuditApi*](doc/AuditApi.md) | [**getAuditLogFacets**](doc/AuditApi.md#getauditlogfacets) | **GET** /api/v1/audit-logs/actions | Get Audit Log Facets
+[*AuditApi*](doc/AuditApi.md) | [**listAuditLogs**](doc/AuditApi.md#listauditlogs) | **GET** /api/v1/audit-logs | List Audit Logs
 [*AuthApi*](doc/AuthApi.md) | [**getCurrentUser**](doc/AuthApi.md#getcurrentuser) | **GET** /api/v1/auth/me | Me
 [*AuthApi*](doc/AuthApi.md) | [**registerCompanyAdmin**](doc/AuthApi.md#registercompanyadmin) | **POST** /api/v1/auth/register | Register Company Admin
 [*CompanyApi*](doc/CompanyApi.md) | [**getCompany**](doc/CompanyApi.md#getcompany) | **GET** /api/v1/company | Get Company
@@ -93,6 +102,9 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AuditLogEntry](doc/AuditLogEntry.md)
+ - [AuditLogFacets](doc/AuditLogFacets.md)
+ - [AuditLogPage](doc/AuditLogPage.md)
  - [CompanyProfile](doc/CompanyProfile.md)
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)

@@ -29,7 +29,14 @@ EXPECTED_OPERATIONS = {
     "update_company",
     "upload_company_logo",
     "remove_company_logo",
+    "list_audit_logs",
+    "get_audit_log_facets",
+    "export_audit_logs",
 }
+
+# CSV export is intentionally not JSON-typed (D-019/3.4: streamed compliance
+# export, not a resource representation) — excluded from the JSON-schema check.
+CSV_OPERATIONS = {"export_audit_logs"}
 
 
 def test_export_openapi_contains_stable_operation_ids(tmp_path: Path) -> None:
@@ -59,5 +66,9 @@ def test_every_operation_has_tags_and_typed_success_response(tmp_path: Path) -> 
             success_code = next(
                 code for code in operation["responses"] if str(code).startswith("2")
             )
-            success = operation["responses"][success_code]["content"]["application/json"]
+            content = operation["responses"][success_code]["content"]
+            if operation["operationId"] in CSV_OPERATIONS:
+                assert "text/csv" in content
+                continue
+            success = content["application/json"]
             assert "$ref" in success["schema"]

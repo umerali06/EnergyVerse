@@ -62,6 +62,32 @@ class DashboardActivitySeries(BaseModel):
     points: list[DashboardSeriesPoint]
 
 
+class AuditLogEntry(BaseModel):
+    id: str
+    actor_uid: str
+    actor_name: str | None = None
+    actor_role: str | None = None
+    action: str
+    target_type: str
+    target_id: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+
+class AuditLogPage(BaseModel):
+    items: list[AuditLogEntry]
+    next_cursor: str | None = None
+    truncated: bool = Field(
+        description="True when the underlying date range held more events than the "
+        "server-side read cap; narrow the range for a complete view"
+    )
+
+
+class AuditLogFacets(BaseModel):
+    actions: list[str]
+    target_types: list[str]
+
+
 class UserListItem(BaseModel):
     id: str
     email: str
@@ -186,6 +212,7 @@ def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
         403: "Authenticated caller is not authorized",
         404: "Resource was not found",
         409: "Request conflicts with current state",
+        413: "Request payload exceeds the allowed size",
         422: "Request validation failed",
         500: "Unexpected server error",
     }

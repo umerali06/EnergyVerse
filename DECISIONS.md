@@ -32,6 +32,7 @@
 | D-026 | Mobile read-only role management scope | **Mobile ships list + detail only for Phase 3.2, mirroring D-023 — creating, editing, and deleting roles remain admin-web-only** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-027 | Firebase Storage security model and path convention | **Storage is server-mediated only, mirroring D-002's Firestore precedent — `storage.rules` denies all client read/write unconditionally; every upload/delete goes through the Admin SDK and every read is a fresh request-time V4 signed URL, never a public object or a persisted URL; every object lives under a fixed `companies/{company_id}/{feature}/...` path (3.3's logo at `companies/{company_id}/branding/logo`, always overwritten in place) that later phases (assets, inspections) must reuse rather than inventing their own convention** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-028 | Company settings scope policy | **Only settings with a real, working consumer today ship in 3.3 (industry, timezone/locale threaded into existing date displays, contact info, logo); `subscription_tier` stays read-only with tier-limit enforcement explicitly deferred to a later phase, and no placeholder settings for unbuilt modules (e.g. AI thresholds, IoT config) are added ahead of their own phases** | **RESOLVED — LOCKED** | 2026-07-22 |
+| D-029 | Audit viewer role mapping, query shape, and export policy | **`audit.read` added to the catalog and granted to `company_admin`/`super_admin` (automatic), `hse_manager`, and `executive`, not field/technician roles; the viewer's date range is the real Firestore query bound (reusing the single existing `company_id + created_at` index, zero new indexes) with actor/action/target/text filters applied in-memory over that bounded read; CSV export streams the same bounded/filtered set directly (no Storage round trip), capped at 25,000 rows; reading the audit log is itself never audited** | **RESOLVED — LOCKED** | 2026-07-22 |
 
 ## Decision Details
 
@@ -602,6 +603,42 @@
   changes behavior) before adding it here — settings-as-a-junk-drawer is
   explicitly rejected.
 
+### D-029 — Audit Viewer Role Mapping, Query Shape, and Export Policy (Phase 3.4)
+
+- **Decision owner:** Product owner
+- **Decision:** `audit.read` is added to the Phase 0.4 permission catalog.
+  `company_admin`/`super_admin` receive it automatically (both derive from
+  `ALL_PERMISSION_KEYS`); `hse_manager` and `executive` are granted it
+  explicitly as compliance-facing roles; `operations_manager`,
+  `field_inspector`, and `maintenance_technician` are not granted it.
+  Already-registered tenants outside the two demo companies need one
+  explicit `reconcile_roles.py --company-id <id>` run to pick up the new
+  grant (re-running `seed_system_roles` for that tenant) — there is no
+  automatic backfill across all real tenants. The viewer's date range is
+  the real, caller-controlled Firestore query bound — reusing the single
+  existing `company_id + created_at` composite index from D-019 as both
+  floor and ceiling — so **no new Firestore index was needed for this
+  phase**. Actor/action/target-type filters and free-text search
+  (Firestore has no native full-text search) run in-memory over that
+  date-bounded read, capped at `AUDIT_QUERY_CAP = 25,000` events; a
+  `truncated` flag on the response tells the UI when the cap was hit
+  rather than silently dropping data. CSV export reuses the exact same
+  bounded/filtered query and streams the result directly as the HTTP
+  response body — no Firebase Storage round trip — rejecting (413) rather
+  than truncating a filtered set that exceeds the same cap. Reading the
+  audit log is itself never written to the audit log, to avoid
+  self-referential noise.
+- **Consequences:** A tenant with audit volume that regularly exceeds the
+  cap within its selected range will see `truncated`/413 responses
+  prompting a narrower range, rather than a "complete" but silently
+  partial view — this is an explicit, documented trade-off, not a bug.
+  Any future phase adding audit filters must keep reusing the
+  date-range-as-index-bound + in-memory-filter shape rather than adding
+  per-filter composite indexes, per D-019's precedent. Real, already-
+  registered tenants require the operator to run `reconcile_roles.py`
+  once to backfill `audit.read` onto existing `hse_manager`/`executive`
+  role assignments.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -664,3 +701,12 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   filtered `null` the same as "not provided," so clearing an optional field
   (industry, contact info) via PATCH silently did nothing — fixed by switching
   to Pydantic's `exclude_unset` semantics, which distinguish the two.
+- **2026-07-22 — Phase 3.4:** Added D-029. The audit log viewer reuses D-019's
+  single-index read-cost precedent (date range is the real query bound,
+  everything else filters in-memory) instead of adding per-filter composite
+  indexes, so this phase needed zero new Firestore index deploys. `audit.read`
+  was added to the catalog and granted to `company_admin`/`super_admin`
+  (automatic), `hse_manager`, and `executive`; existing non-demo tenants need
+  one `reconcile_roles.py` run to backfill it. CSV export streams the same
+  bounded/filtered query directly, capped and rejecting rather than truncating
+  past the cap.

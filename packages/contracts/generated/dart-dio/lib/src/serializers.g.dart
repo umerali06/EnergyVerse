@@ -7,6 +7,9 @@ part of 'serializers.dart';
 // **************************************************************************
 
 Serializers _$serializers = (new Serializers().toBuilder()
+      ..add(AuditLogEntry.serializer)
+      ..add(AuditLogFacets.serializer)
+      ..add(AuditLogPage.serializer)
       ..add(CompanyProfile.serializer)
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
@@ -44,6 +47,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(UserListItem.serializer)
       ..add(UserListPage.serializer)
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AuditLogEntry)]),
+          () => new ListBuilder<AuditLogEntry>())
+      ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(DashboardActivityItem)]),
           () => new ListBuilder<DashboardActivityItem>())
@@ -75,8 +81,20 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(UserListItem)]),
           () => new ListBuilder<UserListItem>())
+      ..addBuilderFactory(
+          const FullType(BuiltMap, const [
+            const FullType(String),
+            const FullType.nullable(JsonObject)
+          ]),
+          () => new MapBuilder<String, JsonObject?>())
       ..addBuilderFactory(
           const FullType(BuiltMap, const [
             const FullType(String),

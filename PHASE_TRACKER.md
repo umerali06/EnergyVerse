@@ -35,8 +35,8 @@ Only one micro-task may be active at a time.
 | 3.1 | Company-scoped user management (Admin Portal) — invite, edit, deactivate/activate | Done |
 | 3.2 | Role and permission editing | Done |
 | 3.3 | Company settings | Done |
-| 3.4 | Audit viewer | **In progress** |
-| 3.5 | Super-Admin cross-tenant management | Not started |
+| 3.4 | Audit viewer | Done |
+| 3.5 | Super-Admin cross-tenant management | **In progress** |
 | 4 | To be defined | Not started |
 | 5 | To be defined | Not started |
 | 6 | To be defined | Not started |

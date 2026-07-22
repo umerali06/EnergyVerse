@@ -14,6 +14,9 @@ import 'package:built_value/iso_8601_date_time_serializer.dart';
 import 'package:fev_api_client/src/date_serializer.dart';
 import 'package:fev_api_client/src/model/date.dart';
 
+import 'package:fev_api_client/src/model/audit_log_entry.dart';
+import 'package:fev_api_client/src/model/audit_log_facets.dart';
+import 'package:fev_api_client/src/model/audit_log_page.dart';
 import 'package:fev_api_client/src/model/company_profile.dart';
 import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
@@ -47,6 +50,9 @@ import 'package:fev_api_client/src/model/user_list_page.dart';
 part 'serializers.g.dart';
 
 @SerializersFor([
+  AuditLogEntry,
+  AuditLogFacets,
+  AuditLogPage,
   CompanyProfile,
   CompanyRegistrationRequest,
   CompanyRegistrationResponse,

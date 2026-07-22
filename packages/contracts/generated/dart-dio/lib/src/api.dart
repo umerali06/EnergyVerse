@@ -9,6 +9,7 @@ import 'package:fev_api_client/src/auth/api_key_auth.dart';
 import 'package:fev_api_client/src/auth/basic_auth.dart';
 import 'package:fev_api_client/src/auth/bearer_auth.dart';
 import 'package:fev_api_client/src/auth/oauth.dart';
+import 'package:fev_api_client/src/api/audit_api.dart';
 import 'package:fev_api_client/src/api/auth_api.dart';
 import 'package:fev_api_client/src/api/company_api.dart';
 import 'package:fev_api_client/src/api/dashboard_api.dart';
@@ -81,6 +82,12 @@ class FevApiClient {
               as ApiKeyAuthInterceptor)
           .apiKeys[name] = apiKey;
     }
+  }
+
+  /// Get AuditApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AuditApi getAuditApi() {
+    return AuditApi(dio, serializers);
   }
 
   /// Get AuthApi instance, base route and serializer can be overridden by a given but be careful,

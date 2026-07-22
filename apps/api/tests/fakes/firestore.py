@@ -53,6 +53,7 @@ class FakeQuery:
             if all(
                 (operator == "==" and data.get(field) == value)
                 or (operator == ">=" and data.get(field) is not None and data.get(field) >= value)
+                or (operator == "<=" and data.get(field) is not None and data.get(field) <= value)
                 for field, operator, value in self._filters
             ):
                 yield FakeDocumentSnapshot(document_id, data)

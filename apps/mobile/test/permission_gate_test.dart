@@ -75,6 +75,23 @@ class _IdentityApi implements ApiContract {
 
   @override
   Future<CompanyProfile> getCompanyProfile() => throw UnimplementedError();
+
+  @override
+  Future<AuditLogPage> getAuditLogs({
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? actorUid,
+    String? action,
+    String? targetType,
+    String? q,
+    String? cursor,
+    int limit = 20,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+      throw UnimplementedError();
 }
 
 void main() {

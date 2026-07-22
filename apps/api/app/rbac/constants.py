@@ -32,6 +32,7 @@ PERMISSION_CATALOG = (
     PermissionTemplate("users.manage", "users", "Manage company users"),
     PermissionTemplate("roles.manage", "roles", "Manage company roles"),
     PermissionTemplate("company.settings", "company", "Manage company settings"),
+    PermissionTemplate("audit.read", "audit", "View the company audit trail"),
     PermissionTemplate("platform.admin", "platform", "Administer the FEV platform"),
 )
 
@@ -117,6 +118,7 @@ SYSTEM_ROLE_TEMPLATES = {
                 "reports.generate",
                 "safety.read",
                 "safety.write",
+                "audit.read",
             }
         ),
     ),
@@ -132,6 +134,7 @@ SYSTEM_ROLE_TEMPLATES = {
                 "work_orders.read",
                 "reports.read",
                 "safety.read",
+                "audit.read",
             }
         ),
     ),
