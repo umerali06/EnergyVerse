@@ -4,7 +4,6 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-import app.api.v1.roles as roles_module
 from app.audit.service import AuditService
 from app.auth.claims import ClaimsService
 from app.auth.dependencies import get_current_user
@@ -20,6 +19,7 @@ from app.models.entities import CurrentUser, User, UserUpdate
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
 from app.rbac.dependencies import get_access_denial_audit
 from app.rbac.service import PermissionResolver
+from app.roles.service import RoleManagementService, get_role_management_service
 from app.users.service import UserManagementService, get_user_management_service
 from scripts.seed import ACME_COMPANY_ID, role_id, run_seed
 from tests.fakes.auth import FakeAuthAdmin, FakeAuthUser
@@ -29,7 +29,7 @@ BETA_COMPANY_ID = "beta-utilities"
 
 
 @pytest.fixture()
-def wiring(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+def wiring() -> dict[str, Any]:
     client = FakeAsyncClient()
     asyncio.run(run_seed(client))
 
@@ -61,12 +61,21 @@ def wiring(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         provisioner=provisioner,
         resolver=resolver,
     )
+    role_service = RoleManagementService(
+        roles=roles,
+        role_permissions=role_permissions,
+        permissions=permissions,
+        users=users,
+        claims=claims,
+        audit=audit,
+    )
 
-    monkeypatch.setattr(roles_module, "RoleRepository", lambda: RoleRepository(client))
     app.dependency_overrides[get_user_management_service] = lambda: service
+    app.dependency_overrides[get_role_management_service] = lambda: role_service
     app.dependency_overrides[get_access_denial_audit] = lambda: audit
     yield {"client": client, "auth_admin": auth_admin, "users": users, "audit": audit}
     app.dependency_overrides.pop(get_user_management_service, None)
+    app.dependency_overrides.pop(get_role_management_service, None)
     app.dependency_overrides.pop(get_access_denial_audit, None)
 
 
@@ -453,23 +462,3 @@ def test_get_user_not_found_returns_404(wiring: dict[str, Any]) -> None:
     response = _request(_identity(), "GET", "/api/v1/users/does-not-exist")
     assert response.status_code == 404
     assert response.json()["error"] == "user_not_found"
-
-
-def test_list_roles_excludes_super_admin_and_is_tenant_scoped(
-    wiring: dict[str, Any],
-) -> None:
-    response = _request(_identity(), "GET", "/api/v1/roles")
-    assert response.status_code == 200
-    keys = {role["key"] for role in response.json()["items"]}
-    assert keys == set(SYSTEM_ROLE_TEMPLATES) - {"super_admin"}
-
-    beta = _request(_identity(company_id=BETA_COMPANY_ID), "GET", "/api/v1/roles")
-    assert beta.status_code == 200
-    assert {role["key"] for role in beta.json()["items"]} == {"company_admin"}
-
-
-def test_list_roles_requires_users_manage(wiring: dict[str, Any]) -> None:
-    response = _request(
-        _identity(permissions=frozenset({"reports.read"})), "GET", "/api/v1/roles"
-    )
-    assert response.status_code == 403

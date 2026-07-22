@@ -102,11 +102,57 @@ class RoleSummary(BaseModel):
     id: str
     key: str
     name: str
+    description: str
     is_system: bool
+    permission_count: int
+    assigned_user_count: int
 
 
 class RoleList(BaseModel):
     items: list[RoleSummary]
+
+
+class RoleDetail(BaseModel):
+    id: str
+    key: str
+    name: str
+    description: str
+    is_system: bool
+    permission_keys: list[str]
+    assigned_user_count: int
+
+
+class CreateRoleRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: str = Field(default="", max_length=500)
+    permission_keys: list[str] = Field(default_factory=list)
+    clone_from_role_id: str | None = Field(default=None, min_length=1)
+
+
+class UpdateRoleRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    permission_keys: list[str] | None = None
+
+
+class PermissionCatalogItem(BaseModel):
+    key: str
+    group: str
+    description: str
+
+
+class PermissionCatalogGroup(BaseModel):
+    group: str
+    items: list[PermissionCatalogItem]
+
+
+class PermissionCatalog(BaseModel):
+    groups: list[PermissionCatalogGroup]
+
+
+class RoleDeleted(BaseModel):
+    id: str
+    deleted: bool = True
 
 
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:

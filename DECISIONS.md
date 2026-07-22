@@ -27,6 +27,9 @@
 | D-021 | Invite delivery mechanism | **Invited users never receive a backend-generated password; `provision_user` creates the Firebase Auth account with `password=None` and the admin client sends the same `sendPasswordResetEmail` the 1.3 forgot-password flow already uses — no transactional-email service is built for this** | **RESOLVED — LOCKED** | 2026-07-21 |
 | D-022 | Last-admin and self-action protection | **A user can never deactivate or demote themselves out of an admin role; the last active `company_admin` in a tenant can't be deactivated or demoted by anyone; Super Admin is never an assignable role from the user-management UI even though every tenant has a seeded `super_admin` role document** | **RESOLVED — LOCKED** | 2026-07-21 |
 | D-023 | Mobile read-only user management scope | **Mobile ships list + detail only for Phase 3.1; invite, edit, and status changes are admin-web-only — a deliberate scope choice, not an omission, since field users rarely administer accounts from a phone** | **RESOLVED — LOCKED** | 2026-07-21 |
+| D-024 | System-role immutability and visibility | **`is_system=true` roles can never be renamed, re-permissioned, or deleted through any 3.2 endpoint — only custom roles are mutable; `super_admin` stays invisible to every company-scoped roles endpoint, same as the 3.1 role picker** | **RESOLVED — LOCKED** | 2026-07-22 |
+| D-025 | `platform.admin` grant restriction and claims-sync timing | **`platform.admin` can never be included in a Company Admin's create/update payload (403, not silently dropped); a role-permission edit still triggers a batched `sync_claims_from_role` for every current holder for claims consistency, even though `/me` already resolves permissions live from Firestore on every request, so enforcement is immediate — only the client's cached permission view waits for the next login/session refresh** | **RESOLVED — LOCKED** | 2026-07-22 |
+| D-026 | Mobile read-only role management scope | **Mobile ships list + detail only for Phase 3.2, mirroring D-023 — creating, editing, and deleting roles remain admin-web-only** | **RESOLVED — LOCKED** | 2026-07-22 |
 
 ## Decision Details
 
@@ -486,6 +489,77 @@
   Phase 3.1 is done when mobile shows the same real people and roles
   admin web does, without the mutation surface.
 
+### D-024 — System-Role Immutability and Visibility (Phase 3.2)
+
+- **Decision owner:** Product owner
+- **Decision:** `is_system=true` roles (the seven 0.4/0.6 templates) are
+  permanently read-only through every 3.2 endpoint — they cannot be
+  renamed, have their permission set changed, or be deleted; attempting
+  any of the three returns 409 `system_role_locked`. This resolves the
+  conflict between "let admins edit roles" and the fact that
+  `seed_system_roles`/`run_seed` actively reconcile every system role's
+  name/description/permission mapping back to `SYSTEM_ROLE_TEMPLATES` on
+  every run — a manual edit to a system role would simply be reverted the
+  next time seeding runs. Only custom (`is_system=false`) roles, created
+  through `POST /api/v1/roles`, are ever mutable. Separately, the
+  `super_admin` role stays invisible to every company-scoped 3.2 route
+  (list, detail, create/clone-source, update, delete) exactly as it
+  already was for 3.1's role picker, since granting or managing
+  platform-level access is out of scope until 3.5's Super-Admin
+  cross-tenant work.
+- **Consequences:** No future phase should introduce a path for editing
+  a system role's permissions in place; a company that needs a variant
+  of a system role's permission set should clone it into a new custom
+  role instead (`POST /api/v1/roles` with `clone_from_role_id`). Seeding
+  logic and 3.2's mutation logic never need to coordinate, because their
+  targets (system vs. custom roles) never overlap.
+
+### D-025 — `platform.admin` Grant Restriction and Claims-Sync Timing (Phase 3.2)
+
+- **Decision owner:** Product owner
+- **Decision:** Neither `POST /api/v1/roles` nor
+  `PATCH /api/v1/roles/{id}` will ever let a Company Admin's permission
+  payload include `platform.admin` — it is rejected outright with 403
+  `platform_admin_not_grantable` rather than silently dropped, and the
+  admin UI's permission matrix omits the entire `platform` catalog group
+  so there is nothing to select in the first place. Separately: when a
+  role's permission set changes, `RoleManagementService` still calls the
+  0.5/3.1 `ClaimsService.sync_claims_from_role` for every user currently
+  holding that role (batched, best-effort — a failed sync for one user is
+  logged, not fatal to the request), even though `role_id`/`role_key`
+  claims don't change on a permission-only edit. This is deliberate: 0.5's
+  `get_current_user` resolves a user's effective permissions live from
+  Firestore via `PermissionResolver` on every request (both for route
+  gating and for `/me`), so a permission edit is authoritative and
+  immediate at the API layer regardless of claims sync. The sync exists
+  to keep custom claims internally consistent with the 3.1 pattern; what
+  actually lags is the client's *cached* permission set from its one
+  `/me` call at session start (admin's `PermissionProvider`, mobile's
+  `PermissionController`), which only refreshes on that user's next
+  login or session refresh — consistent with the 1.4 ADR's "next token
+  refresh" framing, even though the underlying mechanism (live
+  server-side resolution vs. client cache staleness) is more nuanced than
+  that phrase alone suggests.
+- **Consequences:** Any future endpoint that can assign permissions to a
+  role must reuse this same `platform.admin` rejection rather than
+  reimplementing it; any future client screen that displays "your
+  permissions" should treat it as a session-start snapshot, not a live
+  subscription, and prompt a refresh/relogin if staleness matters for
+  that screen.
+
+### D-026 — Mobile Read-Only Role Management Scope (Phase 3.2)
+
+- **Decision owner:** Product owner
+- **Decision:** The Flutter app ships `roles_screen.dart` as list +
+  detail only (role name, system/custom badge, permission count,
+  assigned-user count, and the full permission-key set on detail) — no
+  create, edit, or delete UI. This mirrors D-023's mobile-read-only
+  precedent for the same reason: managing the permission model is an
+  occasional desk task. The `roles.manage` permission gates the route
+  and bottom-nav destination identically on both clients.
+- **Consequences:** Same as D-023 — a future mobile-authoring need for
+  roles should be scoped as its own explicit phase, not silently added.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -532,3 +606,9 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   declarative, permission-filtered config per client (mirrored contract);
   unbuilt modules show a branded "Coming soon" page and future platform
   affordances render visibly disabled rather than faked.
+- **2026-07-22 — Phase 3.2:** Added D-024 through D-026. System roles stay
+  permanently read-only and `super_admin` stays invisible to every 3.2 route;
+  `platform.admin` can never be granted by a Company Admin; permission edits
+  are enforced immediately server-side (live resolution, not claims-dependent)
+  while claims sync and mobile stay read-only/consistency-only, mirroring the
+  3.1 pattern.

@@ -9,6 +9,7 @@ part of 'serializers.dart';
 Serializers _$serializers = (new Serializers().toBuilder()
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
+      ..add(CreateRoleRequest.serializer)
       ..add(CurrentUser.serializer)
       ..add(DashboardActivityItem.serializer)
       ..add(DashboardActivityPage.serializer)
@@ -23,11 +24,17 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(HealthResponseServiceEnum.serializer)
       ..add(HealthResponseStatusEnum.serializer)
       ..add(InviteUserRequest.serializer)
+      ..add(PermissionCatalog.serializer)
+      ..add(PermissionCatalogGroup.serializer)
+      ..add(PermissionCatalogItem.serializer)
+      ..add(RoleDeleted.serializer)
+      ..add(RoleDetail.serializer)
       ..add(RoleList.serializer)
       ..add(RoleSummary.serializer)
       ..add(ServiceResponse.serializer)
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
+      ..add(UpdateRoleRequest.serializer)
       ..add(UpdateUserRequest.serializer)
       ..add(UpdateUserStatusRequest.serializer)
       ..add(UpdateUserStatusRequestStatusEnum.serializer)
@@ -43,8 +50,25 @@ Serializers _$serializers = (new Serializers().toBuilder()
               BuiltList, const [const FullType(DashboardSeriesPoint)]),
           () => new ListBuilder<DashboardSeriesPoint>())
       ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(PermissionCatalogGroup)]),
+          () => new ListBuilder<PermissionCatalogGroup>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(PermissionCatalogItem)]),
+          () => new ListBuilder<PermissionCatalogItem>())
+      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(RoleSummary)]),
           () => new ListBuilder<RoleSummary>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())

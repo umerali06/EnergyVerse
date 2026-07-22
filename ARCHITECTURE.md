@@ -388,6 +388,99 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   bottom-nav "Users" destination are gated by `users.manage` exactly
   like the admin web nav item.
 
+### Phase 3.2 Role and Permission Management
+
+- **Data flow.** Six `roles.manage`-gated FastAPI routes extend the 3.1
+  surface: `GET /api/v1/roles` (extended with `permission_count` and
+  `assigned_user_count`, and now accepting either `roles.manage` or
+  `users.manage` — see D-024), `GET /api/v1/roles/{id}` (full
+  `permission_keys`), `POST /api/v1/roles`, `PATCH /api/v1/roles/{id}`,
+  `DELETE /api/v1/roles/{id}`, and a new `GET /api/v1/permissions`
+  (the global catalog grouped by category). All five mutation-adjacent
+  and read routes share `app/roles/service.py::RoleManagementService`,
+  matching `UserManagementService`'s thin-route/fat-service shape. No
+  schema change was needed — the 0.4 `Role`/`Permission`/`RolePermission`
+  collections already modeled the many-to-many mapping; a custom role's
+  permission set is a diff against `RolePermissionRepository`, computed
+  the same way `rbac/seeding.py::_ensure_role_permissions` already
+  diffed system-role mappings (expected IDs vs. existing, batch
+  create/delete via `asyncio.gather`). Custom role IDs are
+  `role_{uuid4().hex}`, distinct from system roles' deterministic
+  `{company_id}__{role_key}` scheme.
+- **System roles are permanently read-only (D-024).** `is_system=True`
+  roles can never be renamed, re-permissioned, or deleted — enforced in
+  `RoleManagementService` before any mutation, independent of and in
+  addition to the fact that `seed_system_roles`/`run_seed` actively
+  reconcile the seven system roles' name/description/permission set back
+  to `SYSTEM_ROLE_TEMPLATES` on every seed run. Only `is_system=False`
+  custom roles are ever created, edited, or deleted by this module. The
+  `super_admin` role stays invisible to every 3.2 endpoint exactly like
+  3.1's role picker, since granting or viewing it is out of scope until
+  3.5.
+- **`platform.admin` can never be granted by a Company Admin.** Both
+  `POST /api/v1/roles` and `PATCH /api/v1/roles/{id}` reject a
+  `permission_keys` payload containing `platform.admin` with 403 before
+  any Firestore write; the admin UI's permission matrix omits the entire
+  `platform` catalog group from every company-scoped screen so there is
+  nothing to check in the first place.
+- **Permission-based last-holder guard.** Deleting a role is already
+  blocked whenever it has any assigned users (409 `role_has_assigned_users`
+  with the count), so a deleted role can never be the one that drops the
+  tenant to zero holders of `users.manage`. Editing a role's permission
+  set is the one path that can: before persisting a change that would
+  remove `users.manage` from a role, `RoleManagementService` computes,
+  for every active user in the tenant, whether their role (after the
+  proposed edit is applied) would still include `users.manage`, and
+  rejects with 409 `last_holder_of_users_manage` if the count would drop
+  to zero. This generalizes 3.1's `_active_admin_count` (which was keyed
+  on the hard-coded `company_admin` role key) to an arbitrary
+  permission across arbitrary roles, since a custom role can now also
+  carry `users.manage`.
+- **Claims sync on permission edit.** After a role's permission set
+  changes, `RoleManagementService` calls the 0.5/3.1
+  `ClaimsService.sync_claims_from_role` for every user currently holding
+  that role, batched with `asyncio.gather(..., return_exceptions=True)`;
+  a failed sync for one user is logged and does not fail the request for
+  the others, since the role edit itself already succeeded in Firestore.
+  Unlike a 3.1 role *change* (which alters a user's `role_id`/`role_key`
+  claims), a role *permission* edit leaves `role_id`/`role_key` claims
+  unchanged — `/api/v1/auth/me` always resolves a user's effective
+  permissions live from Firestore via the 0.5 `PermissionResolver`, on
+  every request, so enforcement reflects a permission edit immediately,
+  not on next token refresh. The claims sync exists to keep the
+  `role_id`/`role_key` custom claims internally consistent with 3.1's
+  established pattern, and because the admin/mobile clients cache the
+  permission set they got from `/me` at session start — that client-side
+  view still only refreshes on the user's next login or session refresh,
+  consistent with the 1.4 ADR's phrasing. See D-025.
+- **Before/after audit diff.** Every `role.updated`/`role_permission.*`
+  mutation already gets a before/after audit entry for free from
+  `TenantRepository._create`/`_update`/`delete` (0.4). A permission edit
+  additionally writes one consolidated `role.permissions_updated` audit
+  event with `before`/`after`/`added`/`removed` permission-key lists, so
+  the effective change is readable in one entry rather than reconstructed
+  from N individual mapping create/delete records.
+- **Admin UI** (`apps/admin/src/roles/`) follows the same hook-plus-page
+  shape as 3.1's `apps/admin/src/users/`: `roles-data.ts`
+  (`useRolesData`) owns the role list and permission catalog fetch state
+  plus the four mutation calls; `roles-page.tsx` composes the toolbar and
+  table; `role-modals.tsx` holds the create/clone form and the
+  detail/edit/delete modal, including the impact-warning + added/removed
+  diff card shown before saving a permission change to a role with
+  assigned users (mirrors `UserDetailModal`'s `confirmingStatus` pattern).
+  `permission-matrix.tsx` is a new reusable component: permissions
+  grouped by category with per-permission and group-level "select all"
+  checkboxes and a live selected-count summary, built on a new `Checkbox`
+  design-system primitive (`packages/design-tokens`-driven, added
+  alongside the existing primitives rather than as a one-off). The route
+  (`/roles`) is gated by `RequirePermission permission="roles.manage"`
+  and the nav entry sits beside "Users" in the "Administration" group.
+- **Mobile** ships list + detail only (`apps/mobile/lib/roles/`) — no
+  create/edit/delete UI, extending the 3.1/D-023 read-only-on-mobile
+  precedent (see D-026). The `/roles` route and bottom-nav "Roles"
+  destination are gated by `roles.manage` exactly like the admin web nav
+  item.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -428,3 +521,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 0.8 — API contract and generated clients | Connects the Phase 0.5 token/current-user chain and Phase 0.6 RBAC routes to a typed OpenAPI 3.1 contract with one request-ID error envelope. Pinned generation commits a TypeScript Fetch client for Next.js and Dart Dio client for Flutter; CI re-exports/regenerates and rejects drift. Client wrappers inject tokens, normalize network/API failures, invoke the 401 seam, and surface Phase 0.7 toast/snackbar feedback. Existing health and `/me` consumers now use these wrappers. No feature screen/module or Phase 1 implementation was added. | 2026-07-16 |
 | Phase 1.1 — client login | Both clients initialize the Firebase client SDK from uncommitted environment configuration, sign in with email/password, inject the Firebase ID token through the Phase 0.8 typed wrapper, and resolve the Phase 0.5 `/me` identity backed by Phase 0.4 tenant/RBAC repositories. One auth provider restores persisted Firebase sessions and owns `CurrentUser`; the authenticated Home placeholder renders role and exact effective permissions for Phase 0.6 guard consumers. Login/Home compose Phase 0.7 primitives, motion, and feedback. Minimal sign-out closes the loop; signup, reset, and full session/route hardening remain deferred. | 2026-07-17 |
 | Phase 1.2 — organization signup and verification | The typed registration operation creates an opaque-ID tenant, installs the shared seven-role matrix, provisions/audits its first `company_admin`, and returns the Firebase identity seam. Both clients sign in, use Firebase built-in verification delivery, and keep unverified identity resolvable through `/me`; server `require_verified_email` gates all application RBAC dependencies until a refreshed token reports verification. Signup/verify UI reuses the design system, generated clients, auth provider, and unified feedback. | 2026-07-17 |
+| Phase 3.2 — role and permission management | Extends the 3.1 `RoleRepository`/`RolePermissionRepository` (0.4) with a create/update/delete surface and a new global permission-catalog route, gated by `roles.manage` (0.6) and sharing 3.1's `UserRepository` for the last-holder guard and claims batch sync (0.5's `ClaimsService`). No Firestore schema change. Admin gains a new `apps/admin/src/roles/` module plus a `Checkbox` design-system primitive (0.7); mobile gains a read-only `apps/mobile/lib/roles/` mirror. Contracts regenerated for `RoleDetail`/`CreateRoleRequest`/`UpdateRoleRequest`/`PermissionCatalog`/`RoleDeleted`. | 2026-07-22 |

@@ -44,6 +44,7 @@ class AppNav {
   static const reports = '/reports';
   static const documents = '/documents';
   static const users = '/users';
+  static const roles = '/roles';
   static const settings = '/settings';
 
   static const destinations = <NavDestination>[
@@ -108,6 +109,12 @@ class AppNav {
       icon: Icons.people_outline,
       route: users,
       requiredPermission: 'users.manage',
+    ),
+    NavDestination(
+      label: 'Roles',
+      icon: Icons.shield_outlined,
+      route: roles,
+      requiredPermission: 'roles.manage',
     ),
     NavDestination(
       label: 'Admin & Settings',

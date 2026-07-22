@@ -2,6 +2,7 @@
 /* eslint-disable */
 export * from './CompanyRegistrationRequest';
 export * from './CompanyRegistrationResponse';
+export * from './CreateRoleRequest';
 export * from './CurrentUser';
 export * from './DashboardActivityItem';
 export * from './DashboardActivityPage';
@@ -12,9 +13,15 @@ export * from './DemoGateResponse';
 export * from './ErrorEnvelope';
 export * from './HealthResponse';
 export * from './InviteUserRequest';
+export * from './PermissionCatalog';
+export * from './PermissionCatalogGroup';
+export * from './PermissionCatalogItem';
+export * from './RoleDeleted';
+export * from './RoleDetail';
 export * from './RoleList';
 export * from './RoleSummary';
 export * from './ServiceResponse';
+export * from './UpdateRoleRequest';
 export * from './UpdateUserRequest';
 export * from './UpdateUserStatusRequest';
 export * from './UserDetail';

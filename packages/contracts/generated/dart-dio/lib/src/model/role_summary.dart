@@ -11,12 +11,21 @@ part 'role_summary.g.dart';
 /// RoleSummary
 ///
 /// Properties:
+/// * [assignedUserCount]
+/// * [description]
 /// * [id]
 /// * [isSystem]
 /// * [key]
 /// * [name]
+/// * [permissionCount]
 @BuiltValue()
 abstract class RoleSummary implements Built<RoleSummary, RoleSummaryBuilder> {
+  @BuiltValueField(wireName: r'assigned_user_count')
+  int get assignedUserCount;
+
+  @BuiltValueField(wireName: r'description')
+  String get description;
+
   @BuiltValueField(wireName: r'id')
   String get id;
 
@@ -28,6 +37,9 @@ abstract class RoleSummary implements Built<RoleSummary, RoleSummaryBuilder> {
 
   @BuiltValueField(wireName: r'name')
   String get name;
+
+  @BuiltValueField(wireName: r'permission_count')
+  int get permissionCount;
 
   RoleSummary._();
 
@@ -52,6 +64,16 @@ class _$RoleSummarySerializer implements PrimitiveSerializer<RoleSummary> {
     RoleSummary object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
+    yield r'assigned_user_count';
+    yield serializers.serialize(
+      object.assignedUserCount,
+      specifiedType: const FullType(int),
+    );
+    yield r'description';
+    yield serializers.serialize(
+      object.description,
+      specifiedType: const FullType(String),
+    );
     yield r'id';
     yield serializers.serialize(
       object.id,
@@ -71,6 +93,11 @@ class _$RoleSummarySerializer implements PrimitiveSerializer<RoleSummary> {
     yield serializers.serialize(
       object.name,
       specifiedType: const FullType(String),
+    );
+    yield r'permission_count';
+    yield serializers.serialize(
+      object.permissionCount,
+      specifiedType: const FullType(int),
     );
   }
 
@@ -97,6 +124,20 @@ class _$RoleSummarySerializer implements PrimitiveSerializer<RoleSummary> {
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
+        case r'assigned_user_count':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(int),
+          ) as int;
+          result.assignedUserCount = valueDes;
+          break;
+        case r'description':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.description = valueDes;
+          break;
         case r'id':
           final valueDes = serializers.deserialize(
             value,
@@ -124,6 +165,13 @@ class _$RoleSummarySerializer implements PrimitiveSerializer<RoleSummary> {
             specifiedType: const FullType(String),
           ) as String;
           result.name = valueDes;
+          break;
+        case r'permission_count':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(int),
+          ) as int;
+          result.permissionCount = valueDes;
           break;
         default:
           unhandled.add(key);

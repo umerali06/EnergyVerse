@@ -52,8 +52,13 @@ export type UsersApiClient = Pick<
   "getUser" | "inviteUser" | "listRoles" | "listUsers" | "setUserStatus" | "updateUser"
 >;
 
+export type RolesApiClient = Pick<
+  FevApiClient,
+  "createRole" | "deleteRole" | "getRole" | "listPermissionCatalog" | "listRoles" | "updateRole"
+>;
+
 type AuthContextValue = {
-  apiClient: DashboardApiClient & UsersApiClient;
+  apiClient: DashboardApiClient & UsersApiClient & RolesApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -125,7 +130,8 @@ export function AuthProvider({
 }: {
   apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin"> &
     Partial<DashboardApiClient> &
-    Partial<UsersApiClient>;
+    Partial<UsersApiClient> &
+    Partial<RolesApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -380,7 +386,7 @@ export function AuthProvider({
       // Narrowed from the constructor's test-seam type: a test that renders
       // dashboard or users data without supplying these methods gets an
       // immediate, easy-to-diagnose TypeError rather than a silent gap.
-      apiClient: client as DashboardApiClient & UsersApiClient,
+      apiClient: client as DashboardApiClient & UsersApiClient & RolesApiClient,
       currentUser,
       error,
       passwordResetSentAt,

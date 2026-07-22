@@ -16,6 +16,7 @@ import 'package:fev_api_client/src/model/date.dart';
 
 import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
+import 'package:fev_api_client/src/model/create_role_request.dart';
 import 'package:fev_api_client/src/model/current_user.dart';
 import 'package:fev_api_client/src/model/dashboard_activity_item.dart';
 import 'package:fev_api_client/src/model/dashboard_activity_page.dart';
@@ -26,9 +27,15 @@ import 'package:fev_api_client/src/model/demo_gate_response.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
 import 'package:fev_api_client/src/model/health_response.dart';
 import 'package:fev_api_client/src/model/invite_user_request.dart';
+import 'package:fev_api_client/src/model/permission_catalog.dart';
+import 'package:fev_api_client/src/model/permission_catalog_group.dart';
+import 'package:fev_api_client/src/model/permission_catalog_item.dart';
+import 'package:fev_api_client/src/model/role_deleted.dart';
+import 'package:fev_api_client/src/model/role_detail.dart';
 import 'package:fev_api_client/src/model/role_list.dart';
 import 'package:fev_api_client/src/model/role_summary.dart';
 import 'package:fev_api_client/src/model/service_response.dart';
+import 'package:fev_api_client/src/model/update_role_request.dart';
 import 'package:fev_api_client/src/model/update_user_request.dart';
 import 'package:fev_api_client/src/model/update_user_status_request.dart';
 import 'package:fev_api_client/src/model/user_detail.dart';
@@ -40,6 +47,7 @@ part 'serializers.g.dart';
 @SerializersFor([
   CompanyRegistrationRequest,
   CompanyRegistrationResponse,
+  CreateRoleRequest,
   CurrentUser,
   DashboardActivityItem,
   DashboardActivityPage,
@@ -50,9 +58,15 @@ part 'serializers.g.dart';
   ErrorEnvelope,
   HealthResponse,
   InviteUserRequest,
+  PermissionCatalog,
+  PermissionCatalogGroup,
+  PermissionCatalogItem,
+  RoleDeleted,
+  RoleDetail,
   RoleList,
   RoleSummary,
   ServiceResponse,
+  UpdateRoleRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,
   UserDetail,

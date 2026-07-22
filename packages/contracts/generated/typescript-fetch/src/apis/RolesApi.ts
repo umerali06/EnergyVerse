@@ -15,20 +15,175 @@
 
 import * as runtime from '../runtime';
 import type {
+  CreateRoleRequest,
   ErrorEnvelope,
+  RoleDeleted,
+  RoleDetail,
   RoleList,
+  UpdateRoleRequest,
 } from '../models/index';
 import {
+    CreateRoleRequestFromJSON,
+    CreateRoleRequestToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
+    RoleDeletedFromJSON,
+    RoleDeletedToJSON,
+    RoleDetailFromJSON,
+    RoleDetailToJSON,
     RoleListFromJSON,
     RoleListToJSON,
+    UpdateRoleRequestFromJSON,
+    UpdateRoleRequestToJSON,
 } from '../models/index';
+
+export interface CreateRoleOperationRequest {
+    createRoleRequest: CreateRoleRequest;
+}
+
+export interface DeleteRoleRequest {
+    roleId: string;
+}
+
+export interface GetRoleRequest {
+    roleId: string;
+}
+
+export interface UpdateRoleOperationRequest {
+    roleId: string;
+    updateRoleRequest: UpdateRoleRequest;
+}
 
 /**
  *
  */
 export class RolesApi extends runtime.BaseAPI {
+
+    /**
+     * Create Role
+     */
+    async createRoleRaw(requestParameters: CreateRoleOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RoleDetail>> {
+        if (requestParameters['createRoleRequest'] == null) {
+            throw new runtime.RequiredError(
+                'createRoleRequest',
+                'Required parameter "createRoleRequest" was null or undefined when calling createRole().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/roles`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateRoleRequestToJSON(requestParameters['createRoleRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RoleDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Create Role
+     */
+    async createRole(requestParameters: CreateRoleOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RoleDetail> {
+        const response = await this.createRoleRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Delete Role
+     */
+    async deleteRoleRaw(requestParameters: DeleteRoleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RoleDeleted>> {
+        if (requestParameters['roleId'] == null) {
+            throw new runtime.RequiredError(
+                'roleId',
+                'Required parameter "roleId" was null or undefined when calling deleteRole().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/roles/{role_id}`.replace(`{${"role_id"}}`, encodeURIComponent(String(requestParameters['roleId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RoleDeletedFromJSON(jsonValue));
+    }
+
+    /**
+     * Delete Role
+     */
+    async deleteRole(requestParameters: DeleteRoleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RoleDeleted> {
+        const response = await this.deleteRoleRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Get Role
+     */
+    async getRoleRaw(requestParameters: GetRoleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RoleDetail>> {
+        if (requestParameters['roleId'] == null) {
+            throw new runtime.RequiredError(
+                'roleId',
+                'Required parameter "roleId" was null or undefined when calling getRole().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/roles/{role_id}`.replace(`{${"role_id"}}`, encodeURIComponent(String(requestParameters['roleId']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RoleDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Get Role
+     */
+    async getRole(requestParameters: GetRoleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RoleDetail> {
+        const response = await this.getRoleRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * List Roles
@@ -61,6 +216,57 @@ export class RolesApi extends runtime.BaseAPI {
      */
     async listRoles(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RoleList> {
         const response = await this.listRolesRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Role
+     */
+    async updateRoleRaw(requestParameters: UpdateRoleOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RoleDetail>> {
+        if (requestParameters['roleId'] == null) {
+            throw new runtime.RequiredError(
+                'roleId',
+                'Required parameter "roleId" was null or undefined when calling updateRole().'
+            );
+        }
+
+        if (requestParameters['updateRoleRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateRoleRequest',
+                'Required parameter "updateRoleRequest" was null or undefined when calling updateRole().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/roles/{role_id}`.replace(`{${"role_id"}}`, encodeURIComponent(String(requestParameters['roleId']))),
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateRoleRequestToJSON(requestParameters['updateRoleRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RoleDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Update Role
+     */
+    async updateRole(requestParameters: UpdateRoleOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RoleDetail> {
+        const response = await this.updateRoleRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

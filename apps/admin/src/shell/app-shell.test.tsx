@@ -119,6 +119,7 @@ const allNavLabels = [
   "Reports",
   "Documents",
   "Users",
+  "Roles",
   "Admin & Settings",
 ];
 
@@ -278,7 +279,7 @@ function navLabels(): string[] {
 }
 
 describe("app shell", () => {
-  const adminOnlyLabels = new Set(["Users", "Admin & Settings"]);
+  const adminOnlyLabels = new Set(["Users", "Roles", "Admin & Settings"]);
   it.each([
     ["company_admin", allNavLabels],
     ["operations_manager", allNavLabels.filter((label) => !adminOnlyLabels.has(label))],

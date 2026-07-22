@@ -21,6 +21,18 @@ import { mapValues } from '../runtime';
 export interface RoleSummary {
     /**
      *
+     * @type {number}
+     * @memberof RoleSummary
+     */
+    assignedUserCount: number;
+    /**
+     *
+     * @type {string}
+     * @memberof RoleSummary
+     */
+    description: string;
+    /**
+     *
      * @type {string}
      * @memberof RoleSummary
      */
@@ -43,16 +55,25 @@ export interface RoleSummary {
      * @memberof RoleSummary
      */
     name: string;
+    /**
+     *
+     * @type {number}
+     * @memberof RoleSummary
+     */
+    permissionCount: number;
 }
 
 /**
  * Check if a given object implements the RoleSummary interface.
  */
 export function instanceOfRoleSummary(value: object): value is RoleSummary {
+    if (!('assignedUserCount' in value) || value['assignedUserCount'] === undefined) return false;
+    if (!('description' in value) || value['description'] === undefined) return false;
     if (!('id' in value) || value['id'] === undefined) return false;
     if (!('isSystem' in value) || value['isSystem'] === undefined) return false;
     if (!('key' in value) || value['key'] === undefined) return false;
     if (!('name' in value) || value['name'] === undefined) return false;
+    if (!('permissionCount' in value) || value['permissionCount'] === undefined) return false;
     return true;
 }
 
@@ -66,10 +87,13 @@ export function RoleSummaryFromJSONTyped(json: any, ignoreDiscriminator: boolean
     }
     return {
 
+        'assignedUserCount': json['assigned_user_count'],
+        'description': json['description'],
         'id': json['id'],
         'isSystem': json['is_system'],
         'key': json['key'],
         'name': json['name'],
+        'permissionCount': json['permission_count'],
     };
 }
 
@@ -84,9 +108,12 @@ export function RoleSummaryToJSONTyped(value?: RoleSummary | null, ignoreDiscrim
 
     return {
 
+        'assigned_user_count': value['assignedUserCount'],
+        'description': value['description'],
         'id': value['id'],
         'is_system': value['isSystem'],
         'key': value['key'],
         'name': value['name'],
+        'permission_count': value['permissionCount'],
     };
 }
