@@ -103,6 +103,9 @@ class FakeApi implements ApiContract {
 
   @override
   Future<RoleDetail> getRole(String roleId) => _getRole(roleId);
+
+  @override
+  Future<CompanyProfile> getCompanyProfile() => throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {

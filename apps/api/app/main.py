@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.company import router as company_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.permissions import router as permissions_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
@@ -48,6 +49,7 @@ app = FastAPI(
         {"name": "users", "description": "Company-scoped user management"},
         {"name": "roles", "description": "Company-scoped role and permission-set management"},
         {"name": "permissions", "description": "Global permission catalog, grouped by category"},
+        {"name": "company", "description": "Company profile, branding, and tenant-wide settings"},
     ],
 )
 app.add_exception_handler(ApiError, api_error_response)
@@ -69,6 +71,7 @@ app.include_router(rbac_demo_router)
 app.include_router(users_router)
 app.include_router(roles_router)
 app.include_router(permissions_router)
+app.include_router(company_router)
 
 
 @app.get(

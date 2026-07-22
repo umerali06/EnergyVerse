@@ -4,8 +4,13 @@ import { protectedPage } from "@/seo/site";
 
 export const metadata: Metadata = protectedPage("Admin & Settings");
 
-import { ComingSoonScreen } from "@/shell/app-shell";
+import { RequirePermission } from "@/auth/route-guards";
+import { CompanySettingsPage } from "@/settings/company-settings-page";
 
-export default function Page() {
-  return <ComingSoonScreen moduleName="Admin & Settings" />;
+export default function SettingsRoute() {
+  return (
+    <RequirePermission permission="company.settings">
+      <CompanySettingsPage />
+    </RequirePermission>
+  );
 }

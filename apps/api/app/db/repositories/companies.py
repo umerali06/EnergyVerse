@@ -4,7 +4,7 @@ from app.audit.types import AuditSink
 from app.db.firestore import get_firestore_client
 from app.db.repositories.base import FIRESTORE_OPERATION_TIMEOUT_SECONDS
 from app.models.base import CompanyScope, global_creation_fields, utc_now
-from app.models.entities import Company, CompanyCreate, CompanyUpdate, without_none
+from app.models.entities import Company, CompanyCreate, CompanyUpdate
 
 
 class CompanyRepository:
@@ -73,10 +73,14 @@ class CompanyRepository:
         current = await self.get(scope)
         if current is None:
             raise LookupError("company not found")
+        # exclude_unset (not without_none) so an explicitly-null field (e.g.
+        # clearing industry/contact info) actually clears it, while a field
+        # absent from the request stays untouched -- the two are otherwise
+        # indistinguishable once collapsed to None.
         company = Company.model_validate(
             {
                 **current.model_dump(),
-                **without_none(payload.model_dump()),
+                **payload.model_dump(exclude_unset=True),
                 "updated_at": utc_now(),
             }
         )
@@ -94,6 +98,45 @@ class CompanyRepository:
                 scope,
                 actor_uid=actor_uid,
                 action="company.updated",
+                target_type="company",
+                target_id=company.id,
+                metadata={
+                    "before": current.model_dump(mode="json"),
+                    "after": company.model_dump(mode="json"),
+                },
+            )
+        return company
+
+    async def set_logo_path(
+        self,
+        scope: CompanyScope,
+        logo_path: str | None,
+        actor_uid: str,
+    ) -> Company:
+        current = await self.get(scope)
+        if current is None:
+            raise LookupError("company not found")
+        company = Company.model_validate(
+            {
+                **current.model_dump(),
+                "logo_path": logo_path,
+                "updated_at": utc_now(),
+            }
+        )
+        await (
+            self._client.collection(self.collection_name)
+            .document(scope.company_id)
+            .set(
+                company.model_dump(),
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+                retry=None,
+            )
+        )
+        if self._audit is not None:
+            await self._audit.audit(
+                scope,
+                actor_uid=actor_uid,
+                action="company.logo_updated" if logo_path else "company.logo_removed",
                 target_type="company",
                 target_id=company.id,
                 metadata={

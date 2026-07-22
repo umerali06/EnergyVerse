@@ -9,7 +9,9 @@ import 'package:fev_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **companyId** | **String** |  |
+**companyLocale** | **String** |  | [optional] [default to 'en-US']
 **companyName** | **String** |  |
+**companyTimezone** | **String** |  | [optional] [default to 'UTC']
 **email** | **String** |  |
 **emailVerified** | **bool** |  |
 **permissions** | **BuiltSet&lt;String&gt;** |  |

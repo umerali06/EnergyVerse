@@ -31,7 +31,19 @@ export interface CurrentUser {
      * @type {string}
      * @memberof CurrentUser
      */
+    companyLocale?: string;
+    /**
+     *
+     * @type {string}
+     * @memberof CurrentUser
+     */
     companyName: string;
+    /**
+     *
+     * @type {string}
+     * @memberof CurrentUser
+     */
+    companyTimezone?: string;
     /**
      *
      * @type {string}
@@ -90,7 +102,9 @@ export function CurrentUserFromJSONTyped(json: any, ignoreDiscriminator: boolean
 
             ...json,
         'companyId': json['company_id'],
+        'companyLocale': json['company_locale'] == null ? undefined : json['company_locale'],
         'companyName': json['company_name'],
+        'companyTimezone': json['company_timezone'] == null ? undefined : json['company_timezone'],
         'email': json['email'],
         'emailVerified': json['email_verified'],
         'permissions': new Set(json['permissions']),
@@ -112,7 +126,9 @@ export function CurrentUserToJSONTyped(value?: CurrentUser | null, ignoreDiscrim
 
             ...value,
         'company_id': value['companyId'],
+        'company_locale': value['companyLocale'],
         'company_name': value['companyName'],
+        'company_timezone': value['companyTimezone'],
         'email': value['email'],
         'email_verified': value['emailVerified'],
         'permissions': Array.from(value['permissions'] as Set<any>),

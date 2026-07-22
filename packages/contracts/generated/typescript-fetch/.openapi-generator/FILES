@@ -4,6 +4,7 @@
 README.md
 package.json
 src/apis/AuthApi.ts
+src/apis/CompanyApi.ts
 src/apis/DashboardApi.ts
 src/apis/PermissionsApi.ts
 src/apis/RbacDemoApi.ts
@@ -12,6 +13,7 @@ src/apis/SystemApi.ts
 src/apis/UsersApi.ts
 src/apis/index.ts
 src/index.ts
+src/models/CompanyProfile.ts
 src/models/CompanyRegistrationRequest.ts
 src/models/CompanyRegistrationResponse.ts
 src/models/CreateRoleRequest.ts
@@ -33,6 +35,7 @@ src/models/RoleDetail.ts
 src/models/RoleList.ts
 src/models/RoleSummary.ts
 src/models/ServiceResponse.ts
+src/models/UpdateCompanyRequest.ts
 src/models/UpdateRoleRequest.ts
 src/models/UpdateUserRequest.ts
 src/models/UpdateUserStatusRequest.ts

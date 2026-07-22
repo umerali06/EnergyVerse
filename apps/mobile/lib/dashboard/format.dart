@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 /// Human-readable formatting for real audit_logs data. No fabricated copy —
 /// every string here describes an actual field on a real event; unknown
@@ -62,18 +63,34 @@ String formatRelativeTime(DateTime then, {DateTime? now}) {
 String formatTarget(String targetType, String targetId) =>
     targetId.startsWith('/') ? '$targetType$targetId' : '$targetType/$targetId';
 
-String formatChartDay(DateTime date) {
+/// Converts to the company's IANA timezone (3.3 setting) when it's a
+/// recognized zone; falls back to the original (local) instant otherwise --
+/// this only affects which calendar day/time is shown, not language, since
+/// mobile doesn't carry the `intl` package's locale data (deliberate scope
+/// boundary, see DECISIONS.md).
+DateTime _inZone(DateTime date, String? timeZone) {
+  if (timeZone == null || timeZone.isEmpty) return date;
+  try {
+    return tz.TZDateTime.from(date, tz.getLocation(timeZone));
+  } catch (_) {
+    return date;
+  }
+}
+
+String formatChartDay(DateTime date, {String? timeZone}) {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
-  return '${months[date.month - 1]} ${date.day}';
+  final zoned = _inZone(date, timeZone);
+  return '${months[zoned.month - 1]} ${zoned.day}';
 }
 
-String formatCompanyDate(DateTime date) {
+String formatCompanyDate(DateTime date, {String? timeZone}) {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June', //
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
-  return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  final zoned = _inZone(date, timeZone);
+  return '${months[zoned.month - 1]} ${zoned.day}, ${zoned.year}';
 }

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     firebase_credentials_b64: str | None = None
     google_application_credentials: str | None = None
     firebase_web_api_key: str | None = None
+    firebase_storage_bucket: str | None = None
     seed_demo_password: str | None = None
     auth_action_url: str | None = None
     cors_origins: tuple[str, ...] = (

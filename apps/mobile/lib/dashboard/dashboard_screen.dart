@@ -266,8 +266,14 @@ class _ActivityChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final timeZone = AuthProvider.of(context).currentUser?.companyTimezone;
     final points = controller.series
-        .map((point) => SeriesPoint(label: formatChartDay(point.date.toDateTime()), value: point.count))
+        .map(
+          (point) => SeriesPoint(
+            label: formatChartDay(point.date.toDateTime(), timeZone: timeZone),
+            value: point.count,
+          ),
+        )
         .toList();
     final allZero = points.isNotEmpty && points.every((point) => point.value == 0);
     final status = switch (controller.seriesStatus) {

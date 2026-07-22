@@ -14,7 +14,9 @@ part 'current_user.g.dart';
 ///
 /// Properties:
 /// * [companyId]
+/// * [companyLocale]
 /// * [companyName]
+/// * [companyTimezone]
 /// * [email]
 /// * [emailVerified]
 /// * [permissions]
@@ -25,8 +27,14 @@ abstract class CurrentUser implements Built<CurrentUser, CurrentUserBuilder> {
   @BuiltValueField(wireName: r'company_id')
   String get companyId;
 
+  @BuiltValueField(wireName: r'company_locale')
+  String? get companyLocale;
+
   @BuiltValueField(wireName: r'company_name')
   String get companyName;
+
+  @BuiltValueField(wireName: r'company_timezone')
+  String? get companyTimezone;
 
   @BuiltValueField(wireName: r'email')
   String get email;
@@ -48,7 +56,9 @@ abstract class CurrentUser implements Built<CurrentUser, CurrentUserBuilder> {
   factory CurrentUser([void updates(CurrentUserBuilder b)]) = _$CurrentUser;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(CurrentUserBuilder b) => b;
+  static void _defaults(CurrentUserBuilder b) => b
+    ..companyLocale = 'en-US'
+    ..companyTimezone = 'UTC';
 
   @BuiltValueSerializer(custom: true)
   static Serializer<CurrentUser> get serializer => _$CurrentUserSerializer();
@@ -71,11 +81,25 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
       object.companyId,
       specifiedType: const FullType(String),
     );
+    if (object.companyLocale != null) {
+      yield r'company_locale';
+      yield serializers.serialize(
+        object.companyLocale,
+        specifiedType: const FullType(String),
+      );
+    }
     yield r'company_name';
     yield serializers.serialize(
       object.companyName,
       specifiedType: const FullType(String),
     );
+    if (object.companyTimezone != null) {
+      yield r'company_timezone';
+      yield serializers.serialize(
+        object.companyTimezone,
+        specifiedType: const FullType(String),
+      );
+    }
     yield r'email';
     yield serializers.serialize(
       object.email,
@@ -133,12 +157,26 @@ class _$CurrentUserSerializer implements PrimitiveSerializer<CurrentUser> {
           ) as String;
           result.companyId = valueDes;
           break;
+        case r'company_locale':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.companyLocale = valueDes;
+          break;
         case r'company_name':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
           result.companyName = valueDes;
+          break;
+        case r'company_timezone':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.companyTimezone = valueDes;
           break;
         case r'email':
           final valueDes = serializers.deserialize(

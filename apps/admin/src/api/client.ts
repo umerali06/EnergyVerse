@@ -1,5 +1,6 @@
 import {
   AuthApi,
+  CompanyApi,
   Configuration,
   DashboardApi,
   FetchError,
@@ -9,6 +10,7 @@ import {
   RolesApi,
   SystemApi,
   UsersApi,
+  type CompanyProfile,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
   type CreateRoleRequest,
@@ -23,6 +25,7 @@ import {
   type RoleDeleted,
   type RoleDetail,
   type RoleList,
+  type UpdateCompanyRequest,
   type UpdateRoleRequest,
   type UpdateUserRequest,
   type UpdateUserStatusRequest,
@@ -90,6 +93,7 @@ export type ListUsersOptions = {
 
 export class FevApiClient {
   private readonly auth: AuthApi;
+  private readonly company: CompanyApi;
   private readonly dashboard: DashboardApi;
   private readonly permissions: PermissionsApi;
   private readonly rbacDemo: RbacDemoApi;
@@ -108,6 +112,7 @@ export class FevApiClient {
       fetchApi: options.fetchApi,
     });
     this.auth = new AuthApi(configuration);
+    this.company = new CompanyApi(configuration);
     this.dashboard = new DashboardApi(configuration);
     this.permissions = new PermissionsApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
@@ -271,6 +276,29 @@ export class FevApiClient {
     return this.execute(() =>
       this.permissions.listPermissionCatalog(signal ? { signal } : undefined),
     );
+  }
+
+  getCompany(signal?: AbortSignal): Promise<CompanyProfile> {
+    return this.execute(() => this.company.getCompany(signal ? { signal } : undefined));
+  }
+
+  updateCompany(request: UpdateCompanyRequest, signal?: AbortSignal): Promise<CompanyProfile> {
+    return this.execute(() =>
+      this.company.updateCompany(
+        { updateCompanyRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  uploadCompanyLogo(file: Blob, signal?: AbortSignal): Promise<CompanyProfile> {
+    return this.execute(() =>
+      this.company.uploadCompanyLogo({ file }, signal ? { signal } : undefined),
+    );
+  }
+
+  removeCompanyLogo(signal?: AbortSignal): Promise<CompanyProfile> {
+    return this.execute(() => this.company.removeCompanyLogo(signal ? { signal } : undefined));
   }
 
   private async execute<T>(request: () => Promise<T>): Promise<T> {

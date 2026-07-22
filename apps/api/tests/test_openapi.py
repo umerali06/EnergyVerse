@@ -25,6 +25,10 @@ EXPECTED_OPERATIONS = {
     "update_role",
     "delete_role",
     "list_permission_catalog",
+    "get_company",
+    "update_company",
+    "upload_company_logo",
+    "remove_company_logo",
 }
 
 

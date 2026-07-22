@@ -73,6 +73,7 @@ abstract interface class ApiContract {
   Future<UserDetail> getUser(String userId);
   Future<RoleList> getRoles();
   Future<RoleDetail> getRole(String roleId);
+  Future<CompanyProfile> getCompanyProfile();
 }
 
 class ApiService implements ApiContract {
@@ -361,6 +362,23 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty role detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<CompanyProfile> getCompanyProfile() async {
+    try {
+      final response = await _client.getCompanyApi().getCompany();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty company profile',
         );
       }
       return value;
