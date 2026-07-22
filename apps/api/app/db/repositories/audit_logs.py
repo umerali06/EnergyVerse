@@ -86,6 +86,35 @@ class AuditLogRepository:
         audit_logs.sort(key=lambda log: (log.created_at, log.id), reverse=True)
         return audit_logs[:max_events]
 
+    async def list_range(
+        self,
+        scope: CompanyScope,
+        start: datetime,
+        end: datetime,
+        max_events: int,
+    ) -> list[AuditLog]:
+        """Bounded date-range tenant audit read for the 3.4 audit viewer.
+
+        Read cost: one query filtered to the tenant plus a `created_at` floor and
+        ceiling on the same already-indexed field (no new composite index needed
+        beyond the existing `company_id + created_at`), hard-capped in memory —
+        same read-cost shape as `list_since`, but with a caller-controlled range
+        instead of a fixed window.
+        """
+        query = (
+            self._client.collection(self.collection_name)
+            .where(filter=FieldFilter("company_id", "==", scope.company_id))
+            .where(filter=FieldFilter("created_at", ">=", start))
+            .where(filter=FieldFilter("created_at", "<=", end))
+        )
+        audit_logs = []
+        async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+            data = snapshot.to_dict()
+            if data is not None and data.get("company_id") == scope.company_id:
+                audit_logs.append(AuditLog.model_validate(data))
+        audit_logs.sort(key=lambda log: (log.created_at, log.id), reverse=True)
+        return audit_logs[:max_events]
+
     async def list(self, scope: CompanyScope) -> list[AuditLog]:
         query = self._client.collection(self.collection_name).where(
             filter=FieldFilter("company_id", "==", scope.company_id)

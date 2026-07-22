@@ -70,6 +70,22 @@ export function formatTarget(targetType: string, targetId: string): string {
   return targetId.startsWith("/") ? `${targetType}${targetId}` : `${targetType}/${targetId}`;
 }
 
+/** Exact "Jul 22, 2026, 4:32 PM" for hover/title text, in the tenant's timezone. */
+export function formatCompanyDateTime(
+  iso: string | Date,
+  options: DateFormatOptions = {},
+): string {
+  const date = typeof iso === "string" ? new Date(iso) : iso;
+  return date.toLocaleString(options.locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: options.timeZone,
+  });
+}
+
 export function formatCompanyDate(iso: string | Date, options: DateFormatOptions = {}): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
   return date.toLocaleDateString(options.locale, {

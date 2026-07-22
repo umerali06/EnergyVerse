@@ -225,6 +225,30 @@ export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) 
   );
 }
 
+export function FilterChip({
+  children,
+  onDismiss,
+}: {
+  children: ReactNode;
+  onDismiss: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-elevated py-0.5 pl-2.5 pr-1 font-mono text-caption text-text-secondary">
+      {children}
+      <button
+        aria-label="Remove filter"
+        className="grid size-4 place-items-center rounded-full text-text-muted hover:bg-border/60 hover:text-text-primary"
+        onClick={onDismiss}
+        type="button"
+      >
+        <svg aria-hidden className="size-3" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </span>
+  );
+}
+
 export type StatusTone = "healthy" | "warning" | "critical" | "info";
 const statusStyles: Record<StatusTone, string> = {
   healthy: "bg-status-success/15 text-status-successDeep dark:text-status-success",

@@ -99,6 +99,23 @@ class FakeApi implements ApiContract {
 
   @override
   Future<CompanyProfile> getCompanyProfile() => _getCompanyProfile();
+
+  @override
+  Future<AuditLogPage> getAuditLogs({
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? actorUid,
+    String? action,
+    String? targetType,
+    String? q,
+    String? cursor,
+    int limit = 20,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+      throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {

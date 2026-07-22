@@ -72,6 +72,9 @@ export const navIcons = {
   roles: (
     <GlyphIcon path="M12 2 3 6v6c0 5 3.8 8.4 9 10 5.2-1.6 9-5 9-10V6l-9-4zM9 12l2 2 4-4" />
   ),
+  audit: (
+    <GlyphIcon path="M9 3h6a1 1 0 0 1 1 1v1h1a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a1 1 0 0 1 1-1zM8 12h8M8 16h5M9 9h6" />
+  ),
 } as const;
 
 export const navGroups: readonly NavGroup[] = [
@@ -157,6 +160,12 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.settings,
         route: "/settings",
         requiredPermission: "company.settings",
+      },
+      {
+        label: "Audit Log",
+        icon: navIcons.audit,
+        route: "/audit",
+        requiredPermission: "audit.read",
       },
     ],
   },

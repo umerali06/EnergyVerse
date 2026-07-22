@@ -1,5 +1,8 @@
 /* tslint:disable */
 /* eslint-disable */
+export * from './AuditLogEntry';
+export * from './AuditLogFacets';
+export * from './AuditLogPage';
 export * from './CompanyProfile';
 export * from './CompanyRegistrationRequest';
 export * from './CompanyRegistrationResponse';

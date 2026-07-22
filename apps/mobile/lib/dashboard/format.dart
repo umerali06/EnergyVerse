@@ -86,6 +86,15 @@ String formatChartDay(DateTime date, {String? timeZone}) {
   return '${months[zoned.month - 1]} ${zoned.day}';
 }
 
+String formatCompanyDateTime(DateTime date, {String? timeZone}) {
+  final zoned = _inZone(date, timeZone);
+  final hour24 = zoned.hour;
+  final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  final period = hour24 < 12 ? 'AM' : 'PM';
+  final minute = zoned.minute.toString().padLeft(2, '0');
+  return '${formatCompanyDate(date, timeZone: timeZone)}, $hour12:$minute $period';
+}
+
 String formatCompanyDate(DateTime date, {String? timeZone}) {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June', //

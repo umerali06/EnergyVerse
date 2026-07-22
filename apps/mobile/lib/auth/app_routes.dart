@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../audit/audit_screen.dart';
 import '../company/company_profile_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
@@ -26,6 +27,7 @@ class AppRoutes {
   static const users = AppNav.users;
   static const roles = AppNav.roles;
   static const settings = AppNav.settings;
+  static const audit = AppNav.audit;
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -98,6 +100,18 @@ class AppRoutes {
                   permission: 'company.settings',
                   fallback: NoAccessScreen(permission: 'company.settings'),
                   child: CompanyProfileScreen(),
+                ),
+              ),
+            );
+      case audit:
+        return (_) => const RequireAuthGuard(
+              routeName: audit,
+              child: AppShellScaffold(
+                currentRoute: audit,
+                child: PermissionGate(
+                  permission: 'audit.read',
+                  fallback: NoAccessScreen(permission: 'audit.read'),
+                  child: AuditScreen(),
                 ),
               ),
             );

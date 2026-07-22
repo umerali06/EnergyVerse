@@ -74,6 +74,17 @@ abstract interface class ApiContract {
   Future<RoleList> getRoles();
   Future<RoleDetail> getRole(String roleId);
   Future<CompanyProfile> getCompanyProfile();
+  Future<AuditLogPage> getAuditLogs({
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? actorUid,
+    String? action,
+    String? targetType,
+    String? q,
+    String? cursor,
+    int limit = 20,
+  });
+  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate});
 }
 
 class ApiService implements ApiContract {
@@ -362,6 +373,61 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty role detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AuditLogPage> getAuditLogs({
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? actorUid,
+    String? action,
+    String? targetType,
+    String? q,
+    String? cursor,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _client.getAuditApi().listAuditLogs(
+            fromDate: fromDate?.toDate(),
+            toDate: toDate?.toDate(),
+            actorUid: actorUid,
+            action: action,
+            targetType: targetType,
+            q: q,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty audit log page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) async {
+    try {
+      final response = await _client.getAuditApi().getAuditLogFacets(
+            fromDate: fromDate?.toDate(),
+            toDate: toDate?.toDate(),
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty audit facets response',
         );
       }
       return value;
