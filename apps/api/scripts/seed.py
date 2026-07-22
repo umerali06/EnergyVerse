@@ -9,16 +9,25 @@ from app.auth.admin import AuthAdmin
 from app.auth.provisioning import UserProvisioningService
 from app.core.settings import settings
 from app.db.firestore import get_firestore_client
+from app.db.repositories.areas import AreaRepository
+from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.companies import CompanyRepository
+from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
 from app.models.base import CompanyScope
 from app.models.entities import (
+    AreaCreate,
+    AreaUpdate,
+    AssetCreate,
+    AssetUpdate,
     CompanyCreate,
     CompanyUpdate,
+    FacilityCreate,
+    FacilityUpdate,
     PermissionCreate,
     PermissionUpdate,
     RoleCreate,
@@ -66,6 +75,250 @@ DEMO_USERS = tuple(
         email="company_admin@beta.example.invalid",
         display_name="Beta Company Admin",
         role_key="company_admin",
+    ),
+)
+
+# 4.1 demo facility/area/asset hierarchy -- deliberately demo-flagged data for
+# ACME_COMPANY_ID only, so 4.2's UI has real data to render. Deterministic IDs
+# keep re-running the seed idempotent rather than duplicating rows.
+FACILITY_NORTH_REFINERY_ID = f"{ACME_COMPANY_ID}__facility__north-refinery"
+FACILITY_COMPRESSOR_STATION_ID = f"{ACME_COMPANY_ID}__facility__compressor-station-2"
+
+AREA_TANK_FARM_A_ID = f"{ACME_COMPANY_ID}__area__tank-farm-a"
+AREA_PROCESS_UNIT_1_ID = f"{ACME_COMPANY_ID}__area__process-unit-1"
+AREA_COMPRESSOR_BUILDING_ID = f"{ACME_COMPANY_ID}__area__compressor-building"
+AREA_YARD_ID = f"{ACME_COMPANY_ID}__area__yard"
+
+
+@dataclass(frozen=True)
+class DemoFacilitySeed:
+    id: str
+    name: str
+    sector: str
+    gps_lat: float
+    gps_lng: float
+    address: str
+    timezone: str
+
+
+DEMO_FACILITIES = (
+    DemoFacilitySeed(
+        id=FACILITY_NORTH_REFINERY_ID,
+        name="North Refinery",
+        sector="Oil & Gas Refining",
+        gps_lat=29.7604,
+        gps_lng=-95.3698,
+        address="1000 Refinery Rd, Houston, TX",
+        timezone="America/Chicago",
+    ),
+    DemoFacilitySeed(
+        id=FACILITY_COMPRESSOR_STATION_ID,
+        name="Compressor Station 2",
+        sector="Midstream / Pipeline",
+        gps_lat=31.9686,
+        gps_lng=-99.9018,
+        address="200 Pipeline Way, Abilene, TX",
+        timezone="America/Chicago",
+    ),
+)
+
+
+@dataclass(frozen=True)
+class DemoAreaSeed:
+    id: str
+    facility_id: str
+    name: str
+    code: str
+
+
+DEMO_AREAS = (
+    DemoAreaSeed(
+        id=AREA_TANK_FARM_A_ID,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        name="Tank Farm A",
+        code="TFA",
+    ),
+    DemoAreaSeed(
+        id=AREA_PROCESS_UNIT_1_ID,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        name="Process Unit 1",
+        code="PU1",
+    ),
+    DemoAreaSeed(
+        id=AREA_COMPRESSOR_BUILDING_ID,
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        name="Compressor Building",
+        code="CB1",
+    ),
+    DemoAreaSeed(
+        id=AREA_YARD_ID,
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        name="Yard",
+        code="YARD",
+    ),
+)
+
+
+@dataclass(frozen=True)
+class DemoAssetSeed:
+    id: str
+    facility_id: str
+    area_id: str | None
+    parent_asset_id: str | None
+    asset_tag: str
+    name: str
+    category: str
+    category_other: str | None
+    manufacturer: str | None
+    model: str | None
+    current_status: str
+
+
+ASSET_FEED_PUMP_ID = f"{ACME_COMPANY_ID}__asset__p-101"
+
+DEMO_ASSETS = (
+    DemoAssetSeed(
+        id=ASSET_FEED_PUMP_ID,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        area_id=AREA_PROCESS_UNIT_1_ID,
+        parent_asset_id=None,
+        asset_tag="P-101",
+        name="Feed Pump 101",
+        category="Pumps",
+        category_other=None,
+        manufacturer="Flowserve",
+        model="RM 300",
+        current_status="Healthy",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__c-201",
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        area_id=AREA_COMPRESSOR_BUILDING_ID,
+        parent_asset_id=None,
+        asset_tag="C-201",
+        name="Reciprocating Compressor 201",
+        category="Compressors",
+        category_other=None,
+        manufacturer="Ariel",
+        model="JGK/4",
+        current_status="Warning",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__t-301",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        area_id=AREA_TANK_FARM_A_ID,
+        parent_asset_id=None,
+        asset_tag="T-301",
+        name="Crude Storage Tank 301",
+        category="Tanks",
+        category_other=None,
+        manufacturer=None,
+        model=None,
+        current_status="Healthy",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__v-401",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        area_id=AREA_PROCESS_UNIT_1_ID,
+        parent_asset_id=None,
+        asset_tag="V-401",
+        name="Pressure Relief Valve 401",
+        category="Valves",
+        category_other=None,
+        manufacturer="Emerson",
+        model=None,
+        current_status="Critical",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__m-501",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        area_id=AREA_PROCESS_UNIT_1_ID,
+        parent_asset_id=ASSET_FEED_PUMP_ID,
+        asset_tag="M-501",
+        name="Pump Drive Motor 501",
+        category="Motors",
+        category_other=None,
+        manufacturer="WEG",
+        model=None,
+        current_status="Healthy",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__ep-601",
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        area_id=AREA_COMPRESSOR_BUILDING_ID,
+        parent_asset_id=None,
+        asset_tag="EP-601",
+        name="Main Electrical Panel",
+        category="Electrical Panels",
+        category_other=None,
+        manufacturer=None,
+        model=None,
+        current_status="Healthy",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__g-701",
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        area_id=AREA_YARD_ID,
+        parent_asset_id=None,
+        asset_tag="G-701",
+        name="Backup Generator 701",
+        category="Generators",
+        category_other=None,
+        manufacturer="Caterpillar",
+        model=None,
+        current_status="Warning",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__xf-801",
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        area_id=AREA_YARD_ID,
+        parent_asset_id=None,
+        asset_tag="XF-801",
+        name="Step-Down Transformer 801",
+        category="Transformers",
+        category_other=None,
+        manufacturer=None,
+        model=None,
+        current_status="Healthy",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__wh-901",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        area_id=AREA_TANK_FARM_A_ID,
+        parent_asset_id=None,
+        asset_tag="WH-901",
+        name="Wellhead 901",
+        category="Wellheads",
+        category_other=None,
+        manufacturer=None,
+        model=None,
+        current_status="Healthy",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__pl-001",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        area_id=None,
+        parent_asset_id=None,
+        asset_tag="PL-001",
+        name="Crude Transfer Pipeline",
+        category="Pipelines",
+        category_other=None,
+        manufacturer=None,
+        model=None,
+        current_status="Healthy",
+    ),
+    DemoAssetSeed(
+        id=f"{ACME_COMPANY_ID}__asset__x-999",
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        area_id=None,
+        parent_asset_id=None,
+        asset_tag="X-999",
+        name="Custom Skid Unit",
+        category="Other",
+        category_other="Modular Skid Assembly",
+        manufacturer=None,
+        model=None,
+        current_status="Healthy",
     ),
 )
 
@@ -253,6 +506,135 @@ async def _ensure_user(
         )
 
 
+async def _ensure_facility(
+    repository: FacilityRepository,
+    scope: CompanyScope,
+    seed: DemoFacilitySeed,
+) -> None:
+    existing = await repository.get(scope, seed.id)
+    if existing is None:
+        await repository.create(
+            scope,
+            FacilityCreate(
+                id=seed.id,
+                name=seed.name,
+                sector=seed.sector,
+                gps_lat=seed.gps_lat,
+                gps_lng=seed.gps_lng,
+                address=seed.address,
+                timezone=seed.timezone,
+                status="active",
+            ),
+            SEED_ACTOR_UID,
+        )
+        return
+    if (
+        existing.name != seed.name
+        or existing.sector != seed.sector
+        or existing.address != seed.address
+        or existing.timezone != seed.timezone
+    ):
+        await repository.update(
+            scope,
+            seed.id,
+            FacilityUpdate(
+                name=seed.name,
+                sector=seed.sector,
+                gps_lat=seed.gps_lat,
+                gps_lng=seed.gps_lng,
+                address=seed.address,
+                timezone=seed.timezone,
+            ),
+            SEED_ACTOR_UID,
+        )
+
+
+async def _ensure_area(
+    repository: AreaRepository,
+    scope: CompanyScope,
+    seed: DemoAreaSeed,
+) -> None:
+    existing = await repository.get(scope, seed.id)
+    if existing is None:
+        await repository.create(
+            scope,
+            AreaCreate(
+                id=seed.id,
+                facility_id=seed.facility_id,
+                name=seed.name,
+                code=seed.code,
+            ),
+            SEED_ACTOR_UID,
+        )
+        return
+    if (
+        existing.facility_id != seed.facility_id
+        or existing.name != seed.name
+        or existing.code != seed.code
+    ):
+        await repository.update(
+            scope,
+            seed.id,
+            AreaUpdate(name=seed.name, code=seed.code),
+            SEED_ACTOR_UID,
+        )
+
+
+async def _ensure_asset(
+    repository: AssetRepository,
+    scope: CompanyScope,
+    seed: DemoAssetSeed,
+) -> None:
+    existing = await repository.get(scope, seed.id)
+    if existing is None:
+        await repository.create(
+            scope,
+            AssetCreate(
+                id=seed.id,
+                facility_id=seed.facility_id,
+                area_id=seed.area_id,
+                parent_asset_id=seed.parent_asset_id,
+                asset_tag=seed.asset_tag,
+                name=seed.name,
+                category=seed.category,
+                category_other=seed.category_other,
+                manufacturer=seed.manufacturer,
+                model=seed.model,
+                current_status=seed.current_status,
+            ),
+            SEED_ACTOR_UID,
+        )
+        return
+    if (
+        existing.facility_id != seed.facility_id
+        or existing.area_id != seed.area_id
+        or existing.parent_asset_id != seed.parent_asset_id
+        or existing.asset_tag != seed.asset_tag
+        or existing.name != seed.name
+        or existing.category != seed.category
+        or existing.manufacturer != seed.manufacturer
+        or existing.model != seed.model
+        or existing.current_status != seed.current_status
+    ):
+        await repository.update(
+            scope,
+            seed.id,
+            AssetUpdate(
+                facility_id=seed.facility_id,
+                area_id=seed.area_id,
+                parent_asset_id=seed.parent_asset_id,
+                asset_tag=seed.asset_tag,
+                name=seed.name,
+                category=seed.category,
+                category_other=seed.category_other,
+                manufacturer=seed.manufacturer,
+                model=seed.model,
+                current_status=seed.current_status,
+            ),
+            SEED_ACTOR_UID,
+        )
+
+
 async def run_seed(
     client: AsyncClient | None = None,
     *,
@@ -268,6 +650,9 @@ async def run_seed(
     roles = RoleRepository(firestore_client, audit)
     role_permissions = RolePermissionRepository(firestore_client, audit)
     users = UserRepository(firestore_client, audit)
+    facilities = FacilityRepository(firestore_client, audit)
+    areas = AreaRepository(firestore_client, audit)
+    assets = AssetRepository(firestore_client, audit)
 
     await asyncio.gather(
         _ensure_company(
@@ -343,6 +728,12 @@ async def run_seed(
         user_role_id=second_role_id,
     )
 
+    await asyncio.gather(
+        *(_ensure_facility(facilities, acme_scope, facility) for facility in DEMO_FACILITIES)
+    )
+    await asyncio.gather(*(_ensure_area(areas, acme_scope, area) for area in DEMO_AREAS))
+    await asyncio.gather(*(_ensure_asset(assets, acme_scope, asset) for asset in DEMO_ASSETS))
+
     if with_auth_users:
         password = demo_password or settings.seed_demo_password
         if not password:
@@ -383,6 +774,11 @@ async def run_seed(
         audit_logs.list(acme_scope),
         audit_logs.list(second_scope),
     )
+    acme_facilities, acme_areas, acme_assets = await asyncio.gather(
+        facilities.list(acme_scope),
+        areas.list(acme_scope),
+        assets.list(acme_scope),
+    )
     return SeedCounts(
         companies=sum(
             company is not None
@@ -396,6 +792,9 @@ async def run_seed(
         role_permissions=len(acme_mappings) + len(second_mappings),
         users=len(acme_users) + len(second_users),
         audit_logs=len(acme_audits) + len(second_audits),
+        facilities=len(acme_facilities),
+        areas=len(acme_areas),
+        assets=len(acme_assets),
     )
 
 

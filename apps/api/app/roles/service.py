@@ -35,6 +35,8 @@ PLATFORM_ADMIN_KEY = "platform.admin"
 USERS_MANAGE_KEY = "users.manage"
 
 PERMISSION_GROUP_ORDER = (
+    "facilities",
+    "areas",
     "assets",
     "inspections",
     "permits",

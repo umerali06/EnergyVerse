@@ -34,6 +34,9 @@
 | D-028 | Company settings scope policy | **Only settings with a real, working consumer today ship in 3.3 (industry, timezone/locale threaded into existing date displays, contact info, logo); `subscription_tier` stays read-only with tier-limit enforcement explicitly deferred to a later phase, and no placeholder settings for unbuilt modules (e.g. AI thresholds, IoT config) are added ahead of their own phases** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-029 | Audit viewer role mapping, query shape, and export policy | **`audit.read` added to the catalog and granted to `company_admin`/`super_admin` (automatic), `hse_manager`, and `executive`, not field/technician roles; the viewer's date range is the real Firestore query bound (reusing the single existing `company_id + created_at` index, zero new indexes) with actor/action/target/text filters applied in-memory over that bounded read; CSV export streams the same bounded/filtered set directly (no Storage round trip), capped at 25,000 rows; reading the audit log is itself never audited** | **RESOLVED — LOCKED** | 2026-07-22 |
 | D-030 | Super-Admin cross-tenant trust model (resolves D-006) | **A new `AdminScope`, constructible only from a verified `platform.admin` permission, is the sole path to `/api/v1/platform/*`; every existing company-scoped route stays untouched; cross-tenant mutations dual-write to the target tenant's own audit trail and a reserved `"__platform__"` pseudo-tenant trail; a suspended company blocks its users at `get_current_user` itself (stricter than unverified-email); `subscription_tier` becomes a locked 4-value enum; platform administration is web-only** | **RESOLVED — LOCKED** | 2026-07-23 |
+| D-031 | Asset hierarchy depth and self-nesting | **Locked three-level hierarchy `Facility → Area → Asset`, plus an optional `parent_asset_id` self-reference on `Asset` for component/sub-asset nesting instead of a separate rigid component collection** | **RESOLVED — LOCKED** | 2026-07-23 |
+| D-032 | Asset category extensibility | **`category` is a validated `str` against a code-level catalog (`ASSET_CATEGORIES` + `Other`), not a schema-level enum — adding a category is a one-line constant change, never a migration** | **RESOLVED — LOCKED** | 2026-07-23 |
+| D-033 | Asset history-by-reference and soft-delete cascade | **No inspection/maintenance history is embedded on `Asset`; `GET /assets/{id}/history` returns a real, always-empty, correctly-shaped page that later modules fill by querying their own collections. Facilities/areas/assets get the codebase's first soft delete (`deleted_at` stamped, never physically removed); deleting a facility/area with any non-deleted child returns 409, mirroring the existing `role_has_assigned_users` precedent; an asset's soft-delete is never blocked by child sub-assets, since the parent row still resolves afterward** | **RESOLVED — LOCKED** | 2026-07-23 |
 
 ## Decision Details
 
@@ -703,6 +706,54 @@
   unscoped read of the `companies` collection and should be reused, not
   reimplemented, by any future platform-wide company query.
 
+### D-031 — Asset Hierarchy Depth and Self-Nesting (Phase 4.1)
+
+- **Decision owner:** Product owner (locked in the Phase 4.1 brief)
+- **Decision:** The hierarchy is exactly three levels —
+  `Facility → Area → Asset` — plus an optional `parent_asset_id`
+  self-reference on `Asset` for component/sub-asset nesting (e.g. a motor
+  inside a pump). Most assets have a null parent; there is no separate
+  rigid "component" collection.
+- **Consequences:** Any future need for deeper nesting (e.g. a component
+  with its own sub-components) is already covered by the existing
+  self-reference and needs no schema change; a genuinely new hierarchy
+  level (e.g. above Facility) would need its own ADR.
+
+### D-032 — Asset Category Extensibility (Phase 4.1)
+
+- **Decision owner:** Product owner (locked in the Phase 4.1 brief)
+- **Decision:** `Asset.category` is a plain `str` validated in the service
+  layer against `app/assets/constants.py::ASSET_CATEGORIES` (the ten spec
+  categories plus `Other`), not a Pydantic `Literal`/schema enum — mirroring
+  3.3's `INDUSTRY_CHOICES`/`is_valid_industry` pattern exactly.
+  `category == "Other"` requires a non-empty `category_other` free-text
+  subtype.
+- **Consequences:** Adding a category later is a one-line constant change
+  reviewed like any code change, never a Firestore migration or a breaking
+  contract change.
+
+### D-033 — Asset History-by-Reference and Soft-Delete Cascade (Phase 4.1)
+
+- **Decision owner:** Product owner (locked in the Phase 4.1 brief)
+- **Decision:** `Asset` embeds no inspection/maintenance history arrays.
+  `GET /api/v1/assets/{id}/history` returns a real, always-empty,
+  correctly-shaped `AssetHistoryPage` today; future inspection/work-order
+  modules fill it by querying their own collections `WHERE asset_id == ...`,
+  never by writing into this response. Separately, facilities/areas/assets
+  get this codebase's first soft delete: `TenantRepository._soft_delete()`
+  stamps `deleted_at` and writes a `.deleted` audit action instead of
+  physically removing the document; every service treats
+  `deleted_at is not None` as "not found." Deleting a facility/area with
+  any non-deleted child row returns `409` (`facility_has_children`/
+  `area_has_children`), mirroring the existing `409 role_has_assigned_users`
+  (D-024) precedent — the simpler of the two cascade choices the brief
+  allowed. An asset's own soft-delete is never blocked by child sub-assets,
+  since the parent row still resolves by id afterward.
+- **Consequences:** Any future module that needs an asset's history must
+  query by `asset_id` against its own collection rather than expecting
+  embedded arrays; any future collection that needs soft delete should
+  reuse `_soft_delete()` rather than reimplementing the pattern.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -794,3 +845,14 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   enum-enforcing endpoint can't itself reproduce, so that one restoration
   step went directly through the repository layer, matching every prior
   phase's "leave the tenant exactly as found" convention).
+- **2026-07-23 — Phase 4.1:** Added D-031 through D-033, opening Phase 4.
+  Three new tenant collections (`facilities` → `areas` → `assets`, plus
+  optional asset self-nesting) give `assets.read`/`assets.write` — unused
+  catalog placeholders since 0.4 — their first real backend. Introduces
+  this codebase's first soft delete (`TenantRepository._soft_delete()`) and
+  first Firestore-level filtered+ordered query (`AssetRepository.query()`,
+  backed by four new composite indexes) — every other list route still
+  reads-then-filters-in-Python. New `facilities.read/write`/`areas.read/write`
+  permissions mirror each role's existing `assets.*` grants exactly, so no
+  role's effective access shape changed apart from the new keys themselves.
+  No UI, photo upload, KPI widgets, or QR were built — those are 4.2–4.5.

@@ -17,6 +17,10 @@ class SystemRoleTemplate:
 
 
 PERMISSION_CATALOG = (
+    PermissionTemplate("facilities.read", "facilities", "View facilities"),
+    PermissionTemplate("facilities.write", "facilities", "Create and update facilities"),
+    PermissionTemplate("areas.read", "areas", "View areas"),
+    PermissionTemplate("areas.write", "areas", "Create and update areas"),
     PermissionTemplate("assets.read", "assets", "View assets"),
     PermissionTemplate("assets.write", "assets", "Create and update assets"),
     PermissionTemplate("inspections.read", "inspections", "View inspections"),
@@ -57,6 +61,10 @@ SYSTEM_ROLE_TEMPLATES = {
         description="Manage company operations and operational reporting",
         permission_keys=frozenset(
             {
+                "facilities.read",
+                "facilities.write",
+                "areas.read",
+                "areas.write",
                 "assets.read",
                 "assets.write",
                 "inspections.read",
@@ -75,6 +83,8 @@ SYSTEM_ROLE_TEMPLATES = {
         description="Perform inspections and field safety work",
         permission_keys=frozenset(
             {
+                "facilities.read",
+                "areas.read",
                 "assets.read",
                 "inspections.read",
                 "inspections.write",
@@ -93,6 +103,8 @@ SYSTEM_ROLE_TEMPLATES = {
         description="Perform and update maintenance work",
         permission_keys=frozenset(
             {
+                "facilities.read",
+                "areas.read",
                 "assets.read",
                 "inspections.read",
                 "permits.read",
@@ -109,6 +121,8 @@ SYSTEM_ROLE_TEMPLATES = {
         description="Manage health, safety, and environmental oversight",
         permission_keys=frozenset(
             {
+                "facilities.read",
+                "areas.read",
                 "assets.read",
                 "inspections.read",
                 "permits.read",
@@ -128,6 +142,8 @@ SYSTEM_ROLE_TEMPLATES = {
         description="Read-only operational oversight",
         permission_keys=frozenset(
             {
+                "facilities.read",
+                "areas.read",
                 "assets.read",
                 "inspections.read",
                 "permits.read",

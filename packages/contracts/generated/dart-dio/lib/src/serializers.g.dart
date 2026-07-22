@@ -7,12 +7,28 @@ part of 'serializers.dart';
 // **************************************************************************
 
 Serializers _$serializers = (new Serializers().toBuilder()
+      ..add(AreaDeleted.serializer)
+      ..add(AreaDetail.serializer)
+      ..add(AreaListPage.serializer)
+      ..add(AssetDeleted.serializer)
+      ..add(AssetDetail.serializer)
+      ..add(AssetDetailCurrentStatusEnum.serializer)
+      ..add(AssetHistoryEvent.serializer)
+      ..add(AssetHistoryPage.serializer)
+      ..add(AssetListItem.serializer)
+      ..add(AssetListItemCurrentStatusEnum.serializer)
+      ..add(AssetListPage.serializer)
       ..add(AuditLogEntry.serializer)
       ..add(AuditLogFacets.serializer)
       ..add(AuditLogPage.serializer)
       ..add(CompanyProfile.serializer)
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
+      ..add(CreateAreaRequest.serializer)
+      ..add(CreateAssetRequest.serializer)
+      ..add(CreateAssetRequestCurrentStatusEnum.serializer)
+      ..add(CreateFacilityRequest.serializer)
+      ..add(CreateFacilityRequestStatusEnum.serializer)
       ..add(CreateRoleRequest.serializer)
       ..add(CurrentUser.serializer)
       ..add(DashboardActivityItem.serializer)
@@ -23,6 +39,10 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(DemoGateResponse.serializer)
       ..add(DemoGateResponseOkEnum.serializer)
       ..add(ErrorEnvelope.serializer)
+      ..add(FacilityDeleted.serializer)
+      ..add(FacilityDetail.serializer)
+      ..add(FacilityDetailStatusEnum.serializer)
+      ..add(FacilityListPage.serializer)
       ..add(HTTPValidationError.serializer)
       ..add(HealthResponse.serializer)
       ..add(HealthResponseFirestoreEnum.serializer)
@@ -43,9 +63,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ServiceResponse.serializer)
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
+      ..add(UpdateAreaRequest.serializer)
+      ..add(UpdateAssetRequest.serializer)
+      ..add(UpdateAssetRequestCurrentStatusEnum.serializer)
       ..add(UpdateCompanyRequest.serializer)
       ..add(UpdateCompanyStatusRequest.serializer)
       ..add(UpdateCompanyStatusRequestStatusEnum.serializer)
+      ..add(UpdateFacilityRequest.serializer)
+      ..add(UpdateFacilityRequestStatusEnum.serializer)
       ..add(UpdatePlatformCompanyRequest.serializer)
       ..add(UpdatePlatformCompanyRequestSubscriptionTierEnum.serializer)
       ..add(UpdateRoleRequest.serializer)
@@ -58,6 +83,15 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ValidationError.serializer)
       ..add(ValidationErrorLocInner.serializer)
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AreaDetail)]),
+          () => new ListBuilder<AreaDetail>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AssetHistoryEvent)]),
+          () => new ListBuilder<AssetHistoryEvent>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AssetListItem)]),
+          () => new ListBuilder<AssetListItem>())
+      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AuditLogEntry)]),
           () => new ListBuilder<AuditLogEntry>())
       ..addBuilderFactory(
@@ -68,6 +102,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(DashboardSeriesPoint)]),
           () => new ListBuilder<DashboardSeriesPoint>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(FacilityDetail)]),
+          () => new ListBuilder<FacilityDetail>())
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(PermissionCatalogGroup)]),
@@ -83,6 +120,15 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(RoleSummary)]),
           () => new ListBuilder<RoleSummary>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())

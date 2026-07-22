@@ -726,6 +726,109 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   mobile-read-only precedent to an entire module rather than a subset of
   actions: platform administration is a desk task, not a field task.
 
+### Phase 4.1 Asset Data Model, Facility/Area Hierarchy, and Backend CRUD
+
+- **Hierarchy (locked).** `facilities` (`TenantDoc`: name, sector, gps_lat/gps_lng,
+  address, timezone defaulted from the company's own timezone at creation,
+  status) → `areas` (`TenantDoc`: facility_id, name, code, description) →
+  `assets` (`TenantDoc`: the core record). Assets additionally carry an
+  optional `parent_asset_id` self-reference for component/sub-asset nesting
+  (e.g. a motor inside a pump) instead of a separate rigid component
+  collection — most assets have a null parent. This is the first real
+  implementation of the `assets.read`/`assets.write` permission keys, which
+  existed as unused catalog placeholders since Phase 0.4.
+- **Asset record.** Identity (`facility_id`, nullable `area_id`, nullable
+  `parent_asset_id`, `asset_tag`, reserved nullable `qr_code_id` for 4.5),
+  descriptive fields (`name`, `category`, `manufacturer`, `model`,
+  `serial_number`, `installation_date`, `description`), location
+  (`gps_lat`/`gps_lng`, nullable — the UI falls back to the parent facility's
+  coordinates), the `current_status` rollup (`Healthy | Warning | Critical`,
+  defaults `Healthy` — the value the future "Critical Assets" dashboard KPI
+  reads), and reserved-empty media/reference arrays (`photos`, `documents`,
+  `manuals`, `model_3d_url`) populated by later phases (4.3 photos, 13 the
+  digital twin).
+- **`current_status` vs. the future manual-status-log (explicit
+  separation).** The client spec's Excellent/Good/Fair/Poor/Critical +
+  temperature/pressure/noise/vibration/leak manual readings are a
+  time-series, deliberately NOT built in 4.1 and NOT embedded on the asset
+  record — they belong to a future `asset_status_logs` collection. `assets`
+  carries only the simple 3-state rollup.
+- **Category is an extensible catalog, not a fixed schema enum.**
+  `app/assets/constants.py`'s `ASSET_CATEGORIES` tuple (the ten spec
+  categories plus `Other`) is checked in the service layer
+  (`is_valid_asset_category`), mirroring 3.3's `INDUSTRY_CHOICES`/
+  `is_valid_industry` pattern exactly — adding a category later is a
+  one-line constant change, never a migration. `category == "Other"`
+  requires a non-empty `category_other` free-text subtype.
+- **History is resolved by reference, never embedded.** No
+  `inspection_history`/`maintenance_history` arrays exist on `Asset`.
+  `GET /api/v1/assets/{id}/history` (`app/api/v1/assets.py`) returns a
+  real, correctly-shaped, always-empty `AssetHistoryPage` today — the
+  contract future inspection/work-order modules fill by querying their own
+  collections `WHERE asset_id == ...`, not by writing into this response.
+- **Soft delete (new pattern in this codebase).** Every prior
+  `TenantRepository.delete()` (Users' status toggle aside) is a hard delete.
+  Facilities/areas/assets instead get a new `TenantRepository._soft_delete()`
+  base helper (`app/db/repositories/base.py`) that stamps `deleted_at`
+  and writes a `.deleted` audit action identical in shape to a hard delete's
+  — the row stays queryable by id (so a stale reference still resolves) but
+  every service treats `deleted_at is not None` as "not found." Deleting a
+  facility/area that still has any non-deleted child rows returns a `409`
+  (`facility_has_children`/`area_has_children` with the child count),
+  mirroring the existing `409 role_has_assigned_users` (D-024) precedent —
+  the simpler of the two choices the brief allowed. Soft-deleting an asset is
+  never blocked by child sub-assets (`parent_asset_id` pointing at it): the
+  parent row still resolves after soft-delete, so no reference actually
+  breaks — a deliberate, documented choice, not an oversight.
+- **`GET /assets` query strategy (the one new query pattern this phase
+  adds).** Every prior list route (Users/Roles/Audit) reads the full
+  company-scoped collection in one query and filters/sorts/paginates in
+  Python (D-019's "small tenant dataset" reasoning). Assets can be far
+  larger per tenant, so `AssetRepository.query()` pushes **one** equality
+  filter to Firestore — priority `facility_id` → `category` → `current_status`
+  — combined with `company_id ==` and `order_by(created_at, DESC)`; the
+  three composite indexes this needs, plus a plain `company_id+created_at`
+  baseline, are committed in `infra/firebase/firestore.indexes.json`. Any
+  *other* simultaneously-requested filter (`area_id`, `parent_asset_id`, a
+  second equality dimension, free-text search over
+  name/asset_tag/serial_number, and any sort other than the default) is
+  applied in-memory over that already-bounded read
+  (`ASSET_QUERY_CAP = 5000`, matching the D-019/D-029 backstop-cap
+  convention), then paginated with the existing base64 id-cursor idiom from
+  `UserManagementService`. Facilities and Areas stay on the plain
+  full-list-then-filter-in-Python pattern — their per-tenant cardinality is
+  headcount-sized, not asset-sized.
+- **Referential integrity lives in the service layer, not the
+  repository**, exactly like every prior module: creating an area/asset
+  requires its `facility_id` to resolve in the same tenant and not be
+  soft-deleted; an asset's `area_id`, if set, must belong to that same
+  facility; a `parent_asset_id` must resolve in the same tenant and can
+  never equal the asset's own id. Cross-tenant references are impossible by
+  construction — every lookup goes through the same `CompanyScope`-gated
+  `get()` every other repository already uses.
+- **Permissions.** `facilities.read`/`facilities.write`/`areas.read`/
+  `areas.write` were added to the Phase 0.4 catalog alongside the
+  already-existing `assets.read`/`assets.write`. `company_admin`/
+  `super_admin` inherit them automatically (both derive from
+  `ALL_PERMISSION_KEYS`); `operations_manager` gained all four (mirroring
+  its existing `assets.read`/`assets.write`); `field_inspector`,
+  `maintenance_technician`, `hse_manager`, and `executive` gained the two
+  `.read` keys only (mirroring their existing `assets.read`) — no role's
+  `assets.*` grants changed. As with every previous permission addition,
+  already-registered real tenants need one `reconcile_roles.py` run to pick
+  up the new grants; the two demo tenants get them for free on the next
+  seed run.
+- **Backend surface** (`app/facilities/`, `app/areas/`, `app/assets/`, each
+  with a thin-route/fat-service split identical to `app/company/`/
+  `app/roles/`): full CRUD + soft-delete for facilities and areas; full
+  CRUD + soft-delete + the history stub for assets. Seed
+  (`apps/api/scripts/seed.py`) idempotently creates 2 demo facilities, 4
+  demo areas, and 11 demo assets spanning every category (including one
+  `Other` with a subtype) and all three `current_status` values for the
+  Acme demo tenant only, using deterministic ids so re-running reconciles
+  rather than duplicates — one asset (`M-501`) is deliberately seeded as a
+  sub-asset of another (`P-101`) to exercise the self-nesting seam.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -789,3 +892,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 3.2 — role and permission management | Extends the 3.1 `RoleRepository`/`RolePermissionRepository` (0.4) with a create/update/delete surface and a new global permission-catalog route, gated by `roles.manage` (0.6) and sharing 3.1's `UserRepository` for the last-holder guard and claims batch sync (0.5's `ClaimsService`). No Firestore schema change. Admin gains a new `apps/admin/src/roles/` module plus a `Checkbox` design-system primitive (0.7); mobile gains a read-only `apps/mobile/lib/roles/` mirror. Contracts regenerated for `RoleDetail`/`CreateRoleRequest`/`UpdateRoleRequest`/`PermissionCatalog`/`RoleDeleted`. | 2026-07-22 |
 | Phase 3.3 — company profile and settings | Extends the 0.4 `Company` entity with six optional/defaulted fields and a new `app/company/service.py::CompanyProfileService` behind four `company.settings`-gated routes, sharing 3.1's `UserRepository`/`RoleRepository` for the Overview counts. First use of Firebase Storage in this codebase: a new `app/storage/` package wraps the Admin SDK bucket behind a fixed company-scoped path, server-mediated in both directions (deny-all `storage.rules`, request-time V4 signed URLs, never a public object) — the pattern assets/inspections will reuse. `CurrentUser` (0.5) gains `company_timezone`/`company_locale`, mirroring how `company_name` already reaches every authenticated user regardless of permission. Admin gains `apps/admin/src/settings/` (profile edit, drag-drop logo upload, read-only overview) and threads locale/timezone through the existing `apps/admin/src/dashboard/format.ts` date helpers; mobile gains a read-only `apps/mobile/lib/company/` mirror and the same threading via a new `timezone` package dependency. Contracts regenerated for `CompanyProfile`/`UpdateCompanyRequest` and the new `CompanyApi`. | 2026-07-22 |
 | Phase 3.5 — Super-Admin cross-tenant platform administration | Resolves D-006. Adds a new `app/admin/` package (`AdminScope`, `AdminCompanyService`) behind five `platform.admin`-gated routes at `/api/v1/platform/*`, plus `CompanyRepository.list_all()` (new unscoped read, modeled on `PermissionRepository.list()`) and a suspension check inside `get_current_user` itself (stricter than 1.2's unverified-email 200). Every cross-tenant mutation dual-writes to the target tenant's own `audit_logs` and a reserved `"__platform__"` pseudo-tenant scope, reusing `AuditLogRepository`'s existing methods with zero new query code. A new reverse-guard test proves existing company-scoped routes (`/api/v1/company`, `/api/v1/users`) stay tenant-scoped even for a super-admin caller — the only cross-tenant path in the system is `/api/v1/platform/*`. Admin gains `apps/admin/src/platform/` (mirroring 3.4's hook-plus-page shape) and a new shared `ConfirmDialog` design-system primitive; `nav-config.tsx` gains its own "Platform" group, visible only to `super_admin`. Mobile is explicitly out of scope, extending D-023/D-026 to a whole module. Contracts regenerated for `PlatformApi`/`PlatformCompanySummary`/`PlatformCompanyDetail`/`PlatformCompanyPage`/`PlatformStats`/`UpdateCompanyStatusRequest`/`UpdatePlatformCompanyRequest`. Phase 3 is now **COMPLETE**. | 2026-07-23 |
+| Phase 4.1 — asset data model, facility/area hierarchy, and backend CRUD | Adds three new tenant collections (`facilities` → `areas` → `assets`, plus optional asset self-nesting via `parent_asset_id`) and their first real backend surface — `assets.read`/`assets.write` had existed as unused catalog placeholders since 0.4. New `app/facilities/`, `app/areas/`, `app/assets/` packages (thin-route/fat-service, matching `app/company/`/`app/roles/`) sit behind new `facilities.read/write`/`areas.read/write` permissions (mirroring each role's existing `assets.*` grants) and reuse the 0.4 `CompanyScope`/audit/repository pattern throughout. Introduces the codebase's first soft-delete (`TenantRepository._soft_delete()`, a new base-class helper) and its first Firestore-level filtered+ordered query (`AssetRepository.query()`, one equality filter plus `order_by(created_at)`, backed by four new composite indexes) — every other list route still reads-then-filters-in-Python. `GET /assets/{id}/history` returns a real, always-empty, correctly-shaped page; no inspection/work-order data is embedded on the asset record. Seed gains 2 facilities/4 areas/11 assets (all categories, all statuses, one self-nested pair) for the Acme demo tenant. Contracts regenerated for `FacilitiesApi`/`AreasApi`/`AssetsApi` and their request/response models. No UI, photo upload, KPI widgets, or QR were built — those are 4.2–4.5. | 2026-07-23 |

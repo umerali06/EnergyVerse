@@ -244,6 +244,171 @@ class PlatformStats(BaseModel):
     window_days: int
 
 
+class FacilityDetail(BaseModel):
+    id: str
+    name: str
+    sector: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    address: str | None = None
+    timezone: str
+    status: Literal["active", "inactive"]
+    created_at: datetime
+    updated_at: datetime
+
+
+class FacilityListPage(BaseModel):
+    items: list[FacilityDetail]
+    next_cursor: str | None = None
+
+
+class CreateFacilityRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    sector: str | None = Field(default=None, max_length=120)
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    address: str | None = Field(default=None, max_length=300)
+    timezone: str | None = Field(default=None, min_length=1, max_length=60)
+    status: Literal["active", "inactive"] = "active"
+
+
+class UpdateFacilityRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    sector: str | None = Field(default=None, max_length=120)
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    address: str | None = Field(default=None, max_length=300)
+    timezone: str | None = Field(default=None, min_length=1, max_length=60)
+    status: Literal["active", "inactive"] | None = None
+
+
+class FacilityDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+class AreaDetail(BaseModel):
+    id: str
+    facility_id: str
+    name: str
+    code: str | None = None
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AreaListPage(BaseModel):
+    items: list[AreaDetail]
+    next_cursor: str | None = None
+
+
+class CreateAreaRequest(BaseModel):
+    facility_id: str = Field(min_length=1)
+    name: str = Field(min_length=2, max_length=200)
+    code: str | None = Field(default=None, max_length=60)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class UpdateAreaRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    code: str | None = Field(default=None, max_length=60)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class AreaDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+class AssetListItem(BaseModel):
+    id: str
+    facility_id: str
+    area_id: str | None = None
+    parent_asset_id: str | None = None
+    asset_tag: str
+    qr_code_id: str | None = None
+    name: str
+    category: str
+    category_other: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    serial_number: str | None = None
+    installation_date: date | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    current_status: Literal["Healthy", "Warning", "Critical"]
+    created_at: datetime
+    updated_at: datetime
+
+
+class AssetListPage(BaseModel):
+    items: list[AssetListItem]
+    next_cursor: str | None = None
+
+
+class AssetDetail(AssetListItem):
+    description: str | None = None
+    photos: list[str] = Field(default_factory=list)
+    documents: list[str] = Field(default_factory=list)
+    manuals: list[str] = Field(default_factory=list)
+    model_3d_url: str | None = None
+
+
+class CreateAssetRequest(BaseModel):
+    facility_id: str = Field(min_length=1)
+    area_id: str | None = Field(default=None, min_length=1)
+    parent_asset_id: str | None = Field(default=None, min_length=1)
+    asset_tag: str = Field(min_length=1, max_length=120)
+    name: str = Field(min_length=2, max_length=200)
+    category: str = Field(min_length=1, max_length=60)
+    category_other: str | None = Field(default=None, max_length=120)
+    manufacturer: str | None = Field(default=None, max_length=120)
+    model: str | None = Field(default=None, max_length=120)
+    serial_number: str | None = Field(default=None, max_length=120)
+    installation_date: date | None = None
+    description: str | None = Field(default=None, max_length=2000)
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    current_status: Literal["Healthy", "Warning", "Critical"] = "Healthy"
+
+
+class UpdateAssetRequest(BaseModel):
+    facility_id: str | None = Field(default=None, min_length=1)
+    area_id: str | None = Field(default=None, min_length=1)
+    parent_asset_id: str | None = Field(default=None, min_length=1)
+    asset_tag: str | None = Field(default=None, min_length=1, max_length=120)
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    category: str | None = Field(default=None, min_length=1, max_length=60)
+    category_other: str | None = Field(default=None, max_length=120)
+    manufacturer: str | None = Field(default=None, max_length=120)
+    model: str | None = Field(default=None, max_length=120)
+    serial_number: str | None = Field(default=None, max_length=120)
+    installation_date: date | None = None
+    description: str | None = Field(default=None, max_length=2000)
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    current_status: Literal["Healthy", "Warning", "Critical"] | None = None
+
+
+class AssetDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+class AssetHistoryEvent(BaseModel):
+    """Reserved shape for inspection/work-order timeline entries (later phases)."""
+
+    id: str
+    type: str
+    occurred_at: datetime
+    summary: str
+
+
+class AssetHistoryPage(BaseModel):
+    items: list[AssetHistoryEvent] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
         201: "Resource created",

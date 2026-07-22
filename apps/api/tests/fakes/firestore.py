@@ -36,20 +36,42 @@ class FakeQuery:
         client: "FakeAsyncClient",
         collection: str,
         filters: tuple[tuple[str, str, Any], ...] = (),
+        order_by_field: str | None = None,
+        order_by_descending: bool = False,
     ) -> None:
         self._client = client
         self._collection = collection
         self._filters = filters
+        self._order_by_field = order_by_field
+        self._order_by_descending = order_by_descending
 
     def where(self, *, filter: Any) -> "FakeQuery":
         return FakeQuery(
             self._client,
             self._collection,
             self._filters + ((filter.field_path, filter.op_string, filter.value),),
+            self._order_by_field,
+            self._order_by_descending,
+        )
+
+    def order_by(self, field_path: str, *, direction: str = "ASCENDING") -> "FakeQuery":
+        return FakeQuery(
+            self._client,
+            self._collection,
+            self._filters,
+            field_path,
+            direction == "DESCENDING",
         )
 
     async def stream(self, **_: Any) -> AsyncIterator[FakeDocumentSnapshot]:
-        for document_id, data in sorted(self._client._store.get(self._collection, {}).items()):
+        items = sorted(self._client._store.get(self._collection, {}).items())
+        if self._order_by_field is not None:
+            field = self._order_by_field
+            items.sort(
+                key=lambda item: (item[1].get(field), item[0]),
+                reverse=self._order_by_descending,
+            )
+        for document_id, data in items:
             if all(
                 (operator == "==" and data.get(field) == value)
                 or (operator == ">=" and data.get(field) is not None and data.get(field) >= value)

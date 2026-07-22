@@ -6,10 +6,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
+from app.api.v1.areas import router as areas_router
+from app.api.v1.assets import router as assets_router
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.company import router as company_router
 from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.facilities import router as facilities_router
 from app.api.v1.permissions import router as permissions_router
 from app.api.v1.platform import router as platform_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
@@ -51,6 +54,12 @@ app = FastAPI(
         {"name": "users", "description": "Company-scoped user management"},
         {"name": "roles", "description": "Company-scoped role and permission-set management"},
         {"name": "permissions", "description": "Global permission catalog, grouped by category"},
+        {"name": "facilities", "description": "Company-scoped facility management"},
+        {"name": "areas", "description": "Company-scoped area management, nested under a facility"},
+        {
+            "name": "assets",
+            "description": "Company-scoped asset management, nested under a facility and area",
+        },
         {"name": "company", "description": "Company profile, branding, and tenant-wide settings"},
         {"name": "audit", "description": "Company audit trail — read-only compliance view"},
         {
@@ -78,6 +87,9 @@ app.include_router(rbac_demo_router)
 app.include_router(users_router)
 app.include_router(roles_router)
 app.include_router(permissions_router)
+app.include_router(facilities_router)
+app.include_router(areas_router)
+app.include_router(assets_router)
 app.include_router(company_router)
 app.include_router(audit_router)
 app.include_router(platform_router)

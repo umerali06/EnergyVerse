@@ -9,10 +9,13 @@ import 'package:fev_api_client/src/auth/api_key_auth.dart';
 import 'package:fev_api_client/src/auth/basic_auth.dart';
 import 'package:fev_api_client/src/auth/bearer_auth.dart';
 import 'package:fev_api_client/src/auth/oauth.dart';
+import 'package:fev_api_client/src/api/areas_api.dart';
+import 'package:fev_api_client/src/api/assets_api.dart';
 import 'package:fev_api_client/src/api/audit_api.dart';
 import 'package:fev_api_client/src/api/auth_api.dart';
 import 'package:fev_api_client/src/api/company_api.dart';
 import 'package:fev_api_client/src/api/dashboard_api.dart';
+import 'package:fev_api_client/src/api/facilities_api.dart';
 import 'package:fev_api_client/src/api/permissions_api.dart';
 import 'package:fev_api_client/src/api/platform_api.dart';
 import 'package:fev_api_client/src/api/rbac_demo_api.dart';
@@ -85,6 +88,18 @@ class FevApiClient {
     }
   }
 
+  /// Get AreasApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AreasApi getAreasApi() {
+    return AreasApi(dio, serializers);
+  }
+
+  /// Get AssetsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AssetsApi getAssetsApi() {
+    return AssetsApi(dio, serializers);
+  }
+
   /// Get AuditApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   AuditApi getAuditApi() {
@@ -107,6 +122,12 @@ class FevApiClient {
   /// by doing that all interceptors will not be executed
   DashboardApi getDashboardApi() {
     return DashboardApi(dio, serializers);
+  }
+
+  /// Get FacilitiesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  FacilitiesApi getFacilitiesApi() {
+    return FacilitiesApi(dio, serializers);
   }
 
   /// Get PermissionsApi instance, base route and serializer can be overridden by a given but be careful,
