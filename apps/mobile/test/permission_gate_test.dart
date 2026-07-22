@@ -72,6 +72,9 @@ class _IdentityApi implements ApiContract {
 
   @override
   Future<RoleDetail> getRole(String roleId) => throw UnimplementedError();
+
+  @override
+  Future<CompanyProfile> getCompanyProfile() => throw UnimplementedError();
 }
 
 void main() {

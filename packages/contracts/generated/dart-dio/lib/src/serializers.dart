@@ -14,6 +14,7 @@ import 'package:built_value/iso_8601_date_time_serializer.dart';
 import 'package:fev_api_client/src/date_serializer.dart';
 import 'package:fev_api_client/src/model/date.dart';
 
+import 'package:fev_api_client/src/model/company_profile.dart';
 import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
 import 'package:fev_api_client/src/model/create_role_request.dart';
@@ -35,6 +36,7 @@ import 'package:fev_api_client/src/model/role_detail.dart';
 import 'package:fev_api_client/src/model/role_list.dart';
 import 'package:fev_api_client/src/model/role_summary.dart';
 import 'package:fev_api_client/src/model/service_response.dart';
+import 'package:fev_api_client/src/model/update_company_request.dart';
 import 'package:fev_api_client/src/model/update_role_request.dart';
 import 'package:fev_api_client/src/model/update_user_request.dart';
 import 'package:fev_api_client/src/model/update_user_status_request.dart';
@@ -45,6 +47,7 @@ import 'package:fev_api_client/src/model/user_list_page.dart';
 part 'serializers.g.dart';
 
 @SerializersFor([
+  CompanyProfile,
   CompanyRegistrationRequest,
   CompanyRegistrationResponse,
   CreateRoleRequest,
@@ -66,6 +69,7 @@ part 'serializers.g.dart';
   RoleList,
   RoleSummary,
   ServiceResponse,
+  UpdateCompanyRequest,
   UpdateRoleRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,

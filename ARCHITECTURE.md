@@ -481,6 +481,104 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   destination are gated by `roles.manage` exactly like the admin web nav
   item.
 
+### Phase 3.3 Company Profile & Settings
+
+- **Data flow.** Four `company.settings`-gated FastAPI routes —
+  `GET`/`PATCH /api/v1/company`, `POST`/`DELETE /api/v1/company/logo` —
+  are the only server surface, all backed by
+  `app/company/service.py::CompanyProfileService`, matching the thin-
+  route/fat-service shape 3.1/3.2 already established. `Company` (0.4)
+  gains six new fields, all optional or defaulted
+  (`industry`, `timezone: str = "UTC"`, `locale: str = "en-US"`,
+  `contact_email`, `contact_phone`, `logo_path`), so every existing
+  Firestore company document (seeded Acme, real tenants) validates
+  unchanged via `model_validate` — no migration was needed. `industry`
+  is checked against a small constant tuple next to
+  `rbac/constants.py`'s catalogs; `timezone` is validated for real via
+  Python's stdlib `zoneinfo.available_timezones()` (the `tzdata` package
+  was added as an explicit dependency since Windows has no system IANA
+  database for `zoneinfo` to read); `locale` is checked against a
+  permissive BCP-47 shape regex rather than a fixed enum, since
+  `Intl`/browsers already handle arbitrary valid tags.
+- **Partial-update semantics fixed a real bug found in real-creds
+  testing.** `CompanyRepository.update` originally filtered the PATCH
+  payload with `without_none()` (dropping any field explicitly sent as
+  `null`), which meant a client could never clear `industry` or contact
+  info once set — "Not set" in the admin Industry select silently did
+  nothing. The repository now merges `payload.model_dump(exclude_unset=True)`
+  instead: a field absent from the request body stays untouched, while a
+  field explicitly sent as `null` clears it, using Pydantic v2's
+  `model_fields_set` to distinguish the two. `CompanyProfileService`
+  additionally rejects an explicit `null` for `name`/`timezone`/`locale`
+  (422 `invalid_{field}`) since those are never optional on the entity.
+- **`CurrentUser` timezone/locale enrichment reuses the `company_name`
+  precedent exactly.** `company_timezone`/`company_locale` (both
+  defaulted) were added to `CurrentUser` and populated in
+  `get_current_user` alongside the existing `company_name=company.name`
+  line, making them available to every authenticated user via
+  `/api/v1/auth/me` regardless of `company.settings` — necessary because
+  the real timezone/locale consumer (dashboard date formatting) is
+  visible to every role, while the full profile endpoints stay
+  `company.settings`-gated. This is the same reason `company_name`
+  already worked this way before 3.3 existed.
+- **Storage wiring (first use of Firebase Storage in this codebase).**
+  `app/storage/service.py::CompanyLogoStorage` wraps the Admin SDK
+  bucket behind three operations (`upload`, `delete`, `signed_url_for`),
+  all keyed by one fixed, company-scoped path convention —
+  `companies/{company_id}/branding/logo`, always overwritten in place so
+  there is never an orphaned blob to clean up. `app/core/settings.py`
+  adds `firebase_storage_bucket` (env `FIREBASE_STORAGE_BUCKET`),
+  resolved with a `.appspot.com`-suffix fallback when unset; real-creds
+  testing against `thinking-case-469504-c0` found that fallback guess
+  wrong for this project (Firebase provisioned it as the newer
+  `<project>.firebasestorage.app` domain instead), so this project's
+  `.env` sets the variable explicitly. Reads never persist a public URL —
+  `CompanyProfileService` calls `signed_url_for` fresh on every
+  `GET`/mutation response (a 1-hour V4 signed URL), so `Company.logo_path`
+  stores only the internal object key, never a URL that could expire
+  while cached. **Security posture mirrors D-002's Firestore precedent
+  exactly**: `infra/firebase/storage.rules` denies all client read/write
+  unconditionally — every byte in and out of Storage is server-mediated
+  through the Admin SDK, with no public objects and no client-side
+  Storage SDK usage anywhere in this codebase. This path convention and
+  security posture is the one assets/inspections should reuse for their
+  own Storage objects in later phases.
+- **Admin UI** (`apps/admin/src/settings/`) replaces the `/settings`
+  route's `ComingSoonScreen` with `CompanySettingsPage`, following the
+  3.2 `RoleDetailModal` dirty-state/save/discard/toast pattern directly
+  on the page (no modal, since there is exactly one record to edit, not
+  a list). `logo-upload.tsx` is a net-new drag-drop + file-input
+  component — no prior upload pattern existed anywhere in the admin app.
+  The Industry/Locale `<select>` options are small curated lists (kept
+  in sync with the backend's `INDUSTRY_CHOICES` and BCP-47 examples by
+  comment reference); the Timezone `<select>` populates itself at
+  runtime from the browser's own `Intl.supportedValuesOf("timeZone")`
+  with `"UTC"` unioned in explicitly — real-browser testing (Chrome)
+  showed `"UTC"` is not a member of that list, which silently mismatched
+  a fresh tenant's bound `<select>` value against its displayed option
+  before this fix.
+- **Date formatting now honors company timezone/locale.**
+  `apps/admin/src/dashboard/format.ts`'s `formatCompanyDate` and
+  `formatChartDay` (previously hardcoded to `toLocaleDateString(undefined, ...)`,
+  i.e. the browser's own locale/timezone) gained an optional
+  `{ locale, timeZone }` parameter, threaded from `CurrentUser.companyLocale`/
+  `companyTimezone` at their two existing call sites (the dashboard's
+  "Company since" line and activity chart ticks) plus the new Company
+  Settings "Company since" line. `formatRelativeTime` was deliberately
+  left unchanged — it's a pure elapsed-seconds calculation with no
+  calendar dependency, so threading timezone/locale into it would be a
+  no-op. Mobile mirrors this in `apps/mobile/lib/dashboard/format.dart`
+  via the new `timezone` package dependency (Dart's core `DateTime` has
+  no IANA conversion of its own); locale-aware month names were
+  deliberately not added to mobile (English month names only) since that
+  would require the much larger `intl` package's full CLDR data for a
+  phase whose mobile scope is a read-only profile view.
+- **Mobile** ships a read-only `apps/mobile/lib/company/` profile screen
+  only — no edit or logo-upload UI, extending the 3.1/3.2 (D-023/D-026)
+  read-only-on-mobile precedent. The `/settings` route and "Admin &
+  Settings" destination are gated by `company.settings` exactly like the
+  admin web nav item.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -522,3 +620,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 1.1 — client login | Both clients initialize the Firebase client SDK from uncommitted environment configuration, sign in with email/password, inject the Firebase ID token through the Phase 0.8 typed wrapper, and resolve the Phase 0.5 `/me` identity backed by Phase 0.4 tenant/RBAC repositories. One auth provider restores persisted Firebase sessions and owns `CurrentUser`; the authenticated Home placeholder renders role and exact effective permissions for Phase 0.6 guard consumers. Login/Home compose Phase 0.7 primitives, motion, and feedback. Minimal sign-out closes the loop; signup, reset, and full session/route hardening remain deferred. | 2026-07-17 |
 | Phase 1.2 — organization signup and verification | The typed registration operation creates an opaque-ID tenant, installs the shared seven-role matrix, provisions/audits its first `company_admin`, and returns the Firebase identity seam. Both clients sign in, use Firebase built-in verification delivery, and keep unverified identity resolvable through `/me`; server `require_verified_email` gates all application RBAC dependencies until a refreshed token reports verification. Signup/verify UI reuses the design system, generated clients, auth provider, and unified feedback. | 2026-07-17 |
 | Phase 3.2 — role and permission management | Extends the 3.1 `RoleRepository`/`RolePermissionRepository` (0.4) with a create/update/delete surface and a new global permission-catalog route, gated by `roles.manage` (0.6) and sharing 3.1's `UserRepository` for the last-holder guard and claims batch sync (0.5's `ClaimsService`). No Firestore schema change. Admin gains a new `apps/admin/src/roles/` module plus a `Checkbox` design-system primitive (0.7); mobile gains a read-only `apps/mobile/lib/roles/` mirror. Contracts regenerated for `RoleDetail`/`CreateRoleRequest`/`UpdateRoleRequest`/`PermissionCatalog`/`RoleDeleted`. | 2026-07-22 |
+| Phase 3.3 — company profile and settings | Extends the 0.4 `Company` entity with six optional/defaulted fields and a new `app/company/service.py::CompanyProfileService` behind four `company.settings`-gated routes, sharing 3.1's `UserRepository`/`RoleRepository` for the Overview counts. First use of Firebase Storage in this codebase: a new `app/storage/` package wraps the Admin SDK bucket behind a fixed company-scoped path, server-mediated in both directions (deny-all `storage.rules`, request-time V4 signed URLs, never a public object) — the pattern assets/inspections will reuse. `CurrentUser` (0.5) gains `company_timezone`/`company_locale`, mirroring how `company_name` already reaches every authenticated user regardless of permission. Admin gains `apps/admin/src/settings/` (profile edit, drag-drop logo upload, read-only overview) and threads locale/timezone through the existing `apps/admin/src/dashboard/format.ts` date helpers; mobile gains a read-only `apps/mobile/lib/company/` mirror and the same threading via a new `timezone` package dependency. Contracts regenerated for `CompanyProfile`/`UpdateCompanyRequest` and the new `CompanyApi`. | 2026-07-22 |

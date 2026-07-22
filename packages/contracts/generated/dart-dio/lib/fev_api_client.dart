@@ -11,6 +11,7 @@ export 'package:fev_api_client/src/serializers.dart';
 export 'package:fev_api_client/src/model/date.dart';
 
 export 'package:fev_api_client/src/api/auth_api.dart';
+export 'package:fev_api_client/src/api/company_api.dart';
 export 'package:fev_api_client/src/api/dashboard_api.dart';
 export 'package:fev_api_client/src/api/permissions_api.dart';
 export 'package:fev_api_client/src/api/rbac_demo_api.dart';
@@ -18,6 +19,7 @@ export 'package:fev_api_client/src/api/roles_api.dart';
 export 'package:fev_api_client/src/api/system_api.dart';
 export 'package:fev_api_client/src/api/users_api.dart';
 
+export 'package:fev_api_client/src/model/company_profile.dart';
 export 'package:fev_api_client/src/model/company_registration_request.dart';
 export 'package:fev_api_client/src/model/company_registration_response.dart';
 export 'package:fev_api_client/src/model/create_role_request.dart';
@@ -39,6 +41,7 @@ export 'package:fev_api_client/src/model/role_detail.dart';
 export 'package:fev_api_client/src/model/role_list.dart';
 export 'package:fev_api_client/src/model/role_summary.dart';
 export 'package:fev_api_client/src/model/service_response.dart';
+export 'package:fev_api_client/src/model/update_company_request.dart';
 export 'package:fev_api_client/src/model/update_role_request.dart';
 export 'package:fev_api_client/src/model/update_user_request.dart';
 export 'package:fev_api_client/src/model/update_user_status_request.dart';

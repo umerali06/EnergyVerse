@@ -66,6 +66,10 @@ Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 [*AuthApi*](doc/AuthApi.md) | [**getCurrentUser**](doc/AuthApi.md#getcurrentuser) | **GET** /api/v1/auth/me | Me
 [*AuthApi*](doc/AuthApi.md) | [**registerCompanyAdmin**](doc/AuthApi.md#registercompanyadmin) | **POST** /api/v1/auth/register | Register Company Admin
+[*CompanyApi*](doc/CompanyApi.md) | [**getCompany**](doc/CompanyApi.md#getcompany) | **GET** /api/v1/company | Get Company
+[*CompanyApi*](doc/CompanyApi.md) | [**removeCompanyLogo**](doc/CompanyApi.md#removecompanylogo) | **DELETE** /api/v1/company/logo | Remove Company Logo
+[*CompanyApi*](doc/CompanyApi.md) | [**updateCompany**](doc/CompanyApi.md#updatecompany) | **PATCH** /api/v1/company | Update Company
+[*CompanyApi*](doc/CompanyApi.md) | [**uploadCompanyLogo**](doc/CompanyApi.md#uploadcompanylogo) | **POST** /api/v1/company/logo | Upload Company Logo
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivity**](doc/DashboardApi.md#getdashboardactivity) | **GET** /api/v1/dashboard/activity | Dashboard Activity
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivitySeries**](doc/DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSummary**](doc/DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
@@ -89,6 +93,7 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [CompanyProfile](doc/CompanyProfile.md)
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
  - [CreateRoleRequest](doc/CreateRoleRequest.md)
@@ -110,6 +115,7 @@ Class | Method | HTTP request | Description
  - [RoleList](doc/RoleList.md)
  - [RoleSummary](doc/RoleSummary.md)
  - [ServiceResponse](doc/ServiceResponse.md)
+ - [UpdateCompanyRequest](doc/UpdateCompanyRequest.md)
  - [UpdateRoleRequest](doc/UpdateRoleRequest.md)
  - [UpdateUserRequest](doc/UpdateUserRequest.md)
  - [UpdateUserStatusRequest](doc/UpdateUserStatusRequest.md)

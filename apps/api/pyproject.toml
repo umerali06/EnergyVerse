@@ -12,6 +12,8 @@ fastapi = "^0.115.0"
 uvicorn = {version = "^0.34.0", extras = ["standard"]}
 pydantic-settings = "^2.7.0"
 firebase-admin = "^7.0.0"
+python-multipart = "^0.0.32"
+tzdata = "^2026.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

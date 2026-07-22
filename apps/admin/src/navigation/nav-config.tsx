@@ -157,7 +157,6 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.settings,
         route: "/settings",
         requiredPermission: "company.settings",
-        comingSoon: true,
       },
     ],
   },

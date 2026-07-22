@@ -10,6 +10,12 @@ class Company(GlobalDoc):
     name: str
     status: str
     subscription_tier: str
+    industry: str | None = None
+    timezone: str = "UTC"
+    locale: str = "en-US"
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    logo_path: str | None = None
     created_by: str | None = None
 
 
@@ -24,6 +30,12 @@ class CompanyUpdate(StrictModel):
     name: str | None = None
     status: str | None = None
     subscription_tier: str | None = None
+    industry: str | None = None
+    timezone: str | None = None
+    locale: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    logo_path: str | None = None
 
 
 class User(TenantDoc):
@@ -139,6 +151,8 @@ class CurrentUser(StrictModel):
     email_verified: bool
     company_id: str
     company_name: str
+    company_timezone: str = "UTC"
+    company_locale: str = "en-US"
     role_key: str
     permissions: frozenset[str]
 

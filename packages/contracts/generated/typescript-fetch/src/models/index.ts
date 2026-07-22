@@ -1,5 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
+export * from './CompanyProfile';
 export * from './CompanyRegistrationRequest';
 export * from './CompanyRegistrationResponse';
 export * from './CreateRoleRequest';
@@ -21,6 +22,7 @@ export * from './RoleDetail';
 export * from './RoleList';
 export * from './RoleSummary';
 export * from './ServiceResponse';
+export * from './UpdateCompanyRequest';
 export * from './UpdateRoleRequest';
 export * from './UpdateUserRequest';
 export * from './UpdateUserStatusRequest';

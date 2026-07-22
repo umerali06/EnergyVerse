@@ -123,6 +123,8 @@ async def get_current_user(
         email_verified=decoded_token.get("email_verified") is True,
         company_id=user.company_id,
         company_name=company.name,
+        company_timezone=company.timezone,
+        company_locale=company.locale,
         role_key=role.key,
         permissions=permissions,
     )

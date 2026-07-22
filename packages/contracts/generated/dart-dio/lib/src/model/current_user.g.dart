@@ -10,7 +10,11 @@ class _$CurrentUser extends CurrentUser {
   @override
   final String companyId;
   @override
+  final String? companyLocale;
+  @override
   final String companyName;
+  @override
+  final String? companyTimezone;
   @override
   final String email;
   @override
@@ -27,7 +31,9 @@ class _$CurrentUser extends CurrentUser {
 
   _$CurrentUser._(
       {required this.companyId,
+      this.companyLocale,
       required this.companyName,
+      this.companyTimezone,
       required this.email,
       required this.emailVerified,
       required this.permissions,
@@ -59,7 +65,9 @@ class _$CurrentUser extends CurrentUser {
     if (identical(other, this)) return true;
     return other is CurrentUser &&
         companyId == other.companyId &&
+        companyLocale == other.companyLocale &&
         companyName == other.companyName &&
+        companyTimezone == other.companyTimezone &&
         email == other.email &&
         emailVerified == other.emailVerified &&
         permissions == other.permissions &&
@@ -71,7 +79,9 @@ class _$CurrentUser extends CurrentUser {
   int get hashCode {
     var _$hash = 0;
     _$hash = $jc(_$hash, companyId.hashCode);
+    _$hash = $jc(_$hash, companyLocale.hashCode);
     _$hash = $jc(_$hash, companyName.hashCode);
+    _$hash = $jc(_$hash, companyTimezone.hashCode);
     _$hash = $jc(_$hash, email.hashCode);
     _$hash = $jc(_$hash, emailVerified.hashCode);
     _$hash = $jc(_$hash, permissions.hashCode);
@@ -85,7 +95,9 @@ class _$CurrentUser extends CurrentUser {
   String toString() {
     return (newBuiltValueToStringHelper(r'CurrentUser')
           ..add('companyId', companyId)
+          ..add('companyLocale', companyLocale)
           ..add('companyName', companyName)
+          ..add('companyTimezone', companyTimezone)
           ..add('email', email)
           ..add('emailVerified', emailVerified)
           ..add('permissions', permissions)
@@ -102,9 +114,19 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
   String? get companyId => _$this._companyId;
   set companyId(String? companyId) => _$this._companyId = companyId;
 
+  String? _companyLocale;
+  String? get companyLocale => _$this._companyLocale;
+  set companyLocale(String? companyLocale) =>
+      _$this._companyLocale = companyLocale;
+
   String? _companyName;
   String? get companyName => _$this._companyName;
   set companyName(String? companyName) => _$this._companyName = companyName;
+
+  String? _companyTimezone;
+  String? get companyTimezone => _$this._companyTimezone;
+  set companyTimezone(String? companyTimezone) =>
+      _$this._companyTimezone = companyTimezone;
 
   String? _email;
   String? get email => _$this._email;
@@ -137,7 +159,9 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
     final $v = _$v;
     if ($v != null) {
       _companyId = $v.companyId;
+      _companyLocale = $v.companyLocale;
       _companyName = $v.companyName;
+      _companyTimezone = $v.companyTimezone;
       _email = $v.email;
       _emailVerified = $v.emailVerified;
       _permissions = $v.permissions.toBuilder();
@@ -169,8 +193,10 @@ class CurrentUserBuilder implements Builder<CurrentUser, CurrentUserBuilder> {
           new _$CurrentUser._(
               companyId: BuiltValueNullFieldError.checkNotNull(
                   companyId, r'CurrentUser', 'companyId'),
+              companyLocale: companyLocale,
               companyName: BuiltValueNullFieldError.checkNotNull(
                   companyName, r'CurrentUser', 'companyName'),
+              companyTimezone: companyTimezone,
               email: BuiltValueNullFieldError.checkNotNull(
                   email, r'CurrentUser', 'email'),
               emailVerified: BuiltValueNullFieldError.checkNotNull(

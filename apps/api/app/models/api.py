@@ -155,6 +155,30 @@ class RoleDeleted(BaseModel):
     deleted: bool = True
 
 
+class CompanyProfile(BaseModel):
+    id: str
+    name: str
+    industry: str | None = None
+    timezone: str
+    locale: str
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    subscription_tier: str
+    logo_url: str | None = None
+    created_at: datetime
+    users_total: int
+    roles_total: int
+
+
+class UpdateCompanyRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    industry: str | None = Field(default=None, min_length=1, max_length=60)
+    timezone: str | None = Field(default=None, min_length=1, max_length=60)
+    locale: str | None = Field(default=None, min_length=2, max_length=35)
+    contact_email: str | None = Field(default=None, min_length=5, max_length=320)
+    contact_phone: str | None = Field(default=None, min_length=3, max_length=40)
+
+
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
         201: "Resource created",

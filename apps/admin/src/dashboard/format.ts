@@ -35,6 +35,12 @@ const RELATIVE_UNITS: Array<[number, string]> = [
   [12, "mo"],
 ];
 
+/** Company-wide date/time formatting preferences (3.3 timezone/locale settings). */
+export type DateFormatOptions = {
+  locale?: string;
+  timeZone?: string;
+};
+
 /** Compact relative time (e.g. "3m", "5h", "2d") to keep the mono feed dense. */
 export function formatRelativeTime(iso: string | Date, now: Date = new Date()): string {
   const then = typeof iso === "string" ? new Date(iso) : iso;
@@ -48,9 +54,13 @@ export function formatRelativeTime(iso: string | Date, now: Date = new Date()): 
 }
 
 /** Short day label for chart ticks, e.g. "Jul 19". */
-export function formatChartDay(iso: string | Date): string {
+export function formatChartDay(iso: string | Date, options: DateFormatOptions = {}): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return date.toLocaleDateString(options.locale, {
+    month: "short",
+    day: "numeric",
+    timeZone: options.timeZone,
+  });
 }
 
 /** "route" + "/api/v1/x" -> "route/api/v1/x", not "route//api/v1/x" — some
@@ -60,7 +70,12 @@ export function formatTarget(targetType: string, targetId: string): string {
   return targetId.startsWith("/") ? `${targetType}${targetId}` : `${targetType}/${targetId}`;
 }
 
-export function formatCompanyDate(iso: string | Date): string {
+export function formatCompanyDate(iso: string | Date, options: DateFormatOptions = {}): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
-  return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  return date.toLocaleDateString(options.locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: options.timeZone,
+  });
 }

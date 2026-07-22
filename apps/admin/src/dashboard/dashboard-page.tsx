@@ -273,6 +273,12 @@ function ActivityFeedItem({
   );
 }
 
+/** Company timezone/locale (3.3) applied wherever this dashboard already formats dates. */
+function useCompanyDateFormat() {
+  const { currentUser } = useAuth();
+  return { locale: currentUser?.companyLocale, timeZone: currentUser?.companyTimezone };
+}
+
 export function DashboardPage({
   reducedMotionOverride,
 }: {
@@ -281,6 +287,7 @@ export function DashboardPage({
   const { currentUser } = useAuth();
   const { can } = usePermissions();
   const data = useDashboardData();
+  const dateFormat = useCompanyDateFormat();
   if (!currentUser) return null;
 
   const showUsers = can("users.manage");
@@ -345,7 +352,7 @@ export function DashboardPage({
               <div className="mt-4">
                 <TimeSeriesChart
                   data={data.series.points.map((point) => ({
-                    label: formatChartDay(point.date),
+                    label: formatChartDay(point.date, dateFormat),
                     value: point.count,
                   }))}
                   emptyDescription="Activity appears here once events are recorded for this tenant."
@@ -430,7 +437,7 @@ export function DashboardPage({
               <Card className="p-4">
                 <StatusPill tone="info">{data.summary.data.subscriptionTier}</StatusPill>
                 <p className="mt-3 text-bodySmall text-text-secondary">
-                  Company since {formatCompanyDate(data.summary.data.companyCreatedAt)}
+                  Company since {formatCompanyDate(data.summary.data.companyCreatedAt, dateFormat)}
                 </p>
               </Card>
             )}

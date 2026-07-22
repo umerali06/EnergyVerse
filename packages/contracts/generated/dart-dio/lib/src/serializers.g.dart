@@ -7,6 +7,7 @@ part of 'serializers.dart';
 // **************************************************************************
 
 Serializers _$serializers = (new Serializers().toBuilder()
+      ..add(CompanyProfile.serializer)
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
       ..add(CreateRoleRequest.serializer)
@@ -34,6 +35,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ServiceResponse.serializer)
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
+      ..add(UpdateCompanyRequest.serializer)
       ..add(UpdateRoleRequest.serializer)
       ..add(UpdateUserRequest.serializer)
       ..add(UpdateUserStatusRequest.serializer)

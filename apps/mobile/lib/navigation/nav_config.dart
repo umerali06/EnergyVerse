@@ -121,7 +121,6 @@ class AppNav {
       icon: Icons.settings_outlined,
       route: settings,
       requiredPermission: 'company.settings',
-      comingSoon: true,
     ),
   ];
 

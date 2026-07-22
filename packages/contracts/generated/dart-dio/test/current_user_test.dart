@@ -12,8 +12,18 @@ void main() {
       // TODO
     });
 
+    // String companyLocale (default value: 'en-US')
+    test('to test the property `companyLocale`', () async {
+      // TODO
+    });
+
     // String companyName
     test('to test the property `companyName`', () async {
+      // TODO
+    });
+
+    // String companyTimezone (default value: 'UTC')
+    test('to test the property `companyTimezone`', () async {
       // TODO
     });
 

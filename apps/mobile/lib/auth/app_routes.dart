@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../company/company_profile_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
 import '../navigation/nav_config.dart';
@@ -24,6 +25,7 @@ class AppRoutes {
   static const rbacDemo = '/rbac-demo';
   static const users = AppNav.users;
   static const roles = AppNav.roles;
+  static const settings = AppNav.settings;
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -84,6 +86,18 @@ class AppRoutes {
                   permission: 'roles.manage',
                   fallback: NoAccessScreen(permission: 'roles.manage'),
                   child: RolesScreen(),
+                ),
+              ),
+            );
+      case settings:
+        return (_) => const RequireAuthGuard(
+              routeName: settings,
+              child: AppShellScaffold(
+                currentRoute: settings,
+                child: PermissionGate(
+                  permission: 'company.settings',
+                  fallback: NoAccessScreen(permission: 'company.settings'),
+                  child: CompanyProfileScreen(),
                 ),
               ),
             );
