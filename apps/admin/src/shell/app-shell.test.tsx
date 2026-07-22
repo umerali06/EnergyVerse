@@ -298,6 +298,21 @@ describe("app shell", () => {
     expect(navLabels()).toEqual(["Dashboard", "Safety", "Documents"]);
   });
 
+  it("hides Platform Admin from a company_admin without platform.admin (3.5)", async () => {
+    renderShell({ permissions: roleMatrix.company_admin, roleKey: "company_admin" });
+    await screen.findByRole("navigation", { name: "Primary" });
+    expect(navLabels()).not.toContain("Platform Admin");
+  });
+
+  it("shows Platform Admin to a super_admin holding platform.admin (3.5)", async () => {
+    renderShell({
+      permissions: [...roleMatrix.company_admin, "platform.admin"],
+      roleKey: "super_admin",
+    });
+    await screen.findByRole("navigation", { name: "Primary" });
+    expect(navLabels()).toContain("Platform Admin");
+  });
+
   it("routes on nav click, highlights the active item, and lands on Coming soon", async () => {
     renderShell();
     const user = userEvent.setup();

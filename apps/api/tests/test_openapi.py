@@ -32,6 +32,11 @@ EXPECTED_OPERATIONS = {
     "list_audit_logs",
     "get_audit_log_facets",
     "export_audit_logs",
+    "list_platform_companies",
+    "get_platform_company",
+    "update_platform_company_status",
+    "update_platform_company",
+    "get_platform_stats",
 }
 
 # CSV export is intentionally not JSON-typed (D-019/3.4: streamed compliance

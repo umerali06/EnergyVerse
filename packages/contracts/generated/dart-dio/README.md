@@ -83,6 +83,11 @@ Class | Method | HTTP request | Description
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivitySeries**](doc/DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSummary**](doc/DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
 [*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
+[*PlatformApi*](doc/PlatformApi.md) | [**getPlatformCompany**](doc/PlatformApi.md#getplatformcompany) | **GET** /api/v1/platform/companies/{company_id} | Get Platform Company
+[*PlatformApi*](doc/PlatformApi.md) | [**getPlatformStats**](doc/PlatformApi.md#getplatformstats) | **GET** /api/v1/platform/stats | Get Platform Stats
+[*PlatformApi*](doc/PlatformApi.md) | [**listPlatformCompanies**](doc/PlatformApi.md#listplatformcompanies) | **GET** /api/v1/platform/companies | List Platform Companies
+[*PlatformApi*](doc/PlatformApi.md) | [**updatePlatformCompany**](doc/PlatformApi.md#updateplatformcompany) | **PATCH** /api/v1/platform/companies/{company_id} | Update Platform Company
+[*PlatformApi*](doc/PlatformApi.md) | [**updatePlatformCompanyStatus**](doc/PlatformApi.md#updateplatformcompanystatus) | **PATCH** /api/v1/platform/companies/{company_id}/status | Update Platform Company Status
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAllPermissions**](doc/RbacDemoApi.md#rbacdemoallpermissions) | **GET** /api/v1/_rbac-demo/all | All Permissions
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAnyPermission**](doc/RbacDemoApi.md#rbacdemoanypermission) | **GET** /api/v1/_rbac-demo/any | Any Permission
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoSinglePermission**](doc/RbacDemoApi.md#rbacdemosinglepermission) | **GET** /api/v1/_rbac-demo/single | Single Permission
@@ -117,23 +122,32 @@ Class | Method | HTTP request | Description
  - [DashboardSummary](doc/DashboardSummary.md)
  - [DemoGateResponse](doc/DemoGateResponse.md)
  - [ErrorEnvelope](doc/ErrorEnvelope.md)
+ - [HTTPValidationError](doc/HTTPValidationError.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [InviteUserRequest](doc/InviteUserRequest.md)
  - [PermissionCatalog](doc/PermissionCatalog.md)
  - [PermissionCatalogGroup](doc/PermissionCatalogGroup.md)
  - [PermissionCatalogItem](doc/PermissionCatalogItem.md)
+ - [PlatformCompanyDetail](doc/PlatformCompanyDetail.md)
+ - [PlatformCompanyPage](doc/PlatformCompanyPage.md)
+ - [PlatformCompanySummary](doc/PlatformCompanySummary.md)
+ - [PlatformStats](doc/PlatformStats.md)
  - [RoleDeleted](doc/RoleDeleted.md)
  - [RoleDetail](doc/RoleDetail.md)
  - [RoleList](doc/RoleList.md)
  - [RoleSummary](doc/RoleSummary.md)
  - [ServiceResponse](doc/ServiceResponse.md)
  - [UpdateCompanyRequest](doc/UpdateCompanyRequest.md)
+ - [UpdateCompanyStatusRequest](doc/UpdateCompanyStatusRequest.md)
+ - [UpdatePlatformCompanyRequest](doc/UpdatePlatformCompanyRequest.md)
  - [UpdateRoleRequest](doc/UpdateRoleRequest.md)
  - [UpdateUserRequest](doc/UpdateUserRequest.md)
  - [UpdateUserStatusRequest](doc/UpdateUserStatusRequest.md)
  - [UserDetail](doc/UserDetail.md)
  - [UserListItem](doc/UserListItem.md)
  - [UserListPage](doc/UserListPage.md)
+ - [ValidationError](doc/ValidationError.md)
+ - [ValidationErrorLocInner](doc/ValidationErrorLocInner.md)
 
 
 ## Documentation For Authorization

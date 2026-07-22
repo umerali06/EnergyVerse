@@ -11,6 +11,19 @@ class CompanyScope(StrictModel):
     company_id: str = Field(min_length=1)
 
 
+class AdminScope(StrictModel):
+    """Verified cross-tenant trust context for platform administration (D-006/D-030).
+
+    Constructed ONLY by `app.admin.dependencies.get_admin_scope`, which requires a
+    `CurrentUser` that has already passed `require_permission("platform.admin")` --
+    never from a client-supplied field. Carries no target company_id; every
+    `/api/v1/platform/*` route takes that from its own path parameter.
+    """
+
+    acting_uid: str = Field(min_length=1)
+    acting_company_id: str = Field(min_length=1)
+
+
 class TenantDoc(StrictModel):
     company_id: str
     created_at: datetime

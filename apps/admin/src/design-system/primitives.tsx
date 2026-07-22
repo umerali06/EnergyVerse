@@ -341,6 +341,52 @@ export function Modal({
   );
 }
 
+/**
+ * Strong confirmation for a consequential, audited action (e.g. suspending a
+ * tenant) -- extracted as a shared primitive because 3.1's inline
+ * `confirmingStatus` pattern in user-modals.tsx only ever had one consumer;
+ * this is the second, more consequential one (blocks a whole tenant's users,
+ * not one person), matching this codebase's "extract on the second real
+ * consumer" precedent (Checkbox in 3.2, FilterChip in 3.4).
+ */
+export function ConfirmDialog({
+  cancelLabel = "Cancel",
+  confirmLabel = "Confirm",
+  consequence,
+  loading = false,
+  onCancel,
+  onConfirm,
+  open,
+  title,
+  tone = "danger",
+}: {
+  cancelLabel?: string;
+  confirmLabel?: string;
+  consequence: ReactNode;
+  loading?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  open: boolean;
+  title: string;
+  tone?: ButtonVariant;
+}) {
+  return (
+    <Modal onClose={onCancel} open={open} title={title}>
+      <Card className="border-status-critical/40 p-3">
+        <p className="text-bodySmall">{consequence}</p>
+        <div className="mt-3 flex justify-end gap-2">
+          <Button onClick={onCancel} variant="ghost">
+            {cancelLabel}
+          </Button>
+          <Button loading={loading} onClick={onConfirm} variant={tone}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </Card>
+    </Modal>
+  );
+}
+
 export type TabItem = { id: string; label: string; content: ReactNode };
 
 export function Tabs({ items }: { items: readonly TabItem[] }) {

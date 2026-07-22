@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   Checkbox,
+  ConfirmDialog,
   EmptyState,
   Input,
   Modal,
@@ -108,6 +109,29 @@ describe("admin design system", () => {
     await user.click(checkbox);
     expect(checkbox).toBeChecked();
     expect(screen.getByText("Optional detail")).toBeInTheDocument();
+  });
+
+  it("confirms a consequential action, and cancel never fires onConfirm", async () => {
+    const user = userEvent.setup();
+    const onConfirm = () => undefined;
+    const onCancel = () => undefined;
+    const confirmSpy = { called: false };
+    render(
+      <ConfirmDialog
+        confirmLabel="Suspend"
+        consequence="All users immediately lose access."
+        onCancel={onCancel}
+        onConfirm={() => {
+          confirmSpy.called = true;
+          onConfirm();
+        }}
+        open
+        title="Suspend this company?"
+      />,
+    );
+    expect(screen.getByText("All users immediately lose access.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(confirmSpy.called).toBe(false);
   });
 
   it("switches and persists the document theme", async () => {

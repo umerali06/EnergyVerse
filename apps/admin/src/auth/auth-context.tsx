@@ -67,12 +67,22 @@ export type AuditApiClient = Pick<
   "exportAuditLogs" | "getAuditLogFacets" | "listAuditLogs"
 >;
 
+export type PlatformApiClient = Pick<
+  FevApiClient,
+  | "getPlatformCompany"
+  | "getPlatformStats"
+  | "listPlatformCompanies"
+  | "updatePlatformCompany"
+  | "updatePlatformCompanyStatus"
+>;
+
 type AuthContextValue = {
   apiClient: DashboardApiClient &
     UsersApiClient &
     RolesApiClient &
     CompanyApiClient &
-    AuditApiClient;
+    AuditApiClient &
+    PlatformApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -147,7 +157,8 @@ export function AuthProvider({
     Partial<UsersApiClient> &
     Partial<RolesApiClient> &
     Partial<CompanyApiClient> &
-    Partial<AuditApiClient>;
+    Partial<AuditApiClient> &
+    Partial<PlatformApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -406,7 +417,8 @@ export function AuthProvider({
         UsersApiClient &
         RolesApiClient &
         CompanyApiClient &
-        AuditApiClient,
+        AuditApiClient &
+        PlatformApiClient,
       currentUser,
       error,
       passwordResetSentAt,
