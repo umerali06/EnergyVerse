@@ -147,6 +147,46 @@ class TenantRepository(Generic[ModelT]):
             metadata={"before": current.model_dump(mode="json")},
         )
 
+    async def _soft_delete(
+        self,
+        scope: CompanyScope,
+        document_id: str,
+        actor_uid: str,
+    ) -> ModelT:
+        """Stamp `deleted_at` instead of removing the document (Phase 4.1).
+
+        Unlike `_update`, this always writes a `.deleted` audit action so the
+        trail reads the same as a hard delete elsewhere in the system, even
+        though the row remains queryable by id for referential resolution.
+        """
+        current = await self.get(scope, document_id)
+        if current is None:
+            raise LookupError(f"{self.target_type} not found in company scope")
+
+        now = utc_now()
+        data = {
+            **current.model_dump(),
+            "deleted_at": now,
+            "updated_at": now,
+        }
+        model = self.model_type.model_validate(data)
+        await self._collection.document(document_id).set(
+            model.model_dump(),
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action=f"{self.target_type}.deleted",
+            target_id=document_id,
+            metadata={
+                "before": current.model_dump(mode="json"),
+                "after": model.model_dump(mode="json"),
+            },
+        )
+        return model
+
     async def _write_audit(
         self,
         scope: CompanyScope,

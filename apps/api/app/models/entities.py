@@ -1,4 +1,5 @@
-from typing import Any
+from datetime import date, datetime
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -118,6 +119,124 @@ class RolePermissionUpdate(StrictModel):
     permission_id: str | None = None
 
 
+class Facility(TenantDoc):
+    id: str
+    name: str
+    sector: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    address: str | None = None
+    timezone: str = "UTC"
+    status: Literal["active", "inactive"] = "active"
+    deleted_at: datetime | None = None
+
+
+class FacilityCreate(StrictModel):
+    id: str
+    name: str
+    sector: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    address: str | None = None
+    timezone: str = "UTC"
+    status: Literal["active", "inactive"] = "active"
+
+
+class FacilityUpdate(StrictModel):
+    name: str | None = None
+    sector: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    address: str | None = None
+    timezone: str | None = None
+    status: Literal["active", "inactive"] | None = None
+
+
+class Area(TenantDoc):
+    id: str
+    facility_id: str
+    name: str
+    code: str | None = None
+    description: str | None = None
+    deleted_at: datetime | None = None
+
+
+class AreaCreate(StrictModel):
+    id: str
+    facility_id: str
+    name: str
+    code: str | None = None
+    description: str | None = None
+
+
+class AreaUpdate(StrictModel):
+    name: str | None = None
+    code: str | None = None
+    description: str | None = None
+
+
+class Asset(TenantDoc):
+    id: str
+    facility_id: str
+    area_id: str | None = None
+    parent_asset_id: str | None = None
+    asset_tag: str
+    qr_code_id: str | None = None
+    name: str
+    category: str
+    category_other: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    serial_number: str | None = None
+    installation_date: date | None = None
+    description: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    current_status: Literal["Healthy", "Warning", "Critical"] = "Healthy"
+    photos: list[str] = Field(default_factory=list)
+    documents: list[str] = Field(default_factory=list)
+    manuals: list[str] = Field(default_factory=list)
+    model_3d_url: str | None = None
+    deleted_at: datetime | None = None
+
+
+class AssetCreate(StrictModel):
+    id: str
+    facility_id: str
+    area_id: str | None = None
+    parent_asset_id: str | None = None
+    asset_tag: str
+    name: str
+    category: str
+    category_other: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    serial_number: str | None = None
+    installation_date: date | None = None
+    description: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    current_status: Literal["Healthy", "Warning", "Critical"] = "Healthy"
+
+
+class AssetUpdate(StrictModel):
+    facility_id: str | None = None
+    area_id: str | None = None
+    parent_asset_id: str | None = None
+    asset_tag: str | None = None
+    name: str | None = None
+    category: str | None = None
+    category_other: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    serial_number: str | None = None
+    installation_date: date | None = None
+    description: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    current_status: Literal["Healthy", "Warning", "Critical"] | None = None
+
+
 class AuditLog(AppendOnlyDoc):
     id: str
     company_id: str
@@ -143,6 +262,9 @@ class SeedCounts(StrictModel):
     role_permissions: int
     users: int
     audit_logs: int
+    facilities: int
+    areas: int
+    assets: int
 
 
 class CurrentUser(StrictModel):

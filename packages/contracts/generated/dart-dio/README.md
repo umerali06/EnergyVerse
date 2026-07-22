@@ -47,19 +47,14 @@ Please follow the [installation procedure](#installation--usage) and then run th
 import 'package:fev_api_client/fev_api_client.dart';
 
 
-final api = FevApiClient().getAuditApi();
-final Date fromDate = 2013-10-20; // Date |
-final Date toDate = 2013-10-20; // Date |
-final String actorUid = actorUid_example; // String |
-final String action = action_example; // String |
-final String targetType = targetType_example; // String |
-final String q = q_example; // String |
+final api = FevApiClient().getAreasApi();
+final CreateAreaRequest createAreaRequest = ; // CreateAreaRequest |
 
 try {
-    final response = await api.exportAuditLogs(fromDate, toDate, actorUid, action, targetType, q);
+    final response = await api.createArea(createAreaRequest);
     print(response);
 } catch on DioException (e) {
-    print("Exception when calling AuditApi->exportAuditLogs: $e\n");
+    print("Exception when calling AreasApi->createArea: $e\n");
 }
 
 ```
@@ -70,6 +65,17 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*AreasApi*](doc/AreasApi.md) | [**createArea**](doc/AreasApi.md#createarea) | **POST** /api/v1/areas | Create Area
+[*AreasApi*](doc/AreasApi.md) | [**deleteArea**](doc/AreasApi.md#deletearea) | **DELETE** /api/v1/areas/{area_id} | Delete Area
+[*AreasApi*](doc/AreasApi.md) | [**getArea**](doc/AreasApi.md#getarea) | **GET** /api/v1/areas/{area_id} | Get Area
+[*AreasApi*](doc/AreasApi.md) | [**listAreas**](doc/AreasApi.md#listareas) | **GET** /api/v1/areas | List Areas
+[*AreasApi*](doc/AreasApi.md) | [**updateArea**](doc/AreasApi.md#updatearea) | **PATCH** /api/v1/areas/{area_id} | Update Area
+[*AssetsApi*](doc/AssetsApi.md) | [**createAsset**](doc/AssetsApi.md#createasset) | **POST** /api/v1/assets | Create Asset
+[*AssetsApi*](doc/AssetsApi.md) | [**deleteAsset**](doc/AssetsApi.md#deleteasset) | **DELETE** /api/v1/assets/{asset_id} | Delete Asset
+[*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /api/v1/assets/{asset_id} | Get Asset
+[*AssetsApi*](doc/AssetsApi.md) | [**getAssetHistory**](doc/AssetsApi.md#getassethistory) | **GET** /api/v1/assets/{asset_id}/history | Get Asset History
+[*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /api/v1/assets | List Assets
+[*AssetsApi*](doc/AssetsApi.md) | [**updateAsset**](doc/AssetsApi.md#updateasset) | **PATCH** /api/v1/assets/{asset_id} | Update Asset
 [*AuditApi*](doc/AuditApi.md) | [**exportAuditLogs**](doc/AuditApi.md#exportauditlogs) | **GET** /api/v1/audit-logs/export | Export Audit Logs
 [*AuditApi*](doc/AuditApi.md) | [**getAuditLogFacets**](doc/AuditApi.md#getauditlogfacets) | **GET** /api/v1/audit-logs/actions | Get Audit Log Facets
 [*AuditApi*](doc/AuditApi.md) | [**listAuditLogs**](doc/AuditApi.md#listauditlogs) | **GET** /api/v1/audit-logs | List Audit Logs
@@ -82,6 +88,11 @@ Class | Method | HTTP request | Description
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivity**](doc/DashboardApi.md#getdashboardactivity) | **GET** /api/v1/dashboard/activity | Dashboard Activity
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivitySeries**](doc/DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSummary**](doc/DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
+[*FacilitiesApi*](doc/FacilitiesApi.md) | [**createFacility**](doc/FacilitiesApi.md#createfacility) | **POST** /api/v1/facilities | Create Facility
+[*FacilitiesApi*](doc/FacilitiesApi.md) | [**deleteFacility**](doc/FacilitiesApi.md#deletefacility) | **DELETE** /api/v1/facilities/{facility_id} | Delete Facility
+[*FacilitiesApi*](doc/FacilitiesApi.md) | [**getFacility**](doc/FacilitiesApi.md#getfacility) | **GET** /api/v1/facilities/{facility_id} | Get Facility
+[*FacilitiesApi*](doc/FacilitiesApi.md) | [**listFacilities**](doc/FacilitiesApi.md#listfacilities) | **GET** /api/v1/facilities | List Facilities
+[*FacilitiesApi*](doc/FacilitiesApi.md) | [**updateFacility**](doc/FacilitiesApi.md#updatefacility) | **PATCH** /api/v1/facilities/{facility_id} | Update Facility
 [*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
 [*PlatformApi*](doc/PlatformApi.md) | [**getPlatformCompany**](doc/PlatformApi.md#getplatformcompany) | **GET** /api/v1/platform/companies/{company_id} | Get Platform Company
 [*PlatformApi*](doc/PlatformApi.md) | [**getPlatformStats**](doc/PlatformApi.md#getplatformstats) | **GET** /api/v1/platform/stats | Get Platform Stats
@@ -107,12 +118,24 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AreaDeleted](doc/AreaDeleted.md)
+ - [AreaDetail](doc/AreaDetail.md)
+ - [AreaListPage](doc/AreaListPage.md)
+ - [AssetDeleted](doc/AssetDeleted.md)
+ - [AssetDetail](doc/AssetDetail.md)
+ - [AssetHistoryEvent](doc/AssetHistoryEvent.md)
+ - [AssetHistoryPage](doc/AssetHistoryPage.md)
+ - [AssetListItem](doc/AssetListItem.md)
+ - [AssetListPage](doc/AssetListPage.md)
  - [AuditLogEntry](doc/AuditLogEntry.md)
  - [AuditLogFacets](doc/AuditLogFacets.md)
  - [AuditLogPage](doc/AuditLogPage.md)
  - [CompanyProfile](doc/CompanyProfile.md)
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
+ - [CreateAreaRequest](doc/CreateAreaRequest.md)
+ - [CreateAssetRequest](doc/CreateAssetRequest.md)
+ - [CreateFacilityRequest](doc/CreateFacilityRequest.md)
  - [CreateRoleRequest](doc/CreateRoleRequest.md)
  - [CurrentUser](doc/CurrentUser.md)
  - [DashboardActivityItem](doc/DashboardActivityItem.md)
@@ -122,6 +145,9 @@ Class | Method | HTTP request | Description
  - [DashboardSummary](doc/DashboardSummary.md)
  - [DemoGateResponse](doc/DemoGateResponse.md)
  - [ErrorEnvelope](doc/ErrorEnvelope.md)
+ - [FacilityDeleted](doc/FacilityDeleted.md)
+ - [FacilityDetail](doc/FacilityDetail.md)
+ - [FacilityListPage](doc/FacilityListPage.md)
  - [HTTPValidationError](doc/HTTPValidationError.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [InviteUserRequest](doc/InviteUserRequest.md)
@@ -137,8 +163,11 @@ Class | Method | HTTP request | Description
  - [RoleList](doc/RoleList.md)
  - [RoleSummary](doc/RoleSummary.md)
  - [ServiceResponse](doc/ServiceResponse.md)
+ - [UpdateAreaRequest](doc/UpdateAreaRequest.md)
+ - [UpdateAssetRequest](doc/UpdateAssetRequest.md)
  - [UpdateCompanyRequest](doc/UpdateCompanyRequest.md)
  - [UpdateCompanyStatusRequest](doc/UpdateCompanyStatusRequest.md)
+ - [UpdateFacilityRequest](doc/UpdateFacilityRequest.md)
  - [UpdatePlatformCompanyRequest](doc/UpdatePlatformCompanyRequest.md)
  - [UpdateRoleRequest](doc/UpdateRoleRequest.md)
  - [UpdateUserRequest](doc/UpdateUserRequest.md)

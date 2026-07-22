@@ -1,5 +1,8 @@
 import asyncio
 
+from app.db.repositories.areas import AreaRepository
+from app.db.repositories.assets import AssetRepository
+from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
@@ -13,6 +16,10 @@ from tests.fakes.firestore import FakeAsyncClient
 EXPECTED_ROLE_PERMISSIONS = {
     "super_admin": frozenset(
         {
+            "facilities.read",
+            "facilities.write",
+            "areas.read",
+            "areas.write",
             "assets.read",
             "assets.write",
             "inspections.read",
@@ -34,6 +41,10 @@ EXPECTED_ROLE_PERMISSIONS = {
     ),
     "company_admin": frozenset(
         {
+            "facilities.read",
+            "facilities.write",
+            "areas.read",
+            "areas.write",
             "assets.read",
             "assets.write",
             "inspections.read",
@@ -54,6 +65,10 @@ EXPECTED_ROLE_PERMISSIONS = {
     ),
     "operations_manager": frozenset(
         {
+            "facilities.read",
+            "facilities.write",
+            "areas.read",
+            "areas.write",
             "assets.read",
             "assets.write",
             "inspections.read",
@@ -67,6 +82,8 @@ EXPECTED_ROLE_PERMISSIONS = {
     ),
     "field_inspector": frozenset(
         {
+            "facilities.read",
+            "areas.read",
             "assets.read",
             "inspections.read",
             "inspections.write",
@@ -80,6 +97,8 @@ EXPECTED_ROLE_PERMISSIONS = {
     ),
     "maintenance_technician": frozenset(
         {
+            "facilities.read",
+            "areas.read",
             "assets.read",
             "inspections.read",
             "permits.read",
@@ -91,6 +110,8 @@ EXPECTED_ROLE_PERMISSIONS = {
     ),
     "hse_manager": frozenset(
         {
+            "facilities.read",
+            "areas.read",
             "assets.read",
             "inspections.read",
             "permits.read",
@@ -105,6 +126,8 @@ EXPECTED_ROLE_PERMISSIONS = {
     ),
     "executive": frozenset(
         {
+            "facilities.read",
+            "areas.read",
             "assets.read",
             "inspections.read",
             "permits.read",
@@ -119,6 +142,8 @@ EXPECTED_ROLE_PERMISSIONS = {
 
 def test_permission_catalog_is_exact() -> None:
     grouped = {
+        "facilities": {"facilities.read", "facilities.write"},
+        "areas": {"areas.read", "areas.write"},
         "assets": {"assets.read", "assets.write"},
         "inspections": {"inspections.read", "inspections.write"},
         "permits": {"permits.read", "permits.approve"},
@@ -136,7 +161,7 @@ def test_permission_catalog_is_exact() -> None:
         for group in grouped
     }
     assert actual == grouped
-    assert len(PERMISSION_CATALOG) == 17
+    assert len(PERMISSION_CATALOG) == 21
 
 
 def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
@@ -152,10 +177,13 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first == second
         assert client.counts() == counts_after_first
         assert first.companies == 2
-        assert first.permissions == 17
+        assert first.permissions == 21
         assert first.roles == 8
         assert first.role_permissions == expected_mappings
         assert first.users == 8
+        assert first.facilities == 2
+        assert first.areas == 4
+        assert first.assets == 11
         assert set(client.counts()) == {
             "audit_logs",
             "companies",
@@ -163,6 +191,9 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "role_permissions",
             "roles",
             "users",
+            "facilities",
+            "areas",
+            "assets",
         }
 
         company = client.documents("companies")[ACME_COMPANY_ID]
@@ -242,6 +273,40 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert "updated_at" not in audit_log
         assert "created_by" not in audit_log
 
+        facility = next(iter(client.documents("facilities").values()))
+        area = next(iter(client.documents("areas").values()))
+        asset = client.documents("assets")[f"{ACME_COMPANY_ID}__asset__p-101"]
+        assert set(facility) == {
+            "id",
+            "company_id",
+            "name",
+            "sector",
+            "gps_lat",
+            "gps_lng",
+            "address",
+            "timezone",
+            "status",
+            "deleted_at",
+            "created_at",
+            "updated_at",
+            "created_by",
+        }
+        assert set(area) == {
+            "id",
+            "company_id",
+            "facility_id",
+            "name",
+            "code",
+            "description",
+            "deleted_at",
+            "created_at",
+            "updated_at",
+            "created_by",
+        }
+        assert asset["current_status"] == "Healthy"
+        assert asset["category"] == "Pumps"
+        assert asset["deleted_at"] is None
+
     asyncio.run(scenario())
 
 
@@ -264,6 +329,17 @@ def test_company_a_query_never_returns_company_b_documents() -> None:
         assert await users.get(second, "demo-acme-super_admin") is None
         assert all(role.company_id == ACME_COMPANY_ID for role in await roles.list(acme))
         assert all(role.company_id == SECOND_COMPANY_ID for role in await roles.list(second))
+
+        facilities = FacilityRepository(client)  # type: ignore[arg-type]
+        areas = AreaRepository(client)  # type: ignore[arg-type]
+        assets = AssetRepository(client)  # type: ignore[arg-type]
+
+        assert len(await facilities.list(acme)) == 2
+        assert len(await areas.list(acme)) == 4
+        assert len(await assets.list(acme)) == 11
+        assert await facilities.list(second) == []
+        assert await areas.list(second) == []
+        assert await assets.list(second) == []
 
     asyncio.run(scenario())
 
