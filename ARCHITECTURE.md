@@ -579,6 +579,69 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   Settings" destination are gated by `company.settings` exactly like the
   admin web nav item.
 
+### Phase 3.4 Audit Log Viewer
+
+- **The complete, filterable, exportable compliance trail** over the same
+  `audit_logs` collection 2.2's dashboard widget already reads from a fixed
+  90-day/5000-doc window — this phase makes the read caller-controlled
+  (arbitrary date range, actor/action/target-type/text filters, CSV export)
+  rather than a fixed recent slice.
+- **Query shape reuses D-019 exactly, with the date range promoted from a
+  fixed window to the real query bound.** `AuditLogRepository.list_range`
+  adds a `created_at <= end` filter alongside the existing
+  `company_id ==` / `created_at >= start` pair used by `list_since` — since
+  both bounds are on the same already-indexed field, **no new Firestore
+  index was needed**. `app/audit/query_service.py::AuditQueryService`
+  applies actor/action/target-type equality and free-text substring
+  matching (case-insensitive, over action/target/stringified metadata —
+  Firestore has no native full-text search) in-memory over that bounded
+  read, then cursor-paginates. `AUDIT_QUERY_CAP = 25,000` bounds the raw
+  Firestore pull; a `truncated` flag on `AuditLogPage` tells the UI when
+  the cap was hit rather than silently hiding older events. `GET
+  /api/v1/audit-logs/actions` returns the distinct actions/target-types
+  actually seen in the selected range, powering the filter dropdowns from
+  real data instead of a hardcoded enum.
+- **Export streams directly, no Storage round trip.** `GET
+  /api/v1/audit-logs/export` re-runs the identical bounded/filtered query
+  and writes CSV via stdlib `csv`/`io.StringIO` into a `StreamingResponse`
+  (`text/csv`, `Content-Disposition: attachment`) — the first
+  file-streaming route in this codebase. A filtered set that would exceed
+  the same 25,000-row cap gets a 413 asking the caller to narrow the
+  range/filters, rather than a silently truncated compliance export.
+- **`audit.read` permission.** Added to the Phase 0.4 catalog;
+  `company_admin`/`super_admin` inherit it automatically
+  (`ALL_PERMISSION_KEYS`-derived), `hse_manager`/`executive` gained it
+  explicitly, `operations_manager`/`field_inspector`/
+  `maintenance_technician` did not. `apps/api/scripts/reconcile_roles.py
+  --company-id <id>` re-runs the existing idempotent `seed_system_roles`
+  diff for one already-registered tenant — the backfill path for any real
+  company outside the two demo tenants (which pick up the grant for free
+  the next time `scripts.seed` runs).
+- **Reading the audit log is itself not audited** — the route/service
+  layer never calls `AuditService.audit`, exactly like the 2.2 dashboard's
+  read routes, to avoid self-referential noise in a collection that's
+  supposed to represent real mutations.
+- **Admin UI** (`apps/admin/src/audit/`) is a new list+filter+paginate page
+  structurally cloned from 3.1's `users-page.tsx` (not 3.3's single-record
+  settings page): a filter-bar `Card` (date range, actor/action/target-type
+  selects sourced from the facets endpoint, text search) with dismissible
+  `FilterChip`s (the one new reusable primitive this phase adds — nothing
+  dismissible existed before), a dense table with an expandable row
+  revealing the raw `metadata` (before/after panels when present), and an
+  "Export CSV" button that calls the generated client's `exportAuditLogs`
+  directly (its `TextApiResponse` fallback already returns the raw CSV
+  string for a non-JSON content type, so no bypass of the generated client
+  was needed) and triggers a browser download via a `Blob`/object URL.
+  Absolute timestamps use the 3.3 `companyTimezone`/`companyLocale` fields
+  already on `CurrentUser` — not a fresh `getCompany()` call, since
+  `company.settings` and `audit.read` are different, non-overlapping
+  permissions and most `audit.read` holders (`hse_manager`, `executive`)
+  don't hold `company.settings`.
+- **Mobile** (`apps/mobile/lib/audit/`) ships list + filters + detail only,
+  read-only, extending the exact D-023/D-026 "deliberate mobile scope, not
+  omission" precedent — CSV export stays admin-web-only, since a
+  downloadable compliance file is a desktop workflow.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -595,8 +658,28 @@ live in one constants module. Firestore Rules remain deny-all for clients.
 
 ### Audit and Observability
 
-- Critical actions must be recorded in comprehensive audit logs
-- Audit event schema, retention, integrity controls, monitoring, and operational telemetry: _To be defined_
+- **Schema (locked, Phase 0.4/3.4):** `audit_logs` is append-only
+  (`AppendOnlyDoc`: `created_at`, `actor_uid`, no update/delete API) —
+  `company_id`, `action` (`"{target_type}.{verb}"`), `target_type`,
+  `target_id`, and a free-form `metadata` dict conventionally holding
+  `before`/`after` (or `added`/`removed` for consolidated multi-mapping
+  edits). Every `TenantRepository` subclass's create/update/delete writes
+  one entry automatically (`app/db/repositories/base.py::_write_audit`) —
+  there is no ad hoc per-route audit call to forget.
+- **Read path (Phase 3.4):** the full compliance trail is queryable and
+  exportable per D-029/D-019 — see Phase 3.4 above for the exact
+  caller-controlled-date-range + in-memory-filter shape and its read-cost
+  bound.
+- **Retention:** no automatic deletion/archival policy exists yet — audit
+  history accumulates indefinitely in Firestore. Defining a retention
+  policy (and whether it differs from Firestore's own storage limits) is
+  still _To be defined_.
+- **Integrity controls:** append-only at the API layer (no update/delete
+  route) is the only integrity guarantee today; there is no
+  cryptographic tamper-evidence (hash chaining, WORM storage) — _to be
+  defined_ if a stronger compliance guarantee is ever required.
+- **Monitoring and operational telemetry** (error rates, latency,
+  uptime dashboards outside of `audit_logs` itself): _To be defined_.
 
 ### Deployment and Security
 
