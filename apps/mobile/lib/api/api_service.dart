@@ -85,6 +85,35 @@ abstract interface class ApiContract {
     int limit = 20,
   });
   Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate});
+  Future<AssetListPage> getAssets({
+    String? facilityId,
+    String? areaId,
+    String? category,
+    String? currentStatus,
+    String? parentAssetId,
+    String? search,
+    String sort = '-created_at',
+    String? cursor,
+    int limit = 25,
+  });
+  Future<AssetDetail> getAsset(String assetId);
+  Future<AssetHistoryPage> getAssetHistory(String assetId);
+  Future<FacilityListPage> getFacilities({
+    String? search,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  });
+  Future<FacilityDetail> getFacility(String facilityId);
+  Future<AreaListPage> getAreas({
+    String? facilityId,
+    String? search,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  });
+  Future<AreaDetail> getArea(String areaId);
 }
 
 class ApiService implements ApiContract {
@@ -428,6 +457,169 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty audit facets response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AssetListPage> getAssets({
+    String? facilityId,
+    String? areaId,
+    String? category,
+    String? currentStatus,
+    String? parentAssetId,
+    String? search,
+    String sort = '-created_at',
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getAssetsApi().listAssets(
+            facilityId: facilityId,
+            areaId: areaId,
+            category: category,
+            currentStatus: currentStatus,
+            parentAssetId: parentAssetId,
+            search: search,
+            sort: sort,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty asset list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AssetDetail> getAsset(String assetId) async {
+    try {
+      final response = await _client.getAssetsApi().getAsset(assetId: assetId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty asset detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AssetHistoryPage> getAssetHistory(String assetId) async {
+    try {
+      final response = await _client.getAssetsApi().getAssetHistory(assetId: assetId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty asset history page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<FacilityListPage> getFacilities({
+    String? search,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getFacilitiesApi().listFacilities(
+            search: search,
+            status: status,
+            sort: sort,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty facility list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<FacilityDetail> getFacility(String facilityId) async {
+    try {
+      final response = await _client.getFacilitiesApi().getFacility(facilityId: facilityId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty facility detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AreaListPage> getAreas({
+    String? facilityId,
+    String? search,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getAreasApi().listAreas(
+            facilityId: facilityId,
+            search: search,
+            sort: sort,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty area list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AreaDetail> getArea(String areaId) async {
+    try {
+      final response = await _client.getAreasApi().getArea(areaId: areaId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty area detail',
         );
       }
       return value;

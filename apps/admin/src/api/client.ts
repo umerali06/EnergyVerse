@@ -1,9 +1,12 @@
 import {
+  AreasApi,
+  AssetsApi,
   AuditApi,
   AuthApi,
   CompanyApi,
   Configuration,
   DashboardApi,
+  FacilitiesApi,
   FetchError,
   PermissionsApi,
   PlatformApi,
@@ -12,6 +15,11 @@ import {
   RolesApi,
   SystemApi,
   UsersApi,
+  type AreaDetail,
+  type AreaListPage,
+  type AssetDetail,
+  type AssetHistoryPage,
+  type AssetListPage,
   type AuditLogFacets,
   type AuditLogPage,
   type CompanyProfile,
@@ -23,6 +31,8 @@ import {
   type DashboardActivitySeries,
   type DashboardSummary,
   type DemoGateResponse,
+  type FacilityDetail,
+  type FacilityListPage,
   type HealthResponse,
   type InviteUserRequest,
   type PermissionCatalog,
@@ -114,15 +124,46 @@ export type ListAuditLogsOptions = AuditLogFilterOptions & {
   limit?: number;
 };
 
+export type ListAssetsOptions = {
+  facilityId?: string;
+  areaId?: string;
+  category?: string;
+  currentStatus?: string;
+  parentAssetId?: string;
+  search?: string;
+  sort?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export type ListFacilitiesOptions = {
+  search?: string;
+  status?: string;
+  sort?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export type ListAreasOptions = {
+  facilityId?: string;
+  search?: string;
+  sort?: string;
+  cursor?: string;
+  limit?: number;
+};
+
 function toDate(value?: string): Date | undefined {
   return value ? new Date(value) : undefined;
 }
 
 export class FevApiClient {
+  private readonly areas: AreasApi;
+  private readonly assets: AssetsApi;
   private readonly audit: AuditApi;
   private readonly auth: AuthApi;
   private readonly company: CompanyApi;
   private readonly dashboard: DashboardApi;
+  private readonly facilities: FacilitiesApi;
   private readonly permissions: PermissionsApi;
   private readonly platform: PlatformApi;
   private readonly rbacDemo: RbacDemoApi;
@@ -140,10 +181,13 @@ export class FevApiClient {
       basePath: (options.baseUrl ?? defaultBaseUrl).replace(/\/$/, ""),
       fetchApi: options.fetchApi,
     });
+    this.areas = new AreasApi(configuration);
+    this.assets = new AssetsApi(configuration);
     this.audit = new AuditApi(configuration);
     this.auth = new AuthApi(configuration);
     this.company = new CompanyApi(configuration);
     this.dashboard = new DashboardApi(configuration);
+    this.facilities = new FacilitiesApi(configuration);
     this.permissions = new PermissionsApi(configuration);
     this.platform = new PlatformApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
@@ -233,6 +277,82 @@ export class FevApiClient {
   getUser(userId: string, signal?: AbortSignal): Promise<UserDetail> {
     return this.execute(() =>
       this.users.getUser({ userId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listAssets(options: ListAssetsOptions = {}, signal?: AbortSignal): Promise<AssetListPage> {
+    return this.execute(() =>
+      this.assets.listAssets(
+        {
+          facilityId: options.facilityId,
+          areaId: options.areaId,
+          category: options.category,
+          currentStatus: options.currentStatus,
+          parentAssetId: options.parentAssetId,
+          search: options.search,
+          sort: options.sort,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getAsset(assetId: string, signal?: AbortSignal): Promise<AssetDetail> {
+    return this.execute(() =>
+      this.assets.getAsset({ assetId }, signal ? { signal } : undefined),
+    );
+  }
+
+  getAssetHistory(assetId: string, signal?: AbortSignal): Promise<AssetHistoryPage> {
+    return this.execute(() =>
+      this.assets.getAssetHistory({ assetId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listFacilities(
+    options: ListFacilitiesOptions = {},
+    signal?: AbortSignal,
+  ): Promise<FacilityListPage> {
+    return this.execute(() =>
+      this.facilities.listFacilities(
+        {
+          search: options.search,
+          status: options.status,
+          sort: options.sort,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getFacility(facilityId: string, signal?: AbortSignal): Promise<FacilityDetail> {
+    return this.execute(() =>
+      this.facilities.getFacility({ facilityId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listAreas(options: ListAreasOptions = {}, signal?: AbortSignal): Promise<AreaListPage> {
+    return this.execute(() =>
+      this.areas.listAreas(
+        {
+          facilityId: options.facilityId,
+          search: options.search,
+          sort: options.sort,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getArea(areaId: string, signal?: AbortSignal): Promise<AreaDetail> {
+    return this.execute(() =>
+      this.areas.getArea({ areaId }, signal ? { signal } : undefined),
     );
   }
 

@@ -60,7 +60,6 @@ class AppNav {
       icon: Icons.inventory_2_outlined,
       route: assets,
       requiredPermission: 'assets.read',
-      comingSoon: true,
       primary: true,
     ),
     NavDestination(

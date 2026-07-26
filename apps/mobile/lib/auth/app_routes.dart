@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../assets/asset_detail_screen.dart';
+import '../assets/assets_screen.dart';
 import '../audit/audit_screen.dart';
 import '../company/company_profile_screen.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -28,6 +30,8 @@ class AppRoutes {
   static const roles = AppNav.roles;
   static const settings = AppNav.settings;
   static const audit = AppNav.audit;
+  static const assets = AppNav.assets;
+  static const assetDetail = '/assets/detail';
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -115,6 +119,33 @@ class AppRoutes {
                 ),
               ),
             );
+      case assets:
+        return (_) => const RequireAuthGuard(
+              routeName: assets,
+              child: AppShellScaffold(
+                currentRoute: assets,
+                child: PermissionGate(
+                  permission: 'assets.read',
+                  fallback: NoAccessScreen(permission: 'assets.read'),
+                  child: AssetsScreen(),
+                ),
+              ),
+            );
+      case assetDetail:
+        return (context) {
+          final assetId = ModalRoute.of(context)!.settings.arguments as String;
+          return RequireAuthGuard(
+            routeName: assetDetail,
+            child: AppShellScaffold(
+              currentRoute: assets,
+              child: PermissionGate(
+                permission: 'assets.read',
+                fallback: const NoAccessScreen(permission: 'assets.read'),
+                child: AssetDetailScreen(assetId: assetId),
+              ),
+            ),
+          );
+        };
     }
     final destination = AppNav.byRoute(name);
     if (destination != null && destination.comingSoon) {
