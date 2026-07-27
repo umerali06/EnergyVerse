@@ -175,6 +175,17 @@ class AreaUpdate(StrictModel):
     description: str | None = None
 
 
+class AssetMedia(StrictModel):
+    id: str
+    path: str
+    filename: str
+    kind: Literal["photo", "document", "manual"]
+    content_type: str
+    size: int
+    uploaded_by: str
+    uploaded_at: datetime
+
+
 class Asset(TenantDoc):
     id: str
     facility_id: str
@@ -193,9 +204,9 @@ class Asset(TenantDoc):
     gps_lat: float | None = None
     gps_lng: float | None = None
     current_status: Literal["Healthy", "Warning", "Critical"] = "Healthy"
-    photos: list[str] = Field(default_factory=list)
-    documents: list[str] = Field(default_factory=list)
-    manuals: list[str] = Field(default_factory=list)
+    photos: list["AssetMedia"] = Field(default_factory=list)
+    documents: list["AssetMedia"] = Field(default_factory=list)
+    manuals: list["AssetMedia"] = Field(default_factory=list)
     model_3d_url: str | None = None
     deleted_at: datetime | None = None
 
@@ -235,6 +246,8 @@ class AssetUpdate(StrictModel):
     gps_lat: float | None = None
     gps_lng: float | None = None
     current_status: Literal["Healthy", "Warning", "Critical"] | None = None
+
+
 
 
 class AuditLog(AppendOnlyDoc):

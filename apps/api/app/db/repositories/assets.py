@@ -1,8 +1,8 @@
-from google.cloud.firestore_v1 import FieldFilter
+from google.cloud.firestore_v1 import ArrayRemove, ArrayUnion, FieldFilter
 
 from app.db.repositories.base import FIRESTORE_OPERATION_TIMEOUT_SECONDS, TenantRepository
-from app.models.base import CompanyScope
-from app.models.entities import Asset, AssetCreate, AssetUpdate, without_none
+from app.models.base import CompanyScope, utc_now
+from app.models.entities import Asset, AssetCreate, AssetMedia, AssetUpdate
 
 # Backstop against an unbounded tenant, matching the D-019/3.4 in-memory read-cap
 # convention -- the Firestore query itself is already bounded by company_id plus
@@ -33,12 +33,56 @@ class AssetRepository(TenantRepository[Asset]):
         return await self._update(
             scope,
             asset_id,
-            without_none(payload.model_dump()),
+            payload.model_dump(exclude_unset=True),
             actor_uid,
         )
 
     async def soft_delete(self, scope: CompanyScope, asset_id: str, actor_uid: str) -> Asset:
         return await self._soft_delete(scope, asset_id, actor_uid)
+
+    async def append_media(
+        self, scope: CompanyScope, asset_id: str, media: AssetMedia, actor_uid: str
+    ) -> Asset:
+        current = await self.get(scope, asset_id)
+        if current is None:
+            raise LookupError("asset not found in company scope")
+        field = f"{media.kind}s" if media.kind != "manual" else "manuals"
+        await self._collection.document(asset_id).update(
+            {field: ArrayUnion([media.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, asset_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="asset.media_uploaded",
+            target_id=asset_id,
+            metadata={"media": media.model_dump(mode="json")},
+        )
+        return updated
+
+    async def remove_media(
+        self, scope: CompanyScope, asset_id: str, media: AssetMedia, actor_uid: str
+    ) -> Asset:
+        field = f"{media.kind}s" if media.kind != "manual" else "manuals"
+        await self._collection.document(asset_id).update(
+            {field: ArrayRemove([media.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, asset_id)
+        if updated is None:
+            raise LookupError("asset not found in company scope")
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="asset.media_deleted",
+            target_id=asset_id,
+            metadata={"media": media.model_dump(mode="json")},
+        )
+        return updated
 
     async def query(
         self,

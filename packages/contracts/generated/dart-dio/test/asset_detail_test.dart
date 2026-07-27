@@ -42,7 +42,7 @@ void main() {
       // TODO
     });
 
-    // BuiltList<String> documents
+    // BuiltList<AssetMediaResponse> documents
     test('to test the property `documents`', () async {
       // TODO
     });
@@ -72,7 +72,7 @@ void main() {
       // TODO
     });
 
-    // BuiltList<String> manuals
+    // BuiltList<AssetMediaResponse> manuals
     test('to test the property `manuals`', () async {
       // TODO
     });
@@ -102,7 +102,7 @@ void main() {
       // TODO
     });
 
-    // BuiltList<String> photos
+    // BuiltList<AssetMediaResponse> photos
     test('to test the property `photos`', () async {
       // TODO
     });

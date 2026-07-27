@@ -9,6 +9,7 @@ export * from './AssetHistoryEvent';
 export * from './AssetHistoryPage';
 export * from './AssetListItem';
 export * from './AssetListPage';
+export * from './AssetMediaResponse';
 export * from './AuditLogEntry';
 export * from './AuditLogFacets';
 export * from './AuditLogPage';

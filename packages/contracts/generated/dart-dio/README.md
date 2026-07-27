@@ -72,10 +72,12 @@ Class | Method | HTTP request | Description
 [*AreasApi*](doc/AreasApi.md) | [**updateArea**](doc/AreasApi.md#updatearea) | **PATCH** /api/v1/areas/{area_id} | Update Area
 [*AssetsApi*](doc/AssetsApi.md) | [**createAsset**](doc/AssetsApi.md#createasset) | **POST** /api/v1/assets | Create Asset
 [*AssetsApi*](doc/AssetsApi.md) | [**deleteAsset**](doc/AssetsApi.md#deleteasset) | **DELETE** /api/v1/assets/{asset_id} | Delete Asset
+[*AssetsApi*](doc/AssetsApi.md) | [**deleteAssetMedia**](doc/AssetsApi.md#deleteassetmedia) | **DELETE** /api/v1/assets/{asset_id}/media/{media_id} | Delete Asset Media
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /api/v1/assets/{asset_id} | Get Asset
 [*AssetsApi*](doc/AssetsApi.md) | [**getAssetHistory**](doc/AssetsApi.md#getassethistory) | **GET** /api/v1/assets/{asset_id}/history | Get Asset History
 [*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /api/v1/assets | List Assets
 [*AssetsApi*](doc/AssetsApi.md) | [**updateAsset**](doc/AssetsApi.md#updateasset) | **PATCH** /api/v1/assets/{asset_id} | Update Asset
+[*AssetsApi*](doc/AssetsApi.md) | [**uploadAssetMedia**](doc/AssetsApi.md#uploadassetmedia) | **POST** /api/v1/assets/{asset_id}/media | Upload Asset Media
 [*AuditApi*](doc/AuditApi.md) | [**exportAuditLogs**](doc/AuditApi.md#exportauditlogs) | **GET** /api/v1/audit-logs/export | Export Audit Logs
 [*AuditApi*](doc/AuditApi.md) | [**getAuditLogFacets**](doc/AuditApi.md#getauditlogfacets) | **GET** /api/v1/audit-logs/actions | Get Audit Log Facets
 [*AuditApi*](doc/AuditApi.md) | [**listAuditLogs**](doc/AuditApi.md#listauditlogs) | **GET** /api/v1/audit-logs | List Audit Logs
@@ -127,6 +129,7 @@ Class | Method | HTTP request | Description
  - [AssetHistoryPage](doc/AssetHistoryPage.md)
  - [AssetListItem](doc/AssetListItem.md)
  - [AssetListPage](doc/AssetListPage.md)
+ - [AssetMediaResponse](doc/AssetMediaResponse.md)
  - [AuditLogEntry](doc/AuditLogEntry.md)
  - [AuditLogFacets](doc/AuditLogFacets.md)
  - [AuditLogPage](doc/AuditLogPage.md)

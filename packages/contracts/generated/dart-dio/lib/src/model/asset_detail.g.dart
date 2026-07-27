@@ -86,7 +86,7 @@ class _$AssetDetail extends AssetDetail {
   @override
   final String? description;
   @override
-  final BuiltList<String>? documents;
+  final BuiltList<AssetMediaResponse>? documents;
   @override
   final String facilityId;
   @override
@@ -98,7 +98,7 @@ class _$AssetDetail extends AssetDetail {
   @override
   final Date? installationDate;
   @override
-  final BuiltList<String>? manuals;
+  final BuiltList<AssetMediaResponse>? manuals;
   @override
   final String? manufacturer;
   @override
@@ -110,7 +110,7 @@ class _$AssetDetail extends AssetDetail {
   @override
   final String? parentAssetId;
   @override
-  final BuiltList<String>? photos;
+  final BuiltList<AssetMediaResponse>? photos;
   @override
   final String? qrCodeId;
   @override
@@ -289,10 +289,10 @@ class AssetDetailBuilder implements Builder<AssetDetail, AssetDetailBuilder> {
   String? get description => _$this._description;
   set description(String? description) => _$this._description = description;
 
-  ListBuilder<String>? _documents;
-  ListBuilder<String> get documents =>
-      _$this._documents ??= new ListBuilder<String>();
-  set documents(ListBuilder<String>? documents) =>
+  ListBuilder<AssetMediaResponse>? _documents;
+  ListBuilder<AssetMediaResponse> get documents =>
+      _$this._documents ??= new ListBuilder<AssetMediaResponse>();
+  set documents(ListBuilder<AssetMediaResponse>? documents) =>
       _$this._documents = documents;
 
   String? _facilityId;
@@ -316,10 +316,11 @@ class AssetDetailBuilder implements Builder<AssetDetail, AssetDetailBuilder> {
   set installationDate(Date? installationDate) =>
       _$this._installationDate = installationDate;
 
-  ListBuilder<String>? _manuals;
-  ListBuilder<String> get manuals =>
-      _$this._manuals ??= new ListBuilder<String>();
-  set manuals(ListBuilder<String>? manuals) => _$this._manuals = manuals;
+  ListBuilder<AssetMediaResponse>? _manuals;
+  ListBuilder<AssetMediaResponse> get manuals =>
+      _$this._manuals ??= new ListBuilder<AssetMediaResponse>();
+  set manuals(ListBuilder<AssetMediaResponse>? manuals) =>
+      _$this._manuals = manuals;
 
   String? _manufacturer;
   String? get manufacturer => _$this._manufacturer;
@@ -342,10 +343,11 @@ class AssetDetailBuilder implements Builder<AssetDetail, AssetDetailBuilder> {
   set parentAssetId(String? parentAssetId) =>
       _$this._parentAssetId = parentAssetId;
 
-  ListBuilder<String>? _photos;
-  ListBuilder<String> get photos =>
-      _$this._photos ??= new ListBuilder<String>();
-  set photos(ListBuilder<String>? photos) => _$this._photos = photos;
+  ListBuilder<AssetMediaResponse>? _photos;
+  ListBuilder<AssetMediaResponse> get photos =>
+      _$this._photos ??= new ListBuilder<AssetMediaResponse>();
+  set photos(ListBuilder<AssetMediaResponse>? photos) =>
+      _$this._photos = photos;
 
   String? _qrCodeId;
   String? get qrCodeId => _$this._qrCodeId;

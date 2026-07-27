@@ -181,9 +181,9 @@ describe("asset detail page", () => {
     expect(getAssetHistory).toHaveBeenCalledWith("asset-1");
   });
 
-  it("shows the disabled Edit button with a Phase 4.3 tooltip", async () => {
+  it("hides asset write controls from a read-only user", async () => {
     renderDetail();
     await screen.findByText("Feed Pump");
-    expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 });

@@ -20,6 +20,13 @@ void main() {
       // TODO
     });
 
+    // Delete Asset Media
+    //
+    //Future<AssetDetail> deleteAssetMedia(String assetId, String mediaId) async
+    test('test deleteAssetMedia', () async {
+      // TODO
+    });
+
     // Get Asset
     //
     //Future<AssetDetail> getAsset(String assetId) async
@@ -45,6 +52,13 @@ void main() {
     //
     //Future<AssetDetail> updateAsset(String assetId, UpdateAssetRequest updateAssetRequest) async
     test('test updateAsset', () async {
+      // TODO
+    });
+
+    // Upload Asset Media
+    //
+    //Future<AssetDetail> uploadAssetMedia(String assetId, String kind, MultipartFile file) async
+    test('test uploadAssetMedia', () async {
       // TODO
     });
   });

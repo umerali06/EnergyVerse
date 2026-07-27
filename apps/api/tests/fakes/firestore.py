@@ -29,6 +29,21 @@ class FakeDocumentReference:
     async def delete(self, **_: Any) -> None:
         self._client._store.setdefault(self._collection, {}).pop(self.id, None)
 
+    async def update(self, data: dict[str, Any], **_: Any) -> None:
+        from google.cloud.firestore_v1.transforms import ArrayRemove, ArrayUnion
+
+        current = self._client._store.setdefault(self._collection, {}).setdefault(self.id, {})
+        for key, value in data.items():
+            if isinstance(value, ArrayUnion):
+                items = current.setdefault(key, [])
+                for item in value.values:
+                    if item not in items:
+                        items.append(deepcopy(item))
+            elif isinstance(value, ArrayRemove):
+                current[key] = [item for item in current.get(key, []) if item not in value.values]
+            else:
+                current[key] = deepcopy(value)
+
 
 class FakeQuery:
     def __init__(

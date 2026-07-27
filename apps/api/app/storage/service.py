@@ -1,6 +1,8 @@
 import logging
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from firebase_admin import App, storage  # type: ignore[import-untyped]
 
@@ -75,3 +77,52 @@ class CompanyLogoStorage:
 
 def get_company_logo_storage() -> CompanyLogoStorage:
     return CompanyLogoStorage()
+
+
+class AssetMediaStorage:
+    """Server-mediated, tenant/asset-scoped private asset objects."""
+
+    def __init__(self, bucket: Any = None) -> None:
+        self._bucket = bucket
+
+    def _get_bucket(self) -> Any:
+        if self._bucket is None:
+            self._bucket = get_storage_bucket()
+        return self._bucket
+
+    @staticmethod
+    def object_path(company_id: str, asset_id: str, kind: str, filename: str) -> str:
+        safe_name = Path(filename).name.replace(" ", "_")
+        return (
+            f"companies/{company_id}/assets/{asset_id}/{kind}/"
+            f"{uuid4().hex}_{safe_name}"
+        )
+
+    def upload(
+        self,
+        company_id: str,
+        asset_id: str,
+        kind: str,
+        filename: str,
+        data: bytes,
+        content_type: str,
+    ) -> str:
+        path = self.object_path(company_id, asset_id, kind, filename)
+        self._get_bucket().blob(path).upload_from_string(data, content_type=content_type)
+        return path
+
+    def delete(self, path: str) -> None:
+        blob = self._get_bucket().blob(path)
+        if blob.exists():
+            blob.delete()
+
+    def signed_url_for(self, path: str) -> str:
+        return str(
+            self._get_bucket()
+            .blob(path)
+            .generate_signed_url(expiration=SIGNED_URL_EXPIRATION, version="v4")
+        )
+
+
+def get_asset_media_storage() -> AssetMediaStorage:
+    return AssetMediaStorage()

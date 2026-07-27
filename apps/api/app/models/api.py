@@ -346,11 +346,22 @@ class AssetListPage(BaseModel):
     next_cursor: str | None = None
 
 
+class AssetMediaResponse(BaseModel):
+    id: str
+    url: str
+    filename: str
+    kind: Literal["photo", "document", "manual"]
+    content_type: str
+    size: int
+    uploaded_by: str
+    uploaded_at: datetime
+
+
 class AssetDetail(AssetListItem):
     description: str | None = None
-    photos: list[str] = Field(default_factory=list)
-    documents: list[str] = Field(default_factory=list)
-    manuals: list[str] = Field(default_factory=list)
+    photos: list[AssetMediaResponse] = Field(default_factory=list)
+    documents: list[AssetMediaResponse] = Field(default_factory=list)
+    manuals: list[AssetMediaResponse] = Field(default_factory=list)
     model_3d_url: str | None = None
 
 
@@ -367,8 +378,8 @@ class CreateAssetRequest(BaseModel):
     serial_number: str | None = Field(default=None, max_length=120)
     installation_date: date | None = None
     description: str | None = Field(default=None, max_length=2000)
-    gps_lat: float | None = None
-    gps_lng: float | None = None
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
     current_status: Literal["Healthy", "Warning", "Critical"] = "Healthy"
 
 
@@ -385,8 +396,8 @@ class UpdateAssetRequest(BaseModel):
     serial_number: str | None = Field(default=None, max_length=120)
     installation_date: date | None = None
     description: str | None = Field(default=None, max_length=2000)
-    gps_lat: float | None = None
-    gps_lng: float | None = None
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
     current_status: Literal["Healthy", "Warning", "Critical"] | None = None
 
 

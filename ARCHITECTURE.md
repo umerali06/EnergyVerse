@@ -913,6 +913,27 @@ live in one constants module. Firestore Rules remain deny-all for clients.
 
 ### Offline Synchronization
 
+### Phase 4.3 Asset Writes and Media (Testing)
+
+- Admin and mobile reuse one asset form contract for create/edit, with
+  facility-scoped area choices, server-authoritative `assets.write`, and
+  tenant/category/parent validation in `AssetManagementService`.
+- Asset media extends D-027's private Storage boundary. Binary objects use
+  `companies/{company_id}/assets/{asset_id}/{kind}/{uuid}_{filename}`;
+  Firestore stores metadata only. Reads materialize fresh one-hour signed
+  URLs, while upload/delete stay behind FastAPI and are audited.
+- `photos`, `documents`, and `manuals` are structured metadata arrays.
+  Repository writes use Firestore `ArrayUnion`/`ArrayRemove`, preventing
+  concurrent uploads from replacing the entire array.
+- This section is provisional while Phase 4.3 is in Testing; its final
+  Slice Integration Record entry is added only after the completion gate.
+- Native field runners now exist for Android and iOS so camera capture is a
+  deployable mobile capability, not a web-only facade. Both use the permanent
+  store/Firebase identity `com.flacronenterprises.energyverse`; Android uses
+  it for `namespace` and `applicationId`, iOS for
+  `PRODUCT_BUNDLE_IDENTIFIER`, and both display `EnergyVerse`. iOS declares
+  camera and photo-library usage strings for asset reference media.
+
 - Durable on-device operation queue
 - Background sync worker
 - Conflict detection and resolution policy: _To be defined before inspection implementation_

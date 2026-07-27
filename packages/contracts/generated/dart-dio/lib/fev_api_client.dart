@@ -33,6 +33,7 @@ export 'package:fev_api_client/src/model/asset_history_event.dart';
 export 'package:fev_api_client/src/model/asset_history_page.dart';
 export 'package:fev_api_client/src/model/asset_list_item.dart';
 export 'package:fev_api_client/src/model/asset_list_page.dart';
+export 'package:fev_api_client/src/model/asset_media_response.dart';
 export 'package:fev_api_client/src/model/audit_log_entry.dart';
 export 'package:fev_api_client/src/model/audit_log_facets.dart';
 export 'package:fev_api_client/src/model/audit_log_page.dart';

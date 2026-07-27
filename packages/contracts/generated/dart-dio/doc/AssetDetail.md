@@ -15,19 +15,19 @@ Name | Type | Description | Notes
 **createdAt** | [**DateTime**](DateTime.md) |  |
 **currentStatus** | **String** |  |
 **description** | **String** |  | [optional]
-**documents** | **BuiltList&lt;String&gt;** |  | [optional]
+**documents** | [**BuiltList&lt;AssetMediaResponse&gt;**](AssetMediaResponse.md) |  | [optional]
 **facilityId** | **String** |  |
 **gpsLat** | **num** |  | [optional]
 **gpsLng** | **num** |  | [optional]
 **id** | **String** |  |
 **installationDate** | [**Date**](Date.md) |  | [optional]
-**manuals** | **BuiltList&lt;String&gt;** |  | [optional]
+**manuals** | [**BuiltList&lt;AssetMediaResponse&gt;**](AssetMediaResponse.md) |  | [optional]
 **manufacturer** | **String** |  | [optional]
 **model** | **String** |  | [optional]
 **model3dUrl** | **String** |  | [optional]
 **name** | **String** |  |
 **parentAssetId** | **String** |  | [optional]
-**photos** | **BuiltList&lt;String&gt;** |  | [optional]
+**photos** | [**BuiltList&lt;AssetMediaResponse&gt;**](AssetMediaResponse.md) |  | [optional]
 **qrCodeId** | **String** |  | [optional]
 **serialNumber** | **String** |  | [optional]
 **updatedAt** | [**DateTime**](DateTime.md) |  |

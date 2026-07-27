@@ -3,8 +3,12 @@ import 'dart:async';
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../auth/auth_controller.dart';
+import '../auth/app_routes.dart';
+import '../api/api_service.dart';
 import '../dashboard/dashboard_controller.dart' show LoadStatus;
 import '../dashboard/format.dart';
 import '../design_system/primitives.dart';
@@ -97,6 +101,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
       );
     }
 
+    final canWrite = AuthProvider.of(context).currentUser?.permissions.contains('assets.write') ?? false;
     return DefaultTabController(
       length: 5,
       child: Column(
@@ -130,10 +135,10 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                         ],
                       ),
                     ),
-                    Tooltip(
-                      message: 'Editing assets arrives in Phase 4.3',
-                      child: AppButton(label: 'Edit', onPressed: null, variant: AppButtonVariant.ghost),
-                    ),
+                    if (canWrite) AppButton(label: 'Edit', onPressed: () async {
+                      await Navigator.of(context).pushNamed(AppRoutes.assetForm, arguments: asset.id);
+                      _load();
+                    }, variant: AppButtonVariant.ghost),
                   ],
                 ),
                 const SizedBox(height: DsSpacing.s2),
@@ -180,7 +185,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                   title: 'No work orders yet',
                 ),
                 _HistoryTab(assetId: asset.id, controller: controller),
-                _MediaTab(asset: asset),
+                _MediaTab(asset: asset, canWrite: canWrite, controller: controller, onChanged: (next) => setState(() => _asset = next)),
               ],
             ),
           ),
@@ -416,19 +421,66 @@ class _HistoryTabState extends State<_HistoryTab> {
   }
 }
 
-class _MediaTab extends StatelessWidget {
-  const _MediaTab({required this.asset});
+class _MediaTab extends StatefulWidget {
+  const _MediaTab({required this.asset, required this.canWrite, required this.controller, required this.onChanged});
 
   final AssetDetail asset;
+  final bool canWrite;
+  final AssetsController controller;
+  final ValueChanged<AssetDetail> onChanged;
+
+  @override
+  State<_MediaTab> createState() => _MediaTabState();
+}
+
+class _MediaTabState extends State<_MediaTab> {
+  double? progress;
+
+  Future<void> _photo(ImageSource source) async {
+    final file = await ImagePicker().pickImage(source: source, imageQuality: 90);
+    if (file == null) return;
+    await _upload('photo', file.path, file.name);
+  }
+
+  Future<void> _document(String kind) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: kind == 'manual' ? ['pdf', 'doc', 'docx'] : ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp'],
+    );
+    final file = result?.files.single;
+    if (file?.path == null) return;
+    await _upload(kind, file!.path!, file.name);
+  }
+
+  Future<void> _upload(String kind, String path, String filename) async {
+    setState(() => progress = 0);
+    try {
+      final next = await AuthProvider.of(context).api.uploadAssetMedia(
+        assetId: widget.asset.id, kind: kind, path: path, filename: filename,
+        onProgress: (sent, total) {
+          if (mounted && total > 0) setState(() => progress = sent / total);
+        },
+      );
+      widget.onChanged(next);
+    } finally {
+      if (mounted) setState(() => progress = null);
+    }
+  }
+
+  Future<void> _remove(AssetMediaResponse media) async {
+    final next = await AuthProvider.of(context).api.deleteAssetMedia(widget.asset.id, media.id);
+    widget.onChanged(next);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final asset = widget.asset;
     final count = (asset.photos?.length ?? 0) + (asset.documents?.length ?? 0) + (asset.manuals?.length ?? 0);
-    if (count == 0) {
+    if (count == 0 && !widget.canWrite) {
       return const Padding(
         padding: EdgeInsets.all(DsSpacing.s6),
         child: EmptyState(
-          description: 'Photos, documents, and manuals will appear here once uploads land in Phase 4.3.',
+          description: 'No photos, documents, or manuals have been attached.',
           title: 'No photos or documents yet',
         ),
       );
@@ -436,13 +488,43 @@ class _MediaTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(DsSpacing.s6),
       children: [
-        if (asset.photos != null && asset.photos!.isNotEmpty)
-          _Field(label: 'Photos', value: '${asset.photos!.length} photo(s)'),
-        if (asset.documents != null && asset.documents!.isNotEmpty)
-          _Field(label: 'Documents', value: '${asset.documents!.length} document(s)'),
-        if (asset.manuals != null && asset.manuals!.isNotEmpty)
-          _Field(label: 'Manuals', value: '${asset.manuals!.length} manual(s)'),
+        if (progress != null) LinearProgressIndicator(value: progress),
+        _mediaSection('Photos', asset.photos?.toList() ?? const [], [
+          AppButton(label: 'Camera', onPressed: () => _photo(ImageSource.camera), variant: AppButtonVariant.ghost),
+          AppButton(label: 'Gallery', onPressed: () => _photo(ImageSource.gallery), variant: AppButtonVariant.ghost),
+        ]),
+        _mediaSection('Documents', asset.documents?.toList() ?? const [], [
+          AppButton(label: 'Add document', onPressed: () => _document('document'), variant: AppButtonVariant.ghost),
+        ]),
+        _mediaSection('Manuals', asset.manuals?.toList() ?? const [], [
+          AppButton(label: 'Add manual', onPressed: () => _document('manual'), variant: AppButtonVariant.ghost),
+        ]),
       ],
+    );
+  }
+
+  Widget _mediaSection(String title, List<AssetMediaResponse> items, List<Widget> actions) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: DsSpacing.s5),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+          if (widget.canWrite) ...actions,
+        ]),
+        const SizedBox(height: DsSpacing.s2),
+        if (items.isEmpty) Text('No ${title.toLowerCase()} attached.'),
+        for (final media in items)
+          AppCard(child: Row(children: [
+            if (media.kind.name == 'photo')
+              ClipRRect(borderRadius: BorderRadius.circular(6), child: Image.network(media.url, width: 64, height: 64, fit: BoxFit.cover)),
+            if (media.kind.name == 'photo') const SizedBox(width: DsSpacing.s3),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(media.filename, overflow: TextOverflow.ellipsis),
+              Text('${(media.size / 1024).ceil()} KB', style: TextStyle(color: context.semantic.textMuted)),
+            ])),
+            if (widget.canWrite) IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Remove', onPressed: () => _remove(media)),
+          ])),
+      ]),
     );
   }
 }

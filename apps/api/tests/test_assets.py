@@ -15,6 +15,7 @@ from app.main import app
 from app.models.entities import CurrentUser
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
 from app.rbac.dependencies import get_access_denial_audit
+from app.storage.service import AssetMediaStorage
 from scripts.seed import (
     ACME_COMPANY_ID,
     AREA_PROCESS_UNIT_1_ID,
@@ -25,6 +26,7 @@ from scripts.seed import (
     run_seed,
 )
 from tests.fakes.firestore import FakeAsyncClient
+from tests.fakes.storage import FakeBucket
 
 BETA_COMPANY_ID = "beta-utilities"
 
@@ -35,15 +37,17 @@ def wiring() -> dict[str, Any]:
     asyncio.run(run_seed(client))
 
     audit = AuditService(AuditLogRepository(client))
+    bucket = FakeBucket()
     service = AssetManagementService(
         assets=AssetRepository(client, audit),
         facilities=FacilityRepository(client, audit),
         areas=AreaRepository(client, audit),
+        storage=AssetMediaStorage(bucket),
     )
 
     app.dependency_overrides[get_asset_management_service] = lambda: service
     app.dependency_overrides[get_access_denial_audit] = lambda: audit
-    yield {"client": client}
+    yield {"client": client, "bucket": bucket}
     app.dependency_overrides.pop(get_asset_management_service, None)
     app.dependency_overrides.pop(get_access_denial_audit, None)
 
@@ -167,6 +171,120 @@ def test_update_asset_rejects_self_parenting(wiring: dict[str, Any]) -> None:
     )
     assert response.status_code == 422
     assert response.json()["error"] == "asset_cannot_parent_itself"
+
+
+def test_asset_tag_is_unique_within_company(wiring: dict[str, Any]) -> None:
+    assert _create_asset(_identity(), asset_tag="UNIQUE-1").status_code == 201
+    duplicate = _create_asset(_identity(), asset_tag=" unique-1 ")
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"] == "asset_tag_conflict"
+
+
+def test_update_rejects_parent_cycle(wiring: dict[str, Any]) -> None:
+    parent = _create_asset(_identity(), asset_tag="CYCLE-P").json()
+    child = _create_asset(
+        _identity(), asset_tag="CYCLE-C", parent_asset_id=parent["id"]
+    ).json()
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/assets/{parent['id']}",
+        json={"parent_asset_id": child["id"]},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"] == "asset_parent_cycle"
+
+
+def test_update_can_clear_nullable_asset_fields(wiring: dict[str, Any]) -> None:
+    created = _create_asset(
+        _identity(),
+        asset_tag="CLEAR-1",
+        area_id=AREA_PROCESS_UNIT_1_ID,
+        parent_asset_id=ASSET_FEED_PUMP_ID,
+        manufacturer="Before",
+        gps_lat=29.0,
+        gps_lng=71.0,
+    ).json()
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/assets/{created['id']}",
+        json={
+            "area_id": None,
+            "parent_asset_id": None,
+            "manufacturer": None,
+            "gps_lat": None,
+            "gps_lng": None,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["area_id"] is None
+    assert response.json()["parent_asset_id"] is None
+    assert response.json()["manufacturer"] is None
+    assert response.json()["gps_lat"] is None
+    assert response.json()["gps_lng"] is None
+
+
+def test_create_rejects_incomplete_gps(wiring: dict[str, Any]) -> None:
+    response = _create_asset(_identity(), asset_tag="GPS-1", gps_lat=29.0)
+    assert response.status_code == 422
+    assert response.json()["error"] == "incomplete_gps"
+
+
+def test_media_upload_and_delete_use_scoped_private_object(
+    wiring: dict[str, Any],
+) -> None:
+    asset = _create_asset(_identity(), asset_tag="MEDIA-1").json()
+    uploaded = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/assets/{asset['id']}/media",
+        params={"kind": "photo"},
+        files={"file": ("pump.jpg", b"real-image-bytes", "image/jpeg")},
+    )
+    assert uploaded.status_code == 200
+    media = uploaded.json()["photos"][0]
+    assert media["filename"] == "pump.jpg"
+    assert media["url"].startswith("https://fake-storage.invalid/")
+    paths = list(wiring["bucket"].objects)
+    assert len(paths) == 1
+    assert paths[0].startswith(
+        f"companies/{ACME_COMPANY_ID}/assets/{asset['id']}/photo/"
+    )
+
+    deleted = _request(
+        _identity(),
+        "DELETE",
+        f"/api/v1/assets/{asset['id']}/media/{media['id']}",
+    )
+    assert deleted.status_code == 200
+    assert deleted.json()["photos"] == []
+    assert wiring["bucket"].objects == {}
+
+
+def test_media_rejects_wrong_type_and_write_permission(
+    wiring: dict[str, Any],
+) -> None:
+    asset = _create_asset(_identity(), asset_tag="MEDIA-2").json()
+    wrong = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/assets/{asset['id']}/media",
+        params={"kind": "manual"},
+        files={"file": ("photo.jpg", b"image", "image/jpeg")},
+    )
+    assert wrong.status_code == 422
+    assert wrong.json()["error"] == "invalid_media_type"
+
+    read_only = _identity(permissions=frozenset({"assets.read"}))
+    denied = _request(
+        read_only,
+        "POST",
+        f"/api/v1/assets/{asset['id']}/media",
+        params={"kind": "photo"},
+        files={"file": ("photo.jpg", b"image", "image/jpeg")},
+    )
+    assert denied.status_code == 403
 
 
 # --- category / status -------------------------------------------------------

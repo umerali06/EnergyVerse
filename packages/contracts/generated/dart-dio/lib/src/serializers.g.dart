@@ -18,6 +18,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(AssetListItem.serializer)
       ..add(AssetListItemCurrentStatusEnum.serializer)
       ..add(AssetListPage.serializer)
+      ..add(AssetMediaResponse.serializer)
+      ..add(AssetMediaResponseKindEnum.serializer)
       ..add(AuditLogEntry.serializer)
       ..add(AuditLogFacets.serializer)
       ..add(AuditLogPage.serializer)
@@ -92,6 +94,15 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(AssetListItem)]),
           () => new ListBuilder<AssetListItem>())
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AssetMediaResponse)]),
+          () => new ListBuilder<AssetMediaResponse>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AssetMediaResponse)]),
+          () => new ListBuilder<AssetMediaResponse>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AssetMediaResponse)]),
+          () => new ListBuilder<AssetMediaResponse>())
+      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AuditLogEntry)]),
           () => new ListBuilder<AuditLogEntry>())
       ..addBuilderFactory(
@@ -120,15 +131,6 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(RoleSummary)]),
           () => new ListBuilder<RoleSummary>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(String)]),
-          () => new ListBuilder<String>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(String)]),
-          () => new ListBuilder<String>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(String)]),
-          () => new ListBuilder<String>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())

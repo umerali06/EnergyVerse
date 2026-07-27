@@ -41,6 +41,8 @@ EXPECTED_OPERATIONS = {
     "create_asset",
     "update_asset",
     "delete_asset",
+    "upload_asset_media",
+    "delete_asset_media",
     "get_company",
     "update_company",
     "upload_company_logo",
