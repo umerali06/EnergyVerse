@@ -907,12 +907,12 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   (D-035), since no Google Maps Platform key/package existed in the repo and
   provisioning one is out of scope for a UI-only phase. No backend, schema,
   or permission changes.
-- **2026-07-27 — Phase 4.3 (testing):** Added D-036. Asset tags are
+- **2026-07-27 — Phase 4.3 complete:** Added D-036. Asset tags are
   tenant-unique, and asset photos/documents/manuals reuse D-027's private,
   server-mediated Storage model with explicit caps, asset-scoped paths,
-  atomic Firestore array updates, and fresh signed URLs. The slice remains
-  at Testing until client-focused tests, visual evidence, real-project
-  Storage proof, drift verification, and CI complete.
+  atomic Firestore array updates, and fresh signed URLs. Focused/full client
+  verification, live Storage/audit proof, deterministic contract generation,
+  and GitHub Actions run 30252741780 completed successfully.
 - **2026-07-27 — Phase 4.3 native runners:** Added D-037 after product-owner
   confirmation. Android and iOS now share the permanent reverse-domain
   identity `com.flacronenterprises.energyverse` and display name
