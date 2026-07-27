@@ -76,13 +76,25 @@ export type PlatformApiClient = Pick<
   | "updatePlatformCompanyStatus"
 >;
 
+export type AssetsApiClient = Pick<
+  FevApiClient,
+  | "getArea"
+  | "getAsset"
+  | "getAssetHistory"
+  | "getFacility"
+  | "listAreas"
+  | "listAssets"
+  | "listFacilities"
+>;
+
 type AuthContextValue = {
   apiClient: DashboardApiClient &
     UsersApiClient &
     RolesApiClient &
     CompanyApiClient &
     AuditApiClient &
-    PlatformApiClient;
+    PlatformApiClient &
+    AssetsApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -158,7 +170,8 @@ export function AuthProvider({
     Partial<RolesApiClient> &
     Partial<CompanyApiClient> &
     Partial<AuditApiClient> &
-    Partial<PlatformApiClient>;
+    Partial<PlatformApiClient> &
+    Partial<AssetsApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -418,7 +431,8 @@ export function AuthProvider({
         RolesApiClient &
         CompanyApiClient &
         AuditApiClient &
-        PlatformApiClient,
+        PlatformApiClient &
+        AssetsApiClient,
       currentUser,
       error,
       passwordResetSentAt,

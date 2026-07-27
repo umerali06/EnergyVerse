@@ -97,7 +97,6 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.assets,
         route: "/assets",
         requiredPermission: "assets.read",
-        comingSoon: true,
       },
       {
         label: "Inspections",
@@ -205,7 +204,7 @@ export function visibleNavGroups(can: (permission: string) => boolean): NavGroup
 export function findNavItem(pathname: string): { group: NavGroup; item: NavItem } | null {
   for (const group of navGroups) {
     for (const item of group.items) {
-      if (item.route === pathname) return { group, item };
+      if (isRouteActive(item.route, pathname)) return { group, item };
     }
   }
   return null;

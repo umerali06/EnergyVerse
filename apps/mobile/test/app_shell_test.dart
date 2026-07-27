@@ -147,6 +147,52 @@ class FakeApi implements ApiContract {
   @override
   Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
+
+  @override
+  Future<AssetListPage> getAssets({
+    String? facilityId,
+    String? areaId,
+    String? category,
+    String? currentStatus,
+    String? parentAssetId,
+    String? search,
+    String sort = '-created_at',
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
+
+  @override
+  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+
+  @override
+  Future<FacilityListPage> getFacilities({
+    String? search,
+    String? status,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+
+  @override
+  Future<AreaListPage> getAreas({
+    String? facilityId,
+    String? search,
+    String sort = 'name',
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AreaDetail> getArea(String areaId) => throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {
@@ -269,11 +315,11 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
-    await tester.tap(find.byKey(const Key('nav-/assets')));
+    await tester.tap(find.byKey(const Key('nav-/work-orders')));
     await tester.pumpAndSettle();
-    expect(find.text('Assets is coming soon'), findsOneWidget);
+    expect(find.text('Work is coming soon'), findsOneWidget);
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(bar.selectedIndex, 1);
+    expect(bar.selectedIndex, 2);
   });
 
   testWidgets('a More destination routes and marks the More tab active', (

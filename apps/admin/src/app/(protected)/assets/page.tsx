@@ -4,8 +4,13 @@ import { protectedPage } from "@/seo/site";
 
 export const metadata: Metadata = protectedPage("Assets");
 
-import { ComingSoonScreen } from "@/shell/app-shell";
+import { RequirePermission } from "@/auth/route-guards";
+import { AssetsPage } from "@/assets/assets-page";
 
-export default function Page() {
-  return <ComingSoonScreen moduleName="Assets" />;
+export default function AssetsRoute() {
+  return (
+    <RequirePermission permission="assets.read">
+      <AssetsPage />
+    </RequirePermission>
+  );
 }

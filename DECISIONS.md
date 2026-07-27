@@ -37,6 +37,8 @@
 | D-031 | Asset hierarchy depth and self-nesting | **Locked three-level hierarchy `Facility → Area → Asset`, plus an optional `parent_asset_id` self-reference on `Asset` for component/sub-asset nesting instead of a separate rigid component collection** | **RESOLVED — LOCKED** | 2026-07-23 |
 | D-032 | Asset category extensibility | **`category` is a validated `str` against a code-level catalog (`ASSET_CATEGORIES` + `Other`), not a schema-level enum — adding a category is a one-line constant change, never a migration** | **RESOLVED — LOCKED** | 2026-07-23 |
 | D-033 | Asset history-by-reference and soft-delete cascade | **No inspection/maintenance history is embedded on `Asset`; `GET /assets/{id}/history` returns a real, always-empty, correctly-shaped page that later modules fill by querying their own collections. Facilities/areas/assets get the codebase's first soft delete (`deleted_at` stamped, never physically removed); deleting a facility/area with any non-deleted child returns 409, mirroring the existing `role_has_assigned_users` precedent; an asset's soft-delete is never blocked by child sub-assets, since the parent row still resolves afterward** | **RESOLVED — LOCKED** | 2026-07-23 |
+| D-034 | Mobile asset detail presentation | **Pushed named route (`Navigator.pushNamed` + arguments), not a bottom sheet** — first departure from the Users/Audit/Roles `showAppModal` convention | **RESOLVED — LOCKED** | 2026-07-26 |
+| D-035 | Asset GPS location display depth (Phase 4.2) | **Coordinates readout + external "view on map" link only; no embedded Google Maps Platform integration** | **RESOLVED — LOCKED** | 2026-07-26 |
 
 ## Decision Details
 
@@ -754,6 +756,43 @@
   embedded arrays; any future collection that needs soft delete should
   reuse `_soft_delete()` rather than reimplementing the pattern.
 
+### D-034 — Mobile Asset Detail Presentation (Phase 4.2)
+
+- **Decision owner:** Established by implementation, following the existing
+  "extract/depart from convention on genuine need" precedent (e.g. `Checkbox`
+  in 3.2, `FilterChip` in 3.4) rather than a product-owner brief item.
+- **Decision:** Asset detail on mobile is reached via
+  `Navigator.of(context).pushNamed(AppRoutes.assetDetail, arguments: assetId)`
+  — a real pushed route — instead of the `showAppModal` bottom sheet every
+  prior mobile detail view (Users, Audit, Roles) uses. The asset id is read
+  back via `ModalRoute.of(context)!.settings.arguments`, since
+  `AppRoutes.onGenerateRoute` switches on exact route names and this app has
+  no dynamic-segment routing.
+- **Consequences:** Any future mobile detail view with more than a
+  handful of fields (i.e. anything that would need tabs or scroll past a
+  sheet's comfortable height) should default to a pushed route, not force
+  another sheet. Existing sheet-based details (Users/Audit/Roles) are
+  unaffected and remain sheets — this is a per-feature choice, not a
+  retroactive pattern change.
+
+### D-035 — Asset GPS Location Display Depth (Phase 4.2)
+
+- **Decision owner:** Product owner (confirmed via direct question this
+  session, since the phase brief explicitly flagged map-integration depth as
+  an item to check rather than assume).
+- **Decision:** Both clients render an asset's GPS coordinates as a plain
+  `lat, lng` readout with an external link to
+  `https://www.google.com/maps?q={lat},{lng}` — no embedded interactive map,
+  no Google Maps Platform API key, no new `@react-google-maps/api`/
+  `google_maps_flutter` dependency. Chosen because no Maps Platform
+  key/package existed anywhere in the repo before this phase, and
+  provisioning one (a Google Cloud project, billing, key restrictions) is a
+  real infrastructure task outside a UI-only phase's scope.
+- **Consequences:** A future phase that wants an embedded interactive map
+  (e.g. the static 3D facility view, or a richer asset-location UI) starts
+  from zero Maps Platform setup and should treat key provisioning as its own
+  prerequisite step, not assume it already exists.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -856,3 +895,13 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   permissions mirror each role's existing `assets.*` grants exactly, so no
   role's effective access shape changed apart from the new keys themselves.
   No UI, photo upload, KPI widgets, or QR were built — those are 4.2–4.5.
+- **2026-07-26 — Phase 4.2:** Added D-034 and D-035. First read-only browse
+  UI over the 4.1 hierarchy on both clients — a dense filterable asset list
+  and a 5-tab detail view (Overview real; Inspections/Work Orders/History/
+  Media honest-empty seams for Phases 7, 11, and 4.3). Mobile asset detail
+  departs from the Users/Audit/Roles bottom-sheet convention with a pushed
+  route (D-034), since 5 tabs of real content don't fit a sheet; GPS location
+  stays a coordinates-plus-external-link readout rather than an embedded map
+  (D-035), since no Google Maps Platform key/package existed in the repo and
+  provisioning one is out of scope for a UI-only phase. No backend, schema,
+  or permission changes.

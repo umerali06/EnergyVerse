@@ -829,6 +829,88 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   rather than duplicates — one asset (`M-501`) is deliberately seeded as a
   sub-asset of another (`P-101`) to exercise the self-nesting seam.
 
+### Phase 4.2 Asset List + Detail UI (Admin + Mobile)
+
+- **First read-only browse UI over the 4.1 hierarchy.** Both clients gained
+  an Asset Overview experience: a dense filterable/searchable asset list and
+  a rich, tabbed asset detail view, driven entirely by the real 4.1
+  endpoints and seed data. No create/edit/photo upload (4.3), KPI widgets
+  (4.4), or QR scanning (4.5) — this phase is strictly browse.
+- **Admin surface** (`apps/admin/src/assets/`, mirroring the 3.1/3.4
+  hook-plus-page shape): `assets-data.ts` (`useAssetsData`) fetches the
+  paginated/filtered asset list plus a one-shot, unpaginated facility/area
+  directory (limit 100) used both as filter-dropdown options and as an
+  `id → name` lookup — the asset list/detail payloads only ever carry
+  `facilityId`/`areaId`, never names. `assets-page.tsx` is the dense table
+  (asset_tag mono, name, category badge, facility→area breadcrumb,
+  `StatusPill` mapped 1:1 from `Healthy|Warning|Critical`, manufacturer/model,
+  relative last-updated) with a cascading facility→area filter (area options
+  are client-filtered from the same one-shot fetch, no new endpoint) and the
+  existing filter-chip/"Clear all" pattern from 3.4. `asset-detail-page.tsx`
+  is the **first dynamic-segment route in the admin app**
+  (`apps/admin/src/app/(protected)/assets/[id]/page.tsx`, Next.js 15 async
+  `params`), rendering 5 tabs: Overview (all descriptive fields, GPS as a
+  coordinates readout + external Google Maps link — see D-035 — parent/child
+  asset links via `listAssets({parentAssetId})`, since `AssetDetail` carries
+  no `childAssetIds` field), Inspections/Work Orders (static honest empty
+  states naming the future phase), History (calls
+  `GET /assets/{id}/history`, renders its always-empty 4.1 stub), and Media
+  (gallery shell + empty state, reads the real `photos`/`documents`/`manuals`
+  arrays so it stops being empty automatically once 4.3 ships uploads). The
+  Edit button is present but disabled with a "coming in 4.3" tooltip, never a
+  dead link. `AuthContextValue`/`AuthProvider` (`apps/admin/src/auth/
+  auth-context.tsx`) gained a new `AssetsApiClient` type
+  (`listAssets`/`getAsset`/`getAssetHistory`/`listFacilities`/`getFacility`/
+  `listAreas`/`getArea`) alongside the existing per-module API-client types,
+  and `apps/admin/src/api/client.ts` wires the generated `AssetsApi`/
+  `FacilitiesApi`/`AreasApi` into `FevApiClient` the same way every prior
+  module did.
+- **`nav-config.tsx`'s `findNavItem` now prefix-matches** (reusing the same
+  rule `isRouteActive` already used for sidebar highlighting) instead of
+  requiring an exact string match — a real, if minor, defect this phase
+  exposed: the shell header/breadcrumb fell back to "Not found" on any
+  dynamic child route (`/assets/{id}`) because the nav config only declares
+  the parent `/assets` route. This is the first nested route under a nav
+  item in this app, so no earlier phase hit the gap.
+- **Mobile surface** (`apps/mobile/lib/assets/`): `assets_controller.dart`
+  mirrors `UsersController`/`AuditController` exactly (filters, `LoadStatus`,
+  `_requestId` race guard, `loadMore()`), plus the same one-shot facility/area
+  directory fetch. `assets_screen.dart` mirrors `UsersScreen`'s search +
+  `AppSelect` filter row + skeleton/empty/error + "Load more" shape, with the
+  facility→area cascade.
+- **New pattern: pushed-route asset detail, not a bottom sheet (D-034).**
+  Every prior mobile "detail" (Users, Audit, Roles) is a `showAppModal`
+  bottom sheet — fine for a handful of fields, but Asset detail's 5 tabs of
+  real content don't fit one. `asset_detail_screen.dart` is reached via
+  `Navigator.pushNamed(AppRoutes.assetDetail, arguments: assetId)` (a new
+  `AppRoutes.assetDetail = '/assets/detail'` case in `app_routes.dart`,
+  reading the id back via `ModalRoute.of(context)!.settings.arguments`, since
+  `onGenerateRoute` switches on exact route names with no dynamic segments)
+  instead of `showAppModal`. Its tabs are built directly with
+  `TabBar`/`Expanded(child: TabBarView(...))` rather than the existing
+  `AppTabs` primitive, whose `TabBarView` is a fixed 120px `SizedBox` too
+  small for this content — `AppTabs` remains correct for its existing
+  showcase-only use.
+- **`ApiContract`/`ApiService`** (`apps/mobile/lib/api/api_service.dart`)
+  gained the mirrored `getAssets`/`getAsset`/`getAssetHistory`/
+  `getFacilities`/`getFacility`/`getAreas`/`getArea` methods, following the
+  identical try/`DioException`/`_typedError` shape every existing method
+  uses. Every test file's hand-rolled `FakeApi`/`_IdentityApi`/`_UnusedApi`
+  implementing `ApiContract` needed the 7 new methods stubbed
+  (`UnimplementedError()` where unused) to keep compiling — this touched 8
+  pre-existing test files with no behavior change.
+- **Reserved-tab contract (the seam Phases 7/11/4.3 fill).** Both clients'
+  Inspections/Work Orders/History/Media tabs render real, honest empty
+  states today — never fabricated data. Phase 7 (inspections) and Phase 11
+  (work orders) fill their tabs by querying their own future collections
+  `WHERE asset_id == ...`, exactly like 4.1's History-by-reference decision
+  (D-033); Phase 4.3 fills Media by populating the already-read
+  `photos`/`documents`/`manuals` arrays. No UI code changes are anticipated
+  for those tabs to stop being empty — only real data starting to exist.
+- **No Google Maps Platform integration was added** (D-035) — GPS renders as
+  a `lat, lng` mono readout plus a plain external link to
+  `https://www.google.com/maps?q={lat},{lng}` on both clients.
+
 ### Offline Synchronization
 
 - Durable on-device operation queue
@@ -893,3 +975,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 3.3 — company profile and settings | Extends the 0.4 `Company` entity with six optional/defaulted fields and a new `app/company/service.py::CompanyProfileService` behind four `company.settings`-gated routes, sharing 3.1's `UserRepository`/`RoleRepository` for the Overview counts. First use of Firebase Storage in this codebase: a new `app/storage/` package wraps the Admin SDK bucket behind a fixed company-scoped path, server-mediated in both directions (deny-all `storage.rules`, request-time V4 signed URLs, never a public object) — the pattern assets/inspections will reuse. `CurrentUser` (0.5) gains `company_timezone`/`company_locale`, mirroring how `company_name` already reaches every authenticated user regardless of permission. Admin gains `apps/admin/src/settings/` (profile edit, drag-drop logo upload, read-only overview) and threads locale/timezone through the existing `apps/admin/src/dashboard/format.ts` date helpers; mobile gains a read-only `apps/mobile/lib/company/` mirror and the same threading via a new `timezone` package dependency. Contracts regenerated for `CompanyProfile`/`UpdateCompanyRequest` and the new `CompanyApi`. | 2026-07-22 |
 | Phase 3.5 — Super-Admin cross-tenant platform administration | Resolves D-006. Adds a new `app/admin/` package (`AdminScope`, `AdminCompanyService`) behind five `platform.admin`-gated routes at `/api/v1/platform/*`, plus `CompanyRepository.list_all()` (new unscoped read, modeled on `PermissionRepository.list()`) and a suspension check inside `get_current_user` itself (stricter than 1.2's unverified-email 200). Every cross-tenant mutation dual-writes to the target tenant's own `audit_logs` and a reserved `"__platform__"` pseudo-tenant scope, reusing `AuditLogRepository`'s existing methods with zero new query code. A new reverse-guard test proves existing company-scoped routes (`/api/v1/company`, `/api/v1/users`) stay tenant-scoped even for a super-admin caller — the only cross-tenant path in the system is `/api/v1/platform/*`. Admin gains `apps/admin/src/platform/` (mirroring 3.4's hook-plus-page shape) and a new shared `ConfirmDialog` design-system primitive; `nav-config.tsx` gains its own "Platform" group, visible only to `super_admin`. Mobile is explicitly out of scope, extending D-023/D-026 to a whole module. Contracts regenerated for `PlatformApi`/`PlatformCompanySummary`/`PlatformCompanyDetail`/`PlatformCompanyPage`/`PlatformStats`/`UpdateCompanyStatusRequest`/`UpdatePlatformCompanyRequest`. Phase 3 is now **COMPLETE**. | 2026-07-23 |
 | Phase 4.1 — asset data model, facility/area hierarchy, and backend CRUD | Adds three new tenant collections (`facilities` → `areas` → `assets`, plus optional asset self-nesting via `parent_asset_id`) and their first real backend surface — `assets.read`/`assets.write` had existed as unused catalog placeholders since 0.4. New `app/facilities/`, `app/areas/`, `app/assets/` packages (thin-route/fat-service, matching `app/company/`/`app/roles/`) sit behind new `facilities.read/write`/`areas.read/write` permissions (mirroring each role's existing `assets.*` grants) and reuse the 0.4 `CompanyScope`/audit/repository pattern throughout. Introduces the codebase's first soft-delete (`TenantRepository._soft_delete()`, a new base-class helper) and its first Firestore-level filtered+ordered query (`AssetRepository.query()`, one equality filter plus `order_by(created_at)`, backed by four new composite indexes) — every other list route still reads-then-filters-in-Python. `GET /assets/{id}/history` returns a real, always-empty, correctly-shaped page; no inspection/work-order data is embedded on the asset record. Seed gains 2 facilities/4 areas/11 assets (all categories, all statuses, one self-nested pair) for the Acme demo tenant. Contracts regenerated for `FacilitiesApi`/`AreasApi`/`AssetsApi` and their request/response models. No UI, photo upload, KPI widgets, or QR were built — those are 4.2–4.5. | 2026-07-23 |
+| Phase 4.2 — asset list + detail UI (admin + mobile) | Wires the 4.1 `AssetsApi`/`FacilitiesApi`/`AreasApi` into both hand-written client wrappers (a new `AssetsApiClient` type in `apps/admin/src/auth/auth-context.tsx`; 7 new `ApiContract` methods in `apps/mobile/lib/api/api_service.dart`) for the first time since those endpoints shipped. Adds `apps/admin/src/assets/` (list page, the app's first dynamic-segment route at `assets/[id]`, a shared `useAssetsData` hook) and `apps/mobile/lib/assets/` (controller, list screen, and — a new pattern, D-034 — a pushed-route detail screen instead of the Users/Audit/Roles bottom-sheet convention, since 5 tabs of real content don't fit a sheet). Both detail views render the same 5-tab reserved-seam contract (Overview real today; Inspections/Work Orders/History/Media honest-empty, to be filled by Phases 7, 11, and 4.3 respectively querying by `asset_id` — mirrors 4.1's D-033 history-by-reference decision, no UI change anticipated when those land). Fixed a real defect the new nested route exposed: `nav-config.tsx`'s `findNavItem` now prefix-matches like `isRouteActive` instead of requiring an exact match, so the shell breadcrumb no longer reads "Not found" on `/assets/{id}`. No Google Maps Platform integration was added (D-035); GPS renders as coordinates plus an external map link on both clients. No backend, schema, or permission changes. | 2026-07-26 |

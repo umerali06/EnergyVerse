@@ -6,7 +6,7 @@ import 'package:fev_mobile/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/audit_fixtures.dart';
+import 'support/assets_fixtures.dart';
 import 'support/dashboard_fixtures.dart';
 
 const session = AuthSession(
@@ -16,16 +16,8 @@ const session = AuthSession(
 );
 
 const roleMatrix = <String, List<String>>{
-  'company_admin': [
-    'assets.read',
-    'reports.read',
-    'reports.generate',
-    'users.manage',
-    'roles.manage',
-    'company.settings',
-    'audit.read',
-  ],
-  'field_inspector': ['assets.read', 'reports.read', 'reports.generate'],
+  'company_admin': ['assets.read', 'facilities.read', 'areas.read'],
+  'field_inspector': ['reports.read'],
 };
 
 CurrentUser identityFor(String roleKey, List<String> permissions) => CurrentUser(
@@ -39,44 +31,46 @@ CurrentUser identityFor(String roleKey, List<String> permissions) => CurrentUser
         ..permissions.addAll(permissions),
     );
 
-typedef GetAuditLogsFn = Future<AuditLogPage> Function({
-  DateTime? fromDate,
-  DateTime? toDate,
-  String? actorUid,
-  String? action,
-  String? targetType,
-  String? q,
+typedef GetAssetsFn = Future<AssetListPage> Function({
+  String? facilityId,
+  String? areaId,
+  String? category,
+  String? currentStatus,
+  String? parentAssetId,
+  String? search,
+  String sort,
   String? cursor,
   int limit,
 });
-typedef GetAuditLogFacetsFn = Future<AuditLogFacets> Function({
-  DateTime? fromDate,
-  DateTime? toDate,
-});
+typedef GetAssetFn = Future<AssetDetail> Function(String assetId);
+typedef GetAssetHistoryFn = Future<AssetHistoryPage> Function(String assetId);
 
 class FakeApi implements ApiContract {
   FakeApi(
     this.identity, {
-    GetAuditLogsFn? getAuditLogs,
-    GetAuditLogFacetsFn? getAuditLogFacets,
-  })  : _getAuditLogs = getAuditLogs ??
+    GetAssetsFn? getAssets,
+    GetAssetFn? getAsset,
+    GetAssetHistoryFn? getAssetHistory,
+  })  : _getAssets = getAssets ??
             (({
-              DateTime? fromDate,
-              DateTime? toDate,
-              String? actorUid,
-              String? action,
-              String? targetType,
-              String? q,
+              String? facilityId,
+              String? areaId,
+              String? category,
+              String? currentStatus,
+              String? parentAssetId,
+              String? search,
+              String sort = '-created_at',
               String? cursor,
-              int limit = 20,
+              int limit = 25,
             }) async =>
-                auditLogPageFixture()),
-        _getAuditLogFacets = getAuditLogFacets ??
-            (({DateTime? fromDate, DateTime? toDate}) async => auditLogFacetsFixture());
+                parentAssetId != null ? assetListPageFixture(items: const []) : assetListPageFixture()),
+        _getAsset = getAsset ?? ((assetId) async => assetDetailFixture(id: assetId)),
+        _getAssetHistory = getAssetHistory ?? ((assetId) async => assetHistoryPageFixture());
 
   final CurrentUser identity;
-  final GetAuditLogsFn _getAuditLogs;
-  final GetAuditLogFacetsFn _getAuditLogFacets;
+  final GetAssetsFn _getAssets;
+  final GetAssetFn _getAsset;
+  final GetAssetHistoryFn _getAssetHistory;
 
   @override
   Future<CurrentUser> getCurrentUser() async => identity;
@@ -143,20 +137,11 @@ class FakeApi implements ApiContract {
     String? cursor,
     int limit = 20,
   }) =>
-      _getAuditLogs(
-        fromDate: fromDate,
-        toDate: toDate,
-        actorUid: actorUid,
-        action: action,
-        targetType: targetType,
-        q: q,
-        cursor: cursor,
-        limit: limit,
-      );
+      throw UnimplementedError();
 
   @override
   Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
-      _getAuditLogFacets(fromDate: fromDate, toDate: toDate);
+      throw UnimplementedError();
 
   @override
   Future<AssetListPage> getAssets({
@@ -170,13 +155,23 @@ class FakeApi implements ApiContract {
     String? cursor,
     int limit = 25,
   }) =>
-      throw UnimplementedError();
+      _getAssets(
+        facilityId: facilityId,
+        areaId: areaId,
+        category: category,
+        currentStatus: currentStatus,
+        parentAssetId: parentAssetId,
+        search: search,
+        sort: sort,
+        cursor: cursor,
+        limit: limit,
+      );
 
   @override
-  Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
+  Future<AssetDetail> getAsset(String assetId) => _getAsset(assetId);
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) => _getAssetHistory(assetId);
 
   @override
   Future<FacilityListPage> getFacilities({
@@ -185,8 +180,8 @@ class FakeApi implements ApiContract {
     String sort = 'name',
     String? cursor,
     int limit = 25,
-  }) =>
-      throw UnimplementedError();
+  }) async =>
+      facilityListPageFixture();
 
   @override
   Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
@@ -198,8 +193,8 @@ class FakeApi implements ApiContract {
     String sort = 'name',
     String? cursor,
     int limit = 25,
-  }) =>
-      throw UnimplementedError();
+  }) async =>
+      areaListPageFixture();
 
   @override
   Future<AreaDetail> getArea(String areaId) => throw UnimplementedError();
@@ -228,15 +223,20 @@ class FakeGateway implements AuthGateway {
   Future<void> signOut() async {}
 }
 
-Future<void> pumpAudit(WidgetTester tester, {required FakeApi api}) async {
+Future<void> pumpAssets(WidgetTester tester, {required FakeApi api}) async {
   await tester.pumpWidget(
-    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.audit),
+    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.assets),
   );
   await tester.pump();
 }
 
-Future<void> scrollTo(WidgetTester tester, Finder finder, {int maxDrags = 12}) async {
-  final list = find.byKey(const Key('audit-scroll'));
+Future<void> scrollTo(
+  WidgetTester tester,
+  Finder finder, {
+  int maxDrags = 12,
+  Key listKey = const Key('assets-scroll'),
+}) async {
+  final list = find.byKey(listKey);
   for (var i = 0; i < maxDrags; i++) {
     if (finder.evaluate().isNotEmpty) return;
     await tester.drag(list, const Offset(0, -300));
@@ -246,57 +246,60 @@ Future<void> scrollTo(WidgetTester tester, Finder finder, {int maxDrags = 12}) a
 }
 
 void main() {
-  testWidgets('shows loading then renders the real tenant audit entries', (tester) async {
+  testWidgets('shows loading then renders the real tenant assets', (tester) async {
     final api = FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
-    await pumpAudit(tester, api: api);
+    await pumpAssets(tester, api: api);
     await tester.pump();
 
     expect(find.byType(Card), findsWidgets);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Acme Field Inspector'), findsWidgets);
+    expect(find.text('Feed Pump'), findsOneWidget);
+    expect(find.text('PMP-001'), findsOneWidget);
   });
 
-  testWidgets('shows an honest empty state when no events match', (tester) async {
+  testWidgets('shows an honest empty state when no assets match', (tester) async {
     final api = FakeApi(
       identityFor('company_admin', roleMatrix['company_admin']!),
-      getAuditLogs: ({
-        DateTime? fromDate,
-        DateTime? toDate,
-        String? actorUid,
-        String? action,
-        String? targetType,
-        String? q,
+      getAssets: ({
+        String? facilityId,
+        String? areaId,
+        String? category,
+        String? currentStatus,
+        String? parentAssetId,
+        String? search,
+        String sort = '-created_at',
         String? cursor,
-        int limit = 20,
+        int limit = 25,
       }) async =>
-          auditLogPageFixture(items: const []),
+          assetListPageFixture(items: const []),
     );
-    await pumpAudit(tester, api: api);
+    await pumpAssets(tester, api: api);
     await tester.pumpAndSettle();
 
-    expect(find.text('No events found'), findsOneWidget);
+    expect(find.text('No assets found'), findsOneWidget);
   });
 
   testWidgets('shows a retry-capable error state when the list request fails', (tester) async {
     var attempts = 0;
     final api = FakeApi(
       identityFor('company_admin', roleMatrix['company_admin']!),
-      getAuditLogs: ({
-        DateTime? fromDate,
-        DateTime? toDate,
-        String? actorUid,
-        String? action,
-        String? targetType,
-        String? q,
+      getAssets: ({
+        String? facilityId,
+        String? areaId,
+        String? category,
+        String? currentStatus,
+        String? parentAssetId,
+        String? search,
+        String sort = '-created_at',
         String? cursor,
-        int limit = 20,
+        int limit = 25,
       }) async {
         attempts += 1;
         throw Exception('boom');
       },
     );
-    await pumpAudit(tester, api: api);
+    await pumpAssets(tester, api: api);
     await tester.pumpAndSettle();
 
     final retry = find.text('Retry');
@@ -304,76 +307,85 @@ void main() {
     expect(attempts, 1);
     await tester.ensureVisible(retry);
     await tester.pumpAndSettle();
-    await tester.tap(retry);
+    await tester.tap(retry, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(attempts, 2);
   });
 
-  testWidgets('loads more events via cursor pagination and appends without duplicating', (
+  testWidgets('loads more assets via cursor pagination and appends without duplicating', (
     tester,
   ) async {
     var calls = 0;
     final api = FakeApi(
       identityFor('company_admin', roleMatrix['company_admin']!),
-      getAuditLogs: ({
-        DateTime? fromDate,
-        DateTime? toDate,
-        String? actorUid,
-        String? action,
-        String? targetType,
-        String? q,
+      getAssets: ({
+        String? facilityId,
+        String? areaId,
+        String? category,
+        String? currentStatus,
+        String? parentAssetId,
+        String? search,
+        String sort = '-created_at',
         String? cursor,
-        int limit = 20,
+        int limit = 25,
       }) async {
+        if (parentAssetId != null) return assetListPageFixture(items: const []);
         calls += 1;
         if (cursor == null) {
-          return auditLogPageFixture(
-            items: [auditLogEntryFixture(id: 'e1')],
+          return assetListPageFixture(
+            items: [assetListItemFixture(id: 'a1')],
             nextCursor: 'cursor-1',
           );
         }
         expect(cursor, 'cursor-1');
-        return auditLogPageFixture(
-          items: [
-            auditLogEntryFixture(
-              id: 'e2',
-              actorName: 'Second Actor',
-              action: 'role.updated',
-            ),
-          ],
+        return assetListPageFixture(
+          items: [assetListItemFixture(id: 'a2', assetTag: 'PMP-002', name: 'Second Pump')],
         );
       },
     );
-    await pumpAudit(tester, api: api);
+    await pumpAssets(tester, api: api);
     await tester.pumpAndSettle();
 
-    final loadMore = find.byKey(const Key('load-more-audit'));
+    final loadMore = find.byKey(const Key('load-more-assets'));
     await scrollTo(tester, loadMore);
     await tester.tap(loadMore);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Second Actor'), findsWidgets);
-    expect(find.byKey(const Key('load-more-audit')), findsNothing);
+    expect(find.text('Second Pump'), findsOneWidget);
+    expect(find.byKey(const Key('load-more-assets')), findsNothing);
     expect(calls, 2);
   });
 
-  testWidgets('opens an event detail sheet with the before/after diff', (tester) async {
+  testWidgets('opens the asset detail route with overview and reserved-tab empty states', (
+    tester,
+  ) async {
     final api = FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
-    await pumpAudit(tester, api: api);
+    await pumpAssets(tester, api: api);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('Acme Field Inspector').first);
+    await tester.tap(find.text('Feed Pump'));
     await tester.pumpAndSettle();
 
-    expect(find.text('BEFORE'), findsOneWidget);
-    expect(find.text('AFTER'), findsOneWidget);
+    expect(find.text('Acme Co'), findsOneWidget);
+    final noSubAssets = find.text('No sub-assets.');
+    await scrollTo(tester, noSubAssets, listKey: const Key('asset-overview-scroll'));
+    expect(noSubAssets, findsOneWidget);
+
+    await tester.tap(find.text('Inspections'));
+    await tester.pumpAndSettle();
+    expect(find.text('No inspections yet'), findsOneWidget);
+
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    expect(find.text('No history has been recorded for this asset yet.'), findsOneWidget);
   });
 
-  testWidgets('hides Audit Log for a role without audit.read at the route level', (tester) async {
+  testWidgets('hides Assets for a role without assets.read at the route level', (tester) async {
     final api = FakeApi(identityFor('field_inspector', roleMatrix['field_inspector']!));
-    await pumpAudit(tester, api: api);
+    await pumpAssets(tester, api: api);
     await tester.pumpAndSettle();
 
     expect(find.text("You can't view this area"), findsOneWidget);
+    expect(find.text('Feed Pump'), findsNothing);
   });
 }
