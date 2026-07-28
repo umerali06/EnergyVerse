@@ -31,16 +31,16 @@ const RESERVED_MODULES = [
   },
 ] as const;
 
-for (const module of RESERVED_MODULES) {
+for (const reservedModule of RESERVED_MODULES) {
   registerWidget({
-    id: module.id,
-    title: module.label,
-    requiredPermission: module.permission,
+    id: reservedModule.id,
+    title: reservedModule.label,
+    requiredPermission: reservedModule.permission,
     size: "sm",
     render: () => (
-      <Card className="p-4" key={module.id}>
-        <p className="text-bodySmall font-semibold">{module.label}</p>
-        <p className="mt-1 text-caption text-text-muted">{module.copy}</p>
+      <Card className="p-4" key={reservedModule.id}>
+        <p className="text-bodySmall font-semibold">{reservedModule.label}</p>
+        <p className="mt-1 text-caption text-text-muted">{reservedModule.copy}</p>
       </Card>
     ),
   });
