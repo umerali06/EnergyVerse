@@ -5,6 +5,7 @@
 // ignore_for_file: unused_element
 import 'package:built_collection/built_collection.dart';
 import 'package:fev_api_client/src/model/date.dart';
+import 'package:fev_api_client/src/model/asset_media_response.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
@@ -61,7 +62,7 @@ abstract class AssetDetail implements Built<AssetDetail, AssetDetailBuilder> {
   String? get description;
 
   @BuiltValueField(wireName: r'documents')
-  BuiltList<String>? get documents;
+  BuiltList<AssetMediaResponse>? get documents;
 
   @BuiltValueField(wireName: r'facility_id')
   String get facilityId;
@@ -79,7 +80,7 @@ abstract class AssetDetail implements Built<AssetDetail, AssetDetailBuilder> {
   Date? get installationDate;
 
   @BuiltValueField(wireName: r'manuals')
-  BuiltList<String>? get manuals;
+  BuiltList<AssetMediaResponse>? get manuals;
 
   @BuiltValueField(wireName: r'manufacturer')
   String? get manufacturer;
@@ -97,7 +98,7 @@ abstract class AssetDetail implements Built<AssetDetail, AssetDetailBuilder> {
   String? get parentAssetId;
 
   @BuiltValueField(wireName: r'photos')
-  BuiltList<String>? get photos;
+  BuiltList<AssetMediaResponse>? get photos;
 
   @BuiltValueField(wireName: r'qr_code_id')
   String? get qrCodeId;
@@ -176,7 +177,8 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
       yield r'documents';
       yield serializers.serialize(
         object.documents,
-        specifiedType: const FullType(BuiltList, [FullType(String)]),
+        specifiedType:
+            const FullType(BuiltList, [FullType(AssetMediaResponse)]),
       );
     }
     yield r'facility_id';
@@ -214,7 +216,8 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
       yield r'manuals';
       yield serializers.serialize(
         object.manuals,
-        specifiedType: const FullType(BuiltList, [FullType(String)]),
+        specifiedType:
+            const FullType(BuiltList, [FullType(AssetMediaResponse)]),
       );
     }
     if (object.manufacturer != null) {
@@ -254,7 +257,8 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
       yield r'photos';
       yield serializers.serialize(
         object.photos,
-        specifiedType: const FullType(BuiltList, [FullType(String)]),
+        specifiedType:
+            const FullType(BuiltList, [FullType(AssetMediaResponse)]),
       );
     }
     if (object.qrCodeId != null) {
@@ -356,8 +360,9 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
         case r'documents':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [FullType(String)]),
-          ) as BuiltList<String>;
+            specifiedType:
+                const FullType(BuiltList, [FullType(AssetMediaResponse)]),
+          ) as BuiltList<AssetMediaResponse>;
           result.documents.replace(valueDes);
           break;
         case r'facility_id':
@@ -401,8 +406,9 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
         case r'manuals':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [FullType(String)]),
-          ) as BuiltList<String>;
+            specifiedType:
+                const FullType(BuiltList, [FullType(AssetMediaResponse)]),
+          ) as BuiltList<AssetMediaResponse>;
           result.manuals.replace(valueDes);
           break;
         case r'manufacturer':
@@ -447,8 +453,9 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
         case r'photos':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [FullType(String)]),
-          ) as BuiltList<String>;
+            specifiedType:
+                const FullType(BuiltList, [FullType(AssetMediaResponse)]),
+          ) as BuiltList<AssetMediaResponse>;
           result.photos.replace(valueDes);
           break;
         case r'qr_code_id':

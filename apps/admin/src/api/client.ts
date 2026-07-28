@@ -25,6 +25,7 @@ import {
   type CompanyProfile,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
+  type CreateAssetRequest,
   type CreateRoleRequest,
   type CurrentUser,
   type DashboardActivityPage,
@@ -38,6 +39,7 @@ import {
   type PermissionCatalog,
   type PlatformCompanyDetail,
   type PlatformCompanyPage,
+  type UpdateAssetRequest,
   type PlatformStats,
   type RoleDeleted,
   type RoleDetail,
@@ -308,6 +310,55 @@ export class FevApiClient {
   getAssetHistory(assetId: string, signal?: AbortSignal): Promise<AssetHistoryPage> {
     return this.execute(() =>
       this.assets.getAssetHistory({ assetId }, signal ? { signal } : undefined),
+    );
+  }
+
+  createAsset(request: CreateAssetRequest, signal?: AbortSignal): Promise<AssetDetail> {
+    return this.execute(() =>
+      this.assets.createAsset(
+        { createAssetRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  updateAsset(
+    assetId: string,
+    request: UpdateAssetRequest,
+    signal?: AbortSignal,
+  ): Promise<AssetDetail> {
+    return this.execute(() =>
+      this.assets.updateAsset(
+        { assetId, updateAssetRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  uploadAssetMedia(
+    assetId: string,
+    kind: "photo" | "document" | "manual",
+    file: File,
+    signal?: AbortSignal,
+  ): Promise<AssetDetail> {
+    return this.execute(() =>
+      this.assets.uploadAssetMedia(
+        { assetId, kind, file },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  deleteAssetMedia(
+    assetId: string,
+    mediaId: string,
+    signal?: AbortSignal,
+  ): Promise<AssetDetail> {
+    return this.execute(() =>
+      this.assets.deleteAssetMedia(
+        { assetId, mediaId },
+        signal ? { signal } : undefined,
+      ),
     );
   }
 

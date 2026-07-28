@@ -27,6 +27,7 @@ src/models/AssetHistoryEvent.ts
 src/models/AssetHistoryPage.ts
 src/models/AssetListItem.ts
 src/models/AssetListPage.ts
+src/models/AssetMediaResponse.ts
 src/models/AuditLogEntry.ts
 src/models/AuditLogFacets.ts
 src/models/AuditLogPage.ts

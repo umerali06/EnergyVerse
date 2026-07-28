@@ -12,6 +12,7 @@ doc/AssetHistoryEvent.md
 doc/AssetHistoryPage.md
 doc/AssetListItem.md
 doc/AssetListPage.md
+doc/AssetMediaResponse.md
 doc/AssetsApi.md
 doc/AuditApi.md
 doc/AuditLogEntry.md
@@ -105,6 +106,7 @@ lib/src/model/asset_history_event.dart
 lib/src/model/asset_history_page.dart
 lib/src/model/asset_list_item.dart
 lib/src/model/asset_list_page.dart
+lib/src/model/asset_media_response.dart
 lib/src/model/audit_log_entry.dart
 lib/src/model/audit_log_facets.dart
 lib/src/model/audit_log_page.dart
@@ -168,6 +170,7 @@ test/asset_history_event_test.dart
 test/asset_history_page_test.dart
 test/asset_list_item_test.dart
 test/asset_list_page_test.dart
+test/asset_media_response_test.dart
 test/assets_api_test.dart
 test/audit_api_test.dart
 test/audit_log_entry_test.dart

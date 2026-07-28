@@ -11,10 +11,12 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**createAsset**](AssetsApi.md#createasset) | **POST** /api/v1/assets | Create Asset
 [**deleteAsset**](AssetsApi.md#deleteasset) | **DELETE** /api/v1/assets/{asset_id} | Delete Asset
+[**deleteAssetMedia**](AssetsApi.md#deleteassetmedia) | **DELETE** /api/v1/assets/{asset_id}/media/{media_id} | Delete Asset Media
 [**getAsset**](AssetsApi.md#getasset) | **GET** /api/v1/assets/{asset_id} | Get Asset
 [**getAssetHistory**](AssetsApi.md#getassethistory) | **GET** /api/v1/assets/{asset_id}/history | Get Asset History
 [**listAssets**](AssetsApi.md#listassets) | **GET** /api/v1/assets | List Assets
 [**updateAsset**](AssetsApi.md#updateasset) | **PATCH** /api/v1/assets/{asset_id} | Update Asset
+[**uploadAssetMedia**](AssetsApi.md#uploadassetmedia) | **POST** /api/v1/assets/{asset_id}/media | Upload Asset Media
 
 
 # **createAsset**
@@ -87,6 +89,49 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**AssetDeleted**](AssetDeleted.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteAssetMedia**
+> AssetDetail deleteAssetMedia(assetId, mediaId)
+
+Delete Asset Media
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getAssetsApi();
+final String assetId = assetId_example; // String |
+final String mediaId = mediaId_example; // String |
+
+try {
+    final response = api.deleteAssetMedia(assetId, mediaId);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling AssetsApi->deleteAssetMedia: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **assetId** | **String**|  |
+ **mediaId** | **String**|  |
+
+### Return type
+
+[**AssetDetail**](AssetDetail.md)
 
 ### Authorization
 
@@ -277,6 +322,51 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **uploadAssetMedia**
+> AssetDetail uploadAssetMedia(assetId, kind, file)
+
+Upload Asset Media
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getAssetsApi();
+final String assetId = assetId_example; // String |
+final String kind = kind_example; // String |
+final MultipartFile file = BINARY_DATA_HERE; // MultipartFile |
+
+try {
+    final response = api.uploadAssetMedia(assetId, kind, file);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling AssetsApi->uploadAssetMedia: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **assetId** | **String**|  |
+ **kind** | **String**|  |
+ **file** | **MultipartFile**|  |
+
+### Return type
+
+[**AssetDetail**](AssetDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

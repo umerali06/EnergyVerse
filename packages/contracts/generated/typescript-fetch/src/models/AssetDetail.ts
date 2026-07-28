@@ -13,6 +13,14 @@
  */
 
 import { mapValues } from '../runtime';
+import type { AssetMediaResponse } from './AssetMediaResponse';
+import {
+    AssetMediaResponseFromJSON,
+    AssetMediaResponseFromJSONTyped,
+    AssetMediaResponseToJSON,
+    AssetMediaResponseToJSONTyped,
+} from './AssetMediaResponse';
+
 /**
  *
  * @export
@@ -63,10 +71,10 @@ export interface AssetDetail {
     description?: string | null;
     /**
      *
-     * @type {Array<string>}
+     * @type {Array<AssetMediaResponse>}
      * @memberof AssetDetail
      */
-    documents?: Array<string>;
+    documents?: Array<AssetMediaResponse>;
     /**
      *
      * @type {string}
@@ -99,10 +107,10 @@ export interface AssetDetail {
     installationDate?: Date | null;
     /**
      *
-     * @type {Array<string>}
+     * @type {Array<AssetMediaResponse>}
      * @memberof AssetDetail
      */
-    manuals?: Array<string>;
+    manuals?: Array<AssetMediaResponse>;
     /**
      *
      * @type {string}
@@ -135,10 +143,10 @@ export interface AssetDetail {
     parentAssetId?: string | null;
     /**
      *
-     * @type {Array<string>}
+     * @type {Array<AssetMediaResponse>}
      * @memberof AssetDetail
      */
-    photos?: Array<string>;
+    photos?: Array<AssetMediaResponse>;
     /**
      *
      * @type {string}
@@ -203,19 +211,19 @@ export function AssetDetailFromJSONTyped(json: any, ignoreDiscriminator: boolean
         'createdAt': (new Date(json['created_at'])),
         'currentStatus': json['current_status'],
         'description': json['description'] == null ? undefined : json['description'],
-        'documents': json['documents'] == null ? undefined : json['documents'],
+        'documents': json['documents'] == null ? undefined : ((json['documents'] as Array<any>).map(AssetMediaResponseFromJSON)),
         'facilityId': json['facility_id'],
         'gpsLat': json['gps_lat'] == null ? undefined : json['gps_lat'],
         'gpsLng': json['gps_lng'] == null ? undefined : json['gps_lng'],
         'id': json['id'],
         'installationDate': json['installation_date'] == null ? undefined : (new Date(json['installation_date'])),
-        'manuals': json['manuals'] == null ? undefined : json['manuals'],
+        'manuals': json['manuals'] == null ? undefined : ((json['manuals'] as Array<any>).map(AssetMediaResponseFromJSON)),
         'manufacturer': json['manufacturer'] == null ? undefined : json['manufacturer'],
         'model': json['model'] == null ? undefined : json['model'],
         'model3dUrl': json['model_3d_url'] == null ? undefined : json['model_3d_url'],
         'name': json['name'],
         'parentAssetId': json['parent_asset_id'] == null ? undefined : json['parent_asset_id'],
-        'photos': json['photos'] == null ? undefined : json['photos'],
+        'photos': json['photos'] == null ? undefined : ((json['photos'] as Array<any>).map(AssetMediaResponseFromJSON)),
         'qrCodeId': json['qr_code_id'] == null ? undefined : json['qr_code_id'],
         'serialNumber': json['serial_number'] == null ? undefined : json['serial_number'],
         'updatedAt': (new Date(json['updated_at'])),
@@ -240,19 +248,19 @@ export function AssetDetailToJSONTyped(value?: AssetDetail | null, ignoreDiscrim
         'created_at': ((value['createdAt']).toISOString()),
         'current_status': value['currentStatus'],
         'description': value['description'],
-        'documents': value['documents'],
+        'documents': value['documents'] == null ? undefined : ((value['documents'] as Array<any>).map(AssetMediaResponseToJSON)),
         'facility_id': value['facilityId'],
         'gps_lat': value['gpsLat'],
         'gps_lng': value['gpsLng'],
         'id': value['id'],
         'installation_date': value['installationDate'] == null ? undefined : ((value['installationDate'] as any).toISOString().substring(0,10)),
-        'manuals': value['manuals'],
+        'manuals': value['manuals'] == null ? undefined : ((value['manuals'] as Array<any>).map(AssetMediaResponseToJSON)),
         'manufacturer': value['manufacturer'],
         'model': value['model'],
         'model_3d_url': value['model3dUrl'],
         'name': value['name'],
         'parent_asset_id': value['parentAssetId'],
-        'photos': value['photos'],
+        'photos': value['photos'] == null ? undefined : ((value['photos'] as Array<any>).map(AssetMediaResponseToJSON)),
         'qr_code_id': value['qrCodeId'],
         'serial_number': value['serialNumber'],
         'updated_at': ((value['updatedAt']).toISOString()),

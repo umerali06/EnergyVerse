@@ -51,6 +51,11 @@ export interface DeleteAssetRequest {
     assetId: string;
 }
 
+export interface DeleteAssetMediaRequest {
+    assetId: string;
+    mediaId: string;
+}
+
 export interface GetAssetRequest {
     assetId: string;
 }
@@ -74,6 +79,12 @@ export interface ListAssetsRequest {
 export interface UpdateAssetOperationRequest {
     assetId: string;
     updateAssetRequest: UpdateAssetRequest;
+}
+
+export interface UploadAssetMediaRequest {
+    assetId: string;
+    kind: UploadAssetMediaKindEnum;
+    file: Blob;
 }
 
 /**
@@ -163,6 +174,54 @@ export class AssetsApi extends runtime.BaseAPI {
      */
     async deleteAsset(requestParameters: DeleteAssetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetDeleted> {
         const response = await this.deleteAssetRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Delete Asset Media
+     */
+    async deleteAssetMediaRaw(requestParameters: DeleteAssetMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AssetDetail>> {
+        if (requestParameters['assetId'] == null) {
+            throw new runtime.RequiredError(
+                'assetId',
+                'Required parameter "assetId" was null or undefined when calling deleteAssetMedia().'
+            );
+        }
+
+        if (requestParameters['mediaId'] == null) {
+            throw new runtime.RequiredError(
+                'mediaId',
+                'Required parameter "mediaId" was null or undefined when calling deleteAssetMedia().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/assets/{asset_id}/media/{media_id}`.replace(`{${"asset_id"}}`, encodeURIComponent(String(requestParameters['assetId']))).replace(`{${"media_id"}}`, encodeURIComponent(String(requestParameters['mediaId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AssetDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Delete Asset Media
+     */
+    async deleteAssetMedia(requestParameters: DeleteAssetMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetDetail> {
+        const response = await this.deleteAssetMediaRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -369,4 +428,94 @@ export class AssetsApi extends runtime.BaseAPI {
         return await response.value();
     }
 
+    /**
+     * Upload Asset Media
+     */
+    async uploadAssetMediaRaw(requestParameters: UploadAssetMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AssetDetail>> {
+        if (requestParameters['assetId'] == null) {
+            throw new runtime.RequiredError(
+                'assetId',
+                'Required parameter "assetId" was null or undefined when calling uploadAssetMedia().'
+            );
+        }
+
+        if (requestParameters['kind'] == null) {
+            throw new runtime.RequiredError(
+                'kind',
+                'Required parameter "kind" was null or undefined when calling uploadAssetMedia().'
+            );
+        }
+
+        if (requestParameters['file'] == null) {
+            throw new runtime.RequiredError(
+                'file',
+                'Required parameter "file" was null or undefined when calling uploadAssetMedia().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['kind'] != null) {
+            queryParameters['kind'] = requestParameters['kind'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const consumes: runtime.Consume[] = [
+            { contentType: 'multipart/form-data' },
+        ];
+        // @ts-ignore: canConsumeForm may be unused
+        const canConsumeForm = runtime.canConsumeForm(consumes);
+
+        let formParams: { append(param: string, value: any): any };
+        let useForm = false;
+        // use FormData to transmit files using content-type "multipart/form-data"
+        useForm = canConsumeForm;
+        if (useForm) {
+            formParams = new FormData();
+        } else {
+            formParams = new URLSearchParams();
+        }
+
+        if (requestParameters['file'] != null) {
+            formParams.append('file', requestParameters['file'] as any);
+        }
+
+        const response = await this.request({
+            path: `/api/v1/assets/{asset_id}/media`.replace(`{${"asset_id"}}`, encodeURIComponent(String(requestParameters['assetId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: formParams,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AssetDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Upload Asset Media
+     */
+    async uploadAssetMedia(requestParameters: UploadAssetMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetDetail> {
+        const response = await this.uploadAssetMediaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
 }
+
+/**
+ * @export
+ */
+export const UploadAssetMediaKindEnum = {
+    Photo: 'photo',
+    Document: 'document',
+    Manual: 'manual'
+} as const;
+export type UploadAssetMediaKindEnum = typeof UploadAssetMediaKindEnum[keyof typeof UploadAssetMediaKindEnum];

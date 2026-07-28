@@ -64,11 +64,18 @@ class _AssetsScreenState extends State<AssetsScreen> {
         final areaOptions = controller.facilityId == null
             ? const <AreaDetail>[]
             : controller.areas.where((area) => area.facilityId == controller.facilityId).toList();
+        final canWrite = AuthProvider.of(context).currentUser?.permissions.contains('assets.write') ?? false;
         return ListView(
           key: const Key('assets-scroll'),
           padding: const EdgeInsets.all(DsSpacing.s6),
           children: [
-            Text('Assets', style: Theme.of(context).textTheme.headlineMedium),
+            Row(children: [
+              Expanded(child: Text('Assets', style: Theme.of(context).textTheme.headlineMedium)),
+              if (canWrite) AppButton(label: 'Create', onPressed: () async {
+                await Navigator.of(context).pushNamed(AppRoutes.assetForm);
+                await controller.retry();
+              }),
+            ]),
             const SizedBox(height: DsSpacing.s2),
             Text(
               'Every physical asset tracked across your facilities.',

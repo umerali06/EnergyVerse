@@ -2,6 +2,7 @@
 
 import type { AssetListItem } from "@fev/api-client";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/auth/auth-context";
 
 import { formatRelativeTime } from "@/dashboard/format";
 import {
@@ -39,6 +40,8 @@ function statusTone(status: string): StatusTone {
 export function AssetsPage({ reducedMotionOverride }: { reducedMotionOverride?: boolean } = {}) {
   const data = useAssetsData();
   const router = useRouter();
+  const { currentUser } = useAuth();
+  const canWrite = currentUser?.permissions.has("assets.write") ?? false;
 
   const areaOptions = data.filters.facilityId
     ? data.areas.items.filter((area) => area.facilityId === data.filters.facilityId)
@@ -105,7 +108,8 @@ export function AssetsPage({ reducedMotionOverride }: { reducedMotionOverride?: 
   return (
     <section className="p-6 md:p-10">
       <MotionSection className="mx-auto max-w-6xl" reducedMotionOverride={reducedMotionOverride}>
-        <div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
           <p className="font-mono text-caption uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">
             Operations
           </p>
@@ -113,6 +117,8 @@ export function AssetsPage({ reducedMotionOverride }: { reducedMotionOverride?: 
           <p className="mt-1 text-bodySmall text-text-secondary">
             Every physical asset tracked across your facilities.
           </p>
+          </div>
+          {canWrite && <Button onClick={() => router.push("/assets/new")}>Create asset</Button>}
         </div>
 
         <Card className="mt-6 p-4">

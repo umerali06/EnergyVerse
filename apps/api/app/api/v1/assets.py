@@ -1,6 +1,6 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 
 from app.assets.service import (
     AssetManagementError,
@@ -170,3 +170,53 @@ async def delete_asset(
         _raise_api_error(error)
         raise
     return AssetDeleted(id=asset_id)
+
+
+@router.post(
+    "/{asset_id}/media",
+    response_model=AssetDetail,
+    operation_id="upload_asset_media",
+    responses=error_responses(401, 403, 404, 413, 422, 500),
+)
+async def upload_asset_media(
+    asset_id: str,
+    kind: Literal["photo", "document", "manual"],
+    file: Annotated[UploadFile, File()],
+    current_user: Annotated[CurrentUser, Depends(_assets_write_access)],
+    service: Annotated[AssetManagementService, Depends(get_asset_management_service)],
+) -> AssetDetail:
+    try:
+        return await service.upload_media(
+            CompanyScope(company_id=current_user.company_id),
+            asset_id,
+            kind,
+            file,
+            current_user.uid,
+        )
+    except AssetManagementError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.delete(
+    "/{asset_id}/media/{media_id}",
+    response_model=AssetDetail,
+    operation_id="delete_asset_media",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def delete_asset_media(
+    asset_id: str,
+    media_id: str,
+    current_user: Annotated[CurrentUser, Depends(_assets_write_access)],
+    service: Annotated[AssetManagementService, Depends(get_asset_management_service)],
+) -> AssetDetail:
+    try:
+        return await service.delete_media(
+            CompanyScope(company_id=current_user.company_id),
+            asset_id,
+            media_id,
+            current_user.uid,
+        )
+    except AssetManagementError as error:
+        _raise_api_error(error)
+        raise

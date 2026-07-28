@@ -39,6 +39,8 @@
 | D-033 | Asset history-by-reference and soft-delete cascade | **No inspection/maintenance history is embedded on `Asset`; `GET /assets/{id}/history` returns a real, always-empty, correctly-shaped page that later modules fill by querying their own collections. Facilities/areas/assets get the codebase's first soft delete (`deleted_at` stamped, never physically removed); deleting a facility/area with any non-deleted child returns 409, mirroring the existing `role_has_assigned_users` precedent; an asset's soft-delete is never blocked by child sub-assets, since the parent row still resolves afterward** | **RESOLVED — LOCKED** | 2026-07-23 |
 | D-034 | Mobile asset detail presentation | **Pushed named route (`Navigator.pushNamed` + arguments), not a bottom sheet** — first departure from the Users/Audit/Roles `showAppModal` convention | **RESOLVED — LOCKED** | 2026-07-26 |
 | D-035 | Asset GPS location display depth (Phase 4.2) | **Coordinates readout + external "view on map" link only; no embedded Google Maps Platform integration** | **RESOLVED — LOCKED** | 2026-07-26 |
+| D-036 | Asset identity and private-media contract | **`asset_tag` is case-insensitively unique within a company (duplicate creates/updates return 409); media is private under `companies/{company_id}/assets/{asset_id}/{kind}/{uuid}_{filename}` with one-hour signed URLs. Caps: photos 10 MiB, documents 25 MiB, manuals 50 MiB. Photos accept JPEG/PNG/WEBP/HEIC; documents accept PDF/DOC/DOCX/JPEG/PNG/WEBP; manuals accept PDF/DOC/DOCX. Atomic Firestore array transforms prevent concurrent uploads from overwriting each other.** | **RESOLVED — LOCKED** | 2026-07-27 |
+| D-037 | Permanent native application identity | **Android `applicationId` and namespace plus iOS `PRODUCT_BUNDLE_IDENTIFIER` are permanently `com.flacronenterprises.energyverse`; the user-visible native app name is `EnergyVerse`. This identity is tied to signing, Firebase native app registrations, deep links, and store listings and must not be renamed casually.** | **RESOLVED — LOCKED** | 2026-07-27 |
 
 ## Decision Details
 
@@ -905,3 +907,13 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   (D-035), since no Google Maps Platform key/package existed in the repo and
   provisioning one is out of scope for a UI-only phase. No backend, schema,
   or permission changes.
+- **2026-07-27 — Phase 4.3 complete:** Added D-036. Asset tags are
+  tenant-unique, and asset photos/documents/manuals reuse D-027's private,
+  server-mediated Storage model with explicit caps, asset-scoped paths,
+  atomic Firestore array updates, and fresh signed URLs. Focused/full client
+  verification, live Storage/audit proof, deterministic contract generation,
+  and GitHub Actions run 30252741780 completed successfully.
+- **2026-07-27 — Phase 4.3 native runners:** Added D-037 after product-owner
+  confirmation. Android and iOS now share the permanent reverse-domain
+  identity `com.flacronenterprises.energyverse` and display name
+  `EnergyVerse`; the default Flutter `com.example` identity is prohibited.

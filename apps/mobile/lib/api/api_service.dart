@@ -116,6 +116,35 @@ abstract interface class ApiContract {
   Future<AreaDetail> getArea(String areaId);
 }
 
+extension AssetWriteContract on ApiContract {
+  ApiService get _assetWriter {
+    final service = this;
+    if (service is ApiService) return service;
+    throw UnsupportedError('Asset writes are not available on this API test double');
+  }
+
+  Future<AssetDetail> createAsset(CreateAssetRequest request) =>
+      _assetWriter.createAsset(request);
+  Future<AssetDetail> updateAsset(String assetId, UpdateAssetRequest request) =>
+      _assetWriter.updateAsset(assetId, request);
+  Future<AssetDetail> uploadAssetMedia({
+    required String assetId,
+    required String kind,
+    required String path,
+    required String filename,
+    void Function(int sent, int total)? onProgress,
+  }) =>
+      _assetWriter.uploadAssetMedia(
+        assetId: assetId,
+        kind: kind,
+        path: path,
+        filename: filename,
+        onProgress: onProgress,
+      );
+  Future<AssetDetail> deleteAssetMedia(String assetId, String mediaId) =>
+      _assetWriter.deleteAssetMedia(assetId, mediaId);
+}
+
 class ApiService implements ApiContract {
   ApiService({
     String baseUrl = apiBaseUrl,
@@ -534,6 +563,71 @@ class ApiService implements ApiContract {
     } on DioException catch (error) {
       throw _typedError(error);
     }
+  }
+
+  Future<AssetDetail> createAsset(CreateAssetRequest request) async {
+    try {
+      final response = await _client.getAssetsApi().createAsset(
+            createAssetRequest: request,
+          );
+      return _requireAsset(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  Future<AssetDetail> updateAsset(String assetId, UpdateAssetRequest request) async {
+    try {
+      final response = await _client.getAssetsApi().updateAsset(
+            assetId: assetId,
+            updateAssetRequest: request,
+          );
+      return _requireAsset(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  Future<AssetDetail> uploadAssetMedia({
+    required String assetId,
+    required String kind,
+    required String path,
+    required String filename,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    try {
+      final response = await _client.getAssetsApi().uploadAssetMedia(
+            assetId: assetId,
+            kind: kind,
+            file: await MultipartFile.fromFile(path, filename: filename),
+            onSendProgress: onProgress,
+          );
+      return _requireAsset(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  Future<AssetDetail> deleteAssetMedia(String assetId, String mediaId) async {
+    try {
+      final response = await _client.getAssetsApi().deleteAssetMedia(
+            assetId: assetId,
+            mediaId: mediaId,
+          );
+      return _requireAsset(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  AssetDetail _requireAsset(AssetDetail? value) {
+    if (value == null) {
+      throw const ApiException(
+        code: 'invalid_response',
+        message: 'The API returned an empty asset detail',
+      );
+    }
+    return value;
   }
 
   @override

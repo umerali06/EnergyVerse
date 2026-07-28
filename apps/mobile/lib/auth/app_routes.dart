@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../assets/asset_detail_screen.dart';
+import '../assets/asset_form_screen.dart';
 import '../assets/assets_screen.dart';
 import '../audit/audit_screen.dart';
 import '../company/company_profile_screen.dart';
@@ -32,6 +33,7 @@ class AppRoutes {
   static const audit = AppNav.audit;
   static const assets = AppNav.assets;
   static const assetDetail = '/assets/detail';
+  static const assetForm = '/assets/form';
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -142,6 +144,21 @@ class AppRoutes {
                 permission: 'assets.read',
                 fallback: const NoAccessScreen(permission: 'assets.read'),
                 child: AssetDetailScreen(assetId: assetId),
+              ),
+            ),
+          );
+        };
+      case assetForm:
+        return (context) {
+          final assetId = ModalRoute.of(context)!.settings.arguments as String?;
+          return RequireAuthGuard(
+            routeName: assetForm,
+            child: AppShellScaffold(
+              currentRoute: assets,
+              child: PermissionGate(
+                permission: 'assets.write',
+                fallback: const NoAccessScreen(permission: 'assets.write'),
+                child: AssetFormScreen(assetId: assetId),
               ),
             ),
           );

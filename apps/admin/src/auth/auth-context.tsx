@@ -81,10 +81,14 @@ export type AssetsApiClient = Pick<
   | "getArea"
   | "getAsset"
   | "getAssetHistory"
+  | "createAsset"
+  | "deleteAssetMedia"
   | "getFacility"
   | "listAreas"
   | "listAssets"
   | "listFacilities"
+  | "updateAsset"
+  | "uploadAssetMedia"
 >;
 
 type AuthContextValue = {

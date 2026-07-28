@@ -180,7 +180,7 @@
           },
           "documents": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AssetMediaResponse"
             },
             "title": "Documents",
             "type": "array"
@@ -229,7 +229,7 @@
           },
           "manuals": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AssetMediaResponse"
             },
             "title": "Manuals",
             "type": "array"
@@ -284,7 +284,7 @@
           },
           "photos": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AssetMediaResponse"
             },
             "title": "Photos",
             "type": "array"
@@ -577,6 +577,60 @@
         "title": "AssetListPage",
         "type": "object"
       },
+      "AssetMediaResponse": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "photo",
+              "document",
+              "manual"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "uploaded_at": {
+            "format": "date-time",
+            "title": "Uploaded At",
+            "type": "string"
+          },
+          "uploaded_by": {
+            "title": "Uploaded By",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "filename",
+          "kind",
+          "content_type",
+          "size",
+          "uploaded_by",
+          "uploaded_at"
+        ],
+        "title": "AssetMediaResponse",
+        "type": "object"
+      },
       "AuditLogEntry": {
         "properties": {
           "action": {
@@ -698,6 +752,20 @@
           "truncated"
         ],
         "title": "AuditLogPage",
+        "type": "object"
+      },
+      "Body_upload_asset_media": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_asset_media",
         "type": "object"
       },
       "Body_upload_company_logo": {
@@ -991,6 +1059,8 @@
           "gps_lat": {
             "anyOf": [
               {
+                "maximum": 90.0,
+                "minimum": -90.0,
                 "type": "number"
               },
               {
@@ -1002,6 +1072,8 @@
           "gps_lng": {
             "anyOf": [
               {
+                "maximum": 180.0,
+                "minimum": -180.0,
                 "type": "number"
               },
               {
@@ -2204,6 +2276,8 @@
           "gps_lat": {
             "anyOf": [
               {
+                "maximum": 90.0,
+                "minimum": -90.0,
                 "type": "number"
               },
               {
@@ -2215,6 +2289,8 @@
           "gps_lng": {
             "anyOf": [
               {
+                "maximum": 180.0,
+                "minimum": -180.0,
                 "type": "number"
               },
               {
@@ -4172,6 +4248,223 @@
           }
         ],
         "summary": "Get Asset History",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/v1/assets/{asset_id}/media": {
+      "post": {
+        "operationId": "upload_asset_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "photo",
+                "document",
+                "manual"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_asset_media"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request payload exceeds the allowed size"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload Asset Media",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/v1/assets/{asset_id}/media/{media_id}": {
+      "delete": {
+        "operationId": "delete_asset_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Asset Media",
         "tags": [
           "assets"
         ]

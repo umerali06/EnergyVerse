@@ -23,6 +23,7 @@ import 'package:fev_api_client/src/model/asset_history_event.dart';
 import 'package:fev_api_client/src/model/asset_history_page.dart';
 import 'package:fev_api_client/src/model/asset_list_item.dart';
 import 'package:fev_api_client/src/model/asset_list_page.dart';
+import 'package:fev_api_client/src/model/asset_media_response.dart';
 import 'package:fev_api_client/src/model/audit_log_entry.dart';
 import 'package:fev_api_client/src/model/audit_log_facets.dart';
 import 'package:fev_api_client/src/model/audit_log_page.dart';
@@ -86,6 +87,7 @@ part 'serializers.g.dart';
   AssetHistoryPage,
   AssetListItem,
   AssetListPage,
+  AssetMediaResponse,
   AuditLogEntry,
   AuditLogFacets,
   AuditLogPage,

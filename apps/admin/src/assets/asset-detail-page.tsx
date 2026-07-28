@@ -1,8 +1,10 @@
 "use client";
 
-import type { AssetDetail, AssetHistoryEvent, AssetListItem } from "@fev/api-client";
+import type { AssetDetail, AssetHistoryEvent, AssetListItem, AssetMediaResponse } from "@fev/api-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/auth/auth-context";
+import { useToast } from "@/design-system";
 
 import { formatCompanyDateTime, formatRelativeTime } from "@/dashboard/format";
 import {
@@ -15,7 +17,6 @@ import {
   StatusPill,
   Tabs,
   TableShell,
-  Tooltip,
   type StatusTone,
 } from "@/design-system";
 
@@ -221,36 +222,94 @@ function HistoryTab({
   );
 }
 
-function MediaTab({ asset }: { asset: AssetDetail }) {
+const MEDIA_RULES = {
+  photo: { accept: "image/jpeg,image/png,image/webp,image/heic", max: 10 * 1024 * 1024 },
+  document: { accept: "application/pdf,.doc,.docx,image/jpeg,image/png,image/webp", max: 25 * 1024 * 1024 },
+  manual: { accept: "application/pdf,.doc,.docx", max: 50 * 1024 * 1024 },
+} as const;
+
+function formatBytes(size: number) {
+  return size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function MediaGroup({
+  assetId, canWrite, items, kind, onChanged,
+}: {
+  assetId: string; canWrite: boolean; items: AssetMediaResponse[];
+  kind: "photo" | "document" | "manual"; onChanged: (asset: AssetDetail) => void;
+}) {
+  const { apiClient } = useAuth();
+  const toast = useToast();
+  const [uploading, setUploading] = useState(false);
+  const title = kind === "photo" ? "Photos" : kind === "document" ? "Documents" : "Manuals";
+  async function upload(file?: File) {
+    if (!file) return;
+    if (file.size > MEDIA_RULES[kind].max) {
+      toast.error(`${title.slice(0, -1)} must be ${MEDIA_RULES[kind].max / 1024 / 1024} MB or smaller`);
+      return;
+    }
+    const accepted = MEDIA_RULES[kind].accept.split(",");
+    if (!accepted.some((type) => type.startsWith(".") ? file.name.toLowerCase().endsWith(type) : file.type === type)) {
+      toast.error(`This file type is not allowed for ${title.toLowerCase()}`);
+      return;
+    }
+    setUploading(true);
+    try {
+      onChanged(await apiClient.uploadAssetMedia(assetId, kind, file));
+      toast.success(`${title.slice(0, -1)} uploaded`);
+    } finally { setUploading(false); }
+  }
+  async function remove(media: AssetMediaResponse) {
+    if (!window.confirm(`Remove ${media.filename}?`)) return;
+    onChanged(await apiClient.deleteAssetMedia(assetId, media.id));
+    toast.success("Media removed");
+  }
+  return (
+    <section className="rounded-lg border border-border p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-h4 font-semibold">{title}</h3>
+        {canWrite && (
+          <label className="cursor-pointer rounded-md border border-border px-3 py-2 text-caption font-semibold hover:bg-elevated">
+            {uploading ? "Uploading…" : "Add file"}
+            <input className="sr-only" disabled={uploading} type="file" accept={MEDIA_RULES[kind].accept} onChange={(e) => void upload(e.target.files?.[0])} />
+          </label>
+        )}
+      </div>
+      {uploading && <div aria-label="Upload progress" className="mt-3 h-1 animate-pulse rounded bg-primary-500" />}
+      {items.length === 0 ? <p className="mt-3 text-bodySmall text-text-muted">No {title.toLowerCase()} attached.</p> : (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {items.map((media) => (
+            <article className="overflow-hidden rounded-md border border-border bg-elevated" key={media.id}>
+              {/* Signed Storage hosts are dynamic per environment and cannot be statically allow-listed. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {kind === "photo" && <img alt={media.filename} className="h-36 w-full object-cover" src={media.url} />}
+              <div className="flex items-center justify-between gap-2 p-3">
+                <div className="min-w-0"><a className="block truncate text-bodySmall font-semibold text-primary-700 dark:text-primary-300" href={media.url} rel="noreferrer" target="_blank">{media.filename}</a><span className="font-mono text-caption text-text-muted">{formatBytes(media.size)}</span></div>
+                {canWrite && <Button onClick={() => void remove(media)} variant="ghost">Remove</Button>}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MediaTab({ asset, canWrite, onChanged }: { asset: AssetDetail; canWrite: boolean; onChanged: (asset: AssetDetail) => void }) {
   const mediaCount = (asset.photos?.length ?? 0) + (asset.documents?.length ?? 0) + (asset.manuals?.length ?? 0);
-  if (mediaCount === 0) {
+  if (mediaCount === 0 && !canWrite) {
     return (
       <EmptyState
-        description="Photos, documents, and manuals will appear here once uploads land in Phase 4.3."
+        description="No photos, documents, or manuals have been attached."
         title="No photos or documents yet"
       />
     );
   }
   return (
     <div className="grid gap-4">
-      {asset.photos && asset.photos.length > 0 && (
-        <div>
-          <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">Photos</p>
-          <p className="mt-1 text-bodySmall text-text-secondary">{asset.photos.length} photo(s)</p>
-        </div>
-      )}
-      {asset.documents && asset.documents.length > 0 && (
-        <div>
-          <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">Documents</p>
-          <p className="mt-1 text-bodySmall text-text-secondary">{asset.documents.length} document(s)</p>
-        </div>
-      )}
-      {asset.manuals && asset.manuals.length > 0 && (
-        <div>
-          <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">Manuals</p>
-          <p className="mt-1 text-bodySmall text-text-secondary">{asset.manuals.length} manual(s)</p>
-        </div>
-      )}
+      <MediaGroup assetId={asset.id} canWrite={canWrite} items={asset.photos ?? []} kind="photo" onChanged={onChanged} />
+      <MediaGroup assetId={asset.id} canWrite={canWrite} items={asset.documents ?? []} kind="document" onChanged={onChanged} />
+      <MediaGroup assetId={asset.id} canWrite={canWrite} items={asset.manuals ?? []} kind="manual" onChanged={onChanged} />
     </div>
   );
 }
@@ -263,6 +322,8 @@ export function AssetDetailPage({
   reducedMotionOverride?: boolean;
 }) {
   const data = useAssetsData();
+  const { currentUser } = useAuth();
+  const canWrite = currentUser?.permissions.has("assets.write") ?? false;
   const [state, setState] = useState<{ status: AsyncStatus; asset: AssetDetail | null }>({
     status: "loading",
     asset: null,
@@ -318,11 +379,11 @@ export function AssetDetailPage({
                   </span>
                 </div>
               </div>
-              <Tooltip content="Editing assets arrives in Phase 4.3">
-                <Button disabled variant="ghost">
-                  Edit
-                </Button>
-              </Tooltip>
+              {canWrite && (
+                <Link href={`/assets/${state.asset.id}/edit`}>
+                  <Button variant="ghost">Edit</Button>
+                </Link>
+              )}
             </div>
 
             <Card className="mt-6 p-4">
@@ -358,7 +419,7 @@ export function AssetDetailPage({
                   {
                     id: "media",
                     label: "Media",
-                    content: <MediaTab asset={state.asset} />,
+                    content: <MediaTab asset={state.asset} canWrite={canWrite} onChanged={(asset) => setState({ status: "ready", asset })} />,
                   },
                 ]}
               />

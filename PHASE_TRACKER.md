@@ -40,8 +40,8 @@ Only one micro-task may be active at a time.
 | 4 | Asset management — data model/hierarchy, UI, create/edit/photo, KPI widgets, QR | **In progress** |
 | 4.1 | Asset data model, facility/area hierarchy, and backend CRUD | Done |
 | 4.2 | Asset management UI | Done |
-| 4.3 | Asset create/edit and photo capture | In progress |
-| 4.4 | Asset KPI widgets (built on the 2.3 pluggable framework) | Not started |
+| 4.3 | Asset create/edit and media upload | Done |
+| 4.4 | Asset KPI widgets (built on the 2.3 pluggable framework) | In progress |
 | 4.5 | QR code asset scanning | Not started |
 | 5 | To be defined | Not started |
 | 6 | To be defined | Not started |
