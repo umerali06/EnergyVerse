@@ -27,7 +27,18 @@ class UsersController extends ChangeNotifier {
   String? status;
   String sort = 'name';
 
-  Future<void> start() => _load();
+  /// True only until this screen's first load settles, so the whole page
+  /// can show one full-page loader on entry instead of the header/filters
+  /// popping in immediately while the list shows its own skeleton.
+  bool _initializing = true;
+  bool get isInitializing => _initializing;
+
+  Future<void> start() async {
+    await _load();
+    _initializing = false;
+    _notify();
+  }
+
   Future<void> retry() => _load();
 
   Future<void> setSearch(String value) async {

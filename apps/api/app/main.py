@@ -75,6 +75,11 @@ app.add_exception_handler(Exception, unhandled_exception_response)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
+    # Flutter web's dev server binds a different port per run (`flutter run -d
+    # chrome` with no --web-port). Matching any localhost/127.0.0.1 port keeps
+    # local dev working without pinning the port; this regex can never match a
+    # real deployed origin.
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

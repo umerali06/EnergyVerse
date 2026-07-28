@@ -14,6 +14,7 @@ pydantic-settings = "^2.7.0"
 firebase-admin = "^7.0.0"
 python-multipart = "^0.0.32"
 tzdata = "^2026.3"
+boto3 = "^1.35.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -31,6 +32,11 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Long lines are inline-styled HTML markup, not code -- wrapping them
+# mid-attribute would hurt readability without any benefit.
+"app/email/templates.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

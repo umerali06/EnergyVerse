@@ -307,5 +307,9 @@ class CompanyRegistrationResponse(StrictModel):
     role_key: str
 
 
+class VerificationEmailResponse(StrictModel):
+    sent: bool
+
+
 def without_none(values: dict[str, object | None]) -> dict[str, object]:
     return {key: value for key, value in values.items() if value is not None}

@@ -45,7 +45,7 @@ export function PermissionMatrix({
         const someSelected = selectableKeys.some((key) => selected.has(key));
         return (
           <div className="rounded-lg border border-border p-3" key={group.group}>
-            <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
               <h3 className="text-bodySmall font-bold uppercase tracking-[0.08em] text-text-secondary">
                 {GROUP_LABELS[group.group] ?? group.group}
               </h3>

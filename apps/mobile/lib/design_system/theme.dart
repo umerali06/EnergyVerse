@@ -3,6 +3,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'tokens_generated.dart';
 
+/// The default `ScrollBehavior` only draws a `Scrollbar` on desktop
+/// platforms, and even then the thumb stays hidden until the pointer
+/// hovers directly over it. Web users have no way to discover that a
+/// panel scrolls, so every scrollable in the app always shows its thumb.
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return Scrollbar(
+      controller: details.controller,
+      thumbVisibility: true,
+      child: child,
+    );
+  }
+}
+
 class AppThemeController extends ChangeNotifier {
   static const _storageKey = 'fev-theme';
 

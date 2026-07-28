@@ -63,3 +63,4 @@ export * from './UserListItem';
 export * from './UserListPage';
 export * from './ValidationError';
 export * from './ValidationErrorLocInner';
+export * from './VerificationEmailResponse';

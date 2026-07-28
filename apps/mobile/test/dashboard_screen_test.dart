@@ -96,6 +96,9 @@ class FakeApi implements ApiContract {
   Future<HealthResponse> getHealth() => throw UnimplementedError();
 
   @override
+  Future<bool> sendVerificationEmail() => throw UnimplementedError();
+
+  @override
   Future<CompanyRegistrationResponse> registerCompanyAdmin({
     required String companyName,
     required String displayName,
@@ -299,43 +302,47 @@ void main() {
     expect(find.text('Activity will appear here as your team uses FEV.'), findsOneWidget);
   });
 
-  testWidgets('shows a retry-capable error state when the summary request fails', (
-    tester,
-  ) async {
-    var attempts = 0;
-    final api = FakeApi(
-      identityFor('field_inspector', roleMatrix['field_inspector']!),
-      summary: ({int window = 30}) async {
-        attempts += 1;
-        throw Exception('boom');
-      },
-    );
-    await pumpDashboard(tester, api: api);
-    await tester.pumpAndSettle();
+  testWidgets(
+    'shows one page-level error with one retry when the summary request fails',
+    (tester) async {
+      var attempts = 0;
+      final api = FakeApi(
+        identityFor('field_inspector', roleMatrix['field_inspector']!),
+        summary: ({int window = 30}) async {
+          attempts += 1;
+          throw Exception('boom');
+        },
+      );
+      await pumpDashboard(tester, api: api);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Retry'), findsWidgets);
-    expect(attempts, 1);
-    await tester.tap(find.text('Retry').first);
-    await tester.pumpAndSettle();
-    expect(attempts, 2);
-  });
+      expect(find.text('No internet connection'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+      expect(find.text('USERS IN COMPANY'), findsNothing);
+      expect(attempts, 1);
 
-  testWidgets("shows the activity feed's own error state independently of the chart", (
-    tester,
-  ) async {
-    final api = FakeApi(
-      identityFor('field_inspector', roleMatrix['field_inspector']!),
-      activity: ({int limit = 20, String? cursor, String? action}) async =>
-          throw Exception('down'),
-    );
-    await pumpDashboard(tester, api: api);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      expect(attempts, 2);
+    },
+  );
 
-    final errorText =
-        find.text("Couldn't load recent activity. Check your connection and try again.");
-    await scrollTo(tester, errorText);
-    expect(errorText, findsOneWidget);
-  });
+  testWidgets(
+    'a failure in just the activity feed still surfaces the single page-level error',
+    (tester) async {
+      final api = FakeApi(
+        identityFor('field_inspector', roleMatrix['field_inspector']!),
+        activity: ({int limit = 20, String? cursor, String? action}) async =>
+            throw Exception('down'),
+      );
+      await pumpDashboard(tester, api: api);
+      await tester.pumpAndSettle();
+
+      expect(find.text('No internet connection'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+      expect(find.text('Recent activity'), findsNothing);
+    },
+  );
 
   testWidgets('refetches summary and series when the window switcher changes', (
     tester,

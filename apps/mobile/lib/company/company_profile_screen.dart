@@ -41,7 +41,11 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (context, _) => ListView(
+      builder: (context, _) {
+        if (controller.isInitializing) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return ListView(
         key: const Key('company-settings-scroll'),
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
@@ -69,7 +73,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
           else if (controller.profile != null)
             _CompanyProfileBody(profile: controller.profile!),
         ],
-      ),
+      );
+      },
     );
   }
 }

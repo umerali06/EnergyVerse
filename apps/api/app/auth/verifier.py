@@ -28,18 +28,22 @@ class FirebaseTokenVerifier:
                 "Authentication service is unavailable",
             )
         try:
+            # check_revoked=True adds a live lookup against Firebase's servers on
+            # every request. For a user created moments earlier that lookup can
+            # hit an eventually-consistent read path and report a perfectly valid,
+            # freshly-minted token as invalid (reproduced: same token fails, then
+            # succeeds unchanged ~5s later). get_current_user already re-checks
+            # user.status against our own DB on every request, so a
+            # disabled/deleted account is still blocked without this race.
             decoded: Mapping[str, Any] = await asyncio.to_thread(
                 auth.verify_id_token,
                 token,
                 app=app,
-                check_revoked=True,
                 clock_skew_seconds=TOKEN_CLOCK_SKEW_SECONDS,
             )
             return decoded
         except auth.ExpiredIdTokenError as error:
             raise TokenVerificationError("token_expired", "Token has expired") from error
-        except auth.RevokedIdTokenError as error:
-            raise TokenVerificationError("token_revoked", "Token has been revoked") from error
         except (auth.InvalidIdTokenError, auth.UserDisabledError) as error:
             raise TokenVerificationError("invalid_token", "Token is invalid") from error
         except Exception as error:

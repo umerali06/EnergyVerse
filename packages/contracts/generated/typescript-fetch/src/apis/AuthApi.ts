@@ -19,6 +19,7 @@ import type {
   CompanyRegistrationResponse,
   CurrentUser,
   ErrorEnvelope,
+  VerificationEmailResponse,
 } from '../models/index';
 import {
     CompanyRegistrationRequestFromJSON,
@@ -29,6 +30,8 @@ import {
     CurrentUserToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
+    VerificationEmailResponseFromJSON,
+    VerificationEmailResponseToJSON,
 } from '../models/index';
 
 export interface RegisterCompanyAdminRequest {
@@ -107,6 +110,40 @@ export class AuthApi extends runtime.BaseAPI {
      */
     async registerCompanyAdmin(requestParameters: RegisterCompanyAdminRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CompanyRegistrationResponse> {
         const response = await this.registerCompanyAdminRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Request Verification Email
+     */
+    async sendVerificationEmailRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<VerificationEmailResponse>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/auth/verification-email`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => VerificationEmailResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Request Verification Email
+     */
+    async sendVerificationEmail(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<VerificationEmailResponse> {
+        const response = await this.sendVerificationEmailRaw(initOverrides);
         return await response.value();
     }
 

@@ -87,7 +87,11 @@ class _AuditScreenState extends State<AuditScreen> {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (context, _) => ListView(
+      builder: (context, _) {
+        if (controller.isInitializing) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return ListView(
         key: const Key('audit-scroll'),
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
@@ -196,7 +200,8 @@ class _AuditScreenState extends State<AuditScreen> {
               ),
           ],
         ],
-      ),
+      );
+      },
     );
   }
 }

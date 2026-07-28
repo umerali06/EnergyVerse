@@ -81,6 +81,7 @@ src/models/UserListItem.ts
 src/models/UserListPage.ts
 src/models/ValidationError.ts
 src/models/ValidationErrorLocInner.ts
+src/models/VerificationEmailResponse.ts
 src/models/index.ts
 src/runtime.ts
 tsconfig.esm.json

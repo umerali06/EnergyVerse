@@ -130,7 +130,7 @@ export function PlatformCompanyModal({
             </StatusPill>
           </div>
 
-          <dl className="grid grid-cols-2 gap-3 text-bodySmall">
+          <dl className="grid grid-cols-1 gap-3 text-bodySmall sm:grid-cols-2">
             <div>
               <dt className="text-caption uppercase tracking-[0.1em] text-text-muted">Industry</dt>
               <dd>{detail.industry ?? "Not set"}</dd>

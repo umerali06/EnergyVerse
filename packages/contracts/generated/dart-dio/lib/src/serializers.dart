@@ -77,6 +77,7 @@ import 'package:fev_api_client/src/model/user_list_item.dart';
 import 'package:fev_api_client/src/model/user_list_page.dart';
 import 'package:fev_api_client/src/model/validation_error.dart';
 import 'package:fev_api_client/src/model/validation_error_loc_inner.dart';
+import 'package:fev_api_client/src/model/verification_email_response.dart';
 
 part 'serializers.g.dart';
 
@@ -144,6 +145,7 @@ part 'serializers.g.dart';
   UserListPage,
   ValidationError,
   ValidationErrorLocInner,
+  VerificationEmailResponse,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..add(const OneOfSerializer())

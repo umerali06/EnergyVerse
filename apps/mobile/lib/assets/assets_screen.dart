@@ -67,6 +67,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
+        if (controller.isInitializing) {
+          return const Center(child: CircularProgressIndicator());
+        }
         final areaOptions = controller.facilityId == null
             ? const <AreaDetail>[]
             : controller.areas.where((area) => area.facilityId == controller.facilityId).toList();

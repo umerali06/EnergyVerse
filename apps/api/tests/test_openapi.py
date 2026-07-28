@@ -11,6 +11,7 @@ EXPECTED_OPERATIONS = {
     "get_root",
     "get_health",
     "get_current_user",
+    "send_verification_email",
     "register_company_admin",
     "rbac_demo_single_permission",
     "rbac_demo_all_permissions",

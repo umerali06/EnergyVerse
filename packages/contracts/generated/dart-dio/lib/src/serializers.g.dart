@@ -87,6 +87,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(UserListPage.serializer)
       ..add(ValidationError.serializer)
       ..add(ValidationErrorLocInner.serializer)
+      ..add(VerificationEmailResponse.serializer)
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AreaDetail)]),
           () => new ListBuilder<AreaDetail>())

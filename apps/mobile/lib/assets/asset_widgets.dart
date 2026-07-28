@@ -57,7 +57,35 @@ void registerAssetDashboardWidgets() {
 int _totalOf(AssetDashboardSummary summary) => summary.total;
 int _criticalOf(AssetDashboardSummary summary) => summary.critical;
 
-/// Fetches the real asset KPI summary once per widget instance.
+/// Lets DashboardScreen supply one already-fetched (or in-flight) asset
+/// summary to every registered asset widget, instead of each one
+/// independently calling the API and showing its own spinner. Absent this
+/// scope (e.g. a widget embedded standalone outside the dashboard), each
+/// widget below falls back to fetching for itself -- the pluggable widget
+/// contract's self-containment guarantee still holds outside DashboardScreen.
+class AssetDashboardSummaryScope extends InheritedWidget {
+  const AssetDashboardSummaryScope({
+    required this.status,
+    required this.data,
+    required this.retry,
+    required super.child,
+    super.key,
+  });
+
+  final LoadStatus status;
+  final AssetDashboardSummary? data;
+  final VoidCallback retry;
+
+  static AssetDashboardSummaryScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AssetDashboardSummaryScope>();
+
+  @override
+  bool updateShouldNotify(AssetDashboardSummaryScope oldWidget) =>
+      status != oldWidget.status || data != oldWidget.data;
+}
+
+/// Fetches the real asset KPI summary once per widget instance, unless an
+/// ancestor [AssetDashboardSummaryScope] already provides it.
 class _AssetSummaryFetch extends StatefulWidget {
   const _AssetSummaryFetch({required this.builder});
 
@@ -82,6 +110,7 @@ class _AssetSummaryFetchState extends State<_AssetSummaryFetch> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (AssetDashboardSummaryScope.maybeOf(context) != null) return;
     if (!_started) {
       _started = true;
       unawaited(_load());
@@ -106,7 +135,11 @@ class _AssetSummaryFetchState extends State<_AssetSummaryFetch> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.builder(context, _status, _data, () => unawaited(_load()));
+  Widget build(BuildContext context) {
+    final scope = AssetDashboardSummaryScope.maybeOf(context);
+    if (scope != null) return widget.builder(context, scope.status, scope.data, scope.retry);
+    return widget.builder(context, _status, _data, () => unawaited(_load()));
+  }
 }
 
 class _AssetStatTile extends StatelessWidget {

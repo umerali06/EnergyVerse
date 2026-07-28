@@ -29,6 +29,9 @@ class _IdentityApi implements ApiContract {
   Future<HealthResponse> getHealth() => throw UnimplementedError();
 
   @override
+  Future<bool> sendVerificationEmail() => throw UnimplementedError();
+
+  @override
   Future<CompanyRegistrationResponse> registerCompanyAdmin({
     required String companyName,
     required String displayName,

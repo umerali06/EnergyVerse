@@ -130,7 +130,7 @@ class AuthController extends ChangeNotifier {
       );
       final session = await _gateway.signIn(input.email, input.password);
       await _resolveSession(session);
-      await _gateway.sendEmailVerification();
+      await _api.sendVerificationEmail();
       _verificationSentAt = DateTime.now();
       _feedback('Verification email sent');
       _status = AuthStatus.verificationRequired;
@@ -146,7 +146,7 @@ class AuthController extends ChangeNotifier {
   Future<void> resendVerification() async {
     if (!verificationResendAvailable) return;
     try {
-      await _gateway.sendEmailVerification();
+      await _api.sendVerificationEmail();
       _verificationSentAt = DateTime.now();
       _feedback('Verification email sent');
       _notify();

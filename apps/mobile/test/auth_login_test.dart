@@ -47,6 +47,7 @@ class FakeApi implements ApiContract {
   Future<void>? gate;
   int requests = 0;
   int registrations = 0;
+  int verificationEmailCalls = 0;
 
   @override
   Future<CurrentUser> getCurrentUser() async {
@@ -54,6 +55,12 @@ class FakeApi implements ApiContract {
     if (gate != null) await gate;
     if (result is Exception) throw result;
     return result as CurrentUser;
+  }
+
+  @override
+  Future<bool> sendVerificationEmail() async {
+    verificationEmailCalls += 1;
+    return true;
   }
 
   @override
@@ -606,7 +613,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Verify your email'), findsOneWidget);
     expect(api.registrations, 1);
-    expect(gateway.verificationCalls, 1);
+    expect(api.verificationEmailCalls, 1);
     expect(find.text('Verification email sent'), findsWidgets);
   });
 
@@ -635,7 +642,7 @@ void main() {
 
       await tester.tap(find.text('Resend verification'));
       await tester.pump();
-      expect(gateway.verificationCalls, 1);
+      expect(api.verificationEmailCalls, 1);
       expect(find.text('Verification email sent'), findsWidgets);
 
       api.result = identity();

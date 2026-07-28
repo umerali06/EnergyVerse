@@ -60,7 +60,11 @@ class _UsersScreenState extends State<UsersScreen> {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (context, _) => ListView(
+      builder: (context, _) {
+        if (controller.isInitializing) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return ListView(
         key: const Key('users-scroll'),
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
@@ -154,7 +158,8 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
           ],
         ],
-      ),
+      );
+      },
     );
   }
 }

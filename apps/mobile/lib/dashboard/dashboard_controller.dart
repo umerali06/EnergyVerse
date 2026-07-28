@@ -15,9 +15,12 @@ const activityPageSize = 20;
 /// field here is either null (not loaded / errored) or a value that came
 /// back from the API.
 class DashboardController extends ChangeNotifier {
-  DashboardController({required ApiContract api}) : _api = api;
+  DashboardController({required ApiContract api, bool hasAssetsAccess = true})
+      : _api = api,
+        _hasAssetsAccess = hasAssetsAccess;
 
   final ApiContract _api;
+  final bool _hasAssetsAccess;
   bool _disposed = false;
 
   int _window = 30;
@@ -36,13 +39,46 @@ class DashboardController extends ChangeNotifier {
   bool loadingMore = false;
   String? actionFilter;
 
+  // Shared here so the pluggable asset widgets (registerAssetDashboardWidgets)
+  // don't each independently fetch the same data and each show their own
+  // spinner -- see AssetDashboardSummaryScope in asset_widgets.dart. A
+  // failure here stays isolated to those widgets rather than joining
+  // [hasError]: one bad pluggable widget must never blank the rest of the
+  // dashboard (documented contract, see widget_registry.dart).
+  LoadStatus assetsSummaryStatus = LoadStatus.loading;
+  AssetDashboardSummary? assetsSummary;
+
   int _summaryRequestId = 0;
   int _seriesRequestId = 0;
   int _activityRequestId = 0;
+  int _assetsSummaryRequestId = 0;
+
+  /// The page renders one loading state and one error state for the whole
+  /// dashboard rather than a separate spinner/retry per card -- independent
+  /// network calls reading as several broken/loading pieces looks broken,
+  /// not busy.
+  bool get isBusy =>
+      summaryStatus == LoadStatus.loading ||
+      seriesStatus == LoadStatus.loading ||
+      activityStatus == LoadStatus.loading ||
+      assetsSummaryStatus == LoadStatus.loading;
+
+  bool get hasError =>
+      !isBusy &&
+      (summaryStatus == LoadStatus.error ||
+          seriesStatus == LoadStatus.error ||
+          activityStatus == LoadStatus.error);
 
   Future<void> start() async {
-    await Future.wait([_loadSummary(), _loadSeries(), _loadActivity()]);
+    await Future.wait([
+      _loadSummary(),
+      _loadSeries(),
+      _loadActivity(),
+      _loadAssetsSummary(),
+    ]);
   }
+
+  Future<void> retryAssetsSummary() => _loadAssetsSummary();
 
   Future<void> setWindow(int value) async {
     if (value == _window) return;
@@ -54,10 +90,6 @@ class DashboardController extends ChangeNotifier {
     actionFilter = action;
     await _loadActivity();
   }
-
-  Future<void> retrySummary() => _loadSummary();
-  Future<void> retrySeries() => _loadSeries();
-  Future<void> retryActivity() => _loadActivity();
 
   Future<void> _loadSummary() async {
     final requestId = ++_summaryRequestId;
@@ -109,6 +141,26 @@ class DashboardController extends ChangeNotifier {
     } catch (_) {
       if (requestId != _activityRequestId) return;
       activityStatus = LoadStatus.error;
+    }
+    _notify();
+  }
+
+  Future<void> _loadAssetsSummary() async {
+    if (!_hasAssetsAccess) {
+      assetsSummaryStatus = LoadStatus.ready;
+      return;
+    }
+    final requestId = ++_assetsSummaryRequestId;
+    assetsSummaryStatus = LoadStatus.loading;
+    _notify();
+    try {
+      final result = await _api.getDashboardAssetsSummary();
+      if (requestId != _assetsSummaryRequestId) return;
+      assetsSummary = result;
+      assetsSummaryStatus = LoadStatus.ready;
+    } catch (_) {
+      if (requestId != _assetsSummaryRequestId) return;
+      assetsSummaryStatus = LoadStatus.error;
     }
     _notify();
   }

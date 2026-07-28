@@ -19,5 +19,12 @@ void main() {
     test('test registerCompanyAdmin', () async {
       // TODO
     });
+
+    // Request Verification Email
+    //
+    //Future<VerificationEmailResponse> sendVerificationEmail() async
+    test('test sendVerificationEmail', () async {
+      // TODO
+    });
   });
 }

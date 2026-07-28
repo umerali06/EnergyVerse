@@ -78,6 +78,7 @@ doc/UserListPage.md
 doc/UsersApi.md
 doc/ValidationError.md
 doc/ValidationErrorLocInner.md
+doc/VerificationEmailResponse.md
 lib/fev_api_client.dart
 lib/src/api.dart
 lib/src/api/areas_api.dart
@@ -164,6 +165,7 @@ lib/src/model/user_list_item.dart
 lib/src/model/user_list_page.dart
 lib/src/model/validation_error.dart
 lib/src/model/validation_error_loc_inner.dart
+lib/src/model/verification_email_response.dart
 lib/src/serializers.dart
 pubspec.yaml
 test/area_deleted_test.dart
@@ -242,3 +244,4 @@ test/user_list_page_test.dart
 test/users_api_test.dart
 test/validation_error_loc_inner_test.dart
 test/validation_error_test.dart
+test/verification_email_response_test.dart

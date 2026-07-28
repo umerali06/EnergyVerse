@@ -121,6 +121,7 @@ class DashboardWidgetGrid extends StatelessWidget {
     if (widgets.isEmpty) return const SizedBox.shrink();
     return Column(
       key: const Key('dashboard-widget-grid'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final spec in widgets) ...[
           _WidgetBoundary(title: spec.title, builder: spec.builder),

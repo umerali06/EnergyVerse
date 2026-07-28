@@ -83,6 +83,7 @@ Class | Method | HTTP request | Description
 [*AuditApi*](doc/AuditApi.md) | [**listAuditLogs**](doc/AuditApi.md#listauditlogs) | **GET** /api/v1/audit-logs | List Audit Logs
 [*AuthApi*](doc/AuthApi.md) | [**getCurrentUser**](doc/AuthApi.md#getcurrentuser) | **GET** /api/v1/auth/me | Me
 [*AuthApi*](doc/AuthApi.md) | [**registerCompanyAdmin**](doc/AuthApi.md#registercompanyadmin) | **POST** /api/v1/auth/register | Register Company Admin
+[*AuthApi*](doc/AuthApi.md) | [**sendVerificationEmail**](doc/AuthApi.md#sendverificationemail) | **POST** /api/v1/auth/verification-email | Request Verification Email
 [*CompanyApi*](doc/CompanyApi.md) | [**getCompany**](doc/CompanyApi.md#getcompany) | **GET** /api/v1/company | Get Company
 [*CompanyApi*](doc/CompanyApi.md) | [**removeCompanyLogo**](doc/CompanyApi.md#removecompanylogo) | **DELETE** /api/v1/company/logo | Remove Company Logo
 [*CompanyApi*](doc/CompanyApi.md) | [**updateCompany**](doc/CompanyApi.md#updatecompany) | **PATCH** /api/v1/company | Update Company
@@ -184,6 +185,7 @@ Class | Method | HTTP request | Description
  - [UserListPage](doc/UserListPage.md)
  - [ValidationError](doc/ValidationError.md)
  - [ValidationErrorLocInner](doc/ValidationErrorLocInner.md)
+ - [VerificationEmailResponse](doc/VerificationEmailResponse.md)
 
 
 ## Documentation For Authorization

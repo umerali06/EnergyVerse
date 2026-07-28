@@ -49,6 +49,7 @@ class ApiException implements Exception {
 abstract interface class ApiContract {
   Future<HealthResponse> getHealth();
   Future<CurrentUser> getCurrentUser();
+  Future<bool> sendVerificationEmail();
   Future<CompanyRegistrationResponse> registerCompanyAdmin({
     required String companyName,
     required String displayName,
@@ -262,6 +263,16 @@ class ApiService implements ApiContract {
         );
       }
       return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<bool> sendVerificationEmail() async {
+    try {
+      final response = await _client.getAuthApi().sendVerificationEmail();
+      return response.data?.sent ?? false;
     } on DioException catch (error) {
       throw _typedError(error);
     }

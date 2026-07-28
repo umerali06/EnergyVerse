@@ -15,7 +15,18 @@ class RolesController extends ChangeNotifier {
   LoadStatus listStatus = LoadStatus.loading;
   List<RoleSummary> items = const [];
 
-  Future<void> start() => _load();
+  /// True only until this screen's first load settles, so the whole page
+  /// can show one full-page loader on entry instead of the header popping
+  /// in immediately while the list shows its own skeleton.
+  bool _initializing = true;
+  bool get isInitializing => _initializing;
+
+  Future<void> start() async {
+    await _load();
+    _initializing = false;
+    _notify();
+  }
+
   Future<void> retry() => _load();
 
   Future<void> _load() async {

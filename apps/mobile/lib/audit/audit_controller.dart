@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:flutter/foundation.dart';
 
@@ -43,9 +41,18 @@ class AuditController extends ChangeNotifier {
   String? targetType;
   String q = '';
 
-  Future<void> start() {
-    unawaited(_loadFacets());
-    return _load();
+  /// True only until this screen's first load (list + facets) settles, so
+  /// the whole page can show one full-page loader on entry instead of the
+  /// header/filters popping in immediately while the list shows its own
+  /// skeleton. Never true again after that, so later filter-triggered
+  /// reloads keep the filters visible and only the list re-loads.
+  bool _initializing = true;
+  bool get isInitializing => _initializing;
+
+  Future<void> start() async {
+    await Future.wait([_loadFacets(), _load()]);
+    _initializing = false;
+    _notify();
   }
 
   Future<void> retry() => _load();

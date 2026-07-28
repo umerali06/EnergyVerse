@@ -49,7 +49,11 @@ class _RolesScreenState extends State<RolesScreen> {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (context, _) => ListView(
+      builder: (context, _) {
+        if (controller.isInitializing) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return ListView(
         key: const Key('roles-scroll'),
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
@@ -82,7 +86,8 @@ class _RolesScreenState extends State<RolesScreen> {
             for (final role in controller.items)
               _RoleRow(key: ValueKey(role.id), onTap: () => _openDetail(role.id), role: role),
         ],
-      ),
+      );
+      },
     );
   }
 }

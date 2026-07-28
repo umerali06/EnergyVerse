@@ -272,11 +272,41 @@ export function StatusPill({ children, tone }: { children: ReactNode; tone: Stat
 }
 
 export function TableShell({ children, label }: { children: ReactNode; label: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateEdges = () => {
+    const node = scrollRef.current;
+    if (!node) return;
+    setCanScrollLeft(node.scrollLeft > 0);
+    setCanScrollRight(Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth);
+  };
+
+  useEffect(() => {
+    updateEdges();
+    const node = scrollRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [children]);
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
-      <table aria-label={label} className="w-full border-collapse text-left text-body">
-        {children}
-      </table>
+    <div className="relative rounded-xl border border-border">
+      <div className="overflow-x-auto" onScroll={updateEdges} ref={scrollRef}>
+        <table aria-label={label} className="w-full min-w-[640px] border-collapse text-left text-body">
+          {children}
+        </table>
+      </div>
+      {/* Horizontal scroll is common on phone-width tables; these fades hint
+          there's more off-screen so narrow viewports don't read as truncated. */}
+      {canScrollLeft && (
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-6 rounded-l-xl bg-gradient-to-r from-surface to-transparent" />
+      )}
+      {canScrollRight && (
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-6 rounded-r-xl bg-gradient-to-l from-surface to-transparent" />
+      )}
     </div>
   );
 }

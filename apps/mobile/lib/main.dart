@@ -75,6 +75,7 @@ class _FevAppState extends State<FevApp> {
         builder: (context, _) => MaterialApp(
           title: 'FEV Field App',
           scaffoldMessengerKey: _messengerKey,
+          scrollBehavior: const AppScrollBehavior(),
           theme: AppThemes.light,
           darkTheme: AppThemes.dark,
           themeMode: _theme.mode,

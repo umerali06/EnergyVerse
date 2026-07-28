@@ -55,7 +55,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.didChangeDependencies();
     // InheritedWidget lookups (AuthProvider.of) aren't allowed in initState,
     // so the controller is built here instead — guarded to run only once.
-    _controller ??= DashboardController(api: AuthProvider.of(context).api)..start();
+    _controller ??= DashboardController(
+      api: AuthProvider.of(context).api,
+      hasAssetsAccess: PermissionProvider.of(context).can('assets.read'),
+    )..start();
     // Idempotent (registerDashboardWidget no-ops on a duplicate id) -- safe
     // to call on every dependency change.
     registerAssetDashboardWidgets();
@@ -80,31 +83,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (context, _) => ListView(
-        key: const Key('dashboard-scroll'),
-        padding: const EdgeInsets.all(DsSpacing.s6),
-        children: [
-          _Header(user: user),
-          const SizedBox(height: DsSpacing.s6),
-          if (showUsers || showRoles) ...[
-            _StatGrid(controller: controller, showRoles: showRoles, showUsers: showUsers),
+      builder: (context, _) {
+        // One loading state and one error state for the whole page: three
+        // independent requests (summary/series/activity) reading as three
+        // separate spinners and retry buttons looks broken, not busy.
+        if (controller.isBusy) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (controller.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(DsSpacing.s6),
+              child: EmptyState(
+                title: 'No internet connection',
+                description:
+                    "Couldn't load your dashboard. Check your connection and try again.",
+                action: AppButton(
+                  label: 'Try again',
+                  onPressed: controller.start,
+                  variant: AppButtonVariant.ghost,
+                ),
+              ),
+            ),
+          );
+        }
+        return ListView(
+          key: const Key('dashboard-scroll'),
+          padding: const EdgeInsets.all(DsSpacing.s6),
+          children: [
+            _Header(user: user),
             const SizedBox(height: DsSpacing.s6),
-          ] else ...[
-            _AuditOnlyStat(controller: controller),
+            if (showUsers || showRoles) ...[
+              _StatGrid(controller: controller, showRoles: showRoles, showUsers: showUsers),
+              const SizedBox(height: DsSpacing.s6),
+            ] else ...[
+              _AuditOnlyStat(controller: controller),
+              const SizedBox(height: DsSpacing.s6),
+            ],
+            _ActivityChartCard(controller: controller),
             const SizedBox(height: DsSpacing.s6),
+            _ActivityFeedCard(controller: controller),
+            const SizedBox(height: DsSpacing.s6),
+            const _QuickActionsCard(),
+            const SizedBox(height: DsSpacing.s6),
+            AssetDashboardSummaryScope(
+              status: controller.assetsSummaryStatus,
+              data: controller.assetsSummary,
+              retry: controller.retryAssetsSummary,
+              child: DashboardWidgetGrid(
+                subscriptionTier: controller.summary?.subscriptionTier,
+                filter: (spec) => _widgetVisibleForRole(spec, user.roleKey),
+              ),
+            ),
           ],
-          _ActivityChartCard(controller: controller),
-          const SizedBox(height: DsSpacing.s6),
-          _ActivityFeedCard(controller: controller),
-          const SizedBox(height: DsSpacing.s6),
-          const _QuickActionsCard(),
-          const SizedBox(height: DsSpacing.s6),
-          DashboardWidgetGrid(
-            subscriptionTier: controller.summary?.subscriptionTier,
-            filter: (spec) => _widgetVisibleForRole(spec, user.roleKey),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -159,12 +192,10 @@ class _Header extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.status, required this.value, this.onRetry});
+  const _StatTile({required this.label, required this.value});
 
   final String label;
-  final LoadStatus status;
   final int? value;
-  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -182,23 +213,14 @@ class _StatTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: DsSpacing.s2),
-          if (status == LoadStatus.loading)
-            const SizedBox(
-              height: 28,
-              width: 28,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else if (status == LoadStatus.error)
-            TextButton(onPressed: onRetry, child: const Text('Retry'))
-          else
-            Text(
-              '$value',
-              style: TextStyle(
-                fontFamily: DsTypography.mono,
-                fontSize: DsTypography.sizeH2,
-                fontWeight: FontWeight.w700,
-              ),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontFamily: DsTypography.mono,
+              fontSize: DsTypography.sizeH2,
+              fontWeight: FontWeight.w700,
             ),
+          ),
         ],
       ),
     );
@@ -216,31 +238,11 @@ class _StatGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final summary = controller.summary;
     final tiles = <Widget>[
-      if (showUsers)
-        _StatTile(
-          label: 'USERS IN COMPANY',
-          onRetry: controller.retrySummary,
-          status: controller.summaryStatus,
-          value: summary?.usersTotal,
-        ),
-      if (showUsers)
-        _StatTile(
-          label: 'ACTIVE USERS',
-          onRetry: controller.retrySummary,
-          status: controller.summaryStatus,
-          value: summary?.usersActive,
-        ),
-      if (showRoles)
-        _StatTile(
-          label: 'ROLES CONFIGURED',
-          onRetry: controller.retrySummary,
-          status: controller.summaryStatus,
-          value: summary?.rolesTotal,
-        ),
+      if (showUsers) _StatTile(label: 'USERS IN COMPANY', value: summary?.usersTotal),
+      if (showUsers) _StatTile(label: 'ACTIVE USERS', value: summary?.usersActive),
+      if (showRoles) _StatTile(label: 'ROLES CONFIGURED', value: summary?.rolesTotal),
       _StatTile(
         label: 'AUDIT EVENTS (${controller.window}D)',
-        onRetry: controller.retrySummary,
-        status: controller.summaryStatus,
         value: summary?.auditEvents,
       ),
     ];
@@ -276,8 +278,6 @@ class _AuditOnlyStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StatTile(
       label: 'AUDIT EVENTS (${controller.window}D)',
-      onRetry: controller.retrySummary,
-      status: controller.summaryStatus,
       value: controller.summary?.auditEvents,
     );
   }
@@ -300,11 +300,10 @@ class _ActivityChartCard extends StatelessWidget {
         )
         .toList();
     final allZero = points.isNotEmpty && points.every((point) => point.value == 0);
-    final status = switch (controller.seriesStatus) {
-      LoadStatus.loading => ChartStatus.loading,
-      LoadStatus.error => ChartStatus.error,
-      LoadStatus.ready => allZero ? ChartStatus.empty : ChartStatus.ready,
-    };
+    // The page-level gate in DashboardScreen only renders this card once
+    // seriesStatus is LoadStatus.ready, so the chart itself only ever needs
+    // its data states here (empty vs. populated), never loading/error.
+    final status = allZero ? ChartStatus.empty : ChartStatus.ready;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,8 +320,6 @@ class _ActivityChartCard extends StatelessWidget {
             data: points,
             emptyDescription: 'Activity appears here once events are recorded for this tenant.',
             emptyTitle: 'No activity to chart yet',
-            errorDescription: "Couldn't load activity data. Check your connection and try again.",
-            onRetry: controller.retrySeries,
             status: status,
           ),
         ],
@@ -412,26 +409,7 @@ class _ActivityFeedCard extends StatelessWidget {
         children: [
           Text('Recent activity', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: DsSpacing.s3),
-          if (controller.activityStatus == LoadStatus.loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: DsSpacing.s4),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else if (controller.activityStatus == LoadStatus.error)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: DsSpacing.s2),
-              child: Column(
-                children: [
-                  const Text(
-                    "Couldn't load recent activity. Check your connection and try again.",
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: DsSpacing.s2),
-                  TextButton(onPressed: controller.retryActivity, child: const Text('Retry')),
-                ],
-              ),
-            )
-          else if (controller.activityItems.isEmpty)
+          if (controller.activityItems.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: DsSpacing.s4),
               child: Text(
