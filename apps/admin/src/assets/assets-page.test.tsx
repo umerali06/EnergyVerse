@@ -10,6 +10,10 @@ import { ThemeProvider, ToastProvider } from "@/design-system";
 
 import { AssetsPage } from "./assets-page";
 
+// Mutable so individual tests can simulate a KPI card's deep link (e.g.
+// `/assets?status=Critical`) by reassigning before rendering.
+let mockSearchParams = new URLSearchParams();
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     back: vi.fn(),
@@ -17,6 +21,7 @@ vi.mock("next/navigation", () => ({
     push: vi.fn(),
     replace: vi.fn(),
   }),
+  useSearchParams: () => mockSearchParams,
 }));
 
 const session: AuthSession = {
@@ -287,5 +292,18 @@ describe("assets page", () => {
     renderAssets({ roleKey: "field_inspector", permissions: roleMatrix.field_inspector, gated: true });
     expect(await screen.findByText("You can't view this area")).toBeInTheDocument();
     expect(screen.queryByText("Assets")).not.toBeInTheDocument();
+  });
+
+  it("hydrates the status filter from the URL on mount (dashboard KPI deep link)", async () => {
+    mockSearchParams = new URLSearchParams("status=Critical");
+    try {
+      const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+      renderAssets({ listAssets });
+      await screen.findByText("Feed Pump");
+      expect(listAssets.mock.calls[0]?.[0]).toMatchObject({ currentStatus: "Critical" });
+      expect(screen.getByLabelText("Status")).toHaveValue("Critical");
+    } finally {
+      mockSearchParams = new URLSearchParams();
+    }
   });
 });

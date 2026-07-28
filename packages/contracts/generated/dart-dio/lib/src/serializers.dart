@@ -17,8 +17,11 @@ import 'package:fev_api_client/src/model/date.dart';
 import 'package:fev_api_client/src/model/area_deleted.dart';
 import 'package:fev_api_client/src/model/area_detail.dart';
 import 'package:fev_api_client/src/model/area_list_page.dart';
+import 'package:fev_api_client/src/model/asset_category_count.dart';
+import 'package:fev_api_client/src/model/asset_dashboard_summary.dart';
 import 'package:fev_api_client/src/model/asset_deleted.dart';
 import 'package:fev_api_client/src/model/asset_detail.dart';
+import 'package:fev_api_client/src/model/asset_facility_count.dart';
 import 'package:fev_api_client/src/model/asset_history_event.dart';
 import 'package:fev_api_client/src/model/asset_history_page.dart';
 import 'package:fev_api_client/src/model/asset_list_item.dart';
@@ -81,8 +84,11 @@ part 'serializers.g.dart';
   AreaDeleted,
   AreaDetail,
   AreaListPage,
+  AssetCategoryCount,
+  AssetDashboardSummary,
   AssetDeleted,
   AssetDetail,
+  AssetFacilityCount,
   AssetHistoryEvent,
   AssetHistoryPage,
   AssetListItem,

@@ -20,6 +20,13 @@ void main() {
       // TODO
     });
 
+    // Dashboard Assets Summary
+    //
+    //Future<AssetDashboardSummary> getDashboardAssetsSummary() async
+    test('test getDashboardAssetsSummary', () async {
+      // TODO
+    });
+
     // Dashboard Summary
     //
     //Future<DashboardSummary> getDashboardSummary({ int window }) async

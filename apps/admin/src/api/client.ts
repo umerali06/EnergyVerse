@@ -17,6 +17,7 @@ import {
   UsersApi,
   type AreaDetail,
   type AreaListPage,
+  type AssetDashboardSummary,
   type AssetDetail,
   type AssetHistoryPage,
   type AssetListPage,
@@ -233,6 +234,12 @@ export class FevApiClient {
   ): Promise<DashboardSummary> {
     return this.execute(() =>
       this.dashboard.getDashboardSummary({ window }, signal ? { signal } : undefined),
+    );
+  }
+
+  getDashboardAssetsSummary(signal?: AbortSignal): Promise<AssetDashboardSummary> {
+    return this.execute(() =>
+      this.dashboard.getDashboardAssetsSummary(signal ? { signal } : undefined),
     );
   }
 

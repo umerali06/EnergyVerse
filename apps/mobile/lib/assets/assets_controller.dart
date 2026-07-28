@@ -14,7 +14,12 @@ const _lookupLimit = 100;
 /// list/detail breadcrumb — the asset payloads only carry facilityId/areaId,
 /// never names. Mirrors the Phase 3.1 users controller.
 class AssetsController extends ChangeNotifier {
-  AssetsController({required ApiContract api}) : _api = api;
+  /// `initialStatus` seeds the status filter once at construction (e.g. the
+  /// dashboard's Critical Assets widget deep-linking in with an argument) --
+  /// it is read once, not kept in sync with the route afterward.
+  AssetsController({required ApiContract api, String? initialStatus})
+    : _api = api,
+      status = initialStatus;
 
   final ApiContract _api;
   bool _disposed = false;

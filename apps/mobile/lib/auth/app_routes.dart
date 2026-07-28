@@ -122,17 +122,20 @@ class AppRoutes {
               ),
             );
       case assets:
-        return (_) => const RequireAuthGuard(
-              routeName: assets,
-              child: AppShellScaffold(
-                currentRoute: assets,
-                child: PermissionGate(
-                  permission: 'assets.read',
-                  fallback: NoAccessScreen(permission: 'assets.read'),
-                  child: AssetsScreen(),
-                ),
+        return (context) {
+          final initialStatus = ModalRoute.of(context)!.settings.arguments as String?;
+          return RequireAuthGuard(
+            routeName: assets,
+            child: AppShellScaffold(
+              currentRoute: assets,
+              child: PermissionGate(
+                permission: 'assets.read',
+                fallback: const NoAccessScreen(permission: 'assets.read'),
+                child: AssetsScreen(initialStatus: initialStatus),
               ),
-            );
+            ),
+          );
+        };
       case assetDetail:
         return (context) {
           final assetId = ModalRoute.of(context)!.settings.arguments as String;

@@ -1,7 +1,7 @@
 "use client";
 
 import type { AssetListItem } from "@fev/api-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/auth/auth-context";
 
 import { formatRelativeTime } from "@/dashboard/format";
@@ -38,7 +38,10 @@ function statusTone(status: string): StatusTone {
 }
 
 export function AssetsPage({ reducedMotionOverride }: { reducedMotionOverride?: boolean } = {}) {
-  const data = useAssetsData();
+  const searchParams = useSearchParams();
+  // Read once on mount so a dashboard KPI card (e.g. Critical Assets) can
+  // deep-link into a pre-filtered list via `/assets?status=Critical`.
+  const data = useAssetsData({ status: searchParams.get("status") });
   const router = useRouter();
   const { currentUser } = useAuth();
   const canWrite = currentUser?.permissions.has("assets.write") ?? false;

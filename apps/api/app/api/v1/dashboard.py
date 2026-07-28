@@ -5,11 +5,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.assets.service import AssetManagementService, get_asset_management_service
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
 from app.models.api import (
+    AssetDashboardSummary,
     DashboardActivityItem,
     DashboardActivityPage,
     DashboardActivitySeries,
@@ -27,6 +29,11 @@ router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 # reports.read (0.4 matrix), so the whole company can see its own dashboard
 # while the client hides finer-grained cards per permission (0.6 guards).
 _dashboard_access = require_permission("reports.read")
+
+# Asset KPIs are gated by assets.read specifically (not every reports.read
+# holder should see asset data) -- the pluggable widget framework's per-widget
+# permission gate, not the whole-dashboard gate above (Phase 4.4).
+_assets_kpi_access = require_permission("assets.read")
 
 SUPPORTED_WINDOWS = (7, 30, 90)
 
@@ -84,6 +91,20 @@ async def dashboard_summary(
         audit_events=len(events),
         window_days=window,
     )
+
+
+@router.get(
+    "/assets-summary",
+    response_model=AssetDashboardSummary,
+    operation_id="get_dashboard_assets_summary",
+    responses=error_responses(401, 403, 500),
+)
+async def dashboard_assets_summary(
+    current_user: Annotated[CurrentUser, Depends(_assets_kpi_access)],
+    service: Annotated[AssetManagementService, Depends(get_asset_management_service)],
+) -> AssetDashboardSummary:
+    scope = CompanyScope(company_id=current_user.company_id)
+    return await service.get_dashboard_summary(scope)
 
 
 def _encode_cursor(created_at: datetime, event_id: str) -> str:

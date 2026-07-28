@@ -103,6 +103,68 @@
         "title": "AreaListPage",
         "type": "object"
       },
+      "AssetCategoryCount": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category",
+          "count"
+        ],
+        "title": "AssetCategoryCount",
+        "type": "object"
+      },
+      "AssetDashboardSummary": {
+        "properties": {
+          "by_category": {
+            "items": {
+              "$ref": "#/components/schemas/AssetCategoryCount"
+            },
+            "title": "By Category",
+            "type": "array"
+          },
+          "by_facility": {
+            "items": {
+              "$ref": "#/components/schemas/AssetFacilityCount"
+            },
+            "title": "By Facility",
+            "type": "array"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "integer"
+          },
+          "healthy": {
+            "title": "Healthy",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "warning": {
+            "title": "Warning",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "healthy",
+          "warning",
+          "critical",
+          "by_category",
+          "by_facility"
+        ],
+        "title": "AssetDashboardSummary",
+        "type": "object"
+      },
       "AssetDeleted": {
         "properties": {
           "deleted": {
@@ -328,6 +390,29 @@
           "updated_at"
         ],
         "title": "AssetDetail",
+        "type": "object"
+      },
+      "AssetFacilityCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "facility_id": {
+            "title": "Facility Id",
+            "type": "string"
+          },
+          "facility_name": {
+            "title": "Facility Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "facility_id",
+          "facility_name",
+          "count"
+        ],
+        "title": "AssetFacilityCount",
         "type": "object"
       },
       "AssetHistoryEvent": {
@@ -5567,6 +5652,62 @@
           }
         ],
         "summary": "Dashboard Activity Series",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/api/v1/dashboard/assets-summary": {
+      "get": {
+        "operationId": "get_dashboard_assets_summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDashboardSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dashboard Assets Summary",
         "tags": [
           "dashboard"
         ]

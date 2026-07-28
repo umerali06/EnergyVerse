@@ -89,6 +89,7 @@ Class | Method | HTTP request | Description
 [*CompanyApi*](doc/CompanyApi.md) | [**uploadCompanyLogo**](doc/CompanyApi.md#uploadcompanylogo) | **POST** /api/v1/company/logo | Upload Company Logo
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivity**](doc/DashboardApi.md#getdashboardactivity) | **GET** /api/v1/dashboard/activity | Dashboard Activity
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivitySeries**](doc/DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
+[*DashboardApi*](doc/DashboardApi.md) | [**getDashboardAssetsSummary**](doc/DashboardApi.md#getdashboardassetssummary) | **GET** /api/v1/dashboard/assets-summary | Dashboard Assets Summary
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSummary**](doc/DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**createFacility**](doc/FacilitiesApi.md#createfacility) | **POST** /api/v1/facilities | Create Facility
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**deleteFacility**](doc/FacilitiesApi.md#deletefacility) | **DELETE** /api/v1/facilities/{facility_id} | Delete Facility
@@ -123,8 +124,11 @@ Class | Method | HTTP request | Description
  - [AreaDeleted](doc/AreaDeleted.md)
  - [AreaDetail](doc/AreaDetail.md)
  - [AreaListPage](doc/AreaListPage.md)
+ - [AssetCategoryCount](doc/AssetCategoryCount.md)
+ - [AssetDashboardSummary](doc/AssetDashboardSummary.md)
  - [AssetDeleted](doc/AssetDeleted.md)
  - [AssetDetail](doc/AssetDetail.md)
+ - [AssetFacilityCount](doc/AssetFacilityCount.md)
  - [AssetHistoryEvent](doc/AssetHistoryEvent.md)
  - [AssetHistoryPage](doc/AssetHistoryPage.md)
  - [AssetListItem](doc/AssetListItem.md)

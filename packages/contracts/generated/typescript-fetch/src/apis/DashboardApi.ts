@@ -15,12 +15,15 @@
 
 import * as runtime from '../runtime';
 import type {
+  AssetDashboardSummary,
   DashboardActivityPage,
   DashboardActivitySeries,
   DashboardSummary,
   ErrorEnvelope,
 } from '../models/index';
 import {
+    AssetDashboardSummaryFromJSON,
+    AssetDashboardSummaryToJSON,
     DashboardActivityPageFromJSON,
     DashboardActivityPageToJSON,
     DashboardActivitySeriesFromJSON,
@@ -131,6 +134,40 @@ export class DashboardApi extends runtime.BaseAPI {
      */
     async getDashboardActivitySeries(requestParameters: GetDashboardActivitySeriesRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DashboardActivitySeries> {
         const response = await this.getDashboardActivitySeriesRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Dashboard Assets Summary
+     */
+    async getDashboardAssetsSummaryRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AssetDashboardSummary>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/dashboard/assets-summary`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AssetDashboardSummaryFromJSON(jsonValue));
+    }
+
+    /**
+     * Dashboard Assets Summary
+     */
+    async getDashboardAssetsSummary(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetDashboardSummary> {
+        const response = await this.getDashboardAssetsSummaryRaw(initOverrides);
         return await response.value();
     }
 

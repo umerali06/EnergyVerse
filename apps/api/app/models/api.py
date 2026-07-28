@@ -62,6 +62,26 @@ class DashboardActivitySeries(BaseModel):
     points: list[DashboardSeriesPoint]
 
 
+class AssetCategoryCount(BaseModel):
+    category: str
+    count: int
+
+
+class AssetFacilityCount(BaseModel):
+    facility_id: str
+    facility_name: str
+    count: int
+
+
+class AssetDashboardSummary(BaseModel):
+    total: int
+    healthy: int
+    warning: int
+    critical: int
+    by_category: list[AssetCategoryCount]
+    by_facility: list[AssetFacilityCount]
+
+
 class AuditLogEntry(BaseModel):
     id: str
     actor_uid: str

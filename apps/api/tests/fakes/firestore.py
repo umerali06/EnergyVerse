@@ -45,6 +45,43 @@ class FakeDocumentReference:
                 current[key] = deepcopy(value)
 
 
+class FakeAggregationResult:
+    def __init__(self, value: int) -> None:
+        self.value = value
+
+
+class FakeAggregationQuery:
+    """Mimics `AsyncAggregationQuery.get()`'s `list[list[AggregationResult]]`
+    shape closely enough that repository code written against the real
+    `query.count().get()` API works unchanged against this fake."""
+
+    def __init__(self, query: "FakeQuery") -> None:
+        self._query = query
+
+    async def get(self, **_: Any) -> list[list[FakeAggregationResult]]:
+        count = 0
+        async for _snapshot in self._query.stream():
+            count += 1
+        return [[FakeAggregationResult(count)]]
+
+
+def _matches(data: dict[str, Any], field: str, operator: Any, value: Any) -> bool:
+    # `FieldFilter(field, "==", None)` is rewritten by the real client into a
+    # unary IS_NULL/IS_NAN filter (a non-string enum `op_string`, not the
+    # literal "=="), since Firestore has no wire-level equality-to-null
+    # comparison. Treat any non-string operator as a plain equality check --
+    # it's always paired with a `None`/NaN value in this codebase.
+    if not isinstance(operator, str):
+        return data.get(field) == value
+    if operator == "==":
+        return data.get(field) == value
+    if operator == ">=":
+        return data.get(field) is not None and data.get(field) >= value
+    if operator == "<=":
+        return data.get(field) is not None and data.get(field) <= value
+    raise NotImplementedError(f"FakeQuery does not support operator {operator!r}")
+
+
 class FakeQuery:
     def __init__(
         self,
@@ -78,6 +115,9 @@ class FakeQuery:
             direction == "DESCENDING",
         )
 
+    def count(self, **_: Any) -> FakeAggregationQuery:
+        return FakeAggregationQuery(self)
+
     async def stream(self, **_: Any) -> AsyncIterator[FakeDocumentSnapshot]:
         items = sorted(self._client._store.get(self._collection, {}).items())
         if self._order_by_field is not None:
@@ -88,10 +128,7 @@ class FakeQuery:
             )
         for document_id, data in items:
             if all(
-                (operator == "==" and data.get(field) == value)
-                or (operator == ">=" and data.get(field) is not None and data.get(field) >= value)
-                or (operator == "<=" and data.get(field) is not None and data.get(field) <= value)
-                for field, operator, value in self._filters
+                _matches(data, field, operator, value) for field, operator, value in self._filters
             ):
                 yield FakeDocumentSnapshot(document_id, data)
 

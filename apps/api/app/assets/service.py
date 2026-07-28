@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import binascii
 from pathlib import Path
@@ -6,7 +7,7 @@ from uuid import uuid4
 
 from fastapi import UploadFile
 
-from app.assets.constants import is_valid_asset_category
+from app.assets.constants import ASSET_CATEGORIES, is_valid_asset_category
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
 from app.db.repositories.areas import AreaRepository
@@ -14,7 +15,10 @@ from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.facilities import FacilityRepository
 from app.models.api import (
+    AssetCategoryCount,
+    AssetDashboardSummary,
     AssetDetail,
+    AssetFacilityCount,
     AssetHistoryPage,
     AssetListItem,
     AssetListPage,
@@ -480,6 +484,44 @@ class AssetManagementService:
     async def delete_asset(self, scope: CompanyScope, asset_id: str, actor_uid: str) -> None:
         await self._active_asset(scope, asset_id)
         await self._assets.soft_delete(scope, asset_id, actor_uid)
+
+    async def get_dashboard_summary(self, scope: CompanyScope) -> AssetDashboardSummary:
+        """Every number here comes from a Firestore `count()` aggregation
+        query (see `AssetRepository.count` / D-039) -- no asset document is
+        ever downloaded to produce these KPIs. Category has a fixed, small
+        catalog and facility count per tenant is small, so a bounded fan-out
+        of cheap count queries stays fast without a full collection scan.
+        """
+        all_facilities = await self._facilities.list(scope)
+        facilities = [facility for facility in all_facilities if facility.deleted_at is None]
+        results = await asyncio.gather(
+            self._assets.count(scope),
+            self._assets.count(scope, current_status="Healthy"),
+            self._assets.count(scope, current_status="Warning"),
+            self._assets.count(scope, current_status="Critical"),
+            *(self._assets.count(scope, category=category) for category in ASSET_CATEGORIES),
+            *(self._assets.count(scope, facility_id=facility.id) for facility in facilities),
+        )
+        total, healthy, warning, critical = results[:4]
+        category_counts = results[4 : 4 + len(ASSET_CATEGORIES)]
+        facility_counts = results[4 + len(ASSET_CATEGORIES) :]
+
+        return AssetDashboardSummary(
+            total=total,
+            healthy=healthy,
+            warning=warning,
+            critical=critical,
+            by_category=[
+                AssetCategoryCount(category=category, count=count)
+                for category, count in zip(ASSET_CATEGORIES, category_counts, strict=True)
+            ],
+            by_facility=[
+                AssetFacilityCount(
+                    facility_id=facility.id, facility_name=facility.name, count=count
+                )
+                for facility, count in zip(facilities, facility_counts, strict=True)
+            ],
+        )
 
 
 def get_asset_management_service() -> AssetManagementService:

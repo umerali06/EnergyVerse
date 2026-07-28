@@ -21,8 +21,11 @@ src/index.ts
 src/models/AreaDeleted.ts
 src/models/AreaDetail.ts
 src/models/AreaListPage.ts
+src/models/AssetCategoryCount.ts
+src/models/AssetDashboardSummary.ts
 src/models/AssetDeleted.ts
 src/models/AssetDetail.ts
+src/models/AssetFacilityCount.ts
 src/models/AssetHistoryEvent.ts
 src/models/AssetHistoryPage.ts
 src/models/AssetListItem.ts

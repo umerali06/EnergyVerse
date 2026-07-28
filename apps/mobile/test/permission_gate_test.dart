@@ -54,6 +54,9 @@ class _IdentityApi implements ApiContract {
       throw UnimplementedError();
 
   @override
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() => throw UnimplementedError();
+
+  @override
   Future<UserListPage> getUsers({
     String? search,
     String? roleId,

@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import "@/assets/asset-widgets";
+import "./reserved-widgets";
+
 import { useAuth } from "@/auth/auth-context";
 import { usePermissions } from "@/auth/permissions";
 import {
@@ -33,6 +36,7 @@ import {
   formatRelativeTime,
   formatTarget,
 } from "./format";
+import { DashboardWidgetGrid } from "./widget-registry";
 
 function greetingName(email: string): string {
   return email
@@ -202,42 +206,6 @@ function QuickActionsCard() {
           </li>
         )}
       </ul>
-    </Card>
-  );
-}
-
-const reservedKpiModules = [
-  { label: "Assets", permission: "assets.read", copy: "Asset metrics appear once the Assets module is enabled." },
-  {
-    label: "Work Orders",
-    permission: "work_orders.read",
-    copy: "Work order metrics appear once the Work Orders module is enabled.",
-  },
-  { label: "Permits", permission: "permits.read", copy: "Permit metrics appear once the Permits module is enabled." },
-  {
-    label: "Safety & Incidents",
-    permission: "safety.read",
-    copy: "Safety and incident metrics appear once the Safety module is enabled.",
-  },
-] as const;
-
-/** The visual contract 2.3's pluggable KPI framework will fill in. Every
- * tile is an honest empty state — never a placeholder number. */
-function ReservedKpiRegion() {
-  const { can } = usePermissions();
-  const modules = reservedKpiModules.filter((module) => can(module.permission));
-  if (modules.length === 0) return null;
-  return (
-    <Card className="p-4">
-      <h2 className="text-h5 font-bold">On the roadmap</h2>
-      <div className="mt-4 grid gap-3">
-        {modules.map((module) => (
-          <div className="rounded-md border border-dashed border-border p-3" key={module.label}>
-            <p className="text-bodySmall font-semibold">{module.label}</p>
-            <p className="mt-1 text-caption text-text-muted">{module.copy}</p>
-          </div>
-        ))}
-      </div>
     </Card>
   );
 }
@@ -432,7 +400,7 @@ export function DashboardPage({
 
           <div className="grid gap-6">
             <QuickActionsCard />
-            <ReservedKpiRegion />
+            <DashboardWidgetGrid subscriptionTier={data.summary.data?.subscriptionTier} />
             {data.summary.status === "ready" && data.summary.data && (
               <Card className="p-4">
                 <StatusPill tone="info">{data.summary.data.subscriptionTier}</StatusPill>

@@ -937,6 +937,77 @@ live in one constants module. Firestore Rules remain deny-all for clients.
 - Conflict detection and resolution policy: _To be defined before inspection implementation_
 - Retry, idempotency, and failure recovery: _To be defined_
 
+### Phase 4.4 Dashboard KPI Widgets and Pluggable Widget Framework (resolves 2.3)
+
+- **The widget contract.** Every dashboard widget is
+  `{ id, title, requiredPermission, minTier?, render/builder }` (admin:
+  `DashboardWidget` in `apps/admin/src/dashboard/widget-registry.tsx`;
+  mobile: `DashboardWidgetSpec` in `apps/mobile/lib/dashboard/widget_registry.dart`).
+  A module registers a widget once via `registerWidget`/`registerDashboardWidget`
+  — registration is a no-op on a duplicate `id`, so re-importing/re-registering
+  (hot reload, repeated `didChangeDependencies` calls) is always safe.
+- **The registry + grid.** `getRegisteredWidgets()`/`registeredDashboardWidgets()`
+  expose the module-level list; `DashboardWidgetGrid` filters it by the
+  viewer's permissions (0.6 `can()`/`PermissionAccess.can()`) and by
+  subscription tier (`minTier`, compared against a small local
+  `SUBSCRIPTION_TIERS`/`subscriptionTiers` ordering mirroring
+  `apps/api/app/models/api.py`'s `SUBSCRIPTION_TIERS` — the hook is real and
+  wired today even though no widget sets `minTier` yet; enforcement becomes
+  meaningful once a billing phase exists) then renders each widget in its
+  own failure boundary — a React error boundary (`WidgetErrorBoundary`) on
+  admin, a build-time try/catch (`_WidgetBoundary`) on mobile — so one
+  widget crashing renders only its own "Couldn't load this widget." tile,
+  never blanks the rest of the dashboard. This replaces 2.2's hardcoded
+  `ReservedKpiRegion`/`_ReservedKpiRegion` array with the same visual
+  contract, now data-driven.
+- **How to add a widget (future modules — 7/10/11).** Call
+  `registerWidget`/`registerDashboardWidget` from the new module's own file
+  with its real `requiredPermission`, import that file once (admin: a
+  side-effect `import` in `dashboard-page.tsx`; mobile: call the module's
+  `register...Widgets()` function from `_DashboardScreenState.didChangeDependencies`),
+  and delete that module's entry from `reserved-widgets.tsx`/
+  `reserved_widgets.dart`. No dashboard-page/grid code changes are needed.
+- **Asset widgets are the first real registered consumers**
+  (`apps/admin/src/assets/asset-widgets.tsx`,
+  `apps/mobile/lib/assets/asset_widgets.dart`), each independently fetching
+  the new `GET /api/v1/dashboard/assets-summary` endpoint (own
+  loading/error/empty state per widget, by design — a pluggable widget is
+  self-contained): **Total Assets** and **Critical Assets** (crimson/
+  `statusStrong-critical` emphasis, tapping either navigates to the 4.2
+  asset list pre-filtered — admin via `/assets?status=Critical` query param,
+  read once on mount by `assets-page.tsx`/`useAssetsData`; mobile via
+  `Navigator.pushNamedAndRemoveUntil(AppRoutes.assets, ..., arguments: 'Critical')`,
+  read by `AssetsScreen.initialStatus` → `AssetsController`'s constructor),
+  and **Asset Condition**, a Healthy/Warning/Critical breakdown using the
+  existing chart wrapper (`DonutChart` on admin per D-020; mobile's
+  `chart.dart` gained its own `DonutChart`/`DonutSlice` to reach the same
+  reusable-chart contract mobile previously lacked).
+- **Backend aggregation (D-039).** `AssetRepository.count()` issues a
+  Firestore `count()` aggregation query (never downloads a document) scoped
+  by `company_id` + `deleted_at == None` plus at most one more equality
+  filter (`current_status`/`category`/`facility_id`). `AssetManagementService
+  .get_dashboard_summary()` fires 4 status/total counts plus one count per
+  `ASSET_CATEGORIES` entry and one per tenant facility, concurrently
+  (`asyncio.gather`). `GET /api/v1/dashboard/assets-summary` is gated by its
+  own `assets.read` dependency (not `reports.read` — the whole-dashboard
+  gate from 2.2), matching the framework's per-widget permission model.
+- **Mobile role-based KPI subset (mobile-only layout choice).**
+  `field_inspector`/`maintenance_technician` see a task-focused subset
+  (Total + Critical only, no condition chart); every other role holding
+  `assets.read` (`operations_manager`, `hse_manager`, `executive`,
+  `company_admin`, `super_admin`) sees the full set. Implemented as a
+  `filter` callback passed to `DashboardWidgetGrid` in
+  `dashboard_screen.dart` (`_widgetVisibleForRole`), layered on top of — not
+  instead of — the permission gate. Admin has no equivalent subset (every
+  `assets.read` holder sees the full set) since the spec's task-focused/
+  full-set split was explicitly a mobile field-role concern.
+- **Not-yet-built modules** (Work Orders, Permits, Safety & Incidents)
+  render through the same registry via `reserved-widgets.tsx`/
+  `reserved_widgets.dart` — each an honest "`<Module>` metrics appear once
+  the `<Module>` module is enabled" tile, gated by that module's own future
+  permission, never a placeholder number (continuing D-019's no-invented-
+  data rule).
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -996,3 +1067,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 4.1 — asset data model, facility/area hierarchy, and backend CRUD | Adds three new tenant collections (`facilities` → `areas` → `assets`, plus optional asset self-nesting via `parent_asset_id`) and their first real backend surface — `assets.read`/`assets.write` had existed as unused catalog placeholders since 0.4. New `app/facilities/`, `app/areas/`, `app/assets/` packages (thin-route/fat-service, matching `app/company/`/`app/roles/`) sit behind new `facilities.read/write`/`areas.read/write` permissions (mirroring each role's existing `assets.*` grants) and reuse the 0.4 `CompanyScope`/audit/repository pattern throughout. Introduces the codebase's first soft-delete (`TenantRepository._soft_delete()`, a new base-class helper) and its first Firestore-level filtered+ordered query (`AssetRepository.query()`, one equality filter plus `order_by(created_at)`, backed by four new composite indexes) — every other list route still reads-then-filters-in-Python. `GET /assets/{id}/history` returns a real, always-empty, correctly-shaped page; no inspection/work-order data is embedded on the asset record. Seed gains 2 facilities/4 areas/11 assets (all categories, all statuses, one self-nested pair) for the Acme demo tenant. Contracts regenerated for `FacilitiesApi`/`AreasApi`/`AssetsApi` and their request/response models. No UI, photo upload, KPI widgets, or QR were built — those are 4.2–4.5. | 2026-07-23 |
 | Phase 4.2 — asset list + detail UI (admin + mobile) | Wires the 4.1 `AssetsApi`/`FacilitiesApi`/`AreasApi` into both hand-written client wrappers (a new `AssetsApiClient` type in `apps/admin/src/auth/auth-context.tsx`; 7 new `ApiContract` methods in `apps/mobile/lib/api/api_service.dart`) for the first time since those endpoints shipped. Adds `apps/admin/src/assets/` (list page, the app's first dynamic-segment route at `assets/[id]`, a shared `useAssetsData` hook) and `apps/mobile/lib/assets/` (controller, list screen, and — a new pattern, D-034 — a pushed-route detail screen instead of the Users/Audit/Roles bottom-sheet convention, since 5 tabs of real content don't fit a sheet). Both detail views render the same 5-tab reserved-seam contract (Overview real today; Inspections/Work Orders/History/Media honest-empty, to be filled by Phases 7, 11, and 4.3 respectively querying by `asset_id` — mirrors 4.1's D-033 history-by-reference decision, no UI change anticipated when those land). Fixed a real defect the new nested route exposed: `nav-config.tsx`'s `findNavItem` now prefix-matches like `isRouteActive` instead of requiring an exact match, so the shell breadcrumb no longer reads "Not found" on `/assets/{id}`. No Google Maps Platform integration was added (D-035); GPS renders as coordinates plus an external map link on both clients. No backend, schema, or permission changes. | 2026-07-26 |
 | Phase 4.3 — asset create/edit + media upload | Activates 4.1's create/update endpoints through reusable admin and mobile forms and fills 4.2's Media tab. `AssetManagementService` remains the server-authoritative tenant/RBAC boundary, adding case-insensitive company-scoped tag uniqueness, hierarchy-cycle and required-field validation. Media reuses 3.3's private Storage adapter under `companies/{company_id}/assets/{asset_id}/{kind}/{uuid}_{filename}`; Firestore stores structured references in `photos`/`documents`/`manuals`, with `ArrayUnion`/`ArrayRemove` preventing concurrent replacement and detail reads materializing fresh one-hour signed URLs. Android/iOS runners establish the permanent D-037 identity `com.flacronenterprises.energyverse` and display name `EnergyVerse`; camera/gallery selection remains reference-media capture, not Phase 7 inspection/AR capture. Contracts expose the upload/delete endpoints and `AssetMediaResponse` to both generated clients. | 2026-07-27 |
+| Phase 4.4 — dashboard KPI widgets + pluggable widget framework (resolves 2.3) | Replaces 2.2's hardcoded `ReservedKpiRegion`/`_ReservedKpiRegion` array with a real registry (`registerWidget`/`registerDashboardWidget` + `DashboardWidgetGrid`) on both clients, gated by 0.6 permissions and a real-but-currently-inert tier hook, each widget isolated in its own failure boundary. New `AssetRepository.count()` (Firestore `count()` aggregation, D-039) backs a new `AssetManagementService.get_dashboard_summary()` behind a new `GET /api/v1/dashboard/assets-summary` route, gated by `assets.read` specifically (not the whole-dashboard `reports.read` gate). Registers the first 3 real widgets — Total Assets, Critical Assets (crimson emphasis, links to the 4.2 asset list pre-filtered via a new admin URL-param read on mount / mobile route argument), and Asset Condition (admin reuses D-020's `DonutChart`; mobile's `chart.dart` gains its own `DonutChart`/`DonutSlice` to reach the same reusable-chart contract). Mobile adds a role-based task-focused subset (Total + Critical only) for field_inspector/maintenance_technician. Work Orders/Permits/Safety continue rendering through the same registry as honest empty-state widgets (`reserved-widgets.tsx`/`reserved_widgets.dart`) until their own phases arrive. Contracts regenerated for `AssetDashboardSummary`/`AssetCategoryCount`/`AssetFacilityCount` and the new `DashboardApi` method — zero new composite indexes needed since every count filter is a plain equality filter. Phase 2.3 is retroactively resolved by this implementation. | 2026-07-28 |

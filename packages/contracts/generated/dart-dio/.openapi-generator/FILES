@@ -6,8 +6,11 @@ doc/AreaDeleted.md
 doc/AreaDetail.md
 doc/AreaListPage.md
 doc/AreasApi.md
+doc/AssetCategoryCount.md
+doc/AssetDashboardSummary.md
 doc/AssetDeleted.md
 doc/AssetDetail.md
+doc/AssetFacilityCount.md
 doc/AssetHistoryEvent.md
 doc/AssetHistoryPage.md
 doc/AssetListItem.md
@@ -100,8 +103,11 @@ lib/src/date_serializer.dart
 lib/src/model/area_deleted.dart
 lib/src/model/area_detail.dart
 lib/src/model/area_list_page.dart
+lib/src/model/asset_category_count.dart
+lib/src/model/asset_dashboard_summary.dart
 lib/src/model/asset_deleted.dart
 lib/src/model/asset_detail.dart
+lib/src/model/asset_facility_count.dart
 lib/src/model/asset_history_event.dart
 lib/src/model/asset_history_page.dart
 lib/src/model/asset_list_item.dart
@@ -164,8 +170,11 @@ test/area_deleted_test.dart
 test/area_detail_test.dart
 test/area_list_page_test.dart
 test/areas_api_test.dart
+test/asset_category_count_test.dart
+test/asset_dashboard_summary_test.dart
 test/asset_deleted_test.dart
 test/asset_detail_test.dart
+test/asset_facility_count_test.dart
 test/asset_history_event_test.dart
 test/asset_history_page_test.dart
 test/asset_list_item_test.dart

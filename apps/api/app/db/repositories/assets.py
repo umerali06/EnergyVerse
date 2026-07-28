@@ -84,6 +84,31 @@ class AssetRepository(TenantRepository[Asset]):
         )
         return updated
 
+    async def count(
+        self,
+        scope: CompanyScope,
+        *,
+        facility_id: str | None = None,
+        category: str | None = None,
+        current_status: str | None = None,
+    ) -> int:
+        """Firestore `count()` aggregation -- billed per ~1000 matched docs
+        (minimum 1), never downloads a document. Every filter here (including
+        `deleted_at == None`) is a plain equality filter, so this needs no
+        composite index: Firestore only requires one when a range/inequality
+        filter is combined with another filter or an `order_by` (see D-039).
+        """
+        query = self._collection.where(filter=FieldFilter("company_id", "==", scope.company_id))
+        query = query.where(filter=FieldFilter("deleted_at", "==", None))
+        if facility_id is not None:
+            query = query.where(filter=FieldFilter("facility_id", "==", facility_id))
+        if category is not None:
+            query = query.where(filter=FieldFilter("category", "==", category))
+        if current_status is not None:
+            query = query.where(filter=FieldFilter("current_status", "==", current_status))
+        result = await query.count().get(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS, retry=None)
+        return int(result[0][0].value)
+
     async def query(
         self,
         scope: CompanyScope,
