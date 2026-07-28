@@ -29,6 +29,23 @@ DashboardActivityPage emptyDashboardActivityPage() {
   return DashboardActivityPage((builder) => builder..items = ListBuilder([]));
 }
 
+AssetDashboardSummary assetDashboardSummaryFixture({
+  int total = 11,
+  int healthy = 8,
+  int warning = 2,
+  int critical = 1,
+}) {
+  return AssetDashboardSummary(
+    (builder) => builder
+      ..total = total
+      ..healthy = healthy
+      ..warning = warning
+      ..critical = critical
+      ..byCategory = ListBuilder([])
+      ..byFacility = ListBuilder([]),
+  );
+}
+
 DashboardActivitySeries dashboardSeriesFixture({int windowDays = 30}) {
   return DashboardActivitySeries(
     (builder) => builder

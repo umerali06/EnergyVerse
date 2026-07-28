@@ -10,11 +10,13 @@ import { designTokens } from "@/design-system/tokens.generated";
 
 import { DashboardPage } from "./dashboard-page";
 
-// DashboardPage's Quick Actions use next/navigation's router; these tests
-// don't exercise navigation itself (routing is covered by the shell/auth
-// router-harness suites), so a minimal stub is enough to satisfy the hook.
+// DashboardPage's Quick Actions and asset KPI widgets use next/navigation's
+// router. `mockPush` is mutable so the one test that cares about navigation
+// (the Critical Assets card) can observe it; every other test leaves it as a
+// no-op stub.
+let mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ back: vi.fn(), prefetch: () => undefined, push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ back: vi.fn(), prefetch: () => undefined, push: mockPush, replace: vi.fn() }),
 }));
 
 // jsdom has no real layout: recharts' ResponsiveContainer measures via
@@ -100,6 +102,15 @@ const emptySummary = {
   auditEvents: 0,
 };
 
+const readyAssetsSummary = {
+  total: 11,
+  healthy: 8,
+  warning: 2,
+  critical: 1,
+  byCategory: [],
+  byFacility: [],
+};
+
 function seriesFor(window: number, nonZeroCount = 0) {
   return {
     windowDays: window,
@@ -146,6 +157,7 @@ function renderDashboard({
   getDashboardSummary = vi.fn(async () => readySummary),
   getDashboardActivity = vi.fn(async () => ({ items: [activityItem()], nextCursor: null })),
   getDashboardActivitySeries = vi.fn(async () => seriesFor(30, 4)),
+  getDashboardAssetsSummary = vi.fn(async () => readyAssetsSummary),
   reducedMotionOverride,
 }: {
   roleKey?: string;
@@ -153,6 +165,7 @@ function renderDashboard({
   getDashboardSummary?: ReturnType<typeof vi.fn>;
   getDashboardActivity?: ReturnType<typeof vi.fn>;
   getDashboardActivitySeries?: ReturnType<typeof vi.fn>;
+  getDashboardAssetsSummary?: ReturnType<typeof vi.fn>;
   reducedMotionOverride?: boolean;
 } = {}) {
   const identity = {
@@ -170,6 +183,7 @@ function renderDashboard({
     getDashboardSummary,
     getDashboardActivity,
     getDashboardActivitySeries,
+    getDashboardAssetsSummary,
   };
   const view = render(
     <ThemeProvider>
@@ -284,15 +298,62 @@ describe("dashboard page", () => {
     }
   });
 
-  it("renders the reserved KPI region only for permitted modules, as an honest empty state", async () => {
+  it("renders real asset KPI widgets for assets.read holders, never a placeholder", async () => {
     renderDashboard({ roleKey: "field_inspector", permissions: ["assets.read", "reports.read"] });
-    expect(await screen.findByText("On the roadmap")).toBeInTheDocument();
-    expect(screen.getByText("Assets")).toBeInTheDocument();
+    expect(await screen.findByText("Total assets")).toBeInTheDocument();
+    expect(screen.getByText("Critical assets")).toBeInTheDocument();
+    expect(screen.getByText("Asset condition")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("11")).toBeInTheDocument());
+    expect(screen.getByText("1")).toBeInTheDocument();
+    // The old static "Asset metrics appear once enabled" tile is gone now
+    // that assets is a real, registered widget.
     expect(
-      screen.getByText("Asset metrics appear once the Assets module is enabled."),
+      screen.queryByText("Asset metrics appear once the Assets module is enabled."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render asset widgets for a role without assets.read", async () => {
+    renderDashboard({ roleKey: "custom", permissions: ["reports.read"] });
+    await screen.findByText(/Audit events/);
+    expect(screen.queryByText("Total assets")).not.toBeInTheDocument();
+    expect(screen.queryByText("Critical assets")).not.toBeInTheDocument();
+  });
+
+  it("navigates to the filtered asset list when the Critical Assets card is clicked", async () => {
+    mockPush = vi.fn();
+    renderDashboard({ roleKey: "field_inspector", permissions: ["assets.read", "reports.read"] });
+    await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+    await userEvent.setup().click(screen.getByText("Critical assets").closest("section")!);
+    expect(mockPush).toHaveBeenCalledWith("/assets?status=Critical");
+  });
+
+  it("shows the reserved KPI empty state only for modules that don't exist yet", async () => {
+    renderDashboard({
+      roleKey: "custom",
+      permissions: ["assets.read", "reports.read", "work_orders.read"],
+    });
+    expect(await screen.findByText("Work Orders")).toBeInTheDocument();
+    expect(
+      screen.getByText("Work order metrics appear once the Work Orders module is enabled."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Permits")).not.toBeInTheDocument();
     expect(screen.queryByText("Safety & Incidents")).not.toBeInTheDocument();
+  });
+
+  it("shows each asset widget's own error state without breaking the rest of the dashboard", async () => {
+    renderDashboard({
+      roleKey: "field_inspector",
+      permissions: ["assets.read", "reports.read"],
+      getDashboardAssetsSummary: vi.fn().mockRejectedValue(new Error("boom")),
+    });
+    await screen.findByText("Activity");
+    // The condition chart's own error state (D-020's chart wrapper), not a
+    // dashboard-wide crash.
+    expect(await screen.findByText("Couldn't load this chart")).toBeInTheDocument();
+    // Everything else on the dashboard (unrelated to the asset endpoint)
+    // keeps working.
+    expect(screen.getByText("Recent activity")).toBeInTheDocument();
+    expect(screen.getByText("Total assets")).toBeInTheDocument();
   });
 
   it("renders without animation on the reduced-motion path", async () => {

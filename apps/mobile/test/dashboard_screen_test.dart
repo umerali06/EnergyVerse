@@ -65,6 +65,7 @@ typedef ActivityFn = Future<DashboardActivityPage> Function({
   String? action,
 });
 typedef SeriesFn = Future<DashboardActivitySeries> Function({int window});
+typedef AssetsSummaryFn = Future<AssetDashboardSummary> Function();
 
 class FakeApi implements ApiContract {
   FakeApi(
@@ -72,18 +73,21 @@ class FakeApi implements ApiContract {
     SummaryFn? summary,
     ActivityFn? activity,
     SeriesFn? series,
+    AssetsSummaryFn? assetsSummary,
   })  : _summary = summary ?? (({int window = 30}) async => dashboardSummaryFixture(windowDays: window)),
         _activity = activity ?? (({int limit = 20, String? cursor, String? action}) async => DashboardActivityPage(
               (builder) => builder
                 ..items = ListBuilder([activityItem()])
                 ..nextCursor = null,
             )),
-        _series = series ?? (({int window = 30}) async => dashboardSeriesFixture(windowDays: window));
+        _series = series ?? (({int window = 30}) async => dashboardSeriesFixture(windowDays: window)),
+        _assetsSummary = assetsSummary ?? (() async => assetDashboardSummaryFixture());
 
   CurrentUser identity;
   final SummaryFn _summary;
   final ActivityFn _activity;
   final SeriesFn _series;
+  final AssetsSummaryFn _assetsSummary;
 
   @override
   Future<CurrentUser> getCurrentUser() async => identity;
@@ -114,6 +118,9 @@ class FakeApi implements ApiContract {
   @override
   Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
       _series(window: window);
+
+  @override
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() => _assetsSummary();
 
   @override
   Future<UserListPage> getUsers({
@@ -419,19 +426,97 @@ void main() {
     });
   }
 
-  testWidgets('renders the reserved KPI region only for permitted modules', (tester) async {
+  testWidgets(
+    'renders real asset KPI widgets for a full-KPI role, never a placeholder',
+    (tester) async {
+      final api = FakeApi(
+        identityFor('company_admin', roleMatrix['company_admin']!),
+        assetsSummary: () async => assetDashboardSummaryFixture(total: 11, critical: 1),
+      );
+      await pumpDashboard(tester, api: api);
+      await tester.pumpAndSettle();
+
+      await scrollTo(tester, find.text('TOTAL ASSETS'));
+      expect(find.text('TOTAL ASSETS'), findsOneWidget);
+      expect(find.text('CRITICAL ASSETS'), findsOneWidget);
+      expect(find.text('11'), findsOneWidget);
+      await scrollTo(tester, find.text('Asset condition'));
+      expect(find.text('Asset condition'), findsOneWidget);
+      expect(
+        find.text('Asset metrics appear once the Assets module is enabled.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'shows the task-focused KPI subset (Total + Critical only) for field_inspector',
+    (tester) async {
+      final api = FakeApi(
+        identityFor('field_inspector', roleMatrix['field_inspector']!),
+        assetsSummary: () async => assetDashboardSummaryFixture(),
+      );
+      await pumpDashboard(tester, api: api);
+      await tester.pumpAndSettle();
+
+      await scrollTo(tester, find.text('TOTAL ASSETS'));
+      expect(find.text('TOTAL ASSETS'), findsOneWidget);
+      expect(find.text('CRITICAL ASSETS'), findsOneWidget);
+      expect(find.text('Asset condition'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'navigates to the filtered asset list when the Critical Assets card is tapped',
+    (tester) async {
+      final api = FakeApi(
+        identityFor('company_admin', roleMatrix['company_admin']!),
+        assetsSummary: () async => assetDashboardSummaryFixture(total: 11, critical: 1),
+      );
+      await pumpDashboard(tester, api: api);
+      await tester.pumpAndSettle();
+
+      await scrollTo(tester, find.text('CRITICAL ASSETS'));
+      await tester.tap(find.text('CRITICAL ASSETS'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assets'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    "shows the asset condition chart's own error state without breaking the rest of the dashboard",
+    (tester) async {
+      final api = FakeApi(
+        identityFor('company_admin', roleMatrix['company_admin']!),
+        assetsSummary: () async => throw Exception('boom'),
+      );
+      await pumpDashboard(tester, api: api);
+      await tester.pumpAndSettle();
+
+      await scrollTo(tester, find.text('Recent activity'));
+      expect(find.text('Recent activity'), findsOneWidget);
+      await scrollTo(tester, find.text('Asset condition'));
+      expect(find.text('Asset condition'), findsOneWidget);
+      expect(
+        find.text("Couldn't load asset condition data. Check your connection and try again."),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('shows the reserved KPI empty state only for unbuilt modules', (tester) async {
     final api = FakeApi(
-      identityFor('field_inspector', ['assets.read', 'reports.read', 'reports.generate']),
+      identityFor('custom', ['assets.read', 'reports.read', 'reports.generate', 'work_orders.read']),
     );
     await pumpDashboard(tester, api: api);
     await tester.pumpAndSettle();
 
-    await scrollTo(tester, find.text('On the roadmap'));
-    expect(find.text('On the roadmap'), findsOneWidget);
-    expect(find.text('Asset metrics appear once the Assets module is enabled.'), findsOneWidget);
+    await scrollTo(tester, find.text('Work Orders'));
+    expect(find.text('Work Orders'), findsOneWidget);
     expect(
       find.text('Work order metrics appear once the Work Orders module is enabled.'),
-      findsNothing,
+      findsOneWidget,
     );
     expect(find.text('Safety & Incidents'), findsNothing);
   });

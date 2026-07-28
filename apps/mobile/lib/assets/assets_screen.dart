@@ -26,7 +26,11 @@ String statusLabel(String statusName) =>
 /// pushed route (see asset_detail_screen.dart) rather than a bottom sheet,
 /// since it carries 5 tabs of real content.
 class AssetsScreen extends StatefulWidget {
-  const AssetsScreen({super.key});
+  const AssetsScreen({this.initialStatus, super.key});
+
+  /// Seeds the status filter once on open (e.g. a dashboard KPI widget
+  /// deep-linking to the Critical assets view).
+  final String? initialStatus;
 
   @override
   State<AssetsScreen> createState() => _AssetsScreenState();
@@ -39,7 +43,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _controller ??= AssetsController(api: AuthProvider.of(context).api)..start();
+    _controller ??=
+        AssetsController(api: AuthProvider.of(context).api, initialStatus: widget.initialStatus)
+          ..start();
   }
 
   @override

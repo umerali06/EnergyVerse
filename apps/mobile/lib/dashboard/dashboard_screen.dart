@@ -1,6 +1,7 @@
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:flutter/material.dart';
 
+import '../assets/asset_widgets.dart';
 import '../auth/app_routes.dart';
 import '../auth/auth_controller.dart';
 import '../auth/permissions.dart';
@@ -10,6 +11,20 @@ import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
 import 'dashboard_controller.dart';
 import 'format.dart';
+import 'reserved_widgets.dart';
+import 'widget_registry.dart';
+
+/// Field Inspector/Technician get a task-focused subset (Total + Critical
+/// only -- the two numbers they act on, no full breakdown chart); every
+/// other role with assets.read (operations_manager, hse_manager, executive,
+/// company_admin, super_admin) sees the full KPI set. A mobile-only layout
+/// choice documented in ARCHITECTURE.md's Phase 4.4 section.
+const _taskFocusedRoles = {'field_inspector', 'maintenance_technician'};
+
+bool _widgetVisibleForRole(DashboardWidgetSpec spec, String roleKey) {
+  if (spec.id != 'assets.condition') return true;
+  return !_taskFocusedRoles.contains(roleKey);
+}
 
 String _greetingName(String email) {
   final parts = email.split('@').first.split(RegExp(r'[._-]+'));
@@ -19,10 +34,12 @@ String _greetingName(String email) {
       .join(' ');
 }
 
-/// Role-aware dashboard built ONLY from real audit_logs/users/roles data
-/// (see app/api/v1/dashboard.py). Assets/work-orders/permits/incidents don't
-/// exist yet (Phases 4/10/11) — the reserved-KPI section below shows an
-/// honest empty state for those, never a placeholder number.
+/// Role-aware dashboard built ONLY from real data (audit_logs/users/roles
+/// per app/api/v1/dashboard.py, plus real asset KPIs per
+/// app/api/v1/dashboard.py's assets-summary route). Work orders/permits/
+/// incidents don't exist yet (Phases 7/10/11) -- the pluggable widget
+/// registry (widget_registry.dart) shows an honest empty state for those,
+/// never a placeholder number.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -39,6 +56,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // InheritedWidget lookups (AuthProvider.of) aren't allowed in initState,
     // so the controller is built here instead — guarded to run only once.
     _controller ??= DashboardController(api: AuthProvider.of(context).api)..start();
+    // Idempotent (registerDashboardWidget no-ops on a duplicate id) -- safe
+    // to call on every dependency change.
+    registerAssetDashboardWidgets();
+    registerReservedDashboardWidgets();
   }
 
   @override
@@ -78,7 +99,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: DsSpacing.s6),
           const _QuickActionsCard(),
           const SizedBox(height: DsSpacing.s6),
-          const _ReservedKpiRegion(),
+          DashboardWidgetGrid(
+            subscriptionTier: controller.summary?.subscriptionTier,
+            filter: (spec) => _widgetVisibleForRole(spec, user.roleKey),
+          ),
         ],
       ),
     );
@@ -536,56 +560,3 @@ class _QuickActionsCard extends StatelessWidget {
   }
 }
 
-const _reservedKpiModules = <(String, String, String)>[
-  ('Assets', 'assets.read', 'Asset metrics appear once the Assets module is enabled.'),
-  (
-    'Work Orders',
-    'work_orders.read',
-    'Work order metrics appear once the Work Orders module is enabled.',
-  ),
-  ('Permits', 'permits.read', 'Permit metrics appear once the Permits module is enabled.'),
-  (
-    'Safety & Incidents',
-    'safety.read',
-    'Safety and incident metrics appear once the Safety module is enabled.',
-  ),
-];
-
-/// The visual contract 2.3's pluggable KPI framework will fill in. Every
-/// tile is an honest empty state — never a placeholder number.
-class _ReservedKpiRegion extends StatelessWidget {
-  const _ReservedKpiRegion();
-
-  @override
-  Widget build(BuildContext context) {
-    final permissions = PermissionProvider.of(context);
-    final modules = _reservedKpiModules.where((module) => permissions.can(module.$2)).toList();
-    if (modules.isEmpty) return const SizedBox.shrink();
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('On the roadmap', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: DsSpacing.s3),
-          for (final (label, _, copy) in modules)
-            Container(
-              margin: const EdgeInsets.only(bottom: DsSpacing.s2),
-              padding: const EdgeInsets.all(DsSpacing.s3),
-              decoration: BoxDecoration(
-                border: Border.all(color: context.semantic.border, style: BorderStyle.solid),
-                borderRadius: BorderRadius.circular(DsRadius.md),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: DsSpacing.s1),
-                  Text(copy, style: TextStyle(color: context.semantic.textMuted, fontSize: 12)),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}

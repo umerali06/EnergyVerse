@@ -44,7 +44,10 @@ export type RegistrationInput = {
  * retry, and session-expiry all stay centralized in one place. */
 export type DashboardApiClient = Pick<
   FevApiClient,
-  "getDashboardActivity" | "getDashboardActivitySeries" | "getDashboardSummary"
+  | "getDashboardActivity"
+  | "getDashboardActivitySeries"
+  | "getDashboardAssetsSummary"
+  | "getDashboardSummary"
 >;
 
 export type UsersApiClient = Pick<

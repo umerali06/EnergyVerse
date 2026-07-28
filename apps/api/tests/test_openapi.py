@@ -7,6 +7,7 @@ EXPECTED_OPERATIONS = {
     "get_dashboard_summary",
     "get_dashboard_activity",
     "get_dashboard_activity_series",
+    "get_dashboard_assets_summary",
     "get_root",
     "get_health",
     "get_current_user",

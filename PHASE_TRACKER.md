@@ -30,7 +30,7 @@ Only one micro-task may be active at a time.
 | 2.1b | Design language elevation — industrial art-direction pass | Done |
 | 2.1c | Brand identity, SEO/metadata, dynamic theming enforcement, motion policy | Done |
 | 2.2 | Dashboard content — real-data dashboard + chart infrastructure | Done |
-| 2.3 | Pluggable KPI widget framework | Not started |
+| 2.3 | Pluggable KPI widget framework | Done |
 | 3 | Administration — user, role/permission, company settings, audit, and Super-Admin cross-tenant management | **COMPLETE** |
 | 3.1 | Company-scoped user management (Admin Portal) — invite, edit, deactivate/activate | Done |
 | 3.2 | Role and permission editing | Done |
@@ -41,8 +41,8 @@ Only one micro-task may be active at a time.
 | 4.1 | Asset data model, facility/area hierarchy, and backend CRUD | Done |
 | 4.2 | Asset management UI | Done |
 | 4.3 | Asset create/edit and media upload | Done |
-| 4.4 | Asset KPI widgets (built on the 2.3 pluggable framework) | In progress |
-| 4.5 | QR code asset scanning | Not started |
+| 4.4 | Asset KPI widgets (built on the 2.3 pluggable framework) | Done |
+| 4.5 | QR code asset scanning | In progress |
 | 5 | To be defined | Not started |
 | 6 | To be defined | Not started |
 | 7 | To be defined | Not started |

@@ -258,3 +258,104 @@ class TimeSeriesChart extends StatelessWidget {
     );
   }
 }
+
+/// A single labeled, colored slice for [DonutChart]. Colors are passed in by
+/// the caller (e.g. semantic status colors for an asset condition
+/// breakdown) rather than assumed by the chart, since the right palette is
+/// domain-specific.
+class DonutSlice {
+  const DonutSlice({required this.label, required this.value, required this.color});
+
+  final String label;
+  final int value;
+  final Color color;
+}
+
+/// Donut chart for proportional breakdowns (e.g. asset condition). Mirrors
+/// admin's `DonutChart` (D-020) so mobile gains the same reusable-chart
+/// contract rather than a one-off pie chart per screen.
+class DonutChart extends StatelessWidget {
+  const DonutChart({
+    required this.data,
+    required this.status,
+    this.height = 220,
+    this.emptyTitle = 'No data yet',
+    this.emptyDescription = 'Data will appear here once it is available.',
+    this.errorDescription =
+        "Couldn't load this chart. Check your connection and try again.",
+    this.onRetry,
+    super.key,
+  });
+
+  final List<DonutSlice> data;
+  final ChartStatus status;
+  final double height;
+  final String emptyTitle;
+  final String emptyDescription;
+  final String errorDescription;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = data.fold<int>(0, (sum, slice) => sum + slice.value);
+    return ChartFrame(
+      emptyDescription: emptyDescription,
+      emptyTitle: emptyTitle,
+      errorDescription: errorDescription,
+      height: height,
+      onRetry: onRetry,
+      status: status,
+      child: Row(
+        children: [
+          Expanded(
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 40,
+                sections: [
+                  for (final slice in data)
+                    PieChartSectionData(
+                      value: slice.value.toDouble(),
+                      color: slice.color,
+                      title: total == 0
+                          ? ''
+                          : '${(slice.value / total * 100).round()}%',
+                      titleStyle: TextStyle(
+                        fontFamily: DsTypography.mono,
+                        fontSize: DsTypography.sizeCaption,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      radius: 60,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: DsSpacing.s4),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final slice in data)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(color: slice.color, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: DsSpacing.s2),
+                      Text('${slice.label} (${slice.value})'),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

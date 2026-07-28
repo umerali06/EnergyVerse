@@ -85,6 +85,9 @@ class FakeApi implements ApiContract {
       dashboardSeriesFixture(windowDays: window);
 
   @override
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() async => assetDashboardSummaryFixture();
+
+  @override
   Future<UserListPage> getUsers({
     String? search,
     String? roleId,

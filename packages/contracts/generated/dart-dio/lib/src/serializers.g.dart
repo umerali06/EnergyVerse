@@ -10,9 +10,12 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(AreaDeleted.serializer)
       ..add(AreaDetail.serializer)
       ..add(AreaListPage.serializer)
+      ..add(AssetCategoryCount.serializer)
+      ..add(AssetDashboardSummary.serializer)
       ..add(AssetDeleted.serializer)
       ..add(AssetDetail.serializer)
       ..add(AssetDetailCurrentStatusEnum.serializer)
+      ..add(AssetFacilityCount.serializer)
       ..add(AssetHistoryEvent.serializer)
       ..add(AssetHistoryPage.serializer)
       ..add(AssetListItem.serializer)
@@ -87,6 +90,12 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AreaDetail)]),
           () => new ListBuilder<AreaDetail>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AssetCategoryCount)]),
+          () => new ListBuilder<AssetCategoryCount>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AssetFacilityCount)]),
+          () => new ListBuilder<AssetFacilityCount>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AssetHistoryEvent)]),
           () => new ListBuilder<AssetHistoryEvent>())

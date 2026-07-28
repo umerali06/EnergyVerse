@@ -62,6 +62,7 @@ abstract interface class ApiContract {
     String? action,
   });
   Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30});
+  Future<AssetDashboardSummary> getDashboardAssetsSummary();
   Future<UserListPage> getUsers({
     String? search,
     String? roleId,
@@ -349,6 +350,23 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty activity series',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() async {
+    try {
+      final response = await _client.getDashboardApi().getDashboardAssetsSummary();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty asset dashboard summary',
         );
       }
       return value;

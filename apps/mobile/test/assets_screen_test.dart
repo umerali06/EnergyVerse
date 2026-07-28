@@ -104,6 +104,9 @@ class FakeApi implements ApiContract {
       dashboardSeriesFixture(windowDays: window);
 
   @override
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() async => assetDashboardSummaryFixture();
+
+  @override
   Future<UserListPage> getUsers({
     String? search,
     String? roleId,
@@ -388,4 +391,39 @@ void main() {
     expect(find.text("You can't view this area"), findsOneWidget);
     expect(find.text('Feed Pump'), findsNothing);
   });
+
+  testWidgets(
+    'arrives pre-filtered when navigated to with a status argument (dashboard KPI deep link)',
+    (tester) async {
+      String? capturedStatus;
+      final api = FakeApi(
+        identityFor('company_admin', roleMatrix['company_admin']!),
+        getAssets: ({
+          String? facilityId,
+          String? areaId,
+          String? category,
+          String? currentStatus,
+          String? parentAssetId,
+          String? search,
+          String sort = '-created_at',
+          String? cursor,
+          int limit = 25,
+        }) async {
+          capturedStatus = currentStatus;
+          return assetListPageFixture();
+        },
+      );
+      await pumpAssets(tester, api: api);
+      await tester.pumpAndSettle();
+
+      final context = tester.element(find.byType(Scaffold).first);
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.assets, (_) => false, arguments: 'Critical');
+      await tester.pumpAndSettle();
+
+      expect(capturedStatus, 'Critical');
+      expect(find.text('Critical'), findsWidgets);
+    },
+  );
 }

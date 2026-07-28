@@ -11,6 +11,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**getDashboardActivity**](DashboardApi.md#getdashboardactivity) | **GET** /api/v1/dashboard/activity | Dashboard Activity
 [**getDashboardActivitySeries**](DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
+[**getDashboardAssetsSummary**](DashboardApi.md#getdashboardassetssummary) | **GET** /api/v1/dashboard/assets-summary | Dashboard Assets Summary
 [**getDashboardSummary**](DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
 
 
@@ -88,6 +89,43 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**DashboardActivitySeries**](DashboardActivitySeries.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getDashboardAssetsSummary**
+> AssetDashboardSummary getDashboardAssetsSummary()
+
+Dashboard Assets Summary
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getDashboardApi();
+
+try {
+    final response = api.getDashboardAssetsSummary();
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DashboardApi->getDashboardAssetsSummary: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+[**AssetDashboardSummary**](AssetDashboardSummary.md)
 
 ### Authorization
 

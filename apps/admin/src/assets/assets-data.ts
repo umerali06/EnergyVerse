@@ -33,10 +33,14 @@ const DEFAULT_FILTERS: AssetFilters = {
  * lookup for the list/detail breadcrumb (the asset payloads only carry
  * facilityId/areaId, never names), mirroring the Phase 3.1 users data hook
  * and the Phase 3.4 audit facets/actor-directory pattern.
+ *
+ * `initialFilters` seeds the filter state once on mount (e.g. a dashboard KPI
+ * card linking to `/assets?status=Critical`) -- it is read once, not kept in
+ * sync with the URL afterward.
  */
-export function useAssetsData() {
+export function useAssetsData(initialFilters: Partial<AssetFilters> = {}) {
   const { apiClient } = useAuth();
-  const [filters, setFilters] = useState<AssetFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<AssetFilters>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [list, setList] = useState<{
     status: AsyncStatus;
     items: AssetListItem[];

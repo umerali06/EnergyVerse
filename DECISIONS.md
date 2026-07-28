@@ -41,6 +41,9 @@
 | D-035 | Asset GPS location display depth (Phase 4.2) | **Coordinates readout + external "view on map" link only; no embedded Google Maps Platform integration** | **RESOLVED — LOCKED** | 2026-07-26 |
 | D-036 | Asset identity and private-media contract | **`asset_tag` is case-insensitively unique within a company (duplicate creates/updates return 409); media is private under `companies/{company_id}/assets/{asset_id}/{kind}/{uuid}_{filename}` with one-hour signed URLs. Caps: photos 10 MiB, documents 25 MiB, manuals 50 MiB. Photos accept JPEG/PNG/WEBP/HEIC; documents accept PDF/DOC/DOCX/JPEG/PNG/WEBP; manuals accept PDF/DOC/DOCX. Atomic Firestore array transforms prevent concurrent uploads from overwriting each other.** | **RESOLVED — LOCKED** | 2026-07-27 |
 | D-037 | Permanent native application identity | **Android `applicationId` and namespace plus iOS `PRODUCT_BUNDLE_IDENTIFIER` are permanently `com.flacronenterprises.energyverse`; the user-visible native app name is `EnergyVerse`. This identity is tied to signing, Firebase native app registrations, deep links, and store listings and must not be renamed casually.** | **RESOLVED — LOCKED** | 2026-07-27 |
+| D-038 | Pluggable dashboard KPI widget framework (resolves 2.3 deferral) | **A widget is `{id, title, requiredPermission, minTier?, render/builder}`; modules call `registerWidget`/`registerDashboardWidget` once, `DashboardWidgetGrid` filters by permission + tier and renders each in its own failure boundary. Replaces 2.2's hardcoded `ReservedKpiRegion` array with the same visual contract, now data-driven.** | **RESOLVED — LOCKED** | 2026-07-28 |
+| D-039 | Asset KPI aggregation via Firestore `count()` | **Every asset KPI number (total/status/category/facility counts) comes from a Firestore `count()` aggregation query — never a bounded full-document read — scoped by `company_id` + `deleted_at == None` plus at most one more equality filter, run concurrently via `asyncio.gather`. Chosen over maintained counters (too invasive for the current need) and over the D-019-style bounded-read-then-count pattern (would download every asset document just to produce integers).** | **RESOLVED — LOCKED** | 2026-07-28 |
+| D-040 | Phase evidence policy — no screenshot capture | **Every future phase's completion evidence is limited to automated test suites (unit/integration/widget), lint/type-check output, and contract-drift proof, plus real-creds backend verification when credentials are available in-session. Browser/simulator screenshot capture is no longer part of the contract at all — not attempted, not deferred, not apologized for. Visual/UX correctness is verified by the human manually.** | **RESOLVED — LOCKED** | 2026-07-28 |
 
 ## Decision Details
 
@@ -795,6 +798,82 @@
   from zero Maps Platform setup and should treat key provisioning as its own
   prerequisite step, not assume it already exists.
 
+### D-038 — Pluggable Dashboard KPI Widget Framework (Phase 4.4, resolves 2.3)
+
+- **Decision owner:** Established by implementation per the 2.2/2.3 ADRs'
+  own instruction — 2.3 was deliberately deferred until a real module KPI
+  existed to drive the right shape (assets, built in 4.1–4.3), rather than
+  building an abstraction speculatively.
+- **Decision:** A dashboard widget is a plain data structure —
+  `{ id, title, requiredPermission, minTier?, render/builder }` — registered
+  once via `registerWidget` (admin) / `registerDashboardWidget` (mobile).
+  `DashboardWidgetGrid` reads the registry, filters by the viewer's
+  permissions (0.6) and subscription tier (`minTier`, a real hook today even
+  though nothing sets it yet — enforcement lands with billing), and renders
+  each widget inside its own failure boundary (a React error boundary on
+  admin, a build-time try/catch on mobile) so one widget's crash never
+  blanks the rest of the dashboard. This is the exact tile shape and gating
+  rule 2.2's `ReservedKpiRegion` established, now expressed as data-driven
+  registrations instead of a hardcoded array.
+- **Consequences:** Every future module (Work Orders/7, Permits, Safety/
+  Inspections) plugs a widget into this same registry — no dashboard-page or
+  grid code changes are needed, only a new file registering the module's
+  widget and deleting its entry from `reserved-widgets.tsx`/
+  `reserved_widgets.dart`. Phase 2.3 is retroactively resolved by this
+  implementation rather than needing its own separate phase.
+
+### D-039 — Asset KPI Aggregation via Firestore `count()` (Phase 4.4)
+
+- **Decision owner:** Established by implementation — the phase brief
+  explicitly flagged Firestore cost discipline as a decision point to make
+  and document, not assume.
+- **Decision:** `AssetRepository.count()` issues a Firestore `count()`
+  aggregation query (billed per ~1000 matched docs, minimum 1 — never
+  downloads a document) filtered by `company_id == ` + `deleted_at == None`
+  plus at most one more equality filter (`current_status`/`category`/
+  `facility_id`). `AssetManagementService.get_dashboard_summary()` fires the
+  4 status/total counts, one count per `ASSET_CATEGORIES` entry, and one
+  count per tenant facility, all concurrently via `asyncio.gather`. Every
+  filter used is a plain equality filter, so this needs zero new composite
+  indexes (Firestore only requires one when a range/inequality filter
+  combines with another filter or an `order_by`) —
+  `infra/firebase/firestore.indexes.json` is untouched by this phase.
+- **Rejected alternatives:** Maintained counters (transactional updates on
+  every asset create/update-status-change/soft-delete, plus a backfill for
+  already-seeded tenants) were rejected as too invasive for a need this
+  cheaply servable another way. The existing D-019 bounded-read-then-count
+  pattern (used for `users_total`/`roles_total`/`audit_events`) was
+  rejected here specifically because it would download every asset
+  document — including embedded `photos`/`documents`/`manuals` arrays —
+  just to produce a handful of integers, exactly the "full scan" the phase
+  brief asked to avoid.
+- **Consequences:** Any future KPI needing a count over a bounded, known
+  set of equality-filterable values (status/category/facility-shaped) should
+  reuse this `count()` pattern rather than a full list-and-count. A KPI
+  needing an arbitrary/unbounded group-by (not a small fixed catalog) would
+  need a different approach — this phase does not attempt to generalize
+  that case.
+
+### D-040 — Phase Evidence Policy: No Screenshot Capture
+
+- **Decision owner:** Product owner (explicit instruction, Phase 4.4
+  session, applies retroactively as guidance and prospectively to every
+  future phase).
+- **Decision:** Phase completion evidence is limited to automated test
+  suites (unit/integration/widget), lint/type-check output, and
+  contract-drift proof, plus real-credentials backend verification when
+  credentials are available in the working session. Browser/simulator
+  screenshot capture is removed from the evidence contract entirely — not
+  attempted, not recorded as deferred, not treated as an open follow-up.
+  Visual/UX correctness is the product owner's responsibility, verified
+  manually.
+- **Consequences:** Every phase prompt's "When done" section drops any
+  screenshot line going forward. `TESTING.md` evidence rows for 4.4 onward
+  cite only test/lint/build/contract-drift results and real-backend checks —
+  prior phases' rows (4.2/4.3) that recorded deferred screenshot evidence
+  due to environment limitations stay as historical record and are not
+  retroactively rewritten.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -917,3 +996,20 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   confirmation. Android and iOS now share the permanent reverse-domain
   identity `com.flacronenterprises.energyverse` and display name
   `EnergyVerse`; the default Flutter `com.example` identity is prohibited.
+- **2026-07-28 — Phase 4.4 complete (resolves 2.3):** Added D-038 and D-039.
+  Assets became the first real registered consumer of a genuine pluggable
+  dashboard widget framework, replacing 2.2's hardcoded `ReservedKpiRegion`
+  with a permission-and-tier-filtered registry that isolates each widget's
+  own failures. Total/Critical/Asset-Condition widgets ship on both clients,
+  each linking/navigating to the 4.2 asset list pre-filtered; mobile adds a
+  role-based task-focused subset for field_inspector/maintenance_technician.
+  Every asset KPI number comes from a Firestore `count()` aggregation query
+  (D-039), never a full-document read, needing zero new composite indexes.
+  Backend/admin/mobile automated suites all green (full pytest, vitest, and
+  flutter test runs); OpenAPI export and both pinned clients regenerated
+  with a clean, minimal diff limited to the new endpoint and its 3 models.
+- **2026-07-28 — Phase evidence policy:** Added D-040 per explicit
+  product-owner instruction. Screenshot/browser evidence is no longer part
+  of any future phase's completion contract; automated tests plus
+  real-creds backend checks are sufficient, with visual QA owned by the
+  human.
