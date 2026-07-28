@@ -12,6 +12,7 @@ src/apis/DashboardApi.ts
 src/apis/FacilitiesApi.ts
 src/apis/PermissionsApi.ts
 src/apis/PlatformApi.ts
+src/apis/QrApi.ts
 src/apis/RbacDemoApi.ts
 src/apis/RolesApi.ts
 src/apis/SystemApi.ts
@@ -31,6 +32,7 @@ src/models/AssetHistoryPage.ts
 src/models/AssetListItem.ts
 src/models/AssetListPage.ts
 src/models/AssetMediaResponse.ts
+src/models/AssetQrLabel.ts
 src/models/AuditLogEntry.ts
 src/models/AuditLogFacets.ts
 src/models/AuditLogPage.ts
@@ -62,6 +64,7 @@ src/models/PlatformCompanyDetail.ts
 src/models/PlatformCompanyPage.ts
 src/models/PlatformCompanySummary.ts
 src/models/PlatformStats.ts
+src/models/QrScanResult.ts
 src/models/RoleDeleted.ts
 src/models/RoleDetail.ts
 src/models/RoleList.ts

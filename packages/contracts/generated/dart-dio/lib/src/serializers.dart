@@ -27,6 +27,7 @@ import 'package:fev_api_client/src/model/asset_history_page.dart';
 import 'package:fev_api_client/src/model/asset_list_item.dart';
 import 'package:fev_api_client/src/model/asset_list_page.dart';
 import 'package:fev_api_client/src/model/asset_media_response.dart';
+import 'package:fev_api_client/src/model/asset_qr_label.dart';
 import 'package:fev_api_client/src/model/audit_log_entry.dart';
 import 'package:fev_api_client/src/model/audit_log_facets.dart';
 import 'package:fev_api_client/src/model/audit_log_page.dart';
@@ -58,6 +59,7 @@ import 'package:fev_api_client/src/model/platform_company_detail.dart';
 import 'package:fev_api_client/src/model/platform_company_page.dart';
 import 'package:fev_api_client/src/model/platform_company_summary.dart';
 import 'package:fev_api_client/src/model/platform_stats.dart';
+import 'package:fev_api_client/src/model/qr_scan_result.dart';
 import 'package:fev_api_client/src/model/role_deleted.dart';
 import 'package:fev_api_client/src/model/role_detail.dart';
 import 'package:fev_api_client/src/model/role_list.dart';
@@ -94,6 +96,7 @@ part 'serializers.g.dart';
   AssetListItem,
   AssetListPage,
   AssetMediaResponse,
+  AssetQrLabel,
   AuditLogEntry,
   AuditLogFacets,
   AuditLogPage,
@@ -125,6 +128,7 @@ part 'serializers.g.dart';
   PlatformCompanyPage,
   PlatformCompanySummary,
   PlatformStats,
+  QrScanResult,
   RoleDeleted,
   RoleDetail,
   RoleList,

@@ -177,6 +177,9 @@ class FakeApi implements ApiContract {
   Future<AssetHistoryPage> getAssetHistory(String assetId) => _getAssetHistory(assetId);
 
   @override
+  Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
+
+  @override
   Future<FacilityListPage> getFacilities({
     String? search,
     String? status,

@@ -99,6 +99,7 @@ abstract interface class ApiContract {
   });
   Future<AssetDetail> getAsset(String assetId);
   Future<AssetHistoryPage> getAssetHistory(String assetId);
+  Future<QrScanResult> resolveQrCode(String code);
   Future<FacilityListPage> getFacilities({
     String? search,
     String? status,
@@ -575,6 +576,23 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty asset history page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<QrScanResult> resolveQrCode(String code) async {
+    try {
+      final response = await _client.getQrApi().resolveQrCode(code: code);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty QR scan result',
         );
       }
       return value;

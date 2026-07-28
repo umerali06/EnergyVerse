@@ -14,6 +14,7 @@ Method | HTTP request | Description
 [**deleteAssetMedia**](AssetsApi.md#deleteassetmedia) | **DELETE** /api/v1/assets/{asset_id}/media/{media_id} | Delete Asset Media
 [**getAsset**](AssetsApi.md#getasset) | **GET** /api/v1/assets/{asset_id} | Get Asset
 [**getAssetHistory**](AssetsApi.md#getassethistory) | **GET** /api/v1/assets/{asset_id}/history | Get Asset History
+[**getAssetQrLabel**](AssetsApi.md#getassetqrlabel) | **GET** /api/v1/assets/{asset_id}/qr | Get Asset Qr Label
 [**listAssets**](AssetsApi.md#listassets) | **GET** /api/v1/assets | List Assets
 [**updateAsset**](AssetsApi.md#updateasset) | **PATCH** /api/v1/assets/{asset_id} | Update Asset
 [**uploadAssetMedia**](AssetsApi.md#uploadassetmedia) | **POST** /api/v1/assets/{asset_id}/media | Upload Asset Media
@@ -214,6 +215,47 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**AssetHistoryPage**](AssetHistoryPage.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getAssetQrLabel**
+> AssetQrLabel getAssetQrLabel(assetId)
+
+Get Asset Qr Label
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getAssetsApi();
+final String assetId = assetId_example; // String |
+
+try {
+    final response = api.getAssetQrLabel(assetId);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling AssetsApi->getAssetQrLabel: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **assetId** | **String**|  |
+
+### Return type
+
+[**AssetQrLabel**](AssetQrLabel.md)
 
 ### Authorization
 

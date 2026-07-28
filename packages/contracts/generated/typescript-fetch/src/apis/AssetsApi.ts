@@ -19,6 +19,7 @@ import type {
   AssetDetail,
   AssetHistoryPage,
   AssetListPage,
+  AssetQrLabel,
   CreateAssetRequest,
   ErrorEnvelope,
   HTTPValidationError,
@@ -33,6 +34,8 @@ import {
     AssetHistoryPageToJSON,
     AssetListPageFromJSON,
     AssetListPageToJSON,
+    AssetQrLabelFromJSON,
+    AssetQrLabelToJSON,
     CreateAssetRequestFromJSON,
     CreateAssetRequestToJSON,
     ErrorEnvelopeFromJSON,
@@ -61,6 +64,10 @@ export interface GetAssetRequest {
 }
 
 export interface GetAssetHistoryRequest {
+    assetId: string;
+}
+
+export interface GetAssetQrLabelRequest {
     assetId: string;
 }
 
@@ -304,6 +311,47 @@ export class AssetsApi extends runtime.BaseAPI {
      */
     async getAssetHistory(requestParameters: GetAssetHistoryRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetHistoryPage> {
         const response = await this.getAssetHistoryRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Get Asset Qr Label
+     */
+    async getAssetQrLabelRaw(requestParameters: GetAssetQrLabelRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AssetQrLabel>> {
+        if (requestParameters['assetId'] == null) {
+            throw new runtime.RequiredError(
+                'assetId',
+                'Required parameter "assetId" was null or undefined when calling getAssetQrLabel().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/assets/{asset_id}/qr`.replace(`{${"asset_id"}}`, encodeURIComponent(String(requestParameters['assetId']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AssetQrLabelFromJSON(jsonValue));
+    }
+
+    /**
+     * Get Asset Qr Label
+     */
+    async getAssetQrLabel(requestParameters: GetAssetQrLabelRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetQrLabel> {
+        const response = await this.getAssetQrLabelRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     firebase_storage_bucket: str | None = None
     seed_demo_password: str | None = None
     auth_action_url: str | None = None
+    # Base URL the QR deep-link payload is built from (`{app_base_url}/qr/{code}`).
+    # Defaults to the admin app's own local dev origin; set to the real deployed
+    # origin in production so scanned codes resolve there.
+    app_base_url: str = "http://localhost:3000"
     cors_origins: tuple[str, ...] = (
         "http://localhost:3000",
         "http://127.0.0.1:3000",

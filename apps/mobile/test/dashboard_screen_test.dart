@@ -183,6 +183,9 @@ class FakeApi implements ApiContract {
   Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
 
   @override
+  Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
+
+  @override
   Future<FacilityListPage> getFacilities({
     String? search,
     String? status,
@@ -568,5 +571,19 @@ void main() {
     // The app defaults to dark mode (AppThemeController), so ChartTheme.of
     // should have resolved the dark-mode line color from tokens.
     expect(chart.data.lineBarsData.single.color, DsColors.primary400);
+  });
+
+  testWidgets('offers the "Scan QR code" quick action to a role holding assets.read', (
+    tester,
+  ) async {
+    // Doesn't tap through: the destination route mounts the real camera
+    // plugin, which can't run in CI (see qr_scan_screen_test.dart, which
+    // exercises that screen with an injected scanner slot instead).
+    final api = FakeApi(identityFor('field_inspector', roleMatrix['field_inspector']!));
+    await pumpDashboard(tester, api: api);
+    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Scan QR code'));
+
+    expect(find.text('Scan QR code'), findsOneWidget);
   });
 }

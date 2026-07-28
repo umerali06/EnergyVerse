@@ -519,6 +519,13 @@ class _QuickActionsCard extends StatelessWidget {
     final permissions = PermissionProvider.of(context);
     final actions = <(String, String, String, IconData, bool)>[
       (
+        'Scan QR code',
+        "Scan an asset's QR label to jump straight to its details.",
+        AppRoutes.qrScan,
+        Icons.qr_code_scanner_outlined,
+        permissions.can('assets.read'),
+      ),
+      (
         'Users',
         'Invite, edit, and deactivate people in your company.',
         AppRoutes.users,

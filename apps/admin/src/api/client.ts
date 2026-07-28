@@ -10,6 +10,7 @@ import {
   FetchError,
   PermissionsApi,
   PlatformApi,
+  QrApi,
   RbacDemoApi,
   ResponseError,
   RolesApi,
@@ -21,6 +22,7 @@ import {
   type AssetDetail,
   type AssetHistoryPage,
   type AssetListPage,
+  type AssetQrLabel,
   type AuditLogFacets,
   type AuditLogPage,
   type CompanyProfile,
@@ -42,6 +44,7 @@ import {
   type PlatformCompanyPage,
   type UpdateAssetRequest,
   type PlatformStats,
+  type QrScanResult,
   type RoleDeleted,
   type RoleDetail,
   type RoleList,
@@ -169,6 +172,7 @@ export class FevApiClient {
   private readonly facilities: FacilitiesApi;
   private readonly permissions: PermissionsApi;
   private readonly platform: PlatformApi;
+  private readonly qr: QrApi;
   private readonly rbacDemo: RbacDemoApi;
   private readonly roles: RolesApi;
   private readonly system: SystemApi;
@@ -193,6 +197,7 @@ export class FevApiClient {
     this.facilities = new FacilitiesApi(configuration);
     this.permissions = new PermissionsApi(configuration);
     this.platform = new PlatformApi(configuration);
+    this.qr = new QrApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
     this.roles = new RolesApi(configuration);
     this.system = new SystemApi(configuration);
@@ -366,6 +371,18 @@ export class FevApiClient {
         { assetId, mediaId },
         signal ? { signal } : undefined,
       ),
+    );
+  }
+
+  getAssetQrLabel(assetId: string, signal?: AbortSignal): Promise<AssetQrLabel> {
+    return this.execute(() =>
+      this.assets.getAssetQrLabel({ assetId }, signal ? { signal } : undefined),
+    );
+  }
+
+  resolveQrCode(code: string, signal?: AbortSignal): Promise<QrScanResult> {
+    return this.execute(() =>
+      this.qr.resolveQrCode({ code }, signal ? { signal } : undefined),
     );
   }
 

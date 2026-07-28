@@ -440,6 +440,26 @@ class AssetHistoryPage(BaseModel):
     next_cursor: str | None = None
 
 
+class AssetQrLabel(BaseModel):
+    """Printable label payload -- the frontend renders the QR image itself
+    (client-side, from `url`) rather than the backend generating pixels."""
+
+    qr_code_id: str | None = None
+    url: str | None = None
+    asset_tag: str
+    name: str
+
+
+class QrScanResult(BaseModel):
+    """The scan surface: the full asset plus reserved, honestly-empty counts
+    for sections later phases (7/11) will populate."""
+
+    asset: AssetDetail
+    inspections_total: int = 0
+    maintenance_total: int = 0
+    work_orders_total: int = 0
+
+
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
         201: "Resource created",

@@ -44,6 +44,8 @@ EXPECTED_OPERATIONS = {
     "delete_asset",
     "upload_asset_media",
     "delete_asset_media",
+    "get_asset_qr_label",
+    "resolve_qr_code",
     "get_company",
     "update_company",
     "upload_company_logo",

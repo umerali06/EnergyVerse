@@ -17,7 +17,7 @@
 	<key>CFBundleName</key>
 	<string>EnergyVerse</string>
 	<key>NSCameraUsageDescription</key>
-	<string>EnergyVerse uses the camera to attach asset reference photos.</string>
+	<string>EnergyVerse uses the camera to attach asset reference photos and scan asset QR codes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>EnergyVerse uses the photo library to attach asset reference photos.</string>
 	<key>CFBundlePackageType</key>
