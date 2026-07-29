@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:built_collection/built_collection.dart';
+import 'package:drift/native.dart';
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/auth/app_routes.dart';
 import 'package:fev_mobile/auth/firebase_gateway.dart';
+import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/design_system/tokens_generated.dart';
 import 'package:fev_mobile/main.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -228,6 +230,29 @@ class FakeApi implements ApiContract {
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
       throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  ) =>
+      throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {
@@ -259,6 +284,7 @@ Future<void> pumpDashboard(WidgetTester tester, {required FakeApi api}) async {
       api: api,
       authGateway: FakeGateway(),
       initialRoute: AppRoutes.home,
+      database: AppDatabase(NativeDatabase.memory()),
     ),
   );
   await tester.pump();
@@ -548,7 +574,12 @@ void main() {
     await tester.pumpWidget(
       MediaQuery(
         data: const MediaQueryData(disableAnimations: true),
-        child: FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.home),
+        child: FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.home,
+          database: AppDatabase(NativeDatabase.memory()),
+        ),
       ),
     );
     await tester.pumpAndSettle();

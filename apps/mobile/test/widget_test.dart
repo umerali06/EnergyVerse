@@ -1,6 +1,8 @@
+import 'package:drift/native.dart';
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/auth/firebase_gateway.dart';
+import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -170,12 +172,39 @@ class _UnusedApi implements ApiContract {
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
       throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  ) =>
+      throw UnimplementedError();
 }
 
 void main() {
   testWidgets('renders the login screen', (tester) async {
     await tester.pumpWidget(
-      FevApp(api: _UnusedApi(), authGateway: _SignedOutGateway()),
+      FevApp(
+        api: _UnusedApi(),
+        authGateway: _SignedOutGateway(),
+        database: AppDatabase(NativeDatabase.memory()),
+      ),
     );
     // Signed-out state redirects the protected home route to /login.
     await tester.pumpAndSettle();

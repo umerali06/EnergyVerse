@@ -1,8 +1,11 @@
+import 'package:drift/native.dart';
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/auth/app_routes.dart';
 import 'package:fev_mobile/auth/firebase_gateway.dart';
+import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const session = AuthSession(
@@ -53,6 +56,28 @@ InspectionListPage _pageFixture({List<InspectionListItem>? items, String? nextCu
       ..items.addAll(items ?? [_inspectionItemFixture()])
       ..nextCursor = nextCursor);
 
+InspectionDetail _inspectionDetailFixture({
+  String id = 'inspection-1',
+  String title = 'Q3 Routine Inspection',
+  InspectionDetailStatusEnum status = InspectionDetailStatusEnum.completed,
+}) {
+  final now = DateTime.utc(2026, 1, 1);
+  return InspectionDetail(
+    (b) => b
+      ..id = id
+      ..assetId = 'asset-1'
+      ..facilityId = 'facility-1'
+      ..inspectorId = 'demo-acme-field_inspector'
+      ..status = status
+      ..inspectionType = InspectionDetailInspectionTypeEnum.routine
+      ..title = title
+      ..revision = 1
+      ..clientCreatedAt = now
+      ..createdAt = now
+      ..updatedAt = now,
+  );
+}
+
 typedef GetInspectionsFn = Future<InspectionListPage> Function({
   String? assetId,
   String? facilityId,
@@ -62,8 +87,10 @@ typedef GetInspectionsFn = Future<InspectionListPage> Function({
   int limit,
 });
 
+typedef GetInspectionFn = Future<InspectionDetail> Function(String inspectionId);
+
 class FakeApi implements ApiContract {
-  FakeApi(this.identity, {GetInspectionsFn? getInspections})
+  FakeApi(this.identity, {GetInspectionsFn? getInspections, GetInspectionFn? getInspection})
       : _getInspections = getInspections ?? (({
           String? assetId,
           String? facilityId,
@@ -72,10 +99,12 @@ class FakeApi implements ApiContract {
           String? cursor,
           int limit = 25,
         }) async =>
-            _pageFixture());
+            _pageFixture()),
+        _getInspection = getInspection ?? ((id) async => _inspectionDetailFixture(id: id));
 
   final CurrentUser identity;
   final GetInspectionsFn _getInspections;
+  final GetInspectionFn _getInspection;
 
   @override
   Future<CurrentUser> getCurrentUser() async => identity;
@@ -218,10 +247,33 @@ class FakeApi implements ApiContract {
       );
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> getInspection(String inspectionId) => _getInspection(inspectionId);
 
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  ) =>
       throw UnimplementedError();
 }
 
@@ -250,9 +302,20 @@ class FakeGateway implements AuthGateway {
 
 Future<void> pumpInspections(WidgetTester tester, {required FakeApi api}) async {
   await tester.pumpWidget(
-    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections),
+    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
   );
   await tester.pump();
+}
+
+/// Drift's query-stream cancellation schedules a zero-duration internal
+/// Timer when a subscriber (e.g. the app shell's sync-status banner)
+/// unmounts. `flutter_test`'s pending-timer invariant check runs at the end
+/// of the test body itself -- before any `addTearDown` callback -- so this
+/// must be called inline, as the last step of every test that pumps
+/// [FevApp], to unmount and flush that timer before the check fires.
+Future<void> disposeApp(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump(const Duration(milliseconds: 1));
 }
 
 void main() {
@@ -262,6 +325,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Q3 Routine Inspection'), findsOneWidget);
+    await disposeApp(tester);
   });
 
   testWidgets('shows an honest empty state when no inspections match', (tester) async {
@@ -274,6 +338,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No inspections found'), findsOneWidget);
+    await disposeApp(tester);
   });
 
   testWidgets('re-fetches when the status filter changes', (tester) async {
@@ -294,6 +359,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(calls, contains('in_progress'));
+    await disposeApp(tester);
   });
 
   testWidgets('renders the honest 403 screen for a role without inspections.read', (tester) async {
@@ -302,5 +368,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("You can't view this area"), findsOneWidget);
+    await disposeApp(tester);
   });
 }

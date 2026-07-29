@@ -7,6 +7,7 @@ import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
 import '../navigation/nav_config.dart';
+import '../sync/sync_engine.dart';
 
 /// Persistent authenticated shell: app bar with user menu and theme toggle,
 /// permission-filtered bottom navigation (Home / Assets / Work / More), and a
@@ -183,7 +184,14 @@ class AppShellScaffold extends StatelessWidget {
             ),
         ],
       ),
-      body: SafeArea(child: child),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const _SyncStatusBanner(),
+            Expanded(child: child),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
@@ -231,6 +239,40 @@ class AppShellScaffold extends StatelessWidget {
           (part) => part[0].toUpperCase() + part.substring(1),
         );
     return words.join(' ');
+  }
+}
+
+/// App-wide offline/pending indicator (Phase 7.2): hidden when online with
+/// an empty outbox, otherwise shows either the offline state or how many
+/// mutations are still queued to sync.
+class _SyncStatusBanner extends StatelessWidget {
+  const _SyncStatusBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final sync = SyncProvider.engineOf(context);
+    return AnimatedBuilder(
+      animation: sync,
+      builder: (context, _) {
+        final pending = sync.pendingOutboxCount;
+        final offline = sync.connectivity == SyncConnectivity.offline;
+        if (!offline && pending == 0) return const SizedBox.shrink();
+        final label = offline
+            ? "Offline — changes will sync when you're back online"
+            : 'Syncing $pending pending change${pending == 1 ? '' : 's'}';
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(DsSpacing.s4, DsSpacing.s2, DsSpacing.s4, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: StatusPill(
+              key: const Key('sync-status-banner'),
+              label: label,
+              status: offline ? AppStatus.warning : AppStatus.info,
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

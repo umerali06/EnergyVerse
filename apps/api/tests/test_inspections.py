@@ -251,6 +251,40 @@ def test_assign_checklist_template_success(wiring: dict[str, Any]) -> None:
     assert body["checklist_responses"] == []
 
 
+def test_assign_checklist_template_accepts_correct_expected_revision(
+    wiring: dict[str, Any],
+) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/inspections/{created['id']}/checklist-template",
+        json={
+            "checklist_template_id": CHECKLIST_TEMPLATE_PUMP_ID,
+            "expected_revision": created["revision"],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["revision"] == created["revision"] + 1
+
+
+def test_assign_checklist_template_rejects_stale_expected_revision(
+    wiring: dict[str, Any],
+) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/inspections/{created['id']}/checklist-template",
+        json={
+            "checklist_template_id": CHECKLIST_TEMPLATE_PUMP_ID,
+            "expected_revision": created["revision"] + 99,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["error"] == "revision_conflict"
+
+
 def test_assign_checklist_template_rejects_category_mismatch(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()  # asset is a Pump
     response = _request(

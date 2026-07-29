@@ -209,10 +209,13 @@ class InspectionRepository(TenantRepository[Inspection]):
         template_version: int,
         snapshot_items: list[ChecklistTemplateItem],
         actor_uid: str,
+        expected_revision: int | None = None,
     ) -> Inspection:
         current = await self.get(scope, inspection_id)
         if current is None:
             raise LookupError("inspection not found in company scope")
+        if expected_revision is not None and expected_revision != current.revision:
+            raise RevisionConflictError(current)
         data = {
             **current.model_dump(),
             "checklist_template_id": template_id,

@@ -47,6 +47,8 @@ Only one micro-task may be active at a time.
 | 6 | To be defined | Not started |
 | 7 | Inspections — flagship field-inspection module (data model, offline sync, capture, checklist, readings, signature, AR, AI analysis, admin review) | In progress |
 | 7.1 | Inspection data model, checklist templates, and backend CRUD/lifecycle | Done |
+| 7.2 | Offline engine — local store, sync queue, and conflict resolution | Done |
+| 7.3 | To be defined | In progress |
 | 8 | To be defined | Not started |
 | 9 | To be defined | Not started |
 | 10 | To be defined | Not started |
