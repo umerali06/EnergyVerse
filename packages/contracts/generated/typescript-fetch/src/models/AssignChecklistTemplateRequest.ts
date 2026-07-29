@@ -25,6 +25,12 @@ export interface AssignChecklistTemplateRequest {
      * @memberof AssignChecklistTemplateRequest
      */
     checklistTemplateId: string;
+    /**
+     *
+     * @type {number}
+     * @memberof AssignChecklistTemplateRequest
+     */
+    expectedRevision?: number | null;
 }
 
 /**
@@ -46,6 +52,7 @@ export function AssignChecklistTemplateRequestFromJSONTyped(json: any, ignoreDis
     return {
 
         'checklistTemplateId': json['checklist_template_id'],
+        'expectedRevision': json['expected_revision'] == null ? undefined : json['expected_revision'],
     };
 }
 
@@ -61,5 +68,6 @@ export function AssignChecklistTemplateRequestToJSONTyped(value?: AssignChecklis
     return {
 
         'checklist_template_id': value['checklistTemplateId'],
+        'expected_revision': value['expectedRevision'],
     };
 }

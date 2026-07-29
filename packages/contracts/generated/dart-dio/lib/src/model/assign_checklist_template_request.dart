@@ -12,6 +12,7 @@ part 'assign_checklist_template_request.g.dart';
 ///
 /// Properties:
 /// * [checklistTemplateId]
+/// * [expectedRevision]
 @BuiltValue()
 abstract class AssignChecklistTemplateRequest
     implements
@@ -19,6 +20,9 @@ abstract class AssignChecklistTemplateRequest
             AssignChecklistTemplateRequestBuilder> {
   @BuiltValueField(wireName: r'checklist_template_id')
   String get checklistTemplateId;
+
+  @BuiltValueField(wireName: r'expected_revision')
+  int? get expectedRevision;
 
   AssignChecklistTemplateRequest._();
 
@@ -55,6 +59,13 @@ class _$AssignChecklistTemplateRequestSerializer
       object.checklistTemplateId,
       specifiedType: const FullType(String),
     );
+    if (object.expectedRevision != null) {
+      yield r'expected_revision';
+      yield serializers.serialize(
+        object.expectedRevision,
+        specifiedType: const FullType.nullable(int),
+      );
+    }
   }
 
   @override
@@ -86,6 +97,14 @@ class _$AssignChecklistTemplateRequestSerializer
             specifiedType: const FullType(String),
           ) as String;
           result.checklistTemplateId = valueDes;
+          break;
+        case r'expected_revision':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(int),
+          ) as int?;
+          if (valueDes == null) continue;
+          result.expectedRevision = valueDes;
           break;
         default:
           unhandled.add(key);

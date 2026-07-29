@@ -11,5 +11,10 @@ void main() {
     test('to test the property `checklistTemplateId`', () async {
       // TODO
     });
+
+    // int expectedRevision
+    test('to test the property `expectedRevision`', () async {
+      // TODO
+    });
   });
 }

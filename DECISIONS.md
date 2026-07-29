@@ -1329,8 +1329,10 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   `thinking-case-469504-c0` confirmed the idempotent-upsert replay
   contract and forced genuine `revision_conflict` 409s on both `update`
   and the newly-guarded `assign_checklist_template`, then hard-deleted the
-  probe inspection. Contracts regeneration for the `assign_checklist_template`
-  `expected_revision` field is blocked on a persistent Windows file-lock
-  environment issue as of this phase (see TESTING.md) — a follow-up, not a
-  design gap; the mobile client's `assignChecklistTemplate` call
-  correctly omits `expected_revision` until the client regenerates.
+  probe inspection. Regenerating the Dart/TypeScript clients for the new
+  `expected_revision` field hit a persistent Windows file-lock on the dev
+  machine itself; since the equivalent CI job's Linux runner has no such
+  lock, its own from-source regeneration was applied directly to the repo
+  instead (see TESTING.md) — the mobile client's `assignChecklistTemplate`
+  call now threads `expected_revision` through like every other mutation
+  type.

@@ -500,12 +500,6 @@ class LocalInspectionsRepository extends ChangeNotifier {
     });
   }
 
-  /// TODO(contracts-regen): once `packages/contracts` regenerates with the
-  /// `expected_revision` field on `AssignChecklistTemplateRequest` (blocked
-  /// on an environment file-lock as of this phase, see DECISIONS.md D-047),
-  /// thread `current.baseRevision` through here the same way
-  /// [updateInspection] does. Until then this mutation has no
-  /// optimistic-concurrency guard, same as every phase before 7.2.
   Future<void> assignChecklistTemplate(
     String id, {
     required String templateId,
@@ -513,6 +507,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
     required List<ChecklistTemplateItem> items,
   }) async {
     await _db.transaction(() async {
+      final current =
+          await (_db.select(_db.localInspections)..where((t) => t.id.equals(id))).getSingle();
       final now = DateTime.now().toUtc();
       await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
         LocalInspectionsCompanion(
@@ -523,7 +519,11 @@ class LocalInspectionsRepository extends ChangeNotifier {
           syncState: const drift.Value('pending_sync'),
         ),
       );
-      final request = AssignChecklistTemplateRequest((b) => b..checklistTemplateId = templateId);
+      final request = AssignChecklistTemplateRequest(
+        (b) => b
+          ..checklistTemplateId = templateId
+          ..expectedRevision = current.baseRevision,
+      );
       final payload = jsonEncode(
         standardSerializers.serializeWith(AssignChecklistTemplateRequest.serializer, request),
       );

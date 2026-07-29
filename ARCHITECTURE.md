@@ -1400,13 +1400,13 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   "close the `assign` conflict gap" consequence) — `AssignChecklistTemplateRequest`
   gained the field, `InspectionRepository.assign_checklist_template` checks
   it against the current row exactly like `update` does, and the service
-  raises the same `RevisionConflictError` → 409 `revision_conflict`.
-  **Not yet reflected in the generated Dart client** as of this phase: a
-  persistent Windows file-lock on `packages/contracts/generated/dart-dio`
-  blocked contract regeneration (see TESTING.md) — the mobile
-  `assignChecklistTemplate` outbox mutation correctly omits
-  `expected_revision` until that regenerates, with a `TODO(contracts-regen)`
-  marker at the exact call site.
+  raises the same `RevisionConflictError` → 409 `revision_conflict`. The
+  generated Dart/TypeScript clients were regenerated to match (a local
+  Windows file-lock blocked regenerating them on the dev machine itself;
+  the equivalent CI job's Linux runner has no such lock, so its from-source
+  regeneration was applied directly instead — see TESTING.md) and
+  `LocalInspectionsRepository.assignChecklistTemplate` threads
+  `baseRevision` through as `expected_revision`, same as `updateInspection`.
 
 ### AI Safety Boundary
 
