@@ -36,7 +36,7 @@ void main() {
 
     // Get Asset History
     //
-    //Future<AssetHistoryPage> getAssetHistory(String assetId) async
+    //Future<AssetHistoryPage> getAssetHistory(String assetId, { String cursor, int limit }) async
     test('test getAssetHistory', () async {
       // TODO
     });

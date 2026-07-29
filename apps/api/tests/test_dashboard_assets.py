@@ -12,6 +12,7 @@ from app.db.repositories.areas import AreaRepository
 from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.facilities import FacilityRepository
+from app.db.repositories.inspections import InspectionRepository
 from app.main import app
 from app.models.entities import CurrentUser
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
@@ -39,6 +40,7 @@ def wiring() -> dict[str, Any]:
         assets=AssetRepository(client, audit),
         facilities=FacilityRepository(client, audit),
         areas=AreaRepository(client, audit),
+        inspections=InspectionRepository(client, audit),
         storage=AssetMediaStorage(FakeBucket()),
     )
 

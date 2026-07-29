@@ -91,6 +91,7 @@ function renderDetail({
     items: [{ id: "area-1", facilityId: "facility-1", name: "Unit 12", createdAt: new Date(), updatedAt: new Date() }],
     nextCursor: null,
   })),
+  listInspections = vi.fn(async () => ({ items: [], nextCursor: null })),
 }: {
   getAsset?: ReturnType<typeof vi.fn>;
   getAssetHistory?: ReturnType<typeof vi.fn>;
@@ -98,6 +99,7 @@ function renderDetail({
   listAssets?: ReturnType<typeof vi.fn>;
   listFacilities?: ReturnType<typeof vi.fn>;
   listAreas?: ReturnType<typeof vi.fn>;
+  listInspections?: ReturnType<typeof vi.fn>;
 } = {}) {
   const identity = {
     uid: "demo-acme-company_admin",
@@ -116,6 +118,7 @@ function renderDetail({
     listAssets,
     listFacilities,
     listAreas,
+    listInspections,
   };
   return render(
     <ThemeProvider>
@@ -177,6 +180,42 @@ describe("asset detail page", () => {
 
     await user.click(screen.getByRole("tab", { name: "Media" }));
     expect(await screen.findByText("No photos or documents yet")).toBeInTheDocument();
+  });
+
+  it("renders real inspection rows on the Inspections tab", async () => {
+    const listInspections = vi.fn(async () => ({
+      items: [
+        {
+          id: "inspection-1",
+          assetId: "asset-1",
+          facilityId: "facility-1",
+          areaId: "area-1",
+          inspectorId: "demo-acme-field_inspector",
+          status: "completed",
+          inspectionType: "routine",
+          title: "Q3 Routine Inspection",
+          checklistTemplateId: null,
+          startedAt: new Date("2026-01-02T00:00:00Z"),
+          completedAt: new Date("2026-01-03T00:00:00Z"),
+          revision: 2,
+          createdAt: new Date("2026-01-01T00:00:00Z"),
+          updatedAt: new Date("2026-01-03T00:00:00Z"),
+        },
+      ],
+      nextCursor: null,
+    }));
+    renderDetail({ listInspections });
+    await screen.findByText("Feed Pump");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Inspections" }));
+    expect(await screen.findByText("Q3 Routine Inspection")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Q3 Routine Inspection" })).toHaveAttribute(
+      "href",
+      "/inspections/inspection-1",
+    );
+    expect(listInspections).toHaveBeenCalledWith(
+      expect.objectContaining({ assetId: "asset-1" }),
+    );
   });
 
   it("calls the history endpoint and renders the empty timeline", async () => {

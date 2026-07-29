@@ -169,6 +169,9 @@ class AssetsController extends ChangeNotifier {
 
   Future<AssetHistoryPage> getAssetHistory(String assetId) => _api.getAssetHistory(assetId);
 
+  Future<InspectionListPage> getInspections(String assetId) =>
+      _api.getInspections(assetId: assetId);
+
   Future<List<AssetListItem>> getChildAssets(String parentAssetId) async {
     final page = await _api.getAssets(parentAssetId: parentAssetId, limit: _lookupLimit);
     return page.items.toList();

@@ -112,6 +112,7 @@ describeReal("Firebase login against the real development project", () => {
     expect(currentUser.roleKey).toBe("field_inspector");
     expect([...currentUser.permissions].sort()).toEqual([
       "assets.read",
+      "checklist_templates.read",
       "inspections.read",
       "inspections.write",
       "permits.read",

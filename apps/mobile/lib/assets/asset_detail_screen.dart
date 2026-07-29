@@ -14,6 +14,7 @@ import '../dashboard/format.dart';
 import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
+import '../inspections/inspections_screen.dart' show inspectionStatusFor, inspectionStatusLabel;
 import 'assets_controller.dart';
 import 'assets_screen.dart' show statusFor, statusLabel;
 
@@ -176,10 +177,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             child: TabBarView(
               children: [
                 _OverviewTab(asset: asset, controller: controller),
-                const _StaticEmptyTab(
-                  description: 'Inspections will appear here once Phase 7 lands.',
-                  title: 'No inspections yet',
-                ),
+                _InspectionsTab(assetId: asset.id, controller: controller),
                 const _StaticEmptyTab(
                   description: 'Work orders will appear here once Phase 11 lands.',
                   title: 'No work orders yet',
@@ -332,6 +330,108 @@ class _OverviewTabState extends State<_OverviewTab> {
         const SizedBox(height: DsSpacing.s4),
         _Field(label: 'Created', value: formatCompanyDateTime(asset.createdAt)),
         _Field(label: 'Last updated', value: formatCompanyDateTime(asset.updatedAt)),
+      ],
+    );
+  }
+}
+
+class _InspectionsTab extends StatefulWidget {
+  const _InspectionsTab({required this.assetId, required this.controller});
+
+  final String assetId;
+  final AssetsController controller;
+
+  @override
+  State<_InspectionsTab> createState() => _InspectionsTabState();
+}
+
+class _InspectionsTabState extends State<_InspectionsTab> {
+  LoadStatus _status = LoadStatus.loading;
+  List<InspectionListItem> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller
+        .getInspections(widget.assetId)
+        .then((page) {
+          if (!mounted) return;
+          setState(() {
+            _items = page.items.toList();
+            _status = LoadStatus.ready;
+          });
+        })
+        .catchError((_) {
+          if (!mounted) return;
+          setState(() => _status = LoadStatus.error);
+        });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_status == LoadStatus.loading) {
+      return const Padding(padding: EdgeInsets.all(DsSpacing.s6), child: AppSkeleton(height: 64));
+    }
+    if (_status == LoadStatus.error) {
+      return const Padding(
+        padding: EdgeInsets.all(DsSpacing.s6),
+        child: EmptyState(
+          description: "Couldn't load this asset's inspections.",
+          title: 'Something went wrong',
+        ),
+      );
+    }
+    if (_items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(DsSpacing.s6),
+        child: EmptyState(
+          description: 'No inspections have been recorded for this asset yet.',
+          title: 'No inspections yet',
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(DsSpacing.s6),
+      children: [
+        for (final inspection in _items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: DsSpacing.s3),
+            child: AppCard(
+              child: InkWell(
+                onTap: () => Navigator.of(context)
+                    .pushNamed(AppRoutes.inspectionDetail, arguments: inspection.id),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            inspection.title ?? 'Untitled',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: DsSpacing.s2),
+                          StatusPill(
+                            label: inspectionStatusLabel(inspection.status.name),
+                            status: inspectionStatusFor(inspection.status.name),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      formatRelativeTime(inspection.updatedAt),
+                      style: TextStyle(
+                        fontFamily: DsTypography.mono,
+                        fontSize: DsTypography.sizeCaption,
+                        color: context.semantic.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

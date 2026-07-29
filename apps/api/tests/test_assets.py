@@ -11,6 +11,7 @@ from app.db.repositories.areas import AreaRepository
 from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.facilities import FacilityRepository
+from app.db.repositories.inspections import InspectionRepository
 from app.main import app
 from app.models.entities import CurrentUser
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
@@ -42,6 +43,7 @@ def wiring() -> dict[str, Any]:
         assets=AssetRepository(client, audit),
         facilities=FacilityRepository(client, audit),
         areas=AreaRepository(client, audit),
+        inspections=InspectionRepository(client, audit),
         storage=AssetMediaStorage(bucket),
     )
 
@@ -385,8 +387,31 @@ def test_list_assets_sort_by_name(wiring: dict[str, Any]) -> None:
 # --- history -----------------------------------------------------------------
 
 
-def test_asset_history_returns_empty_shaped_page(wiring: dict[str, Any]) -> None:
+def test_asset_history_returns_empty_shaped_page_for_asset_with_no_inspections(
+    wiring: dict[str, Any],
+) -> None:
+    # V-401 has no seeded inspection at all (7.1) -- a clean "honest empty" case.
+    valve_id = f"{ACME_COMPANY_ID}__asset__v-401"
+    response = _request(_identity(), "GET", f"/api/v1/assets/{valve_id}/history")
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "next_cursor": None}
+
+
+def test_asset_history_includes_real_completed_inspections(wiring: dict[str, Any]) -> None:
+    # P-101 has one seeded *completed* inspection (7.1 demo data) -- history
+    # now resolves D-033's placeholder by querying inspections by asset_id.
     response = _request(_identity(), "GET", f"/api/v1/assets/{ASSET_FEED_PUMP_ID}/history")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["items"]) == 1
+    assert body["items"][0]["type"] == "inspection"
+    assert body["next_cursor"] is None
+
+
+def test_asset_history_excludes_non_completed_inspections(wiring: dict[str, Any]) -> None:
+    # T-301 has one seeded *in_progress* inspection -- it must not appear.
+    tank_id = f"{ACME_COMPANY_ID}__asset__t-301"
+    response = _request(_identity(), "GET", f"/api/v1/assets/{tank_id}/history")
     assert response.status_code == 200
     assert response.json() == {"items": [], "next_cursor": None}
 

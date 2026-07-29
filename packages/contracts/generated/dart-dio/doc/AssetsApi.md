@@ -187,7 +187,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getAssetHistory**
-> AssetHistoryPage getAssetHistory(assetId)
+> AssetHistoryPage getAssetHistory(assetId, cursor, limit)
 
 Get Asset History
 
@@ -197,9 +197,11 @@ import 'package:fev_api_client/api.dart';
 
 final api = FevApiClient().getAssetsApi();
 final String assetId = assetId_example; // String |
+final String cursor = cursor_example; // String |
+final int limit = 56; // int |
 
 try {
-    final response = api.getAssetHistory(assetId);
+    final response = api.getAssetHistory(assetId, cursor, limit);
     print(response);
 } catch on DioException (e) {
     print('Exception when calling AssetsApi->getAssetHistory: $e\n');
@@ -211,6 +213,8 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **assetId** | **String**|  |
+ **cursor** | **String**|  | [optional]
+ **limit** | **int**|  | [optional] [default to 25]
 
 ### Return type
 

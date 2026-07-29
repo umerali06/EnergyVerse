@@ -440,6 +440,143 @@ class AssetHistoryPage(BaseModel):
     next_cursor: str | None = None
 
 
+class ChecklistTemplateItem(BaseModel):
+    id: str
+    label: str
+    item_type: Literal["boolean", "numeric", "text", "select"]
+    required: bool
+    options: list[str] | None = None
+    help_text: str | None = None
+
+
+class ChecklistResponse(BaseModel):
+    item_id: str
+    value: str | float | bool | None = None
+    note: str | None = None
+    answered_at: datetime | None = None
+    answered_by: str | None = None
+
+
+class InspectionListItem(BaseModel):
+    id: str
+    asset_id: str
+    facility_id: str
+    area_id: str | None = None
+    inspector_id: str
+    status: Literal["draft", "in_progress", "completed", "cancelled"]
+    inspection_type: Literal["routine", "scheduled", "ad_hoc"]
+    title: str | None = None
+    checklist_template_id: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class InspectionListPage(BaseModel):
+    items: list[InspectionListItem]
+    next_cursor: str | None = None
+
+
+class InspectionDetail(InspectionListItem):
+    notes: str | None = None
+    checklist_template_version: int | None = None
+    checklist_items_snapshot: list[ChecklistTemplateItem] = Field(default_factory=list)
+    checklist_responses: list[ChecklistResponse] = Field(default_factory=list)
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    client_created_at: datetime
+    device_id: str | None = None
+    origin: str | None = None
+    media: list[dict[str, Any]] = Field(default_factory=list)
+    annotations: list[dict[str, Any]] = Field(default_factory=list)
+    voice_notes: list[dict[str, Any]] = Field(default_factory=list)
+    readings: dict[str, Any] = Field(default_factory=dict)
+    ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
+    ai_analysis: dict[str, Any] | None = None
+    signature: dict[str, Any] | None = None
+
+
+class CreateInspectionRequest(BaseModel):
+    id: str = Field(min_length=1)
+    asset_id: str = Field(min_length=1)
+    inspection_type: Literal["routine", "scheduled", "ad_hoc"]
+    title: str | None = Field(default=None, max_length=200)
+    notes: str | None = Field(default=None, max_length=2000)
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
+    client_created_at: datetime
+    device_id: str | None = Field(default=None, max_length=200)
+    origin: str | None = Field(default=None, max_length=40)
+
+
+class UpdateInspectionRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    notes: str | None = Field(default=None, max_length=2000)
+    inspection_type: Literal["routine", "scheduled", "ad_hoc"] | None = None
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
+    checklist_responses: list[ChecklistResponse] | None = None
+    expected_revision: int | None = None
+
+
+class AssignChecklistTemplateRequest(BaseModel):
+    checklist_template_id: str = Field(min_length=1)
+
+
+class InspectionDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+class ChecklistTemplateItemInput(BaseModel):
+    id: str | None = None
+    label: str = Field(min_length=1, max_length=200)
+    item_type: Literal["boolean", "numeric", "text", "select"]
+    required: bool = True
+    options: list[str] | None = None
+    help_text: str | None = Field(default=None, max_length=500)
+
+
+class ChecklistTemplateListItem(BaseModel):
+    id: str
+    name: str
+    category: str
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChecklistTemplateListPage(BaseModel):
+    items: list[ChecklistTemplateListItem]
+    next_cursor: str | None = None
+
+
+class ChecklistTemplateDetail(ChecklistTemplateListItem):
+    description: str | None = None
+    items: list[ChecklistTemplateItem] = Field(default_factory=list)
+
+
+class CreateChecklistTemplateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    category: str = Field(min_length=1, max_length=60)
+    description: str | None = Field(default=None, max_length=2000)
+    items: list[ChecklistTemplateItemInput] = Field(default_factory=list)
+
+
+class UpdateChecklistTemplateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    category: str | None = Field(default=None, min_length=1, max_length=60)
+    description: str | None = Field(default=None, max_length=2000)
+    items: list[ChecklistTemplateItemInput] | None = None
+
+
+class ChecklistTemplateDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
 class AssetQrLabel(BaseModel):
     """Printable label payload -- the frontend renders the QR image itself
     (client-side, from `url`) rather than the backend generating pixels."""

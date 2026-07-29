@@ -934,8 +934,14 @@ live in one constants module. Firestore Rules remain deny-all for clients.
 
 - Durable on-device operation queue
 - Background sync worker
-- Conflict detection and resolution policy: _To be defined before inspection implementation_
-- Retry, idempotency, and failure recovery: _To be defined_
+- Conflict detection and resolution policy: **locked in Phase 7.1** — see
+  "Phase 7.1 Inspection Data Model, Backend CRUD, and Lifecycle" above.
+  Client-generated UUID + idempotent upsert-by-id + a monotonic `revision`
+  int (not a timestamp, to be immune to cross-device clock skew);
+  `PATCH`'s `expected_revision` gives a stale-write `409
+  revision_conflict`; last-writer-wins-by-revision is the contract 7.2's
+  engine implements against — not built here, only the API/model support.
+- Retry, idempotency, and failure recovery: _To be defined_ (7.2)
 
 ### Phase 4.4 Dashboard KPI Widgets and Pluggable Widget Framework (resolves 2.3)
 
@@ -1105,6 +1111,172 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   `NSCameraUsageDescription` (added for asset photo capture) was extended
   to also mention QR scanning rather than adding a second usage string.
 
+### Phase 7.1 Inspection Data Model, Backend CRUD, and Lifecycle
+
+- **Sync-ready by design (the seam 7.2's offline engine builds on).**
+  `inspections` documents use a **client-generated UUID** as the Firestore
+  document id (validated server-side via `uuid.UUID(value)`) so a draft
+  created on-device offline never waits for a server id — the create route
+  is an **idempotent upsert keyed by that id**
+  (`InspectionRepository.upsert_draft`): a byte-identical resubmit is a
+  true no-op (same record, same `revision`, no audit entry); a resubmit
+  with different identity fields (`asset_id`, `inspection_type`, `title`,
+  `notes`, GPS, `client_created_at`, `device_id`, `origin`) conflicts with
+  `409 inspection_id_conflict`. Every inspection also carries
+  `client_created_at` (client-stamped) alongside the usual
+  `created_at`/`updated_at` (server-stamped), plus `device_id`/`origin`
+  for conflict diagnostics.
+- **The conflict-resolution contract (D-0xx, locked here for 7.2 to
+  implement).** A monotonic integer `revision` (not a timestamp) is the
+  source of truth — chosen specifically because this dev environment has
+  already hit a real cross-device clock-skew bug, and a client clock can't
+  be trusted for ordering. `revision` starts at 1 on create and increments
+  by exactly 1 on every accepted mutation (update, checklist-template
+  assignment, lifecycle transition, soft delete); a true no-op change
+  never bumps it. `PATCH /inspections/{id}` accepts an optional
+  `expected_revision`: a mismatch returns `409 revision_conflict` with
+  `{expected_revision, current_revision}` so the caller can re-fetch and
+  reapply. 7.2's offline engine is expected to implement last-writer-wins
+  by comparing revisions, retrying a conflicted local edit against the
+  freshly fetched current revision — not built here, only the contract.
+  `POST /inspections` (the upsert-create) deliberately returns a fixed
+  `200`, never `201` — a new pattern versus every other create route in
+  this codebase (which return `201`), since this route can't statically
+  know whether a given call created a new record or replayed an existing
+  one.
+- **Lifecycle.** `status`: `draft → in_progress → completed`, plus
+  `cancelled` (reachable from `draft`/`in_progress`, not part of the
+  brief's three states but added so an abandoned/wrong-asset draft can be
+  closed out instead of lingering forever and polluting reports). `start`
+  sets `started_at`; `complete` validates every **required** item in
+  `checklist_items_snapshot` has a non-empty response in
+  `checklist_responses` (422 `checklist_incomplete` with
+  `missing_item_ids` otherwise) and sets `completed_at` — an inspection
+  with no checklist template ever assigned has nothing to validate and
+  completes cleanly (matches the ad-hoc "Start Inspection" flow below,
+  which never picks a template). `completed`/`cancelled` are terminal:
+  any further `PATCH`/checklist-assignment attempt is `409
+  inspection_locked`. `inspector_id` is always the creating actor's uid in
+  7.1 — there is no assignment/dispatch capability yet (deferred to
+  7.11's admin review UI, matching the operations_manager RBAC note
+  below).
+- **Checklist templates: light versioning + inspection-time snapshot.**
+  New `checklist_templates` collection (`app/checklists/`,
+  `ChecklistTemplateRepository`/`ChecklistTemplateService`, thin-route/fat-
+  service like every prior module), each with a `category` (`"Generic"` or
+  one of `app.assets.constants.ASSET_CATEGORIES`), an `items[]` array
+  (`id, label, item_type: boolean|numeric|text|select, required, options,
+  help_text`), and a lightweight `version: int` that the repository bumps
+  by exactly 1 on **every** accepted update (no separate version-history
+  collection). When a template is assigned to an inspection
+  (`POST /inspections/{id}/checklist-template`), the inspection stores the
+  template id **and a snapshot of its items at that moment**
+  (`checklist_items_snapshot`) plus the template's current `version` — so
+  editing a template later never corrupts a past inspection's answered
+  checklist, and the snapshot's `checklist_template_version` gives
+  diagnostic provenance ("answered against v3, template is now v7").
+  Assignment is rejected with `422
+  checklist_template_category_mismatch` unless the template's category is
+  `"Generic"` or matches the asset's own category.
+- **Checklist responses are accepted by the API now, tested directly —
+  no capture UI yet.** The brief reserves `checklist_responses[]` as a
+  "fill it in 7.3" container, but `complete`'s own required-item
+  validation needs responses to exist somewhere to be testable at all.
+  Resolution: `PATCH /inspections/{id}` validates and accepts
+  `checklist_responses[]` directly against the API (unknown `item_id`,
+  duplicate `item_id`, or a value that doesn't match the item's
+  `item_type` all 422 as `checklist_response_invalid`; accepted responses
+  are stamped server-side with `answered_by`/`answered_at`, never
+  client-trusted) — proven by API-level tests, not a screen. Neither
+  admin nor mobile ships a checklist-filling screen in 7.1; that
+  interactive capture UI is 7.3's job.
+- **Asset history is now real (resolves D-033's placeholder).**
+  `AssetManagementService.get_asset_history` no longer returns a
+  hard-coded empty page — it queries `InspectionRepository.query(scope,
+  asset_id=...)`, filters to `status == "completed"`, sorts by
+  `completed_at` desc, and paginates with the existing cursor idiom. No
+  history is embedded on `Asset` itself; this is exactly the
+  query-by-reference seam D-033 reserved. `GET /assets/{id}/history`
+  gained `cursor`/`limit` query params to support this.
+- **Query pattern mirrors 4.1's assets exactly.**
+  `InspectionRepository.query()` pushes **one** equality filter to
+  Firestore (priority `asset_id` → `facility_id` → `status`) plus
+  `company_id ==` and `order_by(created_at, DESC)`; the four composite
+  indexes this needs (a plain `company_id+created_at` baseline plus one
+  each for `asset_id`/`facility_id`/`status`) are committed in
+  `infra/firebase/firestore.indexes.json`. Any other filter
+  (`inspector_id`, a date range) is applied in-memory over that bounded
+  read, then paginated with the same base64 id-cursor idiom every prior
+  list route uses. `checklist_templates` needs no new index — per-tenant
+  cardinality is small, so it stays on the plain full-list-then-filter
+  pattern like Facilities/Areas.
+- **Permissions.** New `checklist_templates.read`/`checklist_templates
+  .write` join the already-existing (previously unused) `inspections
+  .read`/`inspections.write` placeholders from 0.4. `company_admin`/
+  `super_admin` inherit both automatically; `operations_manager` gains
+  both (template management is an ops responsibility per the client
+  spec's §2 role table); `field_inspector`, `maintenance_technician`,
+  `hse_manager`, and `executive` gain `checklist_templates.read` only,
+  mirroring their existing `inspections.read`-only pattern. **Existing
+  `inspections.*` grants are deliberately untouched** — the client spec's
+  "Ops Manager assigns" language is real, but no assignment feature
+  exists until 7.11's admin review UI actually needs it; granting
+  `inspections.write` to `operations_manager` now would be permission
+  creep ahead of the feature it's for. As with every prior permission
+  addition, the one real non-demo tenant needs a `reconcile_roles.py` run
+  to pick up the new grants; the demo tenants get them for free on the
+  next seed run.
+- **Seed** (`apps/api/scripts/seed.py`): 3 checklist templates (Generic,
+  Pump, Tank) with deterministic `uuid.uuid5`-derived ids (so seed data
+  satisfies the same UUID validation the API enforces on inspection ids
+  too), and 3 demo inspections walked through their real lifecycle via
+  direct repository calls — one **completed** Pump inspection with every
+  required item answered (so 4.1's asset-history seam has real data to
+  render), one **in_progress** Tank inspection with a partial response
+  set, and one templateless **draft** Compressor inspection mirroring
+  exactly what mobile's "Start Inspection" flow below produces. Seeded
+  last, after facilities/areas/assets/templates all exist.
+- **Mobile "Start Inspection" is a real draft-creation flow now**
+  (`apps/mobile/lib/qr/qr_scan_result_screen.dart`), no longer a stub
+  pushing `ComingSoonScreen`. Tapping it generates a client UUID (new
+  `uuid` pub dependency), calls `createInspection` with
+  `inspection_type: ad_hoc` (hardcoded — no picker yet) and
+  `device_id`/`gps_lat`/`gps_lng` left `null` (no device-info/geolocation
+  package exists in this app yet — explicitly deferred, not an
+  oversight), then pushes the real, read-only
+  `InspectionDetailScreen` on success or surfaces a snack-bar error and
+  stays put on failure. `QrScanResultScreen` takes an optional injectable
+  `api` constructor param as a testing seam (mirrors `qr_scan_screen
+  .dart`'s injectable `scannerBuilder` precedent for the same reason:
+  widget tests need to drive a real API call without a full auth/app
+  context).
+- **Minimal UI, both clients — list + read-only detail only.** Admin
+  gains `apps/admin/src/inspections/` (list page with a status filter;
+  a read-only detail page showing lifecycle, checklist snapshot +
+  responses, with Cancel/Delete gated by `inspections.write` — no
+  Start/Complete buttons yet, since there's no checklist-filling UI to
+  pair them with) and `apps/admin/src/checklist-templates/` (list +
+  full-page create/edit form, gated by the new permission), replacing the
+  `ComingSoonScreen` stub at `/inspections` and adding a new nav entry for
+  Checklist Templates. Mobile mirrors this with
+  `apps/mobile/lib/inspections/` (list + read-only detail, reached via
+  the same pushed-route pattern D-034 established for asset detail) — no
+  mobile checklist-template screens at all, since `field_inspector` only
+  ever gets `checklist_templates.read`. Both clients' asset-detail
+  Inspections tab now renders real data (`listInspections`/`getInspections`
+  filtered by `assetId`) instead of the static "Phase 7" empty state.
+- **Contracts.** New `InspectionsApi`/`ChecklistTemplatesApi` in both
+  generated clients; admin's `client.ts` gained matching wrapper methods
+  plus `InspectionsApiClient`/`ChecklistTemplatesApiClient` `Pick<>` types
+  folded into the `apiClient` intersection; mobile's `ApiContract` gained
+  `getInspections`/`getInspection`/`createInspection` as real interface
+  methods (not an untestable extension-with-runtime-cast like
+  `AssetWriteContract` — this write path needed to be fake-able for the
+  "Start Inspection" widget tests, so it went directly on the interface),
+  which meant every existing hand-rolled `FakeApi` test double across the
+  mobile test suite needed the three new methods stubbed
+  (`UnimplementedError()` where unused) to keep compiling.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -1165,3 +1337,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 4.2 — asset list + detail UI (admin + mobile) | Wires the 4.1 `AssetsApi`/`FacilitiesApi`/`AreasApi` into both hand-written client wrappers (a new `AssetsApiClient` type in `apps/admin/src/auth/auth-context.tsx`; 7 new `ApiContract` methods in `apps/mobile/lib/api/api_service.dart`) for the first time since those endpoints shipped. Adds `apps/admin/src/assets/` (list page, the app's first dynamic-segment route at `assets/[id]`, a shared `useAssetsData` hook) and `apps/mobile/lib/assets/` (controller, list screen, and — a new pattern, D-034 — a pushed-route detail screen instead of the Users/Audit/Roles bottom-sheet convention, since 5 tabs of real content don't fit a sheet). Both detail views render the same 5-tab reserved-seam contract (Overview real today; Inspections/Work Orders/History/Media honest-empty, to be filled by Phases 7, 11, and 4.3 respectively querying by `asset_id` — mirrors 4.1's D-033 history-by-reference decision, no UI change anticipated when those land). Fixed a real defect the new nested route exposed: `nav-config.tsx`'s `findNavItem` now prefix-matches like `isRouteActive` instead of requiring an exact match, so the shell breadcrumb no longer reads "Not found" on `/assets/{id}`. No Google Maps Platform integration was added (D-035); GPS renders as coordinates plus an external map link on both clients. No backend, schema, or permission changes. | 2026-07-26 |
 | Phase 4.3 — asset create/edit + media upload | Activates 4.1's create/update endpoints through reusable admin and mobile forms and fills 4.2's Media tab. `AssetManagementService` remains the server-authoritative tenant/RBAC boundary, adding case-insensitive company-scoped tag uniqueness, hierarchy-cycle and required-field validation. Media reuses 3.3's private Storage adapter under `companies/{company_id}/assets/{asset_id}/{kind}/{uuid}_{filename}`; Firestore stores structured references in `photos`/`documents`/`manuals`, with `ArrayUnion`/`ArrayRemove` preventing concurrent replacement and detail reads materializing fresh one-hour signed URLs. Android/iOS runners establish the permanent D-037 identity `com.flacronenterprises.energyverse` and display name `EnergyVerse`; camera/gallery selection remains reference-media capture, not Phase 7 inspection/AR capture. Contracts expose the upload/delete endpoints and `AssetMediaResponse` to both generated clients. | 2026-07-27 |
 | Phase 4.4 — dashboard KPI widgets + pluggable widget framework (resolves 2.3) | Replaces 2.2's hardcoded `ReservedKpiRegion`/`_ReservedKpiRegion` array with a real registry (`registerWidget`/`registerDashboardWidget` + `DashboardWidgetGrid`) on both clients, gated by 0.6 permissions and a real-but-currently-inert tier hook, each widget isolated in its own failure boundary. New `AssetRepository.count()` (Firestore `count()` aggregation, D-039) backs a new `AssetManagementService.get_dashboard_summary()` behind a new `GET /api/v1/dashboard/assets-summary` route, gated by `assets.read` specifically (not the whole-dashboard `reports.read` gate). Registers the first 3 real widgets — Total Assets, Critical Assets (crimson emphasis, links to the 4.2 asset list pre-filtered via a new admin URL-param read on mount / mobile route argument), and Asset Condition (admin reuses D-020's `DonutChart`; mobile's `chart.dart` gains its own `DonutChart`/`DonutSlice` to reach the same reusable-chart contract). Mobile adds a role-based task-focused subset (Total + Critical only) for field_inspector/maintenance_technician. Work Orders/Permits/Safety continue rendering through the same registry as honest empty-state widgets (`reserved-widgets.tsx`/`reserved_widgets.dart`) until their own phases arrive. Contracts regenerated for `AssetDashboardSummary`/`AssetCategoryCount`/`AssetFacilityCount` and the new `DashboardApi` method — zero new composite indexes needed since every count filter is a plain equality filter. Phase 2.3 is retroactively resolved by this implementation. | 2026-07-28 |
+| Phase 7.1 — inspection data model, backend CRUD, and lifecycle | Adds the flagship module's spine: a new `inspections` collection (client-generated UUID id, idempotent upsert, monotonic `revision` for the 7.2 sync/conflict contract) and a new `checklist_templates` collection (per-category, lightly versioned, snapshotted onto the inspection at assignment time), each with a thin-route/fat-service split (`app/inspections/`, `app/checklists/`) mirroring 4.1's `app/assets/` exactly, including the same one-equality-filter Firestore query + in-memory-filter pattern and four new composite indexes. Resolves D-033: `AssetManagementService.get_asset_history` now queries real completed inspections by `asset_id` instead of returning a hard-coded empty page. New `checklist_templates.read`/`.write` permissions join the already-existing `inspections.read`/`.write` placeholders from 0.4 — `operations_manager` gains both (template management), all read-only roles gain `.read`; existing `inspections.*` grants are untouched (no assignment feature exists yet, deferred to 7.11). Seed gains 3 checklist templates and 3 demo inspections (completed/in_progress/draft) for the Acme tenant. Admin gains `apps/admin/src/inspections/` (list + read-only detail) and `apps/admin/src/checklist-templates/` (list + create/edit form), replacing the Inspections `ComingSoonScreen` stub; mobile gains `apps/mobile/lib/inspections/` (list + read-only detail, D-034's pushed-route pattern) and a real "Start Inspection" draft-creation flow on the QR scan-result screen (previously a stub). Both clients' asset-detail Inspections tab now renders real data instead of the 4.2 static empty state. Contracts regenerated for `InspectionsApi`/`ChecklistTemplatesApi` and their models; mobile's `ApiContract` gained the three new methods as real (fakeable) interface methods, touching every existing hand-rolled `FakeApi` test double. No offline engine, camera/annotation/voice/readings/signature/AR/AI capture, or admin review UI — those are 7.2–7.11. | 2026-07-29 |

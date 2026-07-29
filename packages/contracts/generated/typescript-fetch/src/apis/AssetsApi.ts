@@ -65,6 +65,8 @@ export interface GetAssetRequest {
 
 export interface GetAssetHistoryRequest {
     assetId: string;
+    cursor?: string | null;
+    limit?: number;
 }
 
 export interface GetAssetQrLabelRequest {
@@ -285,6 +287,14 @@ export class AssetsApi extends runtime.BaseAPI {
         }
 
         const queryParameters: any = {};
+
+        if (requestParameters['cursor'] != null) {
+            queryParameters['cursor'] = requestParameters['cursor'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 

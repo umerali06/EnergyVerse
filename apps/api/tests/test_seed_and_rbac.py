@@ -2,7 +2,9 @@ import asyncio
 
 from app.db.repositories.areas import AreaRepository
 from app.db.repositories.assets import AssetRepository
+from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.facilities import FacilityRepository
+from app.db.repositories.inspections import InspectionRepository
 from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
@@ -24,6 +26,8 @@ EXPECTED_ROLE_PERMISSIONS = {
             "assets.write",
             "inspections.read",
             "inspections.write",
+            "checklist_templates.read",
+            "checklist_templates.write",
             "permits.read",
             "permits.approve",
             "work_orders.read",
@@ -49,6 +53,8 @@ EXPECTED_ROLE_PERMISSIONS = {
             "assets.write",
             "inspections.read",
             "inspections.write",
+            "checklist_templates.read",
+            "checklist_templates.write",
             "permits.read",
             "permits.approve",
             "work_orders.read",
@@ -72,6 +78,8 @@ EXPECTED_ROLE_PERMISSIONS = {
             "assets.read",
             "assets.write",
             "inspections.read",
+            "checklist_templates.read",
+            "checklist_templates.write",
             "permits.read",
             "work_orders.read",
             "work_orders.write",
@@ -87,6 +95,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "assets.read",
             "inspections.read",
             "inspections.write",
+            "checklist_templates.read",
             "permits.read",
             "work_orders.read",
             "reports.read",
@@ -101,6 +110,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "areas.read",
             "assets.read",
             "inspections.read",
+            "checklist_templates.read",
             "permits.read",
             "work_orders.read",
             "work_orders.write",
@@ -114,6 +124,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "areas.read",
             "assets.read",
             "inspections.read",
+            "checklist_templates.read",
             "permits.read",
             "permits.approve",
             "work_orders.read",
@@ -130,6 +141,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "areas.read",
             "assets.read",
             "inspections.read",
+            "checklist_templates.read",
             "permits.read",
             "work_orders.read",
             "reports.read",
@@ -146,6 +158,7 @@ def test_permission_catalog_is_exact() -> None:
         "areas": {"areas.read", "areas.write"},
         "assets": {"assets.read", "assets.write"},
         "inspections": {"inspections.read", "inspections.write"},
+        "checklist_templates": {"checklist_templates.read", "checklist_templates.write"},
         "permits": {"permits.read", "permits.approve"},
         "work_orders": {"work_orders.read", "work_orders.write"},
         "reports": {"reports.read", "reports.generate"},
@@ -161,7 +174,7 @@ def test_permission_catalog_is_exact() -> None:
         for group in grouped
     }
     assert actual == grouped
-    assert len(PERMISSION_CATALOG) == 21
+    assert len(PERMISSION_CATALOG) == 23
 
 
 def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
@@ -177,13 +190,15 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first == second
         assert client.counts() == counts_after_first
         assert first.companies == 2
-        assert first.permissions == 21
+        assert first.permissions == 23
         assert first.roles == 8
         assert first.role_permissions == expected_mappings
         assert first.users == 8
         assert first.facilities == 2
         assert first.areas == 4
         assert first.assets == 11
+        assert first.checklist_templates == 3
+        assert first.inspections == 3
         assert set(client.counts()) == {
             "audit_logs",
             "companies",
@@ -194,6 +209,8 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "facilities",
             "areas",
             "assets",
+            "checklist_templates",
+            "inspections",
         }
 
         company = client.documents("companies")[ACME_COMPANY_ID]
@@ -333,13 +350,19 @@ def test_company_a_query_never_returns_company_b_documents() -> None:
         facilities = FacilityRepository(client)  # type: ignore[arg-type]
         areas = AreaRepository(client)  # type: ignore[arg-type]
         assets = AssetRepository(client)  # type: ignore[arg-type]
+        checklist_templates = ChecklistTemplateRepository(client)  # type: ignore[arg-type]
+        inspections = InspectionRepository(client)  # type: ignore[arg-type]
 
         assert len(await facilities.list(acme)) == 2
         assert len(await areas.list(acme)) == 4
         assert len(await assets.list(acme)) == 11
+        assert len(await checklist_templates.list(acme)) == 3
+        assert len(await inspections.list(acme)) == 3
         assert await facilities.list(second) == []
         assert await areas.list(second) == []
         assert await assets.list(second) == []
+        assert await checklist_templates.list(second) == []
+        assert await inspections.list(second) == []
 
     asyncio.run(scenario())
 

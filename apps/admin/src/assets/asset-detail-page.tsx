@@ -22,6 +22,7 @@ import {
 
 import { areaName, facilityName, useAssetsData, type AsyncStatus } from "./assets-data";
 import { QrLabelTab } from "./qr-label-tab";
+import { InspectionsTab } from "@/inspections/asset-inspections-tab";
 
 function statusTone(status: string): StatusTone {
   return status.toLowerCase() as StatusTone;
@@ -405,7 +406,7 @@ export function AssetDetailPage({
                   {
                     id: "inspections",
                     label: "Inspections",
-                    content: <EmptyState description="Inspections will appear here once Phase 7 lands." title="No inspections yet" />,
+                    content: <InspectionsTab assetId={state.asset.id} />,
                   },
                   {
                     id: "work-orders",

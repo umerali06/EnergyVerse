@@ -395,6 +395,8 @@ class AssetsApi {
   ///
   /// Parameters:
   /// * [assetId]
+  /// * [cursor]
+  /// * [limit]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -406,6 +408,8 @@ class AssetsApi {
   /// Throws [DioException] if API call or serialization fails
   Future<Response<AssetHistoryPage>> getAssetHistory({
     required String assetId,
+    String? cursor,
+    int? limit = 25,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -435,9 +439,18 @@ class AssetsApi {
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'cursor':
+          encodeQueryParameter(_serializers, cursor, const FullType(String)),
+      if (limit != null)
+        r'limit':
+            encodeQueryParameter(_serializers, limit, const FullType(int)),
+    };
+
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,

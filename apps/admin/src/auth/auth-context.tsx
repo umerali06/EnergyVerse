@@ -96,6 +96,28 @@ export type AssetsApiClient = Pick<
   | "uploadAssetMedia"
 >;
 
+export type InspectionsApiClient = Pick<
+  FevApiClient,
+  | "assignInspectionChecklistTemplate"
+  | "cancelInspection"
+  | "completeInspection"
+  | "createInspection"
+  | "deleteInspection"
+  | "getInspection"
+  | "listInspections"
+  | "startInspection"
+  | "updateInspection"
+>;
+
+export type ChecklistTemplatesApiClient = Pick<
+  FevApiClient,
+  | "createChecklistTemplate"
+  | "deleteChecklistTemplate"
+  | "getChecklistTemplate"
+  | "listChecklistTemplates"
+  | "updateChecklistTemplate"
+>;
+
 type AuthContextValue = {
   apiClient: DashboardApiClient &
     UsersApiClient &
@@ -103,7 +125,9 @@ type AuthContextValue = {
     CompanyApiClient &
     AuditApiClient &
     PlatformApiClient &
-    AssetsApiClient;
+    AssetsApiClient &
+    InspectionsApiClient &
+    ChecklistTemplatesApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -180,7 +204,9 @@ export function AuthProvider({
     Partial<CompanyApiClient> &
     Partial<AuditApiClient> &
     Partial<PlatformApiClient> &
-    Partial<AssetsApiClient>;
+    Partial<AssetsApiClient> &
+    Partial<InspectionsApiClient> &
+    Partial<ChecklistTemplatesApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -441,7 +467,9 @@ export function AuthProvider({
         CompanyApiClient &
         AuditApiClient &
         PlatformApiClient &
-        AssetsApiClient,
+        AssetsApiClient &
+        InspectionsApiClient &
+        ChecklistTemplatesApiClient,
       currentUser,
       error,
       passwordResetSentAt,

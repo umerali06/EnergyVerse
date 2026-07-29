@@ -10,9 +10,11 @@ from app.api.v1.areas import router as areas_router
 from app.api.v1.assets import router as assets_router
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.checklist_templates import router as checklist_templates_router
 from app.api.v1.company import router as company_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.facilities import router as facilities_router
+from app.api.v1.inspections import router as inspections_router
 from app.api.v1.permissions import router as permissions_router
 from app.api.v1.platform import router as platform_router
 from app.api.v1.qr import router as qr_router
@@ -61,6 +63,14 @@ app = FastAPI(
             "name": "assets",
             "description": "Company-scoped asset management, nested under a facility and area",
         },
+        {
+            "name": "inspections",
+            "description": "Company-scoped inspection records, lifecycle, and checklist responses",
+        },
+        {
+            "name": "checklist-templates",
+            "description": "Company-scoped, per-category inspection checklist templates",
+        },
         {"name": "company", "description": "Company profile, branding, and tenant-wide settings"},
         {"name": "audit", "description": "Company audit trail — read-only compliance view"},
         {
@@ -91,6 +101,8 @@ app.include_router(permissions_router)
 app.include_router(facilities_router)
 app.include_router(areas_router)
 app.include_router(assets_router)
+app.include_router(inspections_router)
+app.include_router(checklist_templates_router)
 app.include_router(qr_router)
 app.include_router(company_router)
 app.include_router(audit_router)

@@ -3,11 +3,13 @@ import {
   AssetsApi,
   AuditApi,
   AuthApi,
+  ChecklistTemplatesApi,
   CompanyApi,
   Configuration,
   DashboardApi,
   FacilitiesApi,
   FetchError,
+  InspectionsApi,
   PermissionsApi,
   PlatformApi,
   QrApi,
@@ -23,12 +25,18 @@ import {
   type AssetHistoryPage,
   type AssetListPage,
   type AssetQrLabel,
+  type AssignChecklistTemplateRequest,
   type AuditLogFacets,
   type AuditLogPage,
+  type ChecklistTemplateDeleted,
+  type ChecklistTemplateDetail,
+  type ChecklistTemplateListPage,
   type CompanyProfile,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
   type CreateAssetRequest,
+  type CreateChecklistTemplateRequest,
+  type CreateInspectionRequest,
   type CreateRoleRequest,
   type CurrentUser,
   type DashboardActivityPage,
@@ -38,6 +46,9 @@ import {
   type FacilityDetail,
   type FacilityListPage,
   type HealthResponse,
+  type InspectionDeleted,
+  type InspectionDetail,
+  type InspectionListPage,
   type InviteUserRequest,
   type PermissionCatalog,
   type PlatformCompanyDetail,
@@ -48,8 +59,10 @@ import {
   type RoleDeleted,
   type RoleDetail,
   type RoleList,
+  type UpdateChecklistTemplateRequest,
   type UpdateCompanyRequest,
   type UpdateCompanyStatusRequest,
+  type UpdateInspectionRequest,
   type UpdatePlatformCompanyRequest,
   type UpdateRoleRequest,
   type UpdateUserRequest,
@@ -158,6 +171,23 @@ export type ListAreasOptions = {
   limit?: number;
 };
 
+export type ListInspectionsOptions = {
+  assetId?: string;
+  facilityId?: string;
+  status?: string;
+  inspectorId?: string;
+  fromDate?: string;
+  toDate?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export type ListChecklistTemplatesOptions = {
+  category?: string;
+  cursor?: string;
+  limit?: number;
+};
+
 function toDate(value?: string): Date | undefined {
   return value ? new Date(value) : undefined;
 }
@@ -167,9 +197,11 @@ export class FevApiClient {
   private readonly assets: AssetsApi;
   private readonly audit: AuditApi;
   private readonly auth: AuthApi;
+  private readonly checklistTemplates: ChecklistTemplatesApi;
   private readonly company: CompanyApi;
   private readonly dashboard: DashboardApi;
   private readonly facilities: FacilitiesApi;
+  private readonly inspections: InspectionsApi;
   private readonly permissions: PermissionsApi;
   private readonly platform: PlatformApi;
   private readonly qr: QrApi;
@@ -192,9 +224,11 @@ export class FevApiClient {
     this.assets = new AssetsApi(configuration);
     this.audit = new AuditApi(configuration);
     this.auth = new AuthApi(configuration);
+    this.checklistTemplates = new ChecklistTemplatesApi(configuration);
     this.company = new CompanyApi(configuration);
     this.dashboard = new DashboardApi(configuration);
     this.facilities = new FacilitiesApi(configuration);
+    this.inspections = new InspectionsApi(configuration);
     this.permissions = new PermissionsApi(configuration);
     this.platform = new PlatformApi(configuration);
     this.qr = new QrApi(configuration);
@@ -428,6 +462,156 @@ export class FevApiClient {
   getArea(areaId: string, signal?: AbortSignal): Promise<AreaDetail> {
     return this.execute(() =>
       this.areas.getArea({ areaId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listInspections(
+    options: ListInspectionsOptions = {},
+    signal?: AbortSignal,
+  ): Promise<InspectionListPage> {
+    return this.execute(() =>
+      this.inspections.listInspections(
+        {
+          assetId: options.assetId,
+          facilityId: options.facilityId,
+          status: options.status,
+          inspectorId: options.inspectorId,
+          fromDate: toDate(options.fromDate),
+          toDate: toDate(options.toDate),
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getInspection(inspectionId: string, signal?: AbortSignal): Promise<InspectionDetail> {
+    return this.execute(() =>
+      this.inspections.getInspection({ inspectionId }, signal ? { signal } : undefined),
+    );
+  }
+
+  createInspection(
+    request: CreateInspectionRequest,
+    signal?: AbortSignal,
+  ): Promise<InspectionDetail> {
+    return this.execute(() =>
+      this.inspections.createInspection(
+        { createInspectionRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  updateInspection(
+    inspectionId: string,
+    request: UpdateInspectionRequest,
+    signal?: AbortSignal,
+  ): Promise<InspectionDetail> {
+    return this.execute(() =>
+      this.inspections.updateInspection(
+        { inspectionId, updateInspectionRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  deleteInspection(inspectionId: string, signal?: AbortSignal): Promise<InspectionDeleted> {
+    return this.execute(() =>
+      this.inspections.deleteInspection({ inspectionId }, signal ? { signal } : undefined),
+    );
+  }
+
+  assignInspectionChecklistTemplate(
+    inspectionId: string,
+    request: AssignChecklistTemplateRequest,
+    signal?: AbortSignal,
+  ): Promise<InspectionDetail> {
+    return this.execute(() =>
+      this.inspections.assignInspectionChecklistTemplate(
+        { inspectionId, assignChecklistTemplateRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  startInspection(inspectionId: string, signal?: AbortSignal): Promise<InspectionDetail> {
+    return this.execute(() =>
+      this.inspections.startInspection({ inspectionId }, signal ? { signal } : undefined),
+    );
+  }
+
+  completeInspection(inspectionId: string, signal?: AbortSignal): Promise<InspectionDetail> {
+    return this.execute(() =>
+      this.inspections.completeInspection({ inspectionId }, signal ? { signal } : undefined),
+    );
+  }
+
+  cancelInspection(inspectionId: string, signal?: AbortSignal): Promise<InspectionDetail> {
+    return this.execute(() =>
+      this.inspections.cancelInspection({ inspectionId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listChecklistTemplates(
+    options: ListChecklistTemplatesOptions = {},
+    signal?: AbortSignal,
+  ): Promise<ChecklistTemplateListPage> {
+    return this.execute(() =>
+      this.checklistTemplates.listChecklistTemplates(
+        { category: options.category, cursor: options.cursor, limit: options.limit },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getChecklistTemplate(
+    templateId: string,
+    signal?: AbortSignal,
+  ): Promise<ChecklistTemplateDetail> {
+    return this.execute(() =>
+      this.checklistTemplates.getChecklistTemplate(
+        { templateId },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  createChecklistTemplate(
+    request: CreateChecklistTemplateRequest,
+    signal?: AbortSignal,
+  ): Promise<ChecklistTemplateDetail> {
+    return this.execute(() =>
+      this.checklistTemplates.createChecklistTemplate(
+        { createChecklistTemplateRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  updateChecklistTemplate(
+    templateId: string,
+    request: UpdateChecklistTemplateRequest,
+    signal?: AbortSignal,
+  ): Promise<ChecklistTemplateDetail> {
+    return this.execute(() =>
+      this.checklistTemplates.updateChecklistTemplate(
+        { templateId, updateChecklistTemplateRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  deleteChecklistTemplate(
+    templateId: string,
+    signal?: AbortSignal,
+  ): Promise<ChecklistTemplateDeleted> {
+    return this.execute(() =>
+      this.checklistTemplates.deleteChecklistTemplate(
+        { templateId },
+        signal ? { signal } : undefined,
+      ),
     );
   }
 

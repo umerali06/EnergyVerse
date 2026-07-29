@@ -1,0 +1,18 @@
+# fev_api_client.model.ChecklistTemplateListItem
+
+## Load the model package
+```dart
+import 'package:fev_api_client/api.dart';
+```
+
+## Properties
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**category** | **String** |  |
+**createdAt** | [**DateTime**](DateTime.md) |  |
+**id** | **String** |  |
+**name** | **String** |  |
+**updatedAt** | [**DateTime**](DateTime.md) |  |
+**version** | **int** |  |
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -103,7 +103,12 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.inspections,
         route: "/inspections",
         requiredPermission: "inspections.read",
-        comingSoon: true,
+      },
+      {
+        label: "Checklist Templates",
+        icon: navIcons.audit,
+        route: "/checklist-templates",
+        requiredPermission: "checklist_templates.read",
       },
       {
         label: "Work Orders",

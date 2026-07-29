@@ -1,23 +1,68 @@
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
+import '../api/api_service.dart';
 import '../assets/assets_screen.dart' show statusFor, statusLabel;
+import '../auth/app_routes.dart';
+import '../auth/auth_controller.dart';
 import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
-import '../shell/app_shell.dart' show ComingSoonScreen;
 
 /// The scan surface (spec §6): asset info/status/media, plus the reserved
-/// history/work-order sections as honest empty states until Phase 7/11 fill
-/// them in, and a "Start Inspection" action that is a clearly-labeled stub
-/// until Phase 7 implements the real flow.
-class QrScanResultScreen extends StatelessWidget {
-  const QrScanResultScreen({required this.result, super.key});
+/// history/work-order sections as honest empty states until Phase 11 fills
+/// them in, and a real "Start Inspection" action (7.1): creates a `draft`
+/// inspection via the API (a client-generated UUID, ad-hoc type, no
+/// device/GPS metadata yet -- no device-info/geolocation package exists in
+/// this app) and lands on the real read-only inspection detail screen. The
+/// checklist-filling capture flow itself is still 7.3's job.
+class QrScanResultScreen extends StatefulWidget {
+  const QrScanResultScreen({required this.result, this.api, super.key});
 
   final QrScanResult result;
 
+  /// Overrides the ambient [AuthProvider]'s API client -- a testing seam
+  /// (mirrors `qr_scan_screen.dart`'s injectable `scannerBuilder`) so widget
+  /// tests can drive "Start Inspection" without a full auth/app context.
+  final ApiContract? api;
+
+  @override
+  State<QrScanResultScreen> createState() => _QrScanResultScreenState();
+}
+
+class _QrScanResultScreenState extends State<QrScanResultScreen> {
+  bool _startingInspection = false;
+
+  Future<void> _startInspection() async {
+    setState(() => _startingInspection = true);
+    try {
+      final api = widget.api ?? AuthProvider.of(context).api;
+      final inspection = await api.createInspection(
+        CreateInspectionRequest(
+          (b) => b
+            ..id = const Uuid().v4()
+            ..assetId = widget.result.asset.id
+            ..inspectionType = CreateInspectionRequestInspectionTypeEnum.adHoc
+            ..clientCreatedAt = DateTime.now().toUtc(),
+        ),
+      );
+      if (!mounted) return;
+      await Navigator.of(
+        context,
+      ).pushNamed(AppRoutes.inspectionDetail, arguments: inspection.id);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't start the inspection. Please try again.")),
+      );
+    } finally {
+      if (mounted) setState(() => _startingInspection = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final asset = result.asset;
+    final asset = widget.result.asset;
     final mediaCount = (asset.photos?.length ?? 0) +
         (asset.documents?.length ?? 0) +
         (asset.manuals?.length ?? 0);
@@ -61,11 +106,6 @@ class QrScanResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: DsSpacing.s4),
           const EmptyState(
-            title: 'No inspections yet',
-            description: 'Inspections will appear here once Phase 7 lands.',
-          ),
-          const SizedBox(height: DsSpacing.s4),
-          const EmptyState(
             title: 'No maintenance history yet',
             description: 'Maintenance history will appear here once Phase 11 lands.',
           ),
@@ -78,14 +118,8 @@ class QrScanResultScreen extends StatelessWidget {
           AppButton(
             label: 'Start Inspection',
             icon: Icons.fact_check_outlined,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => Scaffold(
-                  appBar: AppBar(title: const Text('Inspections')),
-                  body: const ComingSoonScreen(moduleName: 'Inspections'),
-                ),
-              ),
-            ),
+            loading: _startingInspection,
+            onPressed: _startInspection,
           ),
         ],
       ),

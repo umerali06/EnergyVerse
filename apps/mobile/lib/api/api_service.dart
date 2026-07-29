@@ -116,6 +116,16 @@ abstract interface class ApiContract {
     int limit = 25,
   });
   Future<AreaDetail> getArea(String areaId);
+  Future<InspectionListPage> getInspections({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? inspectorId,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<InspectionDetail> getInspection(String inspectionId);
+  Future<InspectionDetail> createInspection(CreateInspectionRequest request);
 }
 
 extension AssetWriteContract on ApiContract {
@@ -750,6 +760,74 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty area detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionListPage> getInspections({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? inspectorId,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getInspectionsApi().listInspections(
+            assetId: assetId,
+            facilityId: facilityId,
+            status: status,
+            inspectorId: inspectorId,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty inspection list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> getInspection(String inspectionId) async {
+    try {
+      final response =
+          await _client.getInspectionsApi().getInspection(inspectionId: inspectionId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty inspection detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> createInspection(CreateInspectionRequest request) async {
+    try {
+      final response = await _client.getInspectionsApi().createInspection(
+            createInspectionRequest: request,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty inspection detail',
         );
       }
       return value;

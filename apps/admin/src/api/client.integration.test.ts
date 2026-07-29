@@ -9,6 +9,7 @@ const realAuthConfigured = Boolean(apiBaseUrl && firebaseWebApiKey && demoPasswo
 
 const fieldInspectorPermissions = [
   "assets.read",
+  "checklist_templates.read",
   "inspections.read",
   "inspections.write",
   "permits.read",
