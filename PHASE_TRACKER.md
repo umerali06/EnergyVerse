@@ -37,13 +37,13 @@ Only one micro-task may be active at a time.
 | 3.3 | Company settings | Done |
 | 3.4 | Audit viewer | Done |
 | 3.5 | Super-Admin cross-tenant management | Done |
-| 4 | Asset management — data model/hierarchy, UI, create/edit/photo, KPI widgets, QR | **In progress** |
+| 4 | Asset management — data model/hierarchy, UI, create/edit/photo, KPI widgets, QR | **COMPLETE** |
 | 4.1 | Asset data model, facility/area hierarchy, and backend CRUD | Done |
 | 4.2 | Asset management UI | Done |
 | 4.3 | Asset create/edit and media upload | Done |
 | 4.4 | Asset KPI widgets (built on the 2.3 pluggable framework) | Done |
-| 4.5 | QR code asset scanning | In progress |
-| 5 | To be defined | Not started |
+| 4.5 | QR code asset scanning | Done |
+| 5 | To be defined | **In progress** |
 | 6 | To be defined | Not started |
 | 7 | To be defined | Not started |
 | 8 | To be defined | Not started |

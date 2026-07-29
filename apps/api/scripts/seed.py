@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from google.cloud.firestore_v1.async_client import AsyncClient
 
+from app.assets.qr import generate_unique_qr_code_id
 from app.audit.service import AuditService
 from app.auth.admin import AuthAdmin
 from app.auth.provisioning import UserProvisioningService
@@ -587,6 +588,7 @@ async def _ensure_asset(
 ) -> None:
     existing = await repository.get(scope, seed.id)
     if existing is None:
+        qr_code_id = await generate_unique_qr_code_id(repository)
         await repository.create(
             scope,
             AssetCreate(
@@ -595,6 +597,7 @@ async def _ensure_asset(
                 area_id=seed.area_id,
                 parent_asset_id=seed.parent_asset_id,
                 asset_tag=seed.asset_tag,
+                qr_code_id=qr_code_id,
                 name=seed.name,
                 category=seed.category,
                 category_other=seed.category_other,

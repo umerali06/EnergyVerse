@@ -57,3 +57,19 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* QR label printing (4.5): isolate the one [data-print-area] element (nav
+   shell, tabs, other page chrome) so "Print" only outputs the label itself. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-print-area],
+  [data-print-area] * {
+    visibility: visible;
+  }
+  [data-print-area] {
+    position: fixed;
+    inset: 0;
+  }
+}

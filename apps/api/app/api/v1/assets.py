@@ -13,6 +13,7 @@ from app.models.api import (
     AssetDetail,
     AssetHistoryPage,
     AssetListPage,
+    AssetQrLabel,
     CreateAssetRequest,
     UpdateAssetRequest,
     error_responses,
@@ -170,6 +171,25 @@ async def delete_asset(
         _raise_api_error(error)
         raise
     return AssetDeleted(id=asset_id)
+
+
+@router.get(
+    "/{asset_id}/qr",
+    response_model=AssetQrLabel,
+    operation_id="get_asset_qr_label",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def get_asset_qr_label(
+    asset_id: str,
+    current_user: Annotated[CurrentUser, Depends(_assets_read_access)],
+    service: Annotated[AssetManagementService, Depends(get_asset_management_service)],
+) -> AssetQrLabel:
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.get_qr_label(scope, asset_id)
+    except AssetManagementError as error:
+        _raise_api_error(error)
+        raise
 
 
 @router.post(

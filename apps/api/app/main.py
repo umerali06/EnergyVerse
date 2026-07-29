@@ -15,6 +15,7 @@ from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.facilities import router as facilities_router
 from app.api.v1.permissions import router as permissions_router
 from app.api.v1.platform import router as platform_router
+from app.api.v1.qr import router as qr_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
 from app.api.v1.roles import router as roles_router
 from app.api.v1.users import router as users_router
@@ -90,6 +91,7 @@ app.include_router(permissions_router)
 app.include_router(facilities_router)
 app.include_router(areas_router)
 app.include_router(assets_router)
+app.include_router(qr_router)
 app.include_router(company_router)
 app.include_router(audit_router)
 app.include_router(platform_router)

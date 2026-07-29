@@ -1,6 +1,13 @@
 "use client";
 
-import type { AreaDetail, AssetDetail, AssetHistoryPage, AssetListItem, FacilityDetail } from "@fev/api-client";
+import type {
+  AreaDetail,
+  AssetDetail,
+  AssetHistoryPage,
+  AssetListItem,
+  AssetQrLabel,
+  FacilityDetail,
+} from "@fev/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
@@ -181,6 +188,11 @@ export function useAssetsData(initialFilters: Partial<AssetFilters> = {}) {
     [apiClient],
   );
 
+  const getAssetQrLabel = useCallback(
+    (assetId: string): Promise<AssetQrLabel> => apiClient.getAssetQrLabel(assetId),
+    [apiClient],
+  );
+
   return {
     filters,
     setFilter,
@@ -193,6 +205,7 @@ export function useAssetsData(initialFilters: Partial<AssetFilters> = {}) {
     getAsset,
     getAssetHistory,
     getChildAssets,
+    getAssetQrLabel,
   };
 }
 

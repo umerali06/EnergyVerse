@@ -75,6 +75,7 @@ Class | Method | HTTP request | Description
 [*AssetsApi*](doc/AssetsApi.md) | [**deleteAssetMedia**](doc/AssetsApi.md#deleteassetmedia) | **DELETE** /api/v1/assets/{asset_id}/media/{media_id} | Delete Asset Media
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /api/v1/assets/{asset_id} | Get Asset
 [*AssetsApi*](doc/AssetsApi.md) | [**getAssetHistory**](doc/AssetsApi.md#getassethistory) | **GET** /api/v1/assets/{asset_id}/history | Get Asset History
+[*AssetsApi*](doc/AssetsApi.md) | [**getAssetQrLabel**](doc/AssetsApi.md#getassetqrlabel) | **GET** /api/v1/assets/{asset_id}/qr | Get Asset Qr Label
 [*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /api/v1/assets | List Assets
 [*AssetsApi*](doc/AssetsApi.md) | [**updateAsset**](doc/AssetsApi.md#updateasset) | **PATCH** /api/v1/assets/{asset_id} | Update Asset
 [*AssetsApi*](doc/AssetsApi.md) | [**uploadAssetMedia**](doc/AssetsApi.md#uploadassetmedia) | **POST** /api/v1/assets/{asset_id}/media | Upload Asset Media
@@ -102,6 +103,7 @@ Class | Method | HTTP request | Description
 [*PlatformApi*](doc/PlatformApi.md) | [**listPlatformCompanies**](doc/PlatformApi.md#listplatformcompanies) | **GET** /api/v1/platform/companies | List Platform Companies
 [*PlatformApi*](doc/PlatformApi.md) | [**updatePlatformCompany**](doc/PlatformApi.md#updateplatformcompany) | **PATCH** /api/v1/platform/companies/{company_id} | Update Platform Company
 [*PlatformApi*](doc/PlatformApi.md) | [**updatePlatformCompanyStatus**](doc/PlatformApi.md#updateplatformcompanystatus) | **PATCH** /api/v1/platform/companies/{company_id}/status | Update Platform Company Status
+[*QrApi*](doc/QrApi.md) | [**resolveQrCode**](doc/QrApi.md#resolveqrcode) | **GET** /api/v1/qr/{code}/resolve | Resolve Qr Code
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAllPermissions**](doc/RbacDemoApi.md#rbacdemoallpermissions) | **GET** /api/v1/_rbac-demo/all | All Permissions
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoAnyPermission**](doc/RbacDemoApi.md#rbacdemoanypermission) | **GET** /api/v1/_rbac-demo/any | Any Permission
 [*RbacDemoApi*](doc/RbacDemoApi.md) | [**rbacDemoSinglePermission**](doc/RbacDemoApi.md#rbacdemosinglepermission) | **GET** /api/v1/_rbac-demo/single | Single Permission
@@ -134,6 +136,7 @@ Class | Method | HTTP request | Description
  - [AssetListItem](doc/AssetListItem.md)
  - [AssetListPage](doc/AssetListPage.md)
  - [AssetMediaResponse](doc/AssetMediaResponse.md)
+ - [AssetQrLabel](doc/AssetQrLabel.md)
  - [AuditLogEntry](doc/AuditLogEntry.md)
  - [AuditLogFacets](doc/AuditLogFacets.md)
  - [AuditLogPage](doc/AuditLogPage.md)
@@ -165,6 +168,7 @@ Class | Method | HTTP request | Description
  - [PlatformCompanyPage](doc/PlatformCompanyPage.md)
  - [PlatformCompanySummary](doc/PlatformCompanySummary.md)
  - [PlatformStats](doc/PlatformStats.md)
+ - [QrScanResult](doc/QrScanResult.md)
  - [RoleDeleted](doc/RoleDeleted.md)
  - [RoleDetail](doc/RoleDetail.md)
  - [RoleList](doc/RoleList.md)

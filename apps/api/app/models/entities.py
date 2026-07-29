@@ -217,6 +217,7 @@ class AssetCreate(StrictModel):
     area_id: str | None = None
     parent_asset_id: str | None = None
     asset_tag: str
+    qr_code_id: str
     name: str
     category: str
     category_other: str | None = None

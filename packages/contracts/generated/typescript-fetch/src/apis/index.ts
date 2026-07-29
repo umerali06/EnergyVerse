@@ -9,6 +9,7 @@ export * from './DashboardApi';
 export * from './FacilitiesApi';
 export * from './PermissionsApi';
 export * from './PlatformApi';
+export * from './QrApi';
 export * from './RbacDemoApi';
 export * from './RolesApi';
 export * from './SystemApi';

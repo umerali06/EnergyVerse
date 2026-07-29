@@ -76,6 +76,12 @@ function DashboardWithPermissions() {
 function renderDetail({
   getAsset = vi.fn(async () => assetDetail()),
   getAssetHistory = vi.fn(async () => ({ items: [], nextCursor: null })),
+  getAssetQrLabel = vi.fn(async () => ({
+    qrCodeId: "qr-code-1",
+    url: "http://localhost:3000/qr/qr-code-1",
+    assetTag: "PMP-001",
+    name: "Feed Pump",
+  })),
   listAssets = vi.fn(async () => ({ items: [], nextCursor: null })),
   listFacilities = vi.fn(async () => ({
     items: [{ id: "facility-1", name: "Acme Refinery", status: "active", timezone: "UTC", createdAt: new Date(), updatedAt: new Date() }],
@@ -88,6 +94,7 @@ function renderDetail({
 }: {
   getAsset?: ReturnType<typeof vi.fn>;
   getAssetHistory?: ReturnType<typeof vi.fn>;
+  getAssetQrLabel?: ReturnType<typeof vi.fn>;
   listAssets?: ReturnType<typeof vi.fn>;
   listFacilities?: ReturnType<typeof vi.fn>;
   listAreas?: ReturnType<typeof vi.fn>;
@@ -105,6 +112,7 @@ function renderDetail({
     getCurrentUser: vi.fn(async () => identity),
     getAsset,
     getAssetHistory,
+    getAssetQrLabel,
     listAssets,
     listFacilities,
     listAreas,
@@ -185,5 +193,35 @@ describe("asset detail page", () => {
     renderDetail();
     await screen.findByText("Feed Pump");
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
+  it("renders the QR code with print/download actions once loaded", async () => {
+    const getAssetQrLabel = vi.fn(async () => ({
+      qrCodeId: "qr-code-1",
+      url: "http://localhost:3000/qr/qr-code-1",
+      assetTag: "PMP-001",
+      name: "Feed Pump",
+    }));
+    renderDetail({ getAssetQrLabel });
+    await screen.findByText("Feed Pump");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("tab", { name: "QR Code" }));
+    expect(await screen.findByTestId("qr-print-area")).toBeInTheDocument();
+    expect(getAssetQrLabel).toHaveBeenCalledWith("asset-1");
+    expect(screen.getByRole("button", { name: "Print" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("shows an unavailable state when the QR label fails to load", async () => {
+    const getAssetQrLabel = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    renderDetail({ getAssetQrLabel });
+    await screen.findByText("Feed Pump");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("tab", { name: "QR Code" }));
+    expect(await screen.findByText("QR code unavailable")).toBeInTheDocument();
   });
 });

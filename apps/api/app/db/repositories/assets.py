@@ -40,6 +40,59 @@ class AssetRepository(TenantRepository[Asset]):
     async def soft_delete(self, scope: CompanyScope, asset_id: str, actor_uid: str) -> Asset:
         return await self._soft_delete(scope, asset_id, actor_uid)
 
+    async def get_by_qr_code(self, code: str) -> Asset | None:
+        """Cross-tenant lookup by the opaque `qr_code_id` -- the scanning
+        user's company isn't known from the code alone, so this deliberately
+        bypasses `CompanyScope`; the caller (service layer) is responsible
+        for rejecting a match that belongs to a different company."""
+        query = self._collection.where(filter=FieldFilter("qr_code_id", "==", code))
+        async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+            data = snapshot.to_dict()
+            if data is not None:
+                return self.model_type.model_validate(data)
+        return None
+
+    async def list_missing_qr_codes(self) -> list[Asset]:
+        """Every active asset (any company) without a `qr_code_id` yet --
+        used by the one-time backfill script for assets created before
+        Phase 4.5 started generating one at creation time."""
+        query = self._collection.where(filter=FieldFilter("qr_code_id", "==", None))
+        query = query.where(filter=FieldFilter("deleted_at", "==", None))
+        documents = []
+        async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+            data = snapshot.to_dict()
+            if data is not None:
+                documents.append(self.model_type.model_validate(data))
+        return documents
+
+    async def backfill_qr_code(
+        self, scope: CompanyScope, asset_id: str, qr_code_id: str, actor_uid: str
+    ) -> Asset:
+        await self._collection.document(asset_id).update(
+            {"qr_code_id": qr_code_id, "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, asset_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="asset.qr_backfilled",
+            target_id=asset_id,
+            metadata={"qr_code_id": qr_code_id},
+        )
+        return updated
+
+    async def record_scan(self, scope: CompanyScope, asset_id: str, actor_uid: str) -> None:
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="asset.qr_scanned",
+            target_id=asset_id,
+            metadata={},
+        )
+
     async def append_media(
         self, scope: CompanyScope, asset_id: str, media: AssetMedia, actor_uid: str
     ) -> Asset:

@@ -21,6 +21,7 @@ import {
 } from "@/design-system";
 
 import { areaName, facilityName, useAssetsData, type AsyncStatus } from "./assets-data";
+import { QrLabelTab } from "./qr-label-tab";
 
 function statusTone(status: string): StatusTone {
   return status.toLowerCase() as StatusTone;
@@ -420,6 +421,18 @@ export function AssetDetailPage({
                     id: "media",
                     label: "Media",
                     content: <MediaTab asset={state.asset} canWrite={canWrite} onChanged={(asset) => setState({ status: "ready", asset })} />,
+                  },
+                  {
+                    id: "qr-code",
+                    label: "QR Code",
+                    content: (
+                      <QrLabelTab
+                        assetId={state.asset.id}
+                        assetTag={state.asset.assetTag}
+                        getAssetQrLabel={data.getAssetQrLabel}
+                        name={state.asset.name}
+                      />
+                    ),
                   },
                 ]}
               />

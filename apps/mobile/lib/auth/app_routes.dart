@@ -1,3 +1,4 @@
+import 'package:fev_api_client/fev_api_client.dart';
 import 'package:flutter/material.dart';
 
 import '../assets/asset_detail_screen.dart';
@@ -8,6 +9,8 @@ import '../company/company_profile_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
 import '../navigation/nav_config.dart';
+import '../qr/qr_scan_result_screen.dart';
+import '../qr/qr_scan_screen.dart';
 import '../roles/roles_screen.dart';
 import '../shell/app_shell.dart';
 import '../users/users_screen.dart';
@@ -34,6 +37,8 @@ class AppRoutes {
   static const assets = AppNav.assets;
   static const assetDetail = '/assets/detail';
   static const assetForm = '/assets/form';
+  static const qrScan = '/qr-scan';
+  static const qrScanResult = '/qr-scan/result';
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -162,6 +167,33 @@ class AppRoutes {
                 permission: 'assets.write',
                 fallback: const NoAccessScreen(permission: 'assets.write'),
                 child: AssetFormScreen(assetId: assetId),
+              ),
+            ),
+          );
+        };
+      case qrScan:
+        return (_) => const RequireAuthGuard(
+              routeName: qrScan,
+              child: AppShellScaffold(
+                currentRoute: assets,
+                child: PermissionGate(
+                  permission: 'assets.read',
+                  fallback: NoAccessScreen(permission: 'assets.read'),
+                  child: QrScanScreen(),
+                ),
+              ),
+            );
+      case qrScanResult:
+        return (context) {
+          final result = ModalRoute.of(context)!.settings.arguments as QrScanResult;
+          return RequireAuthGuard(
+            routeName: qrScanResult,
+            child: AppShellScaffold(
+              currentRoute: assets,
+              child: PermissionGate(
+                permission: 'assets.read',
+                fallback: const NoAccessScreen(permission: 'assets.read'),
+                child: QrScanResultScreen(result: result),
               ),
             ),
           );

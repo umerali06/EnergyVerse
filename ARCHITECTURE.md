@@ -1008,6 +1008,103 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   permission, never a placeholder number (continuing D-019's no-invented-
   data rule).
 
+### Phase 4.5 QR Code Generation and Scanning
+
+- **`qr_code_id` generation (D-041).** Every asset gets an opaque,
+  unguessable `qr_code_id` (`secrets.token_urlsafe(16)`, ~128 bits of
+  entropy) — never the asset's own UUID, so a scanned/printed label can't
+  be used to enumerate a tenant's asset ids. `AssetManagementService
+  .create_asset()` generates one via `generate_unique_qr_code_id()`
+  (`app/assets/qr.py`), which re-checks `AssetRepository.get_by_qr_code()`
+  for a collision before accepting a candidate (defense in depth over the
+  entropy alone, mirroring the codebase's existing "verify, don't just
+  trust randomness" convention). `scripts/seed.py` calls the same helper
+  for every demo asset, so freshly seeded tenants never carry a null code.
+- **Backfill (`scripts/backfill_qr_codes.py`).** A one-time, idempotent,
+  cross-tenant script: `AssetRepository.list_missing_qr_codes()` finds
+  every active asset (any company) with `qr_code_id == null`, assigns one
+  via the same generator, and persists it through
+  `AssetRepository.backfill_qr_code()` (which also writes an
+  `asset.qr_backfilled` audit entry). Re-running finds nothing left to do.
+  Verified against the real `thinking-case-469504-c0` project — backfilled
+  11 pre-existing Acme assets in one run.
+- **The deep-link payload (D-042).** The QR image encodes
+  `{APP_BASE_URL}/qr/{code}` (a new `Settings.app_base_url`, defaulting to
+  the admin app's own `http://localhost:3000` dev origin — set to the real
+  deployed origin in production). This one URL serves three consumers
+  without a payload change: the admin's own `/qr/[code]` page resolves and
+  redirects directly; a generic phone camera outside the app opens that
+  same admin page; and once a real production domain + Universal
+  Links/App Links domain-association files exist (not part of this
+  phase — no such infrastructure exists in the repo yet), the identical
+  URL becomes a deep link into the native app with zero backend change.
+  Mobile's own camera scan never depends on OS-level link registration: it
+  decodes the raw scanned text in-app and extracts the trailing path
+  segment as the code (`extractQrCode()`,
+  `apps/mobile/lib/qr/qr_scan_controller.dart`), so a bare manually-typed
+  code and a full scanned URL both resolve identically.
+- **Resolve endpoint and the scan surface (D-042).**
+  `GET /api/v1/qr/{code}/resolve` (`app/api/v1/qr.py`) is gated by the
+  same `assets.read` dependency as every other asset-read route.
+  `AssetManagementService.resolve_qr_code()` looks the code up
+  cross-tenant (`AssetRepository.get_by_qr_code`, which deliberately
+  bypasses `CompanyScope`, since the scanning user's company isn't known
+  from the code alone) and rejects — with the identical `404
+  qr_code_not_found` used for a genuinely unknown code — any match whose
+  `company_id` doesn't equal the caller's own, or that's soft-deleted.
+  Never a 403: a distinguishable cross-tenant response would let a scan
+  probe for a code's existence outside the caller's tenant. Every
+  successful resolve is audited (`asset.qr_scanned`,
+  `AssetRepository.record_scan`). The response (`QrScanResult`) nests the
+  full `AssetDetail` (info, status, photos/documents/manuals) plus
+  `inspections_total`/`maintenance_total`/`work_orders_total`, all
+  hard-zeroed today — an honest empty scan surface, matching the 4.1
+  `AssetHistoryPage` precedent, until Phase 7/11 populate those counts for
+  real. There is no `safety_instructions` field on `Asset` yet, so the
+  scan surface has nothing to render there rather than inventing one
+  ahead of its own phase.
+- **Printable label (`GET /api/v1/assets/{id}/qr`, gated by
+  `assets.read`).** Returns `{qr_code_id, url, asset_tag, name}` as plain
+  JSON — no backend image-rendering dependency. The admin asset detail
+  page's new "QR Code" tab (`apps/admin/src/assets/qr-label-tab.tsx`)
+  renders the actual QR bitmap client-side from `url` via `react-qr-code`
+  (a small SVG-only library, no canvas), with **Print** (a scoped
+  `window.print()` — `[data-print-area]` CSS in `globals.css` hides every
+  other page element so only the label prints) and **Download** (serializes
+  the rendered `<svg>` directly to a `.svg` file — chosen over rasterizing
+  to PNG specifically to avoid a canvas dependency and the jsdom
+  canvas-mocking cost in tests, and an SVG prints at any size without
+  pixelation, which a fixed-resolution PNG wouldn't).
+- **Admin `/qr/[code]` route** (`apps/admin/src/app/(protected)/qr/[code]/`,
+  feature component `apps/admin/src/qr/qr-resolve-page.tsx`): calls
+  `resolveQrCode`, redirects to `/assets/{id}` on success, and renders a
+  branded not-found/error state otherwise — reachable by any authenticated
+  `assets.read` holder (`RequirePermission`), same as every other admin
+  route.
+- **Mobile scan surface (`apps/mobile/lib/qr/`) — the primary scan
+  surface per spec.** `QrScanScreen` wraps `mobile_scanner`'s
+  `MobileScanner` camera widget behind an injectable `scannerBuilder` slot
+  (defaults to the real camera view) so widget tests never have to mount
+  a real camera plugin — live scanning itself is verified on a physical
+  device by hand, per D-040's evidence policy; the pure `cameraErrorMessage()`
+  function is unit-tested directly for the permission-denied/unsupported/
+  generic camera failure copy. A manual code-entry fallback shares the
+  exact same `QrScanController.resolve()` path as a camera detection.
+  On a successful resolve, `QrScanResultScreen` renders the same scan
+  surface fields as admin (info/status/media, reserved honest-empty
+  Inspections/Maintenance/Work-Orders sections) plus a **Start
+  Inspection** button that is a clearly-labeled stub: it pushes the
+  existing `ComingSoonScreen(moduleName: 'Inspections')` (the same "on the
+  roadmap" component every other unbuilt nav module already uses), not a
+  fake inspection flow. A "Scan QR code" quick action on the dashboard
+  (gated by `assets.read`, alongside the existing Users/Assets-demo
+  actions) is the discoverable entry point.
+- **Camera permission (Android/iOS).** `CAMERA` added to
+  `AndroidManifest.xml` (`<uses-feature android:required="false"/>` so a
+  camera-less device can still install); iOS's existing 4.3
+  `NSCameraUsageDescription` (added for asset photo capture) was extended
+  to also mention QR scanning rather than adding a second usage string.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis

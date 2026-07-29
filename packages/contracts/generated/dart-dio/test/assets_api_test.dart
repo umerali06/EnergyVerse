@@ -41,6 +41,13 @@ void main() {
       // TODO
     });
 
+    // Get Asset Qr Label
+    //
+    //Future<AssetQrLabel> getAssetQrLabel(String assetId) async
+    test('test getAssetQrLabel', () async {
+      // TODO
+    });
+
     // List Assets
     //
     //Future<AssetListPage> listAssets({ String facilityId, String areaId, String category, String currentStatus, String parentAssetId, String search, String sort, String cursor, int limit }) async

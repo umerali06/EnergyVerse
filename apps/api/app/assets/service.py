@@ -8,6 +8,7 @@ from uuid import uuid4
 from fastapi import UploadFile
 
 from app.assets.constants import ASSET_CATEGORIES, is_valid_asset_category
+from app.assets.qr import generate_unique_qr_code_id, qr_code_url
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
 from app.db.repositories.areas import AreaRepository
@@ -23,7 +24,9 @@ from app.models.api import (
     AssetListItem,
     AssetListPage,
     AssetMediaResponse,
+    AssetQrLabel,
     CreateAssetRequest,
+    QrScanResult,
     UpdateAssetRequest,
 )
 from app.models.base import CompanyScope, utc_now
@@ -313,6 +316,27 @@ class AssetManagementService:
         await self._active_asset(scope, asset_id)
         return AssetHistoryPage(items=[])
 
+    async def get_qr_label(self, scope: CompanyScope, asset_id: str) -> AssetQrLabel:
+        asset = await self._active_asset(scope, asset_id)
+        return AssetQrLabel(
+            qr_code_id=asset.qr_code_id,
+            url=qr_code_url(asset.qr_code_id) if asset.qr_code_id else None,
+            asset_tag=asset.asset_tag,
+            name=asset.name,
+        )
+
+    async def resolve_qr_code(
+        self, scope: CompanyScope, code: str, actor_uid: str
+    ) -> QrScanResult:
+        """Company-scoped resolve: a code from another tenant, or no match at
+        all, returns the identical 404 (never 403) so a scan can't be used to
+        probe whether a code exists (D-042)."""
+        asset = await self._assets.get_by_qr_code(code)
+        if asset is None or asset.company_id != scope.company_id or asset.deleted_at is not None:
+            raise AssetManagementError(404, "qr_code_not_found", "QR code was not found")
+        await self._assets.record_scan(scope, asset.id, actor_uid)
+        return QrScanResult(asset=_to_detail(asset, self._storage))
+
     async def create_asset(
         self,
         scope: CompanyScope,
@@ -327,6 +351,7 @@ class AssetManagementService:
             await self._require_area_in_facility(scope, request.area_id, request.facility_id)
         if request.parent_asset_id is not None:
             await self._require_valid_parent(scope, request.parent_asset_id, None)
+        qr_code_id = await generate_unique_qr_code_id(self._assets)
 
         asset = await self._assets.create(
             scope,
@@ -336,6 +361,7 @@ class AssetManagementService:
                 area_id=request.area_id,
                 parent_asset_id=request.parent_asset_id,
                 asset_tag=request.asset_tag.strip(),
+                qr_code_id=qr_code_id,
                 name=" ".join(request.name.split()),
                 category=request.category,
                 category_other=request.category_other,

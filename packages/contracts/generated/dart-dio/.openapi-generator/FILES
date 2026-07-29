@@ -16,6 +16,7 @@ doc/AssetHistoryPage.md
 doc/AssetListItem.md
 doc/AssetListPage.md
 doc/AssetMediaResponse.md
+doc/AssetQrLabel.md
 doc/AssetsApi.md
 doc/AuditApi.md
 doc/AuditLogEntry.md
@@ -55,6 +56,8 @@ doc/PlatformCompanyDetail.md
 doc/PlatformCompanyPage.md
 doc/PlatformCompanySummary.md
 doc/PlatformStats.md
+doc/QrApi.md
+doc/QrScanResult.md
 doc/RbacDemoApi.md
 doc/RoleDeleted.md
 doc/RoleDetail.md
@@ -89,6 +92,7 @@ lib/src/api/dashboard_api.dart
 lib/src/api/facilities_api.dart
 lib/src/api/permissions_api.dart
 lib/src/api/platform_api.dart
+lib/src/api/qr_api.dart
 lib/src/api/rbac_demo_api.dart
 lib/src/api/roles_api.dart
 lib/src/api/system_api.dart
@@ -113,6 +117,7 @@ lib/src/model/asset_history_page.dart
 lib/src/model/asset_list_item.dart
 lib/src/model/asset_list_page.dart
 lib/src/model/asset_media_response.dart
+lib/src/model/asset_qr_label.dart
 lib/src/model/audit_log_entry.dart
 lib/src/model/audit_log_facets.dart
 lib/src/model/audit_log_page.dart
@@ -145,6 +150,7 @@ lib/src/model/platform_company_detail.dart
 lib/src/model/platform_company_page.dart
 lib/src/model/platform_company_summary.dart
 lib/src/model/platform_stats.dart
+lib/src/model/qr_scan_result.dart
 lib/src/model/role_deleted.dart
 lib/src/model/role_detail.dart
 lib/src/model/role_list.dart
@@ -180,6 +186,7 @@ test/asset_history_page_test.dart
 test/asset_list_item_test.dart
 test/asset_list_page_test.dart
 test/asset_media_response_test.dart
+test/asset_qr_label_test.dart
 test/assets_api_test.dart
 test/audit_api_test.dart
 test/audit_log_entry_test.dart
@@ -219,6 +226,8 @@ test/platform_company_detail_test.dart
 test/platform_company_page_test.dart
 test/platform_company_summary_test.dart
 test/platform_stats_test.dart
+test/qr_api_test.dart
+test/qr_scan_result_test.dart
 test/rbac_demo_api_test.dart
 test/role_deleted_test.dart
 test/role_detail_test.dart
