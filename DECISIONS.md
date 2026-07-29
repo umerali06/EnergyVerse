@@ -44,6 +44,9 @@
 | D-038 | Pluggable dashboard KPI widget framework (resolves 2.3 deferral) | **A widget is `{id, title, requiredPermission, minTier?, render/builder}`; modules call `registerWidget`/`registerDashboardWidget` once, `DashboardWidgetGrid` filters by permission + tier and renders each in its own failure boundary. Replaces 2.2's hardcoded `ReservedKpiRegion` array with the same visual contract, now data-driven.** | **RESOLVED — LOCKED** | 2026-07-28 |
 | D-039 | Asset KPI aggregation via Firestore `count()` | **Every asset KPI number (total/status/category/facility counts) comes from a Firestore `count()` aggregation query — never a bounded full-document read — scoped by `company_id` + `deleted_at == None` plus at most one more equality filter, run concurrently via `asyncio.gather`. Chosen over maintained counters (too invasive for the current need) and over the D-019-style bounded-read-then-count pattern (would download every asset document just to produce integers).** | **RESOLVED — LOCKED** | 2026-07-28 |
 | D-040 | Phase evidence policy — no screenshot capture | **Every future phase's completion evidence is limited to automated test suites (unit/integration/widget), lint/type-check output, and contract-drift proof, plus real-creds backend verification when credentials are available in-session. Browser/simulator screenshot capture is no longer part of the contract at all — not attempted, not deferred, not apologized for. Visual/UX correctness is verified by the human manually.** | **RESOLVED — LOCKED** | 2026-07-28 |
+| D-043 | Inspection sync contract — client-generated id + monotonic revision | **`inspections` documents use a client-generated UUID as the document id; `POST /inspections` is an idempotent upsert-by-id (byte-identical resubmit is a no-op, a conflicting resubmit is `409`) and returns a fixed `200`, never `201`. A monotonic integer `revision` (not a timestamp) is the conflict-resolution primitive — chosen specifically to be immune to cross-device clock skew, a real bug already hit in this dev environment. `PATCH` accepts `expected_revision`; a mismatch is `409 revision_conflict`. 7.2's offline engine implements last-writer-wins-by-revision against this contract; only the API/model support ships in 7.1.** | **RESOLVED — LOCKED** | 2026-07-29 |
+| D-044 | Checklist template light versioning + inspection-time snapshot | **`checklist_templates` has no separate version-history collection — a lightweight `version: int` bumps by 1 on every accepted edit. Assigning a template to an inspection snapshots its `items[]` and current `version` onto the inspection (`checklist_items_snapshot`/`checklist_template_version`), so a later template edit never corrupts a past inspection's answered checklist.** | **RESOLVED — LOCKED** | 2026-07-29 |
+| D-045 | Inspection lifecycle, checklist-response API surface, and real "Start Inspection" | **Lifecycle is `draft → in_progress → completed`, plus `cancelled` (reachable from `draft`/`in_progress`, added beyond the brief's three states so an abandoned draft can be closed out); `completed`/`cancelled` are terminal. `complete` validates every required snapshot item has a response (422 `checklist_incomplete` otherwise) but succeeds cleanly when no template was ever assigned. `checklist_responses[]` is accepted and validated by the backend API in 7.1 (unknown/duplicate `item_id`, type-mismatched value all 422) even though no admin/mobile screen lets a human fill one in yet — required to make the brief's own "complete blocks on missing required items" test possible; the interactive capture UI is 7.3's job. Mobile's "Start Inspection" (QR scan result) now creates a real `draft` via the API (client UUID, `ad_hoc` type, no device/GPS metadata — no such package exists yet) and lands on the real read-only inspection detail screen, replacing the prior `ComingSoonScreen` stub. `operations_manager`/`field_inspector`/other roles' existing `inspections.read`/`.write` grants are left untouched; only new `checklist_templates.read`/`.write` permissions are added (operations_manager gets both, read-only roles get `.read`) — the client spec's "Ops Manager assigns" capability is deferred until 7.11's admin review UI actually needs it.** | **RESOLVED — LOCKED** | 2026-07-29 |
 | D-041 | Opaque QR token generation | **`qr_code_id` is `secrets.token_urlsafe(16)` (~128 bits), generated at asset-creation time and by a one-time cross-tenant backfill script for pre-existing assets — never derived from or equal to the asset's own id/UUID, so a printed/scanned code can't be used to enumerate a tenant's assets. Collision-checked against `AssetRepository.get_by_qr_code` before acceptance (defense in depth over entropy alone).** | **RESOLVED — LOCKED** | 2026-07-29 |
 | D-042 | QR deep-link payload and cross-tenant resolve policy | **The QR image encodes `{APP_BASE_URL}/qr/{code}` (new `Settings.app_base_url`, defaults to the admin app's own dev origin) — the admin's own `/qr/{code}` page resolves it directly today; it becomes a real Universal/App Link with zero payload change once production domain-association infrastructure exists (not built this phase). Mobile's camera scan never depends on OS link registration — it decodes the scanned text in-app. `GET /api/v1/qr/{code}/resolve` is gated by `assets.read`; a code belonging to another tenant returns the identical `404 qr_code_not_found` as a genuinely unknown code (never 403), so a scan can't be used to probe whether a code exists outside the caller's tenant. Every resolve is audited.** | **RESOLVED — LOCKED** | 2026-07-29 |
 
@@ -927,6 +930,121 @@
   (`inspections_total`/`maintenance_total`/`work_orders_total`) are
   hard-zeroed today, matching the 4.1 `AssetHistoryPage` precedent, until
   Phase 7/11 populate them for real.
+
+### D-043 — Inspection Sync Contract: Client-Generated ID + Monotonic Revision
+
+- **Decision owner:** Product owner, resolving the phase brief's explicit
+  "STOP and ask" ambiguity on revision-vs-timestamp for the 7.2 offline
+  engine's conflict contract.
+- **Decision:** Every inspection's Firestore document id is a
+  client-generated UUID (validated server-side via `uuid.UUID(value)`),
+  never a server-assigned id — a draft created offline never has to wait
+  for round-trip server assignment before it "exists." `POST
+  /api/v1/inspections` is therefore an **idempotent upsert keyed by that
+  id**: a byte-identical resubmit (same `asset_id`, `inspection_type`,
+  `title`, `notes`, GPS, `client_created_at`, `device_id`, `origin`)
+  returns the existing record unchanged (no revision bump, no audit
+  entry — a true no-op); a resubmit with different data conflicts (`409
+  inspection_id_conflict`). The route returns a fixed `200`, never `201`
+  — a deliberate departure from every other create route in this
+  codebase, since the route can't statically know whether a given call
+  created a new record or replayed one. Conflict resolution itself uses a
+  monotonic integer `revision` (starts at 1, bumps by exactly 1 on every
+  accepted mutation, never on a true no-op) rather than a timestamp —
+  chosen because this dev environment has already hit a real cross-device
+  clock-skew bug (see `[[fev-dev-machine-clock-drift]]`-style incidents
+  in prior phases), and a client's local clock cannot be trusted to order
+  events reliably. `PATCH /inspections/{id}` accepts an optional
+  `expected_revision`; a mismatch returns `409 revision_conflict` with
+  both `expected_revision` and the server's `current_revision` so a
+  caller can re-fetch and reapply.
+- **Consequences:** 7.2's offline sync engine (not built in this phase)
+  is expected to implement last-writer-wins by comparing revisions:
+  queue a local edit with the revision it was based on, and on a `409`,
+  re-fetch the current record and either reapply the local change on top
+  or surface a conflict to the user — the exact reconciliation UX is
+  7.2's own decision to make, not locked here. Every future upsert-style
+  endpoint that needs the same idempotent-replay property should copy
+  this `200`-not-`201` pattern rather than inventing a new one.
+
+### D-044 — Checklist Template Light Versioning and Inspection-Time Snapshot
+
+- **Decision owner:** Product owner, resolving the phase brief's "STOP
+  and ask" ambiguity on template versioning depth.
+- **Decision:** `checklist_templates` gets no separate version-history
+  collection. Instead, a lightweight `version: int` field starts at 1 and
+  is bumped by exactly 1 on every accepted template update
+  (`ChecklistTemplateRepository.update`, unconditionally — unlike
+  inspections' revision, there is no idempotency concern here since
+  templates are server-authored, not client-id-upserted). When a
+  template is assigned to an inspection
+  (`POST /inspections/{id}/checklist-template`), the inspection stores
+  the template's id **and a full snapshot of its `items[]` plus the
+  template's `version` at that exact moment**
+  (`checklist_items_snapshot`/`checklist_template_version`) — the
+  inspection never re-reads the live template again. Category matching
+  (`"Generic"` or the asset's own category) is enforced at assignment
+  time only.
+- **Consequences:** Editing a checklist template after inspections have
+  already been answered against it never corrupts those past answers —
+  the snapshot is immutable once taken. `checklist_template_version` on
+  the inspection gives diagnostic provenance ("this was answered against
+  v3; the template is now v7") without the storage/complexity cost of a
+  real version-history collection. If a future phase needs to browse a
+  template's full edit history, that is a new, separate feature — this
+  decision explicitly does not provide it.
+
+### D-045 — Inspection Lifecycle, Checklist-Response API Surface, and Real "Start Inspection"
+
+- **Decision owner:** Product owner, resolving three related "STOP and
+  ask" points: the lifecycle status enum, whether `checklist_responses[]`
+  (a brief-reserved container) can be written via the API before 7.3's
+  capture UI exists, and whether completing an inspection with zero
+  checklist template assigned should be allowed.
+- **Decision:** Lifecycle is `draft → in_progress → completed`, plus a
+  fourth state `cancelled` (reachable from `draft` or `in_progress`) not
+  in the brief's original three-state list, added so an abandoned or
+  wrong-asset draft has somewhere to go besides lingering forever or
+  being hard-deleted. `completed` and `cancelled` are terminal — any
+  further `PATCH` or checklist-template assignment attempt is `409
+  inspection_locked`. `complete` validates every **required** item in
+  `checklist_items_snapshot` has a non-empty response in
+  `checklist_responses` (422 `checklist_incomplete` with
+  `missing_item_ids` otherwise); an inspection that never had a template
+  assigned has nothing to validate and completes cleanly — this matches
+  the ad-hoc "Start Inspection" flow, which never picks a template.
+  Although the brief lists `checklist_responses[]` among the containers
+  7.1 must not build **capture** for, the backend API accepts and
+  validates it via `PATCH` now (unknown `item_id`, duplicate `item_id`,
+  or a value not matching the item's `item_type` all 422 as
+  `checklist_response_invalid`; accepted values are stamped server-side
+  with `answered_by`/`answered_at`, never client-trusted) — this is the
+  only way to make the brief's own required test ("complete blocks when
+  required items are unanswered") possible, and "capture" is read here as
+  an interactive UI concept, not an API concept: no admin or mobile
+  screen lets a human tap through a checklist in 7.1. Mobile's "Start
+  Inspection" button (QR scan-result screen) creates a real `draft` via
+  `POST /inspections` (a fresh client UUID, `inspection_type: ad_hoc`
+  hardcoded with no picker yet, `device_id`/`gps_lat`/`gps_lng` left
+  `null` since no device-info/geolocation package exists in the mobile
+  app yet) and pushes the real read-only `InspectionDetailScreen` on
+  success, replacing the previous `ComingSoonScreen` stub entirely.
+  RBAC: new `checklist_templates.read`/`.write` join the already-existing
+  (previously unused) `inspections.read`/`.write` placeholders from 0.4;
+  `operations_manager` gains both new keys (template management is an
+  ops responsibility per the client spec), read-only roles gain `.read`
+  only. Existing `inspections.*` grants are **not** changed — the client
+  spec's "Ops Manager assigns" language is real, but no assignment
+  feature exists until 7.11's admin review UI is built to need it.
+- **Consequences:** `inspector_id` is always the creating actor's own uid
+  in 7.1 — there is no dispatch/assignment capability, consistent with
+  the RBAC choice above. A future phase (7.11) that adds real assignment
+  will need to decide then whether `operations_manager` needs
+  `inspections.write` at that point, and whether `inspector_id` becomes
+  mutable. Mobile's `inspection_type: ad_hoc` hardcoding and null
+  device/GPS metadata are explicit, documented gaps — not oversights —
+  to be revisited once a type picker and a device-info/geolocation
+  package are actually needed.
 
 ## Locked Principles
 

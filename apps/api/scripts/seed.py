@@ -1,6 +1,7 @@
 import argparse
 import asyncio
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 
 from google.cloud.firestore_v1.async_client import AsyncClient
 
@@ -13,22 +14,28 @@ from app.db.firestore import get_firestore_client
 from app.db.repositories.areas import AreaRepository
 from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
+from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.facilities import FacilityRepository
+from app.db.repositories.inspections import InspectionRepository
 from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
-from app.models.base import CompanyScope
+from app.models.base import CompanyScope, utc_now
 from app.models.entities import (
     AreaCreate,
     AreaUpdate,
     AssetCreate,
     AssetUpdate,
+    ChecklistResponse,
+    ChecklistTemplateCreate,
+    ChecklistTemplateItem,
     CompanyCreate,
     CompanyUpdate,
     FacilityCreate,
     FacilityUpdate,
+    InspectionCreate,
     PermissionCreate,
     PermissionUpdate,
     RoleCreate,
@@ -49,6 +56,7 @@ from app.rbac.seeding import (
 SEED_ACTOR_UID = "system:seed"
 ACME_COMPANY_ID = "acme-energy"
 SECOND_COMPANY_ID = "beta-utilities"
+FIELD_INSPECTOR_UID = "demo-acme-field_inspector"
 
 
 @dataclass(frozen=True)
@@ -320,6 +328,189 @@ DEMO_ASSETS = (
         manufacturer=None,
         model=None,
         current_status="Healthy",
+    ),
+)
+
+
+# 7.1 demo checklist templates + inspections -- deterministic uuid5 ids so the
+# seed satisfies the same UUID validation the inspections API enforces on
+# client-generated ids, while staying idempotent across re-runs.
+def _deterministic_id(slug: str) -> str:
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{ACME_COMPANY_ID}:{slug}"))
+
+
+CHECKLIST_TEMPLATE_GENERIC_ID = _deterministic_id("checklist_template:generic")
+CHECKLIST_TEMPLATE_PUMP_ID = _deterministic_id("checklist_template:pump")
+CHECKLIST_TEMPLATE_TANK_ID = _deterministic_id("checklist_template:tank")
+
+GENERIC_CHECKLIST_ITEMS = (
+    ChecklistTemplateItem(
+        id="visual_condition",
+        label="Visual condition acceptable",
+        item_type="boolean",
+        required=True,
+        help_text="Check for obvious physical damage or wear",
+    ),
+    ChecklistTemplateItem(
+        id="leaks_observed",
+        label="Any leaks observed",
+        item_type="boolean",
+        required=True,
+    ),
+    ChecklistTemplateItem(
+        id="notes",
+        label="Additional notes",
+        item_type="text",
+        required=False,
+    ),
+)
+
+PUMP_CHECKLIST_ITEMS = (
+    ChecklistTemplateItem(
+        id="vibration_normal",
+        label="Vibration within normal range",
+        item_type="boolean",
+        required=True,
+    ),
+    ChecklistTemplateItem(
+        id="bearing_temp_f",
+        label="Bearing temperature (°F)",
+        item_type="numeric",
+        required=True,
+        help_text="Record in degrees Fahrenheit",
+    ),
+    ChecklistTemplateItem(
+        id="seal_condition",
+        label="Seal condition",
+        item_type="select",
+        required=True,
+        options=["Good", "Fair", "Poor"],
+    ),
+    ChecklistTemplateItem(
+        id="notes",
+        label="Additional notes",
+        item_type="text",
+        required=False,
+    ),
+)
+
+TANK_CHECKLIST_ITEMS = (
+    ChecklistTemplateItem(
+        id="shell_integrity",
+        label="Shell integrity acceptable",
+        item_type="boolean",
+        required=True,
+    ),
+    ChecklistTemplateItem(
+        id="level_gauge_functioning",
+        label="Level gauge functioning",
+        item_type="boolean",
+        required=True,
+    ),
+    ChecklistTemplateItem(
+        id="corrosion_observed",
+        label="Corrosion observed",
+        item_type="select",
+        required=True,
+        options=["None", "Minor", "Moderate", "Severe"],
+    ),
+    ChecklistTemplateItem(
+        id="notes",
+        label="Additional notes",
+        item_type="text",
+        required=False,
+    ),
+)
+
+
+@dataclass(frozen=True)
+class DemoChecklistTemplateSeed:
+    id: str
+    name: str
+    category: str
+    description: str
+    items: tuple[ChecklistTemplateItem, ...]
+
+
+DEMO_CHECKLIST_TEMPLATES = (
+    DemoChecklistTemplateSeed(
+        id=CHECKLIST_TEMPLATE_GENERIC_ID,
+        name="Generic Inspection Checklist",
+        category="Generic",
+        description="Baseline checklist for any asset category.",
+        items=GENERIC_CHECKLIST_ITEMS,
+    ),
+    DemoChecklistTemplateSeed(
+        id=CHECKLIST_TEMPLATE_PUMP_ID,
+        name="Pump Inspection Checklist",
+        category="Pumps",
+        description="Routine pump condition checklist.",
+        items=PUMP_CHECKLIST_ITEMS,
+    ),
+    DemoChecklistTemplateSeed(
+        id=CHECKLIST_TEMPLATE_TANK_ID,
+        name="Tank Inspection Checklist",
+        category="Tanks",
+        description="Routine storage tank condition checklist.",
+        items=TANK_CHECKLIST_ITEMS,
+    ),
+)
+
+
+@dataclass(frozen=True)
+class DemoChecklistResponseSeed:
+    item_id: str
+    value: str | float | bool
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class DemoInspectionSeed:
+    id: str
+    asset_id: str
+    inspection_type: str
+    title: str | None
+    notes: str | None
+    template_id: str | None
+    target_status: str
+    responses: tuple[DemoChecklistResponseSeed, ...] = field(default_factory=tuple)
+
+
+DEMO_INSPECTIONS = (
+    DemoInspectionSeed(
+        id=_deterministic_id("inspection:pump-101-completed"),
+        asset_id=ASSET_FEED_PUMP_ID,
+        inspection_type="routine",
+        title="Q3 Routine Pump Inspection",
+        notes="Completed during the scheduled maintenance window.",
+        template_id=CHECKLIST_TEMPLATE_PUMP_ID,
+        target_status="completed",
+        responses=(
+            DemoChecklistResponseSeed(item_id="vibration_normal", value=True),
+            DemoChecklistResponseSeed(item_id="bearing_temp_f", value=142.5),
+            DemoChecklistResponseSeed(item_id="seal_condition", value="Good"),
+            DemoChecklistResponseSeed(item_id="notes", value="No issues found."),
+        ),
+    ),
+    DemoInspectionSeed(
+        id=_deterministic_id("inspection:tank-301-in-progress"),
+        asset_id=f"{ACME_COMPANY_ID}__asset__t-301",
+        inspection_type="scheduled",
+        title="Tank 301 Scheduled Inspection",
+        notes=None,
+        template_id=CHECKLIST_TEMPLATE_TANK_ID,
+        target_status="in_progress",
+        responses=(DemoChecklistResponseSeed(item_id="shell_integrity", value=True),),
+    ),
+    DemoInspectionSeed(
+        id=_deterministic_id("inspection:compressor-201-draft"),
+        asset_id=f"{ACME_COMPANY_ID}__asset__c-201",
+        inspection_type="ad_hoc",
+        title=None,
+        notes=None,
+        template_id=None,
+        target_status="draft",
+        responses=(),
     ),
 )
 
@@ -638,6 +829,143 @@ async def _ensure_asset(
         )
 
 
+async def _ensure_checklist_template(
+    repository: ChecklistTemplateRepository,
+    scope: CompanyScope,
+    seed: DemoChecklistTemplateSeed,
+) -> None:
+    existing = await repository.get(scope, seed.id)
+    if existing is None:
+        await repository.create(
+            scope,
+            ChecklistTemplateCreate(
+                id=seed.id,
+                name=seed.name,
+                category=seed.category,
+                description=seed.description,
+                items=list(seed.items),
+            ),
+            SEED_ACTOR_UID,
+        )
+        return
+    if (
+        existing.name != seed.name
+        or existing.category != seed.category
+        or existing.description != seed.description
+        or tuple(existing.items) != seed.items
+    ):
+        await repository.update(
+            scope,
+            seed.id,
+            {
+                "name": seed.name,
+                "category": seed.category,
+                "description": seed.description,
+                "items": [item.model_dump() for item in seed.items],
+            },
+            SEED_ACTOR_UID,
+        )
+
+
+async def _ensure_inspection(
+    inspections: InspectionRepository,
+    checklist_templates: ChecklistTemplateRepository,
+    assets: AssetRepository,
+    scope: CompanyScope,
+    seed: DemoInspectionSeed,
+    inspector_id: str,
+) -> None:
+    """Idempotent by existence check only: demo inspections are static fixture
+    data walked through their real lifecycle transitions once, not reconciled
+    field-by-field on re-run (unlike facilities/areas/assets) -- the lifecycle
+    (draft -> template assignment -> responses -> start -> complete) is
+    stateful enough that a full diff-and-patch would just re-implement the
+    service layer here for no real benefit to a demo tenant."""
+    existing = await inspections.get(scope, seed.id)
+    if existing is not None:
+        return
+
+    asset = await assets.get(scope, seed.asset_id)
+    if asset is None:
+        raise ValueError(f"Demo inspection {seed.id} references unknown asset {seed.asset_id}")
+
+    inspection, _created = await inspections.upsert_draft(
+        scope,
+        InspectionCreate(
+            id=seed.id,
+            asset_id=asset.id,
+            facility_id=asset.facility_id,
+            area_id=asset.area_id,
+            inspector_id=inspector_id,
+            status="draft",
+            inspection_type=seed.inspection_type,
+            title=seed.title,
+            notes=seed.notes,
+            gps_lat=None,
+            gps_lng=None,
+            client_created_at=utc_now(),
+            device_id=None,
+            origin="seed",
+        ),
+        SEED_ACTOR_UID,
+    )
+
+    if seed.template_id is not None:
+        template = await checklist_templates.get(scope, seed.template_id)
+        if template is None:
+            raise ValueError(f"Demo inspection {seed.id} references unknown template")
+        inspection = await inspections.assign_checklist_template(
+            scope,
+            inspection.id,
+            template_id=template.id,
+            template_version=template.version,
+            snapshot_items=template.items,
+            actor_uid=SEED_ACTOR_UID,
+        )
+
+    if seed.target_status in ("in_progress", "completed"):
+        inspection = await inspections.apply_lifecycle(
+            scope,
+            inspection.id,
+            SEED_ACTOR_UID,
+            expected_statuses=frozenset({"draft"}),
+            next_status="in_progress",
+            extra_fields={"started_at": utc_now()},
+            action="started",
+        )
+
+    if seed.responses:
+        now = utc_now()
+        stamped = [
+            ChecklistResponse(
+                item_id=response.item_id,
+                value=response.value,
+                note=response.note,
+                answered_at=now,
+                answered_by=SEED_ACTOR_UID,
+            ).model_dump()
+            for response in seed.responses
+        ]
+        inspection = await inspections.update(
+            scope,
+            inspection.id,
+            {"checklist_responses": stamped},
+            SEED_ACTOR_UID,
+            expected_revision=None,
+        )
+
+    if seed.target_status == "completed":
+        await inspections.apply_lifecycle(
+            scope,
+            inspection.id,
+            SEED_ACTOR_UID,
+            expected_statuses=frozenset({"draft", "in_progress"}),
+            next_status="completed",
+            extra_fields={"completed_at": utc_now()},
+            action="completed",
+        )
+
+
 async def run_seed(
     client: AsyncClient | None = None,
     *,
@@ -656,6 +984,8 @@ async def run_seed(
     facilities = FacilityRepository(firestore_client, audit)
     areas = AreaRepository(firestore_client, audit)
     assets = AssetRepository(firestore_client, audit)
+    checklist_templates = ChecklistTemplateRepository(firestore_client, audit)
+    inspections = InspectionRepository(firestore_client, audit)
 
     await asyncio.gather(
         _ensure_company(
@@ -736,6 +1066,24 @@ async def run_seed(
     )
     await asyncio.gather(*(_ensure_area(areas, acme_scope, area) for area in DEMO_AREAS))
     await asyncio.gather(*(_ensure_asset(assets, acme_scope, asset) for asset in DEMO_ASSETS))
+    await asyncio.gather(
+        *(
+            _ensure_checklist_template(checklist_templates, acme_scope, template)
+            for template in DEMO_CHECKLIST_TEMPLATES
+        )
+    )
+    # Sequential, not gathered: each inspection walks real lifecycle
+    # transitions (draft -> template assignment -> responses -> start ->
+    # complete) against the same document, so concurrent writes would race.
+    for inspection_seed in DEMO_INSPECTIONS:
+        await _ensure_inspection(
+            inspections,
+            checklist_templates,
+            assets,
+            acme_scope,
+            inspection_seed,
+            FIELD_INSPECTOR_UID,
+        )
 
     if with_auth_users:
         password = demo_password or settings.seed_demo_password
@@ -777,10 +1125,14 @@ async def run_seed(
         audit_logs.list(acme_scope),
         audit_logs.list(second_scope),
     )
-    acme_facilities, acme_areas, acme_assets = await asyncio.gather(
-        facilities.list(acme_scope),
-        areas.list(acme_scope),
-        assets.list(acme_scope),
+    acme_facilities, acme_areas, acme_assets, acme_checklist_templates, acme_inspections = (
+        await asyncio.gather(
+            facilities.list(acme_scope),
+            areas.list(acme_scope),
+            assets.list(acme_scope),
+            checklist_templates.list(acme_scope),
+            inspections.list(acme_scope),
+        )
     )
     return SeedCounts(
         companies=sum(
@@ -798,6 +1150,8 @@ async def run_seed(
         facilities=len(acme_facilities),
         areas=len(acme_areas),
         assets=len(acme_assets),
+        checklist_templates=len(acme_checklist_templates),
+        inspections=len(acme_inspections),
     )
 
 

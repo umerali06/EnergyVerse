@@ -2,6 +2,7 @@ import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 
 typedef ResolveQrCodeFn = Future<QrScanResult> Function(String code);
+typedef CreateInspectionFn = Future<InspectionDetail> Function(CreateInspectionRequest request);
 
 CurrentUser defaultQrTestIdentity({List<String> permissions = const ['assets.read']}) {
   return CurrentUser(
@@ -20,15 +21,41 @@ CurrentUser defaultQrTestIdentity({List<String> permissions = const ['assets.rea
 /// unimplemented except [getCurrentUser] and [resolveQrCode], which callers
 /// can inject.
 class FakeQrApi implements ApiContract {
-  FakeQrApi({required ResolveQrCodeFn resolveQrCode, CurrentUser? identity})
-      : _resolveQrCode = resolveQrCode,
-        _identity = identity ?? defaultQrTestIdentity();
+  FakeQrApi({
+    required ResolveQrCodeFn resolveQrCode,
+    CurrentUser? identity,
+    CreateInspectionFn? createInspection,
+  })  : _resolveQrCode = resolveQrCode,
+        _identity = identity ?? defaultQrTestIdentity(),
+        _createInspection = createInspection;
 
   final ResolveQrCodeFn _resolveQrCode;
   final CurrentUser _identity;
+  final CreateInspectionFn? _createInspection;
 
   @override
   Future<QrScanResult> resolveQrCode(String code) => _resolveQrCode(code);
+
+  @override
+  Future<InspectionDetail> createInspection(CreateInspectionRequest request) {
+    final handler = _createInspection;
+    if (handler == null) throw UnimplementedError();
+    return handler(request);
+  }
+
+  @override
+  Future<InspectionListPage> getInspections({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? inspectorId,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
 
   @override
   Future<CurrentUser> getCurrentUser() async => _identity;

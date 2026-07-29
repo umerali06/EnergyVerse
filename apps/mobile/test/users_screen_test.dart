@@ -198,6 +198,24 @@ class FakeApi implements ApiContract {
 
   @override
   Future<AreaDetail> getArea(String areaId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionListPage> getInspections({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? inspectorId,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
+      throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {

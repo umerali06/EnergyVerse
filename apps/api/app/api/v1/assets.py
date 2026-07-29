@@ -104,10 +104,12 @@ async def get_asset_history(
     asset_id: str,
     current_user: Annotated[CurrentUser, Depends(_assets_read_access)],
     service: Annotated[AssetManagementService, Depends(get_asset_management_service)],
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> AssetHistoryPage:
     scope = CompanyScope(company_id=current_user.company_id)
     try:
-        return await service.get_asset_history(scope, asset_id)
+        return await service.get_asset_history(scope, asset_id, cursor=cursor, limit=limit)
     except AssetManagementError as error:
         _raise_api_error(error)
         raise

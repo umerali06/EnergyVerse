@@ -75,7 +75,6 @@ class AppNav {
       icon: Icons.fact_check_outlined,
       route: inspections,
       requiredPermission: 'inspections.read',
-      comingSoon: true,
     ),
     NavDestination(
       label: 'Permits',

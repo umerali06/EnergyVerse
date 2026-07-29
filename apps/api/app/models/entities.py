@@ -251,6 +251,116 @@ class AssetUpdate(StrictModel):
 
 
 
+class ChecklistTemplateItem(StrictModel):
+    id: str
+    label: str = Field(min_length=1, max_length=200)
+    item_type: Literal["boolean", "numeric", "text", "select"]
+    required: bool = True
+    options: list[str] | None = None
+    help_text: str | None = Field(default=None, max_length=500)
+
+
+class ChecklistTemplate(TenantDoc):
+    id: str
+    name: str
+    category: str
+    description: str | None = None
+    items: list["ChecklistTemplateItem"] = Field(default_factory=list)
+    version: int = 1
+    deleted_at: datetime | None = None
+
+
+class ChecklistTemplateItemInput(StrictModel):
+    id: str | None = None
+    label: str = Field(min_length=1, max_length=200)
+    item_type: Literal["boolean", "numeric", "text", "select"]
+    required: bool = True
+    options: list[str] | None = None
+    help_text: str | None = Field(default=None, max_length=500)
+
+
+class ChecklistTemplateCreate(StrictModel):
+    id: str
+    name: str
+    category: str
+    description: str | None = None
+    items: list[ChecklistTemplateItem] = Field(default_factory=list)
+
+
+class ChecklistTemplateUpdate(StrictModel):
+    name: str | None = None
+    category: str | None = None
+    description: str | None = None
+    items: list[ChecklistTemplateItem] | None = None
+
+
+class ChecklistResponse(StrictModel):
+    item_id: str
+    value: str | float | bool | None = None
+    note: str | None = Field(default=None, max_length=1000)
+    answered_at: datetime | None = None
+    answered_by: str | None = None
+
+
+class Inspection(TenantDoc):
+    id: str
+    asset_id: str
+    facility_id: str
+    area_id: str | None = None
+    inspector_id: str
+    status: Literal["draft", "in_progress", "completed", "cancelled"] = "draft"
+    inspection_type: Literal["routine", "scheduled", "ad_hoc"]
+    title: str | None = None
+    notes: str | None = None
+    checklist_template_id: str | None = None
+    checklist_template_version: int | None = None
+    checklist_items_snapshot: list[ChecklistTemplateItem] = Field(default_factory=list)
+    checklist_responses: list[ChecklistResponse] = Field(default_factory=list)
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    client_created_at: datetime
+    device_id: str | None = None
+    origin: str | None = None
+    revision: int = 1
+    deleted_at: datetime | None = None
+    # Reserved, always-empty in 7.1 -- later phases give these real shapes.
+    media: list[dict[str, Any]] = Field(default_factory=list)
+    annotations: list[dict[str, Any]] = Field(default_factory=list)
+    voice_notes: list[dict[str, Any]] = Field(default_factory=list)
+    readings: dict[str, Any] = Field(default_factory=dict)
+    ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
+    ai_analysis: dict[str, Any] | None = None
+    signature: dict[str, Any] | None = None
+
+
+class InspectionCreate(StrictModel):
+    id: str
+    asset_id: str
+    facility_id: str
+    area_id: str | None = None
+    inspector_id: str
+    status: Literal["draft", "in_progress", "completed", "cancelled"] = "draft"
+    inspection_type: Literal["routine", "scheduled", "ad_hoc"]
+    title: str | None = None
+    notes: str | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    client_created_at: datetime
+    device_id: str | None = None
+    origin: str | None = None
+
+
+class InspectionUpdate(StrictModel):
+    title: str | None = None
+    notes: str | None = None
+    inspection_type: Literal["routine", "scheduled", "ad_hoc"] | None = None
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    checklist_responses: list[ChecklistResponse] | None = None
+
+
 class AuditLog(AppendOnlyDoc):
     id: str
     company_id: str
@@ -279,6 +389,8 @@ class SeedCounts(StrictModel):
     facilities: int
     areas: int
     assets: int
+    checklist_templates: int
+    inspections: int
 
 
 class CurrentUser(StrictModel):

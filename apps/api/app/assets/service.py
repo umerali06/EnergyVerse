@@ -15,11 +15,13 @@ from app.db.repositories.areas import AreaRepository
 from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.facilities import FacilityRepository
+from app.db.repositories.inspections import InspectionRepository
 from app.models.api import (
     AssetCategoryCount,
     AssetDashboardSummary,
     AssetDetail,
     AssetFacilityCount,
+    AssetHistoryEvent,
     AssetHistoryPage,
     AssetListItem,
     AssetListPage,
@@ -132,11 +134,13 @@ class AssetManagementService:
         assets: AssetRepository,
         facilities: FacilityRepository,
         areas: AreaRepository,
+        inspections: InspectionRepository,
         storage: AssetMediaStorage | None = None,
     ) -> None:
         self._assets = assets
         self._facilities = facilities
         self._areas = areas
+        self._inspections = inspections
         self._storage = storage or get_asset_media_storage()
 
     async def _active_asset(self, scope: CompanyScope, asset_id: str) -> Asset:
@@ -312,9 +316,49 @@ class AssetManagementService:
         asset = await self._active_asset(scope, asset_id)
         return _to_detail(asset, self._storage)
 
-    async def get_asset_history(self, scope: CompanyScope, asset_id: str) -> AssetHistoryPage:
+    async def get_asset_history(
+        self,
+        scope: CompanyScope,
+        asset_id: str,
+        *,
+        cursor: str | None = None,
+        limit: int = 25,
+    ) -> AssetHistoryPage:
+        """Real, completed-inspection-backed history (resolves D-033's
+        placeholder) -- no history is embedded on `Asset` itself; this reads
+        the inspections collection by asset_id and filters to completed rows,
+        exactly the query-by-reference pattern D-033 reserved this seam for.
+        """
         await self._active_asset(scope, asset_id)
-        return AssetHistoryPage(items=[])
+        rows = await self._inspections.query(scope, asset_id=asset_id)
+        completed = [
+            row for row in rows if row.deleted_at is None and row.status == "completed"
+        ]
+        completed.sort(
+            key=lambda row: (row.completed_at or row.updated_at, row.id), reverse=True
+        )
+
+        if cursor:
+            last_id = _decode_cursor(cursor)
+            ids = [row.id for row in completed]
+            try:
+                start = ids.index(last_id) + 1
+            except ValueError:
+                start = len(completed)
+            completed = completed[start:]
+
+        page = completed[:limit]
+        items = [
+            AssetHistoryEvent(
+                id=row.id,
+                type="inspection",
+                occurred_at=row.completed_at or row.updated_at,
+                summary=f"{row.inspection_type.replace('_', ' ').title()} inspection completed",
+            )
+            for row in page
+        ]
+        next_cursor = _encode_cursor(page[-1].id) if len(completed) > limit and page else None
+        return AssetHistoryPage(items=items, next_cursor=next_cursor)
 
     async def get_qr_label(self, scope: CompanyScope, asset_id: str) -> AssetQrLabel:
         asset = await self._active_asset(scope, asset_id)
@@ -557,5 +601,6 @@ def get_asset_management_service() -> AssetManagementService:
         assets=AssetRepository(client, audit),
         facilities=FacilityRepository(client, audit),
         areas=AreaRepository(client, audit),
+        inspections=InspectionRepository(client, audit),
         storage=get_asset_media_storage(),
     )

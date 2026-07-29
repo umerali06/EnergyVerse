@@ -8,6 +8,8 @@ import '../audit/audit_screen.dart';
 import '../company/company_profile_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
+import '../inspections/inspection_detail_screen.dart';
+import '../inspections/inspections_screen.dart';
 import '../navigation/nav_config.dart';
 import '../qr/qr_scan_result_screen.dart';
 import '../qr/qr_scan_screen.dart';
@@ -37,6 +39,8 @@ class AppRoutes {
   static const assets = AppNav.assets;
   static const assetDetail = '/assets/detail';
   static const assetForm = '/assets/form';
+  static const inspections = AppNav.inspections;
+  static const inspectionDetail = '/inspections/detail';
   static const qrScan = '/qr-scan';
   static const qrScanResult = '/qr-scan/result';
 
@@ -167,6 +171,33 @@ class AppRoutes {
                 permission: 'assets.write',
                 fallback: const NoAccessScreen(permission: 'assets.write'),
                 child: AssetFormScreen(assetId: assetId),
+              ),
+            ),
+          );
+        };
+      case inspections:
+        return (_) => const RequireAuthGuard(
+              routeName: inspections,
+              child: AppShellScaffold(
+                currentRoute: inspections,
+                child: PermissionGate(
+                  permission: 'inspections.read',
+                  fallback: NoAccessScreen(permission: 'inspections.read'),
+                  child: InspectionsScreen(),
+                ),
+              ),
+            );
+      case inspectionDetail:
+        return (context) {
+          final inspectionId = ModalRoute.of(context)!.settings.arguments as String;
+          return RequireAuthGuard(
+            routeName: inspectionDetail,
+            child: AppShellScaffold(
+              currentRoute: inspections,
+              child: PermissionGate(
+                permission: 'inspections.read',
+                fallback: const NoAccessScreen(permission: 'inspections.read'),
+                child: InspectionDetailScreen(inspectionId: inspectionId),
               ),
             ),
           );

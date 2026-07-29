@@ -13,9 +13,11 @@ import 'package:fev_api_client/src/api/areas_api.dart';
 import 'package:fev_api_client/src/api/assets_api.dart';
 import 'package:fev_api_client/src/api/audit_api.dart';
 import 'package:fev_api_client/src/api/auth_api.dart';
+import 'package:fev_api_client/src/api/checklist_templates_api.dart';
 import 'package:fev_api_client/src/api/company_api.dart';
 import 'package:fev_api_client/src/api/dashboard_api.dart';
 import 'package:fev_api_client/src/api/facilities_api.dart';
+import 'package:fev_api_client/src/api/inspections_api.dart';
 import 'package:fev_api_client/src/api/permissions_api.dart';
 import 'package:fev_api_client/src/api/platform_api.dart';
 import 'package:fev_api_client/src/api/qr_api.dart';
@@ -113,6 +115,12 @@ class FevApiClient {
     return AuthApi(dio, serializers);
   }
 
+  /// Get ChecklistTemplatesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  ChecklistTemplatesApi getChecklistTemplatesApi() {
+    return ChecklistTemplatesApi(dio, serializers);
+  }
+
   /// Get CompanyApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   CompanyApi getCompanyApi() {
@@ -129,6 +137,12 @@ class FevApiClient {
   /// by doing that all interceptors will not be executed
   FacilitiesApi getFacilitiesApi() {
     return FacilitiesApi(dio, serializers);
+  }
+
+  /// Get InspectionsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  InspectionsApi getInspectionsApi() {
+    return InspectionsApi(dio, serializers);
   }
 
   /// Get PermissionsApi instance, base route and serializer can be overridden by a given but be careful,

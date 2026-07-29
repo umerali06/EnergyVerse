@@ -24,17 +24,30 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(AssetMediaResponse.serializer)
       ..add(AssetMediaResponseKindEnum.serializer)
       ..add(AssetQrLabel.serializer)
+      ..add(AssignChecklistTemplateRequest.serializer)
       ..add(AuditLogEntry.serializer)
       ..add(AuditLogFacets.serializer)
       ..add(AuditLogPage.serializer)
+      ..add(ChecklistResponse.serializer)
+      ..add(ChecklistTemplateDeleted.serializer)
+      ..add(ChecklistTemplateDetail.serializer)
+      ..add(ChecklistTemplateItem.serializer)
+      ..add(ChecklistTemplateItemInput.serializer)
+      ..add(ChecklistTemplateItemInputItemTypeEnum.serializer)
+      ..add(ChecklistTemplateItemItemTypeEnum.serializer)
+      ..add(ChecklistTemplateListItem.serializer)
+      ..add(ChecklistTemplateListPage.serializer)
       ..add(CompanyProfile.serializer)
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
       ..add(CreateAreaRequest.serializer)
       ..add(CreateAssetRequest.serializer)
       ..add(CreateAssetRequestCurrentStatusEnum.serializer)
+      ..add(CreateChecklistTemplateRequest.serializer)
       ..add(CreateFacilityRequest.serializer)
       ..add(CreateFacilityRequestStatusEnum.serializer)
+      ..add(CreateInspectionRequest.serializer)
+      ..add(CreateInspectionRequestInspectionTypeEnum.serializer)
       ..add(CreateRoleRequest.serializer)
       ..add(CurrentUser.serializer)
       ..add(DashboardActivityItem.serializer)
@@ -54,6 +67,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(HealthResponseFirestoreEnum.serializer)
       ..add(HealthResponseServiceEnum.serializer)
       ..add(HealthResponseStatusEnum.serializer)
+      ..add(InspectionDeleted.serializer)
+      ..add(InspectionDetail.serializer)
+      ..add(InspectionDetailInspectionTypeEnum.serializer)
+      ..add(InspectionDetailStatusEnum.serializer)
+      ..add(InspectionListItem.serializer)
+      ..add(InspectionListItemInspectionTypeEnum.serializer)
+      ..add(InspectionListItemStatusEnum.serializer)
+      ..add(InspectionListPage.serializer)
       ..add(InviteUserRequest.serializer)
       ..add(PermissionCatalog.serializer)
       ..add(PermissionCatalogGroup.serializer)
@@ -73,11 +94,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(UpdateAreaRequest.serializer)
       ..add(UpdateAssetRequest.serializer)
       ..add(UpdateAssetRequestCurrentStatusEnum.serializer)
+      ..add(UpdateChecklistTemplateRequest.serializer)
       ..add(UpdateCompanyRequest.serializer)
       ..add(UpdateCompanyStatusRequest.serializer)
       ..add(UpdateCompanyStatusRequestStatusEnum.serializer)
       ..add(UpdateFacilityRequest.serializer)
       ..add(UpdateFacilityRequestStatusEnum.serializer)
+      ..add(UpdateInspectionRequest.serializer)
+      ..add(UpdateInspectionRequestInspectionTypeEnum.serializer)
       ..add(UpdatePlatformCompanyRequest.serializer)
       ..add(UpdatePlatformCompanyRequestSubscriptionTierEnum.serializer)
       ..add(UpdateRoleRequest.serializer)
@@ -89,6 +113,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(UserListPage.serializer)
       ..add(ValidationError.serializer)
       ..add(ValidationErrorLocInner.serializer)
+      ..add(Value.serializer)
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AreaDetail)]),
           () => new ListBuilder<AreaDetail>())
@@ -117,6 +142,25 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(AuditLogEntry)]),
           () => new ListBuilder<AuditLogEntry>())
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(ChecklistResponse)]),
+          () => new ListBuilder<ChecklistResponse>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ChecklistTemplateItem)]),
+          () => new ListBuilder<ChecklistTemplateItem>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ChecklistTemplateItemInput)]),
+          () => new ListBuilder<ChecklistTemplateItemInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ChecklistTemplateItemInput)]),
+          () => new ListBuilder<ChecklistTemplateItemInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ChecklistTemplateListItem)]),
+          () => new ListBuilder<ChecklistTemplateListItem>())
+      ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(DashboardActivityItem)]),
           () => new ListBuilder<DashboardActivityItem>())
@@ -127,6 +171,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(FacilityDetail)]),
           () => new ListBuilder<FacilityDetail>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(InspectionListItem)]),
+          () => new ListBuilder<InspectionListItem>())
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(PermissionCatalogGroup)]),
@@ -142,6 +189,12 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(RoleSummary)]),
           () => new ListBuilder<RoleSummary>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
@@ -182,6 +235,63 @@ Serializers _$serializers = (new Serializers().toBuilder()
             const FullType.nullable(JsonObject)
           ]),
           () => new MapBuilder<String, JsonObject?>())
+      ..addBuilderFactory(
+          const FullType(BuiltMap, const [
+            const FullType(String),
+            const FullType.nullable(JsonObject)
+          ]),
+          () => new MapBuilder<String, JsonObject?>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [
+            const FullType(BuiltMap, const [
+              const FullType(String),
+              const FullType.nullable(JsonObject)
+            ])
+          ]),
+          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [
+            const FullType(BuiltMap, const [
+              const FullType(String),
+              const FullType.nullable(JsonObject)
+            ])
+          ]),
+          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ChecklistTemplateItem)]),
+          () => new ListBuilder<ChecklistTemplateItem>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(ChecklistResponse)]),
+          () => new ListBuilder<ChecklistResponse>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [
+            const FullType(BuiltMap, const [
+              const FullType(String),
+              const FullType.nullable(JsonObject)
+            ])
+          ]),
+          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
+      ..addBuilderFactory(
+          const FullType(BuiltMap, const [
+            const FullType(String),
+            const FullType.nullable(JsonObject)
+          ]),
+          () => new MapBuilder<String, JsonObject?>())
+      ..addBuilderFactory(
+          const FullType(BuiltMap, const [
+            const FullType(String),
+            const FullType.nullable(JsonObject)
+          ]),
+          () => new MapBuilder<String, JsonObject?>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [
+            const FullType(BuiltMap, const [
+              const FullType(String),
+              const FullType.nullable(JsonObject)
+            ])
+          ]),
+          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
       ..addBuilderFactory(
           const FullType(BuiltSet, const [const FullType(String)]),
           () => new SetBuilder<String>()))
