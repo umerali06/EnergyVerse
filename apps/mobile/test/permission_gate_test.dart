@@ -162,6 +162,29 @@ class _IdentityApi implements ApiContract {
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
       throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  ) =>
+      throw UnimplementedError();
 }
 
 void main() {

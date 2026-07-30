@@ -1,8 +1,11 @@
+import 'package:drift/native.dart';
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/auth/app_routes.dart';
 import 'package:fev_mobile/auth/firebase_gateway.dart';
+import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const session = AuthSession(
@@ -213,6 +216,29 @@ class FakeApi implements ApiContract {
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
       throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  ) =>
+      throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {
@@ -238,11 +264,20 @@ class FakeGateway implements AuthGateway {
   Future<void> signOut() async {}
 }
 
+/// Drift's query-stream cancellation schedules a zero-duration internal
+/// Timer when a subscriber unmounts; `flutter_test`'s pending-timer
+/// invariant check runs at the end of the test body itself, so this must
+/// be called inline as the last step of every test that pumps [FevApp].
+Future<void> disposeApp(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump(const Duration(milliseconds: 1));
+}
+
 void main() {
   testWidgets('navigates from the list to the read-only inspection detail', (tester) async {
     final api = FakeApi(identityFor('field_inspector', const ['inspections.read']));
     await tester.pumpWidget(
-      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections),
+      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
     );
     await tester.pumpAndSettle();
 
@@ -255,5 +290,6 @@ void main() {
     expect(find.text('Started ahead of schedule.'), findsOneWidget);
     expect(find.textContaining('Vibration normal'), findsOneWidget);
     expect(find.text('Not answered'), findsOneWidget);
+    await disposeApp(tester);
   });
 }

@@ -523,6 +523,7 @@ class UpdateInspectionRequest(BaseModel):
 
 class AssignChecklistTemplateRequest(BaseModel):
     checklist_template_id: str = Field(min_length=1)
+    expected_revision: int | None = None
 
 
 class InspectionDeleted(BaseModel):

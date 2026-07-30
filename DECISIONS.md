@@ -1046,6 +1046,77 @@
   to be revisited once a type picker and a device-info/geolocation
   package are actually needed.
 
+### D-046 — Offline Local Database: Drift, Not Isar
+
+- **Decision owner:** Product owner, resolving the 7.2 phase brief's
+  explicit "STOP and ask" ambiguity on local DB choice.
+- **Decision:** The mobile offline cache (`LocalInspections`, `Outbox`
+  tables) is built on **Drift** (SQLite via `sqlite3`/`sqlite3_flutter_libs`
+  FFI), not Isar. The deciding factor was this repo's existing mobile CI
+  job (`.github/workflows/ci.yml`): a plain `ubuntu-latest` runner doing
+  `pub get` → `analyze` → `test`, with no native-binary-download step.
+  Drift's FFI backend resolves against the OS's own SQLite (or the bundled
+  `sqlite3_flutter_libs` binary) with zero new CI infrastructure; Isar
+  would have needed a new step to fetch its native binary before tests can
+  run. Drift needs `build_runner` codegen (`dart run build_runner build
+  --delete-conflicting-outputs`), so the mobile CI job gained that as a new
+  step before `flutter analyze`. Generated `*.g.dart` files are
+  **gitignored, not committed** — unlike `packages/contracts`' generated
+  API client, which is a cross-consumer contract artifact with its own CI
+  drift check; Drift's generated code is internal to this one app, so the
+  ordinary Flutter/Drift convention (regenerate, don't commit) applies
+  instead. `connectivity_plus` (new dependency) drives the sync engine's
+  online/offline signal.
+- **Consequences:** Any future mobile phase adding local persistence
+  should default to Drift for consistency, unless a concrete Isar-specific
+  need arises that's worth adding the CI native-binary step for. Widget/unit
+  tests always construct `AppDatabase(NativeDatabase.memory())` explicitly
+  (`FevApp` gained an injectable `database` param for this) rather than
+  letting the default file-backed constructor run under `flutter test`.
+
+### D-047 — Offline Sync/Conflict Policy: Sequential Outbox, Revision-Based Conflict Surfacing
+
+- **Decision owner:** Product owner, resolving the 7.2 phase brief's
+  "STOP and ask" ambiguities on conflict UX depth and whether to add a
+  batch-sync endpoint.
+- **Decision:** The sync engine replays queued mutations **strictly
+  sequentially, one row at a time**, through 7.1's existing per-item
+  endpoints — no batch-sync endpoint was added; D-043's idempotent-upsert
+  contract already makes single-item replay safe to retry. Conflict
+  detection is last-writer-wins **by revision** end to end: `update` and
+  (as of this phase) `assign_checklist_template` both carry an
+  `expected_revision`; a mismatch never overwrites silently. On a 409
+  `revision_conflict`/`invalid_transition`, the engine re-fetches the
+  current server record and checks whether it already matches exactly what
+  the queued mutation was trying to set — if so, an earlier attempt
+  actually landed before the app died mid-request, and the replay is
+  treated as success, not a conflict. A genuine mismatch surfaces a
+  **minimal** conflict UI: a badge plus exactly two actions, "Keep my
+  version" (requeue the local edit against the now-current revision) or
+  "Discard mine, use server's" (adopt the server's fields) — no
+  field-by-field merge view. A transient failure (`network_error`/
+  `request_cancelled`) backs off exponentially (30s, 60s, 2m, 4m, ...
+  capped at 30min) and **stops draining the rest of that pass** (a dropped
+  connection fails every subsequent row identically); any other error
+  (validation, 404) is treated as permanent and pauses that one row for
+  manual retry/discard without blocking others. A discarded row that was
+  the last one queued for its inspection flips that inspection to `error`
+  state, since the local edit it represented is now permanently lost — an
+  explicit, user-initiated exception to "never lose data silently," not a
+  violation of it. Local data survives a normal same-user sign-out/
+  sign-in/app-restart; only a genuinely different uid signing in on the
+  same device wipes the local cache (`LocalInspectionsRepository
+  .reconcileSessionOwner`, checked at every successful auth resolution via
+  a `shared_preferences`-persisted owner uid — not literally hooked to
+  `signOut()`/`expireSession()` as first sketched, since sign-out alone
+  doesn't know who's signing in next).
+- **Consequences:** Every future mutation type added to the outbox
+  (7.4's media upload, 7.7's readings, etc.) should carry the same
+  `expected_revision` discipline if it can conflict with a concurrent edit;
+  omitting it reopens exactly the silent-overwrite gap D-043 and this
+  decision close. The two-button conflict UX is intentionally minimal —
+  a richer merge UI is a future UX decision, not implied by this one.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1205,3 +1276,63 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   mobile (119 tests) suites all green; OpenAPI export and both pinned
   clients regenerated twice with an identical file set both times
   (deterministic, drift-clean).
+- **2026-07-29 — Phase 7.1 (inspection data model, backend CRUD, and
+  lifecycle):** Added D-043 through D-045. Inspections use a
+  client-generated UUID id with an idempotent-upsert `POST` (D-043) so a
+  7.2 offline client never has to wait for server-assigned ids, plus a
+  monotonic `revision` (not a timestamp) for conflict detection, chosen
+  specifically because this dev environment already hit a real
+  cross-device clock-skew bug. Checklist templates got lightweight
+  `version` integers with a full items-snapshot taken at
+  assignment-time (D-044), never re-reading the live template afterward.
+  Lifecycle is `draft → in_progress → completed/cancelled` with
+  `checklist_responses[]` accepted and validated via the API now even
+  though no capture UI exists yet (D-045) — "capture" was read as an
+  interactive UI concept, not an API one, since the brief's own required
+  test ("complete blocks on unanswered required items") is otherwise
+  impossible to build. Mobile's QR scan-result screen gained a real "Start
+  Inspection" action creating a genuine `draft` via the API. Backend (268
+  tests, 3 credential-only skips), admin, and mobile (125 tests) suites
+  all green; real-creds proof against `thinking-case-469504-c0` covered
+  idempotent resubmit, checklist assignment/answer/lifecycle, and D-033's
+  asset-history resolution, with two early orphaned-probe cleanups from a
+  not-yet-ready composite index.
+- **2026-07-29 — Phase 7.2 (offline engine: local store + sync queue +
+  conflict resolution):** Added D-046 and D-047. Chose Drift over Isar for
+  the local cache specifically because the existing mobile CI job has no
+  native-binary-fetch step Isar would have needed; `LocalInspections`/
+  `Outbox` Drift tables plus a `LocalInspectionsRepository` facade give
+  every inspection write path (create/edit/start/complete/cancel/assign-
+  template) an instant local-first write plus a queued outbox mutation,
+  never waiting on the network. `SyncEngine` replays the outbox
+  sequentially through 7.1's existing endpoints (no batch-sync endpoint),
+  using D-043's revision contract for last-writer-wins conflict detection
+  with a minimal two-button ("keep mine" / "use server's") resolution UI,
+  exponential backoff for transient failures, and a distinct paused state
+  for permanent ones. A real correctness gap from 7.1 was found and fixed
+  as a companion change: `assign_checklist_template` had no
+  `expected_revision` guard at all (unlike `update`), so a replayed
+  offline reassignment could have silently overwritten another device's
+  concurrent checklist responses — now closed with the same
+  `RevisionConflictError` → 409 pattern `update` already used. Local data
+  persists across app restarts and normal same-user sign-out/sign-in;
+  only a genuinely different uid signing in on the same device wipes it
+  (`reconcileSessionOwner`, checked at every auth resolution rather than
+  hooked to sign-out itself, since sign-out alone can't know who's signing
+  in next). Backend (271 tests total, 2 new), and mobile (161 tests: 125
+  existing + 11 new `LocalInspectionsRepository` tests + 10 new
+  `SyncEngine` tests covering create/coalesced-edit/complete sync,
+  transient-retry-without-duplication, both conflict branches (genuine and
+  already-applied), permanent-error pausing, the single-flight drain
+  guard, and an app-restart persistence scenario against a real on-disk
+  Drift file) all green; real-creds proof against
+  `thinking-case-469504-c0` confirmed the idempotent-upsert replay
+  contract and forced genuine `revision_conflict` 409s on both `update`
+  and the newly-guarded `assign_checklist_template`, then hard-deleted the
+  probe inspection. Regenerating the Dart/TypeScript clients for the new
+  `expected_revision` field hit a persistent Windows file-lock on the dev
+  machine itself; since the equivalent CI job's Linux runner has no such
+  lock, its own from-source regeneration was applied directly to the repo
+  instead (see TESTING.md) — the mobile client's `assignChecklistTemplate`
+  call now threads `expected_revision` through like every other mutation
+  type.

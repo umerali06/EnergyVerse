@@ -33,6 +33,15 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Drift-generated local database code (regenerated via build_runner, not
+# committed -- unlike packages/contracts' generated client, this is internal
+# to this one app, not a cross-consumer contract artifact).
+**/*.g.dart
+
+# The on-device SQLite file created by AppDatabase's default file-backed
+# connection when running the app locally (not via `flutter test`).
+*.sqlite
+
 # Symbolication related
 app.*.symbols
 

@@ -911,8 +911,6 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   a `lat, lng` mono readout plus a plain external link to
   `https://www.google.com/maps?q={lat},{lng}` on both clients.
 
-### Offline Synchronization
-
 ### Phase 4.3 Asset Writes and Media
 
 - Admin and mobile reuse one asset form contract for create/edit, with
@@ -1276,6 +1274,139 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   which meant every existing hand-rolled `FakeApi` test double across the
   mobile test suite needed the three new methods stubbed
   (`UnimplementedError()` where unused) to keep compiling.
+
+### Phase 7.2 Offline Persistence and Sync Engine
+
+- **Local store: Drift (SQLite), not Isar** (D-046) — the deciding factor
+  was the existing mobile CI job having no native-binary-fetch step, which
+  Drift's `sqlite3`/`sqlite3_flutter_libs` FFI backend doesn't need.
+  `apps/mobile/lib/db/tables.dart` defines two tables:
+  - `LocalInspections` mirrors `InspectionDetail`'s fields (checklist
+    items/responses stored as JSON-blob TEXT columns via
+    `standardSerializers`, not normalized child tables — the server never
+    queries them relationally either) plus five **local-only** columns:
+    `syncState` (`local_only|pending_sync|synced|conflict|error`),
+    `baseRevision` (the last confirmed server revision, used as the next
+    mutation's `expected_revision`), `errorMessage`, `lastAttemptAt`,
+    `conflictServerSnapshot` (the full server `InspectionDetail` JSON
+    fetched at conflict time).
+  - `Outbox` is the pending-mutation queue: `sequence` (autoincrement,
+    the FIFO replay order) — not `id` — is the table's actual primary key,
+    since replay is strictly one row at a time in enqueue order across
+    every inspection, not per-inspection. `mutationType` is one of
+    `create|update|start|complete|cancel|assign_template`; `payload` is
+    the serialized request object; `nextAttemptAt` doubles as both the
+    backoff schedule and a "paused" marker (a sentinel far-future date)
+    for a permanently-failed row, so the drain query and the
+    manual-"sync now" bypass share one column instead of needing a
+    separate paused flag.
+  - Generated `*.g.dart` code is gitignored, not committed (unlike
+    `packages/contracts`); the mobile CI job gained a
+    `dart run build_runner build --delete-conflicting-outputs` step before
+    `flutter analyze`.
+- **`LocalInspectionsRepository`** (`apps/mobile/lib/inspections/
+  local_inspections_repository.dart`) is the single facade every mobile
+  read/write path for inspections goes through now — `InspectionsController`,
+  `InspectionDetailScreen`, and `QrScanResultScreen` no longer call
+  `ApiContract` directly for inspections at all (every other screen is
+  unaffected; `FakeApi implements ApiContract` stays valid for those).
+  - Reads: `watchInspections`/`watchInspection` are reactive Drift
+    `.watch()` streams (no pagination against the local cache — that's a
+    server-list-only concept); `refreshFromNetwork`/
+    `refreshDetailFromNetwork` are best-effort background upserts that
+    explicitly skip any row currently `pending_sync`/`conflict`/`error` so
+    a background refresh never clobbers an in-flight local edit.
+  - Writes always land locally first and enqueue a matching `Outbox` row
+    in the same transaction, returning immediately — no network round
+    trip in the critical path. `updateInspection` **coalesces** repeated
+    edits into the same not-yet-attempted outbox row (merging field
+    values) rather than stacking duplicates; a row already `attempts > 0`
+    gets a fresh row appended instead, since it's already in flight.
+    `completeInspection` re-validates every required checklist item
+    locally first (mirroring `InspectionService.complete_inspection`'s
+    check exactly) so a doomed completion never reaches the outbox at
+    all.
+  - `resolveConflict(id, keepLocal:)` implements the two-button
+    resolution (D-047): `keepLocal: true` requeues the local edit as a
+    fresh `update` against the conflict snapshot's revision; `false`
+    overwrites the local row from the snapshot and drops every queued
+    mutation for that inspection.
+  - `reconcileSessionOwner(uid)` compares `uid` to whichever uid last
+    owned this device's cache (persisted via `shared_preferences`,
+    independent of Firebase's own session storage) and wipes local
+    inspections+outbox on a mismatch — called from `main.dart` on every
+    `AuthController` change where `currentUser` becomes non-null, not
+    hooked to sign-out (sign-out alone can't know who signs in next).
+  - Extends `ChangeNotifier` purely so `SyncEngine` can recompute a plain
+    one-shot outbox count after every write without holding its own
+    long-lived `watchOutbox()` subscription open — a `ChangeNotifier`'s
+    listener list is plain callbacks, unlike a Drift query stream, whose
+    cancellation defers real cleanup to an internal zero-duration `Timer`
+    that (harmlessly, in production) doesn't run until the next event-loop
+    turn. Under `flutter_test`'s fake-clock test binding, though, that
+    deferred timer was still "pending" at test teardown for any widget
+    that ever held a live outbox subscription open — which the app shell's
+    offline banner does on every authenticated route. Recomputing a count
+    via `repository.addListener(...)` instead of `watchOutbox()` avoids the
+    Drift-stream-cancel path entirely for that cross-cutting signal; the
+    genuinely reactive list/detail screens still use real watch streams
+    and are fine, since only one full app-shell-wide subscription (not one
+    per screen mount) needed to disappear.
+- **`SyncEngine`** (`apps/mobile/lib/sync/sync_engine.dart`,
+  `ChangeNotifier` + `InheritedNotifier` shape mirroring `AuthController`)
+  drives the outbox drain loop:
+  - Triggers: `connectivity_plus`'s connectivity stream (500ms debounced),
+    app-resume (`WidgetsBindingObserver` in `main.dart`), a 2-minute
+    periodic fallback, and manual "Sync now". A single `_draining` flag
+    plus `_rerunKick`/`_rerunSyncNow` flags make the drain loop
+    single-flight: a trigger that arrives mid-drain sets a flag consumed
+    by the current loop's next iteration rather than spawning a second
+    concurrent drain.
+  - Per row: dispatch to the matching `ApiContract` method (this phase
+    added `updateInspection`/`startInspection`/`completeInspection`/
+    `cancelInspection`/`assignChecklistTemplate`, alongside 7.1's
+    `createInspection`, as real interface methods per the 7.1
+    `AssignChecklistTemplateRequest`-vs-`AssetWriteContract` precedent —
+    every unrelated `FakeApi` test double across the suite needed the five
+    new methods stubbed to keep compiling). On success, upsert the
+    returned detail and mark `synced` (or stay `pending_sync` if more
+    mutations remain queued for that id).
+  - `network_error`/`request_cancelled` → transient: exponential backoff
+    (30s → 60s → 2m → 4m → ... capped at 30min) via
+    `markTransientFailure`, and **stop draining the rest of this pass**
+    (a dropped connection fails every subsequent row identically).
+  - `revision_conflict`/`invalid_transition` → re-fetch the current
+    server record; if it already matches exactly what the queued mutation
+    was trying to set, treat as success (a replay of an attempt that
+    landed before the app died mid-request), not a conflict. Otherwise
+    `markConflict`: drop every other queued mutation for that inspection
+    (they were all computed against the same now-stale base) and surface
+    the two-button resolution sheet.
+  - Any other error (validation, 404) → `markPermanentError`: pauses that
+    one row (via the `Outbox.nextAttemptAt` sentinel) for manual
+    retry/discard, without blocking other inspections' rows.
+- **Minimal UX**, all built on existing design-system primitives (no new
+  ones): an app-wide offline/pending `StatusPill` in `AppShellScaffold`
+  (hidden when online with an empty outbox); a per-inspection sync-state
+  badge (`inspections_screen.dart`'s `syncStateBadge`, tappable when
+  `conflict` to reopen the resolution sheet); the resolution sheet itself
+  (`AppModal`, two buttons, no diff view); and a new
+  `SyncQueueScreen` (`/inspections/sync-queue`, reachable from
+  `InspectionsScreen`'s app-bar-area pending-count link) listing every
+  outbox row with its mutation type/attempts/last error plus "Sync now"
+  and per-item Retry/Discard.
+- **Backend companion fix**: `assign_checklist_template` gained the same
+  optional `expected_revision` guard `update` already had (D-047's
+  "close the `assign` conflict gap" consequence) — `AssignChecklistTemplateRequest`
+  gained the field, `InspectionRepository.assign_checklist_template` checks
+  it against the current row exactly like `update` does, and the service
+  raises the same `RevisionConflictError` → 409 `revision_conflict`. The
+  generated Dart/TypeScript clients were regenerated to match (a local
+  Windows file-lock blocked regenerating them on the dev machine itself;
+  the equivalent CI job's Linux runner has no such lock, so its from-source
+  regeneration was applied directly instead — see TESTING.md) and
+  `LocalInspectionsRepository.assignChecklistTemplate` threads
+  `baseRevision` through as `expected_revision`, same as `updateInspection`.
 
 ### AI Safety Boundary
 

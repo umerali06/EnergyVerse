@@ -126,6 +126,17 @@ abstract interface class ApiContract {
   });
   Future<InspectionDetail> getInspection(String inspectionId);
   Future<InspectionDetail> createInspection(CreateInspectionRequest request);
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  );
+  Future<InspectionDetail> startInspection(String inspectionId);
+  Future<InspectionDetail> completeInspection(String inspectionId);
+  Future<InspectionDetail> cancelInspection(String inspectionId);
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  );
 }
 
 extension AssetWriteContract on ApiContract {
@@ -834,6 +845,81 @@ class ApiService implements ApiContract {
     } on DioException catch (error) {
       throw _typedError(error);
     }
+  }
+
+  @override
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().updateInspection(
+            inspectionId: inspectionId,
+            updateInspectionRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> startInspection(String inspectionId) async {
+    try {
+      final response =
+          await _client.getInspectionsApi().startInspection(inspectionId: inspectionId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> completeInspection(String inspectionId) async {
+    try {
+      final response =
+          await _client.getInspectionsApi().completeInspection(inspectionId: inspectionId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> cancelInspection(String inspectionId) async {
+    try {
+      final response =
+          await _client.getInspectionsApi().cancelInspection(inspectionId: inspectionId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().assignInspectionChecklistTemplate(
+            inspectionId: inspectionId,
+            assignChecklistTemplateRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  InspectionDetail _requireInspection(InspectionDetail? value) {
+    if (value == null) {
+      throw const ApiException(
+        code: 'invalid_response',
+        message: 'The API returned an empty inspection detail',
+      );
+    }
+    return value;
   }
 
   @override

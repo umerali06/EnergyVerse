@@ -1,7 +1,9 @@
+import 'package:drift/native.dart';
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/auth/app_routes.dart';
 import 'package:fev_mobile/auth/firebase_gateway.dart';
+import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -227,6 +229,29 @@ class FakeApi implements ApiContract {
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
       throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspection(
+    String inspectionId,
+    UpdateInspectionRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> assignChecklistTemplate(
+    String inspectionId,
+    AssignChecklistTemplateRequest request,
+  ) =>
+      throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {
@@ -254,7 +279,7 @@ class FakeGateway implements AuthGateway {
 
 Future<void> pumpAudit(WidgetTester tester, {required FakeApi api}) async {
   await tester.pumpWidget(
-    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.audit),
+    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.audit, database: AppDatabase(NativeDatabase.memory())),
   );
   await tester.pump();
 }

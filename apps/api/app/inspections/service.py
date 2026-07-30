@@ -365,14 +365,26 @@ class InspectionService:
                 "Template category does not match the asset's category",
                 {"template_category": template.category, "asset_category": asset.category},
             )
-        updated = await self._inspections.assign_checklist_template(
-            scope,
-            inspection_id,
-            template_id=template.id,
-            template_version=template.version,
-            snapshot_items=template.items,
-            actor_uid=actor_uid,
-        )
+        try:
+            updated = await self._inspections.assign_checklist_template(
+                scope,
+                inspection_id,
+                template_id=template.id,
+                template_version=template.version,
+                snapshot_items=template.items,
+                actor_uid=actor_uid,
+                expected_revision=request.expected_revision,
+            )
+        except RevisionConflictError as error:
+            raise InspectionServiceError(
+                409,
+                "revision_conflict",
+                "Inspection was modified since expected_revision",
+                {
+                    "expected_revision": request.expected_revision,
+                    "current_revision": error.current.revision,
+                },
+            ) from error
         return _to_detail(updated)
 
     async def start_inspection(

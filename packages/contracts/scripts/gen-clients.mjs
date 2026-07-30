@@ -13,7 +13,15 @@ const cli = path.join(
 );
 
 for (const output of ["generated/typescript-fetch", "generated/dart-dio"]) {
-  rmSync(path.join(packageRoot, output), { force: true, recursive: true });
+  // maxRetries/retryDelay work around a documented Windows quirk where a
+  // directory can briefly report EBUSY/ENOTEMPTY right after its contents
+  // were just deleted, because the filesystem hasn't caught up yet.
+  rmSync(path.join(packageRoot, output), {
+    force: true,
+    recursive: true,
+    maxRetries: 10,
+    retryDelay: 300,
+  });
 }
 
 for (const config of ["configs/typescript-fetch.json", "configs/dart-dio.json"]) {

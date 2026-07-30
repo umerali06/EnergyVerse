@@ -1,30 +1,41 @@
-import 'package:fev_api_client/fev_api_client.dart';
+import 'package:fev_api_client/fev_api_client.dart' show QrScanResult;
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 
-import '../api/api_service.dart';
 import '../assets/assets_screen.dart' show statusFor, statusLabel;
 import '../auth/app_routes.dart';
 import '../auth/auth_controller.dart';
 import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
+import '../inspections/local_inspections_repository.dart';
+import '../sync/sync_engine.dart';
 
 /// The scan surface (spec §6): asset info/status/media, plus the reserved
 /// history/work-order sections as honest empty states until Phase 11 fills
-/// them in, and a real "Start Inspection" action (7.1): creates a `draft`
-/// inspection via the API (a client-generated UUID, ad-hoc type, no
-/// device/GPS metadata yet -- no device-info/geolocation package exists in
-/// this app) and lands on the real read-only inspection detail screen. The
+/// them in, and a real "Start Inspection" action: writes a `draft`
+/// inspection straight to the local cache (a client-generated UUID, ad-hoc
+/// type, no device/GPS metadata yet -- no device-info/geolocation package
+/// exists in this app) and lands on the detail screen immediately -- no
+/// network round trip in the critical path (Phase 7.2). The sync engine
+/// replays the queued create whenever a connection is available. The
 /// checklist-filling capture flow itself is still 7.3's job.
 class QrScanResultScreen extends StatefulWidget {
-  const QrScanResultScreen({required this.result, this.api, super.key});
+  const QrScanResultScreen({
+    required this.result,
+    this.repository,
+    this.inspectorId,
+    super.key,
+  });
 
   final QrScanResult result;
 
-  /// Overrides the ambient [AuthProvider]'s API client -- a testing seam
+  /// Overrides the ambient [SyncProvider]'s repository -- a testing seam
   /// (mirrors `qr_scan_screen.dart`'s injectable `scannerBuilder`) so widget
   /// tests can drive "Start Inspection" without a full auth/app context.
-  final ApiContract? api;
+  final LocalInspectionsRepository? repository;
+
+  /// Overrides the ambient [AuthProvider]'s current user uid -- same testing
+  /// seam as [repository], for the same reason.
+  final String? inspectorId;
 
   @override
   State<QrScanResultScreen> createState() => _QrScanResultScreenState();
@@ -36,20 +47,18 @@ class _QrScanResultScreenState extends State<QrScanResultScreen> {
   Future<void> _startInspection() async {
     setState(() => _startingInspection = true);
     try {
-      final api = widget.api ?? AuthProvider.of(context).api;
-      final inspection = await api.createInspection(
-        CreateInspectionRequest(
-          (b) => b
-            ..id = const Uuid().v4()
-            ..assetId = widget.result.asset.id
-            ..inspectionType = CreateInspectionRequestInspectionTypeEnum.adHoc
-            ..clientCreatedAt = DateTime.now().toUtc(),
-        ),
+      final repository = widget.repository ?? SyncProvider.repositoryOf(context);
+      final inspectorId =
+          widget.inspectorId ?? AuthProvider.of(context).currentUser?.uid ?? '';
+      final id = await repository.createDraft(
+        assetId: widget.result.asset.id,
+        inspectorId: inspectorId,
+        inspectionType: 'ad_hoc',
       );
       if (!mounted) return;
       await Navigator.of(
         context,
-      ).pushNamed(AppRoutes.inspectionDetail, arguments: inspection.id);
+      ).pushNamed(AppRoutes.inspectionDetail, arguments: id);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

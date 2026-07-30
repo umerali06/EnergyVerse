@@ -9,12 +9,15 @@ part of 'assign_checklist_template_request.dart';
 class _$AssignChecklistTemplateRequest extends AssignChecklistTemplateRequest {
   @override
   final String checklistTemplateId;
+  @override
+  final int? expectedRevision;
 
   factory _$AssignChecklistTemplateRequest(
           [void Function(AssignChecklistTemplateRequestBuilder)? updates]) =>
       (new AssignChecklistTemplateRequestBuilder()..update(updates))._build();
 
-  _$AssignChecklistTemplateRequest._({required this.checklistTemplateId})
+  _$AssignChecklistTemplateRequest._(
+      {required this.checklistTemplateId, this.expectedRevision})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(checklistTemplateId,
         r'AssignChecklistTemplateRequest', 'checklistTemplateId');
@@ -33,13 +36,15 @@ class _$AssignChecklistTemplateRequest extends AssignChecklistTemplateRequest {
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
     return other is AssignChecklistTemplateRequest &&
-        checklistTemplateId == other.checklistTemplateId;
+        checklistTemplateId == other.checklistTemplateId &&
+        expectedRevision == other.expectedRevision;
   }
 
   @override
   int get hashCode {
     var _$hash = 0;
     _$hash = $jc(_$hash, checklistTemplateId.hashCode);
+    _$hash = $jc(_$hash, expectedRevision.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -47,7 +52,8 @@ class _$AssignChecklistTemplateRequest extends AssignChecklistTemplateRequest {
   @override
   String toString() {
     return (newBuiltValueToStringHelper(r'AssignChecklistTemplateRequest')
-          ..add('checklistTemplateId', checklistTemplateId))
+          ..add('checklistTemplateId', checklistTemplateId)
+          ..add('expectedRevision', expectedRevision))
         .toString();
   }
 }
@@ -63,6 +69,11 @@ class AssignChecklistTemplateRequestBuilder
   set checklistTemplateId(String? checklistTemplateId) =>
       _$this._checklistTemplateId = checklistTemplateId;
 
+  int? _expectedRevision;
+  int? get expectedRevision => _$this._expectedRevision;
+  set expectedRevision(int? expectedRevision) =>
+      _$this._expectedRevision = expectedRevision;
+
   AssignChecklistTemplateRequestBuilder() {
     AssignChecklistTemplateRequest._defaults(this);
   }
@@ -71,6 +82,7 @@ class AssignChecklistTemplateRequestBuilder
     final $v = _$v;
     if ($v != null) {
       _checklistTemplateId = $v.checklistTemplateId;
+      _expectedRevision = $v.expectedRevision;
       _$v = null;
     }
     return this;
@@ -96,7 +108,8 @@ class AssignChecklistTemplateRequestBuilder
             checklistTemplateId: BuiltValueNullFieldError.checkNotNull(
                 checklistTemplateId,
                 r'AssignChecklistTemplateRequest',
-                'checklistTemplateId'));
+                'checklistTemplateId'),
+            expectedRevision: expectedRevision);
     replace(_$result);
     return _$result;
   }

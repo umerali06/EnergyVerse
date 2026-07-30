@@ -763,6 +763,17 @@
             "minLength": 1,
             "title": "Checklist Template Id",
             "type": "string"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
           }
         },
         "required": [

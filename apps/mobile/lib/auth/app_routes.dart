@@ -10,6 +10,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
 import '../inspections/inspection_detail_screen.dart';
 import '../inspections/inspections_screen.dart';
+import '../inspections/sync_queue_screen.dart';
 import '../navigation/nav_config.dart';
 import '../qr/qr_scan_result_screen.dart';
 import '../qr/qr_scan_screen.dart';
@@ -41,6 +42,7 @@ class AppRoutes {
   static const assetForm = '/assets/form';
   static const inspections = AppNav.inspections;
   static const inspectionDetail = '/inspections/detail';
+  static const inspectionSyncQueue = '/inspections/sync-queue';
   static const qrScan = '/qr-scan';
   static const qrScanResult = '/qr-scan/result';
 
@@ -202,6 +204,18 @@ class AppRoutes {
             ),
           );
         };
+      case inspectionSyncQueue:
+        return (_) => const RequireAuthGuard(
+              routeName: inspectionSyncQueue,
+              child: AppShellScaffold(
+                currentRoute: inspections,
+                child: PermissionGate(
+                  permission: 'inspections.read',
+                  fallback: NoAccessScreen(permission: 'inspections.read'),
+                  child: SyncQueueScreen(),
+                ),
+              ),
+            );
       case qrScan:
         return (_) => const RequireAuthGuard(
               routeName: qrScan,
