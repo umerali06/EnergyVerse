@@ -302,6 +302,21 @@ class InspectionService:
             )
         return stamped
 
+    @staticmethod
+    def _merge_checklist_responses(
+        existing: list[ChecklistResponse], incoming: list[dict[str, object]]
+    ) -> list[dict[str, object]]:
+        """Upserts `incoming` (already-validated, server-stamped responses for the
+        item_ids present in this PATCH) over `existing` by item_id, so a client can
+        autosave one item at a time without erasing every other already-answered
+        item -- a whole-array replace would otherwise do exactly that."""
+        merged: dict[str, dict[str, object]] = {
+            response.item_id: response.model_dump() for response in existing
+        }
+        for response in incoming:
+            merged[str(response["item_id"])] = response
+        return list(merged.values())
+
     async def update_inspection(
         self,
         scope: CompanyScope,
@@ -320,8 +335,11 @@ class InspectionService:
             gps_lng = request.gps_lng if "gps_lng" in provided else current.gps_lng
             self._validate_gps(gps_lat, gps_lng)
         if request.checklist_responses is not None:
-            provided["checklist_responses"] = self._validate_responses(
+            stamped = self._validate_responses(
                 current, request.checklist_responses, actor_uid
+            )
+            provided["checklist_responses"] = self._merge_checklist_responses(
+                current.checklist_responses, stamped
             )
 
         try:

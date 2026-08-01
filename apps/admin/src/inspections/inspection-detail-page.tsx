@@ -1,6 +1,6 @@
 "use client";
 
-import type { InspectionDetail } from "@fev/api-client";
+import type { ChecklistTemplateDetail, InspectionDetail } from "@fev/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -43,6 +43,7 @@ export function InspectionDetailPage({
     status: "loading" | "error" | "ready";
     inspection: InspectionDetail | null;
   }>({ status: "loading", inspection: null });
+  const [template, setTemplate] = useState<ChecklistTemplateDetail | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -59,6 +60,27 @@ export function InspectionDetailPage({
       active = false;
     };
   }, [apiClient, inspectionId]);
+
+  useEffect(() => {
+    let active = true;
+    setTemplate(null);
+    const templateId = state.inspection?.checklistTemplateId;
+    if (!templateId) return;
+    // Best-effort: the checklist section already renders fine from the
+    // inspection's own item snapshot without this -- it only adds the
+    // template's name to the section header for admin clarity.
+    apiClient
+      .getChecklistTemplate(templateId)
+      .then((detail) => {
+        if (active) setTemplate(detail);
+      })
+      .catch(() => {
+        /* name display is optional; the snapshot itself still renders */
+      });
+    return () => {
+      active = false;
+    };
+  }, [apiClient, state.inspection?.checklistTemplateId]);
 
   async function cancel() {
     if (!state.inspection || !window.confirm("Cancel this inspection?")) return;
@@ -164,9 +186,17 @@ export function InspectionDetailPage({
               )}
 
               <div>
-                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
-                  Checklist
-                </p>
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                    Checklist
+                    {template && ` — ${template.name} (v${template.version})`}
+                  </p>
+                  {(state.inspection.checklistItemsSnapshot ?? []).length > 0 && (
+                    <p className="text-caption text-text-muted">
+                      Filled in the field — read-only here
+                    </p>
+                  )}
+                </div>
                 {(state.inspection.checklistItemsSnapshot ?? []).length === 0 ? (
                   <p className="mt-1 text-bodySmall text-text-muted">
                     No checklist template has been assigned yet.
@@ -187,6 +217,9 @@ export function InspectionDetailPage({
                             {item.required && (
                               <span className="text-text-muted"> (required)</span>
                             )}
+                            <span className="ml-2 font-mono text-caption text-text-muted">
+                              {item.itemType}
+                            </span>
                           </span>
                           <span className="font-mono text-caption text-text-secondary">
                             {response?.value === undefined || response?.value === null

@@ -6,18 +6,20 @@ import '../auth/app_routes.dart';
 import '../auth/auth_controller.dart';
 import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
+import '../inspections/gps_capture.dart';
 import '../inspections/local_inspections_repository.dart';
 import '../sync/sync_engine.dart';
 
 /// The scan surface (spec §6): asset info/status/media, plus the reserved
 /// history/work-order sections as honest empty states until Phase 11 fills
-/// them in, and a real "Start Inspection" action: writes a `draft`
-/// inspection straight to the local cache (a client-generated UUID, ad-hoc
-/// type, no device/GPS metadata yet -- no device-info/geolocation package
-/// exists in this app) and lands on the detail screen immediately -- no
-/// network round trip in the critical path (Phase 7.2). The sync engine
-/// replays the queued create whenever a connection is available. The
-/// checklist-filling capture flow itself is still 7.3's job.
+/// them in, and a real "Start Inspection" action: captures a best-effort GPS
+/// fix, then writes a `draft` inspection straight to the local cache (a
+/// client-generated UUID, ad-hoc type, along with the asset's category so
+/// Phase 7.3's checklist-template auto-selection can run offline) and lands
+/// on the detail screen immediately -- no network round trip in the critical
+/// path (Phase 7.2). The detail screen itself does the template-assignment +
+/// `draft -> in_progress` transition on load (7.3), and the sync engine
+/// replays every queued mutation whenever a connection is available.
 class QrScanResultScreen extends StatefulWidget {
   const QrScanResultScreen({
     required this.result,
@@ -50,10 +52,14 @@ class _QrScanResultScreenState extends State<QrScanResultScreen> {
       final repository = widget.repository ?? SyncProvider.repositoryOf(context);
       final inspectorId =
           widget.inspectorId ?? AuthProvider.of(context).currentUser?.uid ?? '';
+      final position = await captureCurrentPosition();
       final id = await repository.createDraft(
         assetId: widget.result.asset.id,
         inspectorId: inspectorId,
         inspectionType: 'ad_hoc',
+        assetCategory: widget.result.asset.category,
+        gpsLat: position.lat,
+        gpsLng: position.lng,
       );
       if (!mounted) return;
       await Navigator.of(

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:flutter/foundation.dart';
+import 'package:one_of/any_of.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -77,6 +78,19 @@ String wireToDartEnumName(String wireValue) {
   return parts.first + rest.join();
 }
 
+/// The inverse of [wireToDartEnumName] -- every local write path
+/// (`createDraft`, `startInspection`, etc.) stores `status`/`inspectionType`
+/// as their wire value, so a row upserted from a server [InspectionDetail]
+/// (whose enum's `.name` getter is the *Dart* identifier, e.g. `inProgress`)
+/// must go through this before being stored, or a locally-written row and a
+/// server-synced row for the same status would disagree on their string
+/// (`in_progress` vs `inProgress`) -- and `in_progress`/`ad_hoc` are exactly
+/// the two values this repository's own status checks compare against.
+String dartEnumNameToWire(String dartName) => dartName.replaceAllMapped(
+      RegExp('([A-Z])'),
+      (match) => '_${match.group(1)!.toLowerCase()}',
+    );
+
 List<ChecklistTemplateItem> _decodeChecklistItems(String json) {
   final list = jsonDecode(json) as List<dynamic>;
   return list
@@ -107,19 +121,116 @@ String _encodeChecklistItems(List<ChecklistTemplateItem> items) => jsonEncode(
           .toList(),
     );
 
+/// `_$ValueSerializer.deserialize` (fev_api_client's hand-written custom
+/// serializer for the `value` field) always deserializes against a fixed
+/// 3-parameter `AnyOf<String, num, bool>` target type, so a decoded
+/// response's `AnyOfDynamic` ends up as `types: [String, num, bool]` with
+/// its one set entry keyed by that type's position (e.g. `bool` -> key 2) --
+/// not the single-type/key-0 shape [buildChecklistResponse] constructs. Its
+/// paired `serialize` then rebuilds `specifiedType` from the *deduplicated*
+/// set of used types (length 1), which no longer lines up with a key of 2,
+/// and throws a `RangeError`. This normalizes any response back to the
+/// canonical single-type/key-0 shape right before encoding, so it doesn't
+/// matter whether the response was just built, decoded from local storage,
+/// or deserialized from a server response -- re-encoding it always works.
+ChecklistResponse _normalizeResponseValue(ChecklistResponse response) {
+  final raw = checklistResponseValue(response);
+  if (raw == null) return response;
+  final valueType = raw is bool ? bool : (raw is num ? num : String);
+  return response.rebuild(
+    (b) => b.value.replace(
+      Value((v) => v.anyOf = AnyOfDynamic(types: [valueType], values: {0: raw})),
+    ),
+  );
+}
+
 String _encodeChecklistResponses(List<ChecklistResponse> responses) => jsonEncode(
       responses
-          .map((r) => standardSerializers.serializeWith(ChecklistResponse.serializer, r))
+          .map(
+            (r) => standardSerializers.serializeWith(
+              ChecklistResponse.serializer,
+              _normalizeResponseValue(r),
+            ),
+          )
           .toList(),
     );
 
-bool _isAnswered(ChecklistResponse response) {
+/// Upserts [incoming] over [existing] by `itemId` -- an item present in
+/// [incoming] replaces its matching entry in [existing] (or is appended if
+/// new); every other existing item is preserved untouched. This is what lets
+/// [LocalInspectionsRepository.updateInspection] be called with just the one
+/// item the inspector just answered, instead of always resending every
+/// answer so far -- calling it with `null` is a no-op (returns [existing]
+/// as-is).
+List<ChecklistResponse> _mergeChecklistResponses(
+  List<ChecklistResponse> existing,
+  List<ChecklistResponse>? incoming,
+) {
+  if (incoming == null || incoming.isEmpty) return existing;
+  final merged = {for (final response in existing) response.itemId: response};
+  for (final response in incoming) {
+    merged[response.itemId] = response;
+  }
+  return merged.values.toList();
+}
+
+/// The `id`s of every required item in [items] that has no answered response
+/// in [responses] -- shared by [LocalInspectionsRepository.completeInspection]
+/// (the authoritative offline guard) and the fill screen's "Complete" button
+/// (the UI-level gating), so the two never drift out of sync.
+List<String> missingRequiredItemIds(
+  List<ChecklistTemplateItem> items,
+  List<ChecklistResponse> responses,
+) {
+  return [
+    for (final item in items)
+      if (item.required_ && !responses.any((r) => r.itemId == item.id && isChecklistResponseAnswered(r)))
+        item.id,
+  ];
+}
+
+/// Unwraps a [ChecklistResponse.value]'s built_value `AnyOf` down to the
+/// plain Dart value it carries (`bool`/`num`/`String`), or `null` if unset.
+Object? checklistResponseValue(ChecklistResponse response) {
   final value = response.value;
-  if (value == null) return false;
-  final raw = value.anyOf.values.values.firstWhere(
+  if (value == null) return null;
+  return value.anyOf.values.values.firstWhere(
     (candidate) => candidate != null,
     orElse: () => null,
   );
+}
+
+/// Builds the [ChecklistResponse] for [itemId] answering with [rawValue],
+/// typed to match [itemType] (`boolean` -> `bool`, `numeric` -> `num`,
+/// `text`/`select` -> `String`) -- the built_value `AnyOf` wrapper's type
+/// list must match what the server/other clients expect to deserialize.
+/// `answered_at`/`answered_by` are left unset here; the server always
+/// stamps them itself (`InspectionService._validate_responses`).
+ChecklistResponse buildChecklistResponse({
+  required String itemId,
+  required ChecklistTemplateItemItemTypeEnum itemType,
+  required Object rawValue,
+  String? note,
+}) {
+  final valueType = itemType == ChecklistTemplateItemItemTypeEnum.boolean
+      ? bool
+      : itemType == ChecklistTemplateItemItemTypeEnum.numeric
+          ? num
+          : String;
+  return ChecklistResponse(
+    (b) => b
+      ..itemId = itemId
+      ..note = note
+      ..value.replace(
+        Value(
+          (v) => v.anyOf = AnyOfDynamic(types: [valueType], values: {0: rawValue}),
+        ),
+      ),
+  );
+}
+
+bool isChecklistResponseAnswered(ChecklistResponse response) {
+  final raw = checklistResponseValue(response);
   if (raw == null) return false;
   if (raw is String && raw.isEmpty) return false;
   return true;
@@ -150,6 +261,7 @@ class LocalInspectionRecord {
   String? get notes => row.notes;
   String? get checklistTemplateId => row.checklistTemplateId;
   int? get checklistTemplateVersion => row.checklistTemplateVersion;
+  String? get assetCategory => row.assetCategory;
   DateTime? get startedAt => row.startedAt;
   DateTime? get completedAt => row.completedAt;
   double? get gpsLat => row.gpsLat;
@@ -287,8 +399,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
             facilityId: drift.Value(detail.facilityId),
             areaId: drift.Value(detail.areaId),
             inspectorId: detail.inspectorId,
-            status: detail.status.name,
-            inspectionType: detail.inspectionType.name,
+            status: dartEnumNameToWire(detail.status.name),
+            inspectionType: dartEnumNameToWire(detail.inspectionType.name),
             title: drift.Value(detail.title),
             notes: drift.Value(detail.notes),
             checklistTemplateId: drift.Value(detail.checklistTemplateId),
@@ -327,6 +439,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
     String? notes,
     double? gpsLat,
     double? gpsLng,
+    String? assetCategory,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -342,6 +455,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
               notes: drift.Value(notes),
               gpsLat: drift.Value(gpsLat),
               gpsLng: drift.Value(gpsLng),
+              assetCategory: drift.Value(assetCategory),
               clientCreatedAt: now,
               createdAt: now,
               updatedAt: now,
@@ -394,8 +508,10 @@ class LocalInspectionsRepository extends ChangeNotifier {
       final mergedType = inspectionType ?? current.inspectionType;
       final mergedLat = gpsLat ?? current.gpsLat;
       final mergedLng = gpsLng ?? current.gpsLng;
-      final mergedResponses = checklistResponses ??
-          _decodeChecklistResponses(current.checklistResponses);
+      final mergedResponses = _mergeChecklistResponses(
+        _decodeChecklistResponses(current.checklistResponses),
+        checklistResponses,
+      ).map(_normalizeResponseValue).toList();
 
       await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
         LocalInspectionsCompanion(
@@ -466,11 +582,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
           await (_db.select(_db.localInspections)..where((t) => t.id.equals(id))).getSingle();
       final items = _decodeChecklistItems(current.checklistItemsSnapshot);
       final responses = _decodeChecklistResponses(current.checklistResponses);
-      final missing = [
-        for (final item in items)
-          if (item.required_ && !responses.any((r) => r.itemId == item.id && _isAnswered(r)))
-            item.id,
-      ];
+      final missing = missingRequiredItemIds(items, responses);
       if (missing.isNotEmpty) throw ChecklistIncompleteError(missing);
 
       final now = DateTime.now().toUtc();
@@ -531,6 +643,66 @@ class LocalInspectionsRepository extends ChangeNotifier {
     });
   }
 
+  // ------------------------------------------------------ checklist templates
+
+  /// Best-effort background refresh of the company's checklist templates
+  /// (Phase 7.3), so template auto-selection at inspection-start time can
+  /// run entirely from the local cache -- no network round trip in that
+  /// critical path, matching the offline-first shape of everything else in
+  /// this repository. Call after sign-in resolves; swallows every failure
+  /// (a stale or empty cache just means auto-selection finds no match).
+  Future<void> refreshChecklistTemplatesFromNetwork() async {
+    try {
+      final page = await _api.getChecklistTemplates(limit: 100);
+      for (final summary in page.items) {
+        final detail = await _api.getChecklistTemplate(summary.id);
+        await _db.into(_db.localChecklistTemplates).insertOnConflictUpdate(
+              LocalChecklistTemplatesCompanion.insert(
+                id: detail.id,
+                category: detail.category,
+                name: detail.name,
+                version: detail.version,
+                itemsJson: drift.Value(
+                  _encodeChecklistItems(detail.items?.toList() ?? const []),
+                ),
+                updatedAt: detail.updatedAt,
+              ),
+            );
+      }
+    } catch (_) {
+      // Best-effort refresh; auto-selection just works with whatever's cached.
+    }
+  }
+
+  /// Picks the checklist template to auto-assign for [assetCategory]: the
+  /// most-recently-updated active template matching that category, falling
+  /// back to the most-recently-updated `Generic` template, or `null` if
+  /// neither exists locally yet. Entirely local/synchronous -- no network
+  /// dependency, so this works under airplane mode as long as
+  /// [refreshChecklistTemplatesFromNetwork] ran at least once while online.
+  Future<LocalChecklistTemplate?> selectChecklistTemplateForCategory(
+    String assetCategory,
+  ) async {
+    final byCategory = await _bestTemplateForCategory(assetCategory);
+    if (byCategory != null) return byCategory;
+    if (assetCategory == 'Generic') return null;
+    return _bestTemplateForCategory('Generic');
+  }
+
+  Future<LocalChecklistTemplate?> _bestTemplateForCategory(String category) async {
+    final query = _db.select(_db.localChecklistTemplates)
+      ..where((t) => t.category.equals(category))
+      ..orderBy([(t) => drift.OrderingTerm.desc(t.updatedAt)])
+      ..limit(1);
+    return query.getSingleOrNull();
+  }
+
+  /// Decodes a cached [LocalChecklistTemplate]'s items for
+  /// [assignChecklistTemplate] -- callers only ever get a template row from
+  /// [selectChecklistTemplateForCategory], never construct one themselves.
+  List<ChecklistTemplateItem> decodeTemplateItems(LocalChecklistTemplate template) =>
+      _decodeChecklistItems(template.itemsJson);
+
   /// `keepLocal`: requeues the local edit as a fresh `update` against the
   /// conflict snapshot's revision. `!keepLocal`: overwrites the local row
   /// from [LocalInspectionRecord.conflictServerSnapshot] and drops every
@@ -573,7 +745,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
           )
           ..gpsLat = current.gpsLat
           ..gpsLng = current.gpsLng
-          ..checklistResponses.replace(_decodeChecklistResponses(current.checklistResponses))
+          ..checklistResponses.replace(
+            _decodeChecklistResponses(current.checklistResponses).map(_normalizeResponseValue),
+          )
           ..expectedRevision = snapshot.revision,
       );
       await _enqueue(

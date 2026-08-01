@@ -14,7 +14,9 @@ import '../dashboard/format.dart';
 import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
+import '../inspections/gps_capture.dart';
 import '../inspections/inspections_screen.dart' show inspectionStatusFor, inspectionStatusLabel;
+import '../sync/sync_engine.dart';
 import 'assets_controller.dart';
 import 'assets_screen.dart' show statusFor, statusLabel;
 
@@ -70,6 +72,39 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         });
   }
 
+  bool _startingInspection = false;
+
+  /// Mirrors the QR "Start Inspection" flow (`qr_scan_result_screen.dart`):
+  /// best-effort GPS, then a local-first draft (with the asset's category
+  /// stashed for offline template auto-selection) -- no network round trip
+  /// in the critical path. The detail screen does template-assignment and
+  /// the `draft -> in_progress` transition once it loads (Phase 7.3).
+  Future<void> _startInspection(AssetDetail asset) async {
+    setState(() => _startingInspection = true);
+    try {
+      final repository = SyncProvider.repositoryOf(context);
+      final inspectorId = AuthProvider.of(context).currentUser?.uid ?? '';
+      final position = await captureCurrentPosition();
+      final id = await repository.createDraft(
+        assetId: asset.id,
+        inspectorId: inspectorId,
+        inspectionType: 'ad_hoc',
+        assetCategory: asset.category,
+        gpsLat: position.lat,
+        gpsLng: position.lng,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).pushNamed(AppRoutes.inspectionDetail, arguments: id);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't start the inspection. Please try again.")),
+      );
+    } finally {
+      if (mounted) setState(() => _startingInspection = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -103,6 +138,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
     }
 
     final canWrite = AuthProvider.of(context).currentUser?.permissions.contains('assets.write') ?? false;
+    final canInspect =
+        AuthProvider.of(context).currentUser?.permissions.contains('inspections.write') ?? false;
     return DefaultTabController(
       length: 5,
       child: Column(
@@ -136,10 +173,21 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                         ],
                       ),
                     ),
-                    if (canWrite) AppButton(label: 'Edit', onPressed: () async {
-                      await Navigator.of(context).pushNamed(AppRoutes.assetForm, arguments: asset.id);
-                      _load();
-                    }, variant: AppButtonVariant.ghost),
+                    if (canInspect)
+                      AppButton(
+                        key: const Key('asset-detail-start-inspection'),
+                        label: 'Start Inspection',
+                        icon: Icons.fact_check_outlined,
+                        loading: _startingInspection,
+                        onPressed: () => _startInspection(asset),
+                      ),
+                    if (canWrite) ...[
+                      const SizedBox(width: DsSpacing.s2),
+                      AppButton(label: 'Edit', onPressed: () async {
+                        await Navigator.of(context).pushNamed(AppRoutes.assetForm, arguments: asset.id);
+                        _load();
+                      }, variant: AppButtonVariant.ghost),
+                    ],
                   ],
                 ),
                 const SizedBox(height: DsSpacing.s2),

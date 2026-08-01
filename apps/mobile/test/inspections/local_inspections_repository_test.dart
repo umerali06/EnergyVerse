@@ -281,4 +281,197 @@ void main() {
     expect(await db.select(db.localInspections).get(), isEmpty);
     expect(await db.select(db.outbox).get(), isEmpty);
   });
+
+  group('checklist_responses merge (Phase 7.3)', () {
+    test('updateInspection upserts by itemId instead of replacing the whole array', () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await repository.assignChecklistTemplate(
+        id,
+        templateId: 'template-1',
+        version: 1,
+        items: [
+          ChecklistTemplateItem(
+            (b) => b
+              ..id = 'item-1'
+              ..label = 'Vibration normal'
+              ..itemType = ChecklistTemplateItemItemTypeEnum.boolean
+              ..required_ = true,
+          ),
+          ChecklistTemplateItem(
+            (b) => b
+              ..id = 'item-2'
+              ..label = 'Bearing temp'
+              ..itemType = ChecklistTemplateItemItemTypeEnum.numeric
+              ..required_ = true,
+          ),
+        ],
+      );
+
+      await repository.updateInspection(
+        id,
+        checklistResponses: [
+          buildChecklistResponse(
+            itemId: 'item-1',
+            itemType: ChecklistTemplateItemItemTypeEnum.boolean,
+            rawValue: true,
+          ),
+        ],
+      );
+      await repository.updateInspection(
+        id,
+        checklistResponses: [
+          buildChecklistResponse(
+            itemId: 'item-2',
+            itemType: ChecklistTemplateItemItemTypeEnum.numeric,
+            rawValue: 140.0,
+          ),
+        ],
+      );
+
+      final row = await (db.select(db.localInspections)..where((t) => t.id.equals(id))).getSingle();
+      final record = LocalInspectionRecord(row);
+      expect(record.checklistResponses, hasLength(2));
+      final byItem = {for (final r in record.checklistResponses) r.itemId: checklistResponseValue(r)};
+      expect(byItem, {'item-1': true, 'item-2': 140.0});
+    });
+
+    test('re-answering an item updates it in place rather than duplicating it', () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final item = ChecklistTemplateItem(
+        (b) => b
+          ..id = 'item-1'
+          ..label = 'Vibration normal'
+          ..itemType = ChecklistTemplateItemItemTypeEnum.boolean
+          ..required_ = true,
+      );
+      await repository.assignChecklistTemplate(id, templateId: 't-1', version: 1, items: [item]);
+
+      await repository.updateInspection(
+        id,
+        checklistResponses: [
+          buildChecklistResponse(
+            itemId: 'item-1',
+            itemType: ChecklistTemplateItemItemTypeEnum.boolean,
+            rawValue: true,
+          ),
+        ],
+      );
+      await repository.updateInspection(
+        id,
+        checklistResponses: [
+          buildChecklistResponse(
+            itemId: 'item-1',
+            itemType: ChecklistTemplateItemItemTypeEnum.boolean,
+            rawValue: false,
+          ),
+        ],
+      );
+
+      final row = await (db.select(db.localInspections)..where((t) => t.id.equals(id))).getSingle();
+      final record = LocalInspectionRecord(row);
+      expect(record.checklistResponses, hasLength(1));
+      expect(checklistResponseValue(record.checklistResponses.single), false);
+    });
+  });
+
+  group('checklist template auto-selection (Phase 7.3)', () {
+    ChecklistTemplateDetail templateFixture({
+      required String id,
+      required String category,
+      required int version,
+      required DateTime updatedAt,
+    }) {
+      return ChecklistTemplateDetail(
+        (b) => b
+          ..id = id
+          ..category = category
+          ..name = '$category template'
+          ..version = version
+          ..createdAt = updatedAt
+          ..updatedAt = updatedAt,
+      );
+    }
+
+    test('refreshChecklistTemplatesFromNetwork populates the local cache', () async {
+      final now = DateTime.utc(2026, 1, 1);
+      final api = FakeSyncApi(
+        getChecklistTemplates: ({category, cursor, limit = 25}) async => ChecklistTemplateListPage(
+          (b) => b
+            ..items.add(
+              ChecklistTemplateListItem(
+                (i) => i
+                  ..id = 'pumps-1'
+                  ..category = 'Pumps'
+                  ..name = 'Pumps template'
+                  ..version = 1
+                  ..createdAt = now
+                  ..updatedAt = now,
+              ),
+            ),
+        ),
+        getChecklistTemplate: (id) async =>
+            templateFixture(id: id, category: 'Pumps', version: 1, updatedAt: now),
+      );
+      final cachingRepository = LocalInspectionsRepository(db: db, api: api);
+
+      await cachingRepository.refreshChecklistTemplatesFromNetwork();
+
+      final match = await cachingRepository.selectChecklistTemplateForCategory('Pumps');
+      expect(match?.id, 'pumps-1');
+    });
+
+    test('selectChecklistTemplateForCategory picks the most-recently-updated match', () async {
+      await db.into(db.localChecklistTemplates).insert(
+            LocalChecklistTemplatesCompanion.insert(
+              id: 'pumps-old',
+              category: 'Pumps',
+              name: 'Older',
+              version: 1,
+              updatedAt: DateTime.utc(2026, 1, 1),
+            ),
+          );
+      await db.into(db.localChecklistTemplates).insert(
+            LocalChecklistTemplatesCompanion.insert(
+              id: 'pumps-new',
+              category: 'Pumps',
+              name: 'Newer',
+              version: 2,
+              updatedAt: DateTime.utc(2026, 6, 1),
+            ),
+          );
+
+      final match = await repository.selectChecklistTemplateForCategory('Pumps');
+
+      expect(match?.id, 'pumps-new');
+    });
+
+    test('selectChecklistTemplateForCategory falls back to Generic when no category match', () async {
+      await db.into(db.localChecklistTemplates).insert(
+            LocalChecklistTemplatesCompanion.insert(
+              id: 'generic-1',
+              category: 'Generic',
+              name: 'Generic',
+              version: 1,
+              updatedAt: DateTime.utc(2026, 1, 1),
+            ),
+          );
+
+      final match = await repository.selectChecklistTemplateForCategory('Compressors');
+
+      expect(match?.id, 'generic-1');
+    });
+
+    test('selectChecklistTemplateForCategory returns null when nothing is cached', () async {
+      final match = await repository.selectChecklistTemplateForCategory('Pumps');
+      expect(match, isNull);
+    });
+  });
 }
