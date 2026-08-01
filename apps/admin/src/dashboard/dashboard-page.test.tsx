@@ -301,10 +301,11 @@ describe("dashboard page", () => {
   it("renders real asset KPI widgets for assets.read holders, never a placeholder", async () => {
     renderDashboard({ roleKey: "field_inspector", permissions: ["assets.read", "reports.read"] });
     expect(await screen.findByText("Total assets")).toBeInTheDocument();
-    expect(screen.getByText("Critical assets")).toBeInTheDocument();
+    const criticalAssetsCard = screen.getByText("Critical assets").closest("section")!;
+    expect(criticalAssetsCard).toBeInTheDocument();
     expect(screen.getByText("Asset condition")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("11")).toBeInTheDocument());
-    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(within(criticalAssetsCard).getByText("1")).toBeInTheDocument();
     // The old static "Asset metrics appear once enabled" tile is gone now
     // that assets is a real, registered widget.
     expect(
@@ -322,8 +323,9 @@ describe("dashboard page", () => {
   it("navigates to the filtered asset list when the Critical Assets card is clicked", async () => {
     mockPush = vi.fn();
     renderDashboard({ roleKey: "field_inspector", permissions: ["assets.read", "reports.read"] });
-    await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
-    await userEvent.setup().click(screen.getByText("Critical assets").closest("section")!);
+    const criticalAssetsCard = await screen.findByText("Critical assets");
+    await waitFor(() => expect(within(criticalAssetsCard.closest("section")!).getByText("1")).toBeInTheDocument());
+    await userEvent.setup().click(criticalAssetsCard.closest("section")!);
     expect(mockPush).toHaveBeenCalledWith("/assets?status=Critical");
   });
 
