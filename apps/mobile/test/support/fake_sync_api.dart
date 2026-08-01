@@ -12,6 +12,12 @@ typedef AssignTemplateFn = Future<InspectionDetail> Function(
   String id,
   AssignChecklistTemplateRequest request,
 );
+typedef GetChecklistTemplatesFn = Future<ChecklistTemplateListPage> Function({
+  String? category,
+  String? cursor,
+  int limit,
+});
+typedef GetChecklistTemplateFn = Future<ChecklistTemplateDetail> Function(String templateId);
 
 /// A configurable [ApiContract] double for repository/sync-engine tests --
 /// every inspections-write method is overridable via a constructor
@@ -27,13 +33,17 @@ class FakeSyncApi implements ApiContract {
     LifecycleFn? completeInspection,
     LifecycleFn? cancelInspection,
     AssignTemplateFn? assignChecklistTemplate,
+    GetChecklistTemplatesFn? getChecklistTemplates,
+    GetChecklistTemplateFn? getChecklistTemplate,
   })  : _getInspection = getInspection,
         _createInspection = createInspection,
         _updateInspection = updateInspection,
         _startInspection = startInspection,
         _completeInspection = completeInspection,
         _cancelInspection = cancelInspection,
-        _assignChecklistTemplate = assignChecklistTemplate;
+        _assignChecklistTemplate = assignChecklistTemplate,
+        _getChecklistTemplates = getChecklistTemplates,
+        _getChecklistTemplate = getChecklistTemplate;
 
   final GetInspectionFn? _getInspection;
   final CreateInspectionFn? _createInspection;
@@ -42,6 +52,8 @@ class FakeSyncApi implements ApiContract {
   final LifecycleFn? _completeInspection;
   final LifecycleFn? _cancelInspection;
   final AssignTemplateFn? _assignChecklistTemplate;
+  final GetChecklistTemplatesFn? _getChecklistTemplates;
+  final GetChecklistTemplateFn? _getChecklistTemplate;
 
   final List<String> calls = [];
 
@@ -215,4 +227,22 @@ class FakeSyncApi implements ApiContract {
       throw UnimplementedError();
   @override
   Future<AreaDetail> getArea(String areaId) => throw UnimplementedError();
+
+  @override
+  Future<ChecklistTemplateListPage> getChecklistTemplates({
+    String? category,
+    String? cursor,
+    int limit = 25,
+  }) {
+    final handler = _getChecklistTemplates;
+    if (handler == null) throw UnimplementedError();
+    return handler(category: category, cursor: cursor, limit: limit);
+  }
+
+  @override
+  Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) {
+    final handler = _getChecklistTemplate;
+    if (handler == null) throw UnimplementedError();
+    return handler(templateId);
+  }
 }

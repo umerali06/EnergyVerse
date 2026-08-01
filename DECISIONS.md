@@ -49,6 +49,11 @@
 | D-045 | Inspection lifecycle, checklist-response API surface, and real "Start Inspection" | **Lifecycle is `draft → in_progress → completed`, plus `cancelled` (reachable from `draft`/`in_progress`, added beyond the brief's three states so an abandoned draft can be closed out); `completed`/`cancelled` are terminal. `complete` validates every required snapshot item has a response (422 `checklist_incomplete` otherwise) but succeeds cleanly when no template was ever assigned. `checklist_responses[]` is accepted and validated by the backend API in 7.1 (unknown/duplicate `item_id`, type-mismatched value all 422) even though no admin/mobile screen lets a human fill one in yet — required to make the brief's own "complete blocks on missing required items" test possible; the interactive capture UI is 7.3's job. Mobile's "Start Inspection" (QR scan result) now creates a real `draft` via the API (client UUID, `ad_hoc` type, no device/GPS metadata — no such package exists yet) and lands on the real read-only inspection detail screen, replacing the prior `ComingSoonScreen` stub. `operations_manager`/`field_inspector`/other roles' existing `inspections.read`/`.write` grants are left untouched; only new `checklist_templates.read`/`.write` permissions are added (operations_manager gets both, read-only roles get `.read`) — the client spec's "Ops Manager assigns" capability is deferred until 7.11's admin review UI actually needs it.** | **RESOLVED — LOCKED** | 2026-07-29 |
 | D-041 | Opaque QR token generation | **`qr_code_id` is `secrets.token_urlsafe(16)` (~128 bits), generated at asset-creation time and by a one-time cross-tenant backfill script for pre-existing assets — never derived from or equal to the asset's own id/UUID, so a printed/scanned code can't be used to enumerate a tenant's assets. Collision-checked against `AssetRepository.get_by_qr_code` before acceptance (defense in depth over entropy alone).** | **RESOLVED — LOCKED** | 2026-07-29 |
 | D-042 | QR deep-link payload and cross-tenant resolve policy | **The QR image encodes `{APP_BASE_URL}/qr/{code}` (new `Settings.app_base_url`, defaults to the admin app's own dev origin) — the admin's own `/qr/{code}` page resolves it directly today; it becomes a real Universal/App Link with zero payload change once production domain-association infrastructure exists (not built this phase). Mobile's camera scan never depends on OS link registration — it decodes the scanned text in-app. `GET /api/v1/qr/{code}/resolve` is gated by `assets.read`; a code belonging to another tenant returns the identical `404 qr_code_not_found` as a genuinely unknown code (never 403), so a scan can't be used to probe whether a code exists outside the caller's tenant. Every resolve is audited.** | **RESOLVED — LOCKED** | 2026-07-29 |
+| D-046 | Offline local database: Drift, not Isar | **`LocalInspections`/`Outbox` are built on Drift (SQLite FFI) — the existing mobile CI job has no native-binary-fetch step Isar would have needed. Generated `*.g.dart` is gitignored, not committed, unlike `packages/contracts`.** | **RESOLVED — LOCKED** | 2026-07-29 |
+| D-047 | Offline sync/conflict policy: sequential outbox, revision-based conflict surfacing | **The sync engine replays the outbox strictly one row at a time through 7.1's per-item endpoints — no batch-sync endpoint. Conflict detection is last-writer-wins by revision end to end, with a minimal two-button ("keep mine"/"use server's") resolution UI, no field-by-field merge view.** | **RESOLVED — LOCKED** | 2026-07-29 |
+| D-048 | Checklist-template auto-selection at inspection start | **Auto-selection matches the asset's category among locally-cached templates; if more than one is active for that category, the most-recently-updated one wins; falls back to the most-recently-updated `Generic` template if no category match; leaves the inspection untemplated (an already-supported state) if neither is cached. Runs entirely from a local cache refreshed best-effort after sign-in — no network call sits in the inspection-start path.** | **RESOLVED — LOCKED** | 2026-07-30 |
+| D-049 | Checklist-response merge is upsert-by-`item_id`, not whole-array replace | **A real bug, not a design choice: both `LocalInspectionsRepository.updateInspection` and `InspectionService.update_inspection` replaced the entire `checklist_responses` array with whatever a request contained. Harmless under 7.2 (never exercised with a partial update); would have silently erased prior answers under 7.3's per-item autosave. Fixed as an upsert-by-`item_id` on both the mobile repository and the backend service.** | **RESOLVED — LOCKED** | 2026-07-30 |
+| D-050 | Inspection-start GPS capture is best-effort and non-blocking | **`captureCurrentPosition()` (new `geolocator` dependency) checks/requests permission and reads a position with an 8s limit, wrapped in its own outer 10s timeout so a hung or unmocked platform channel can never block starting an inspection. A denied, unavailable, or timed-out reading resolves to `(null, null)` — GPS is optional server-side, so this never blocks the field workflow.** | **RESOLVED — LOCKED** | 2026-07-30 |
 
 ## Decision Details
 
@@ -1117,6 +1122,95 @@
   decision close. The two-button conflict UX is intentionally minimal —
   a richer merge UI is a future UX decision, not implied by this one.
 
+### D-048 — Checklist-Template Auto-Selection at Inspection Start
+
+- **Decision owner:** Product owner, resolving the 7.3 phase brief's
+  "STOP and ask" ambiguity on the tie-break rule when more than one
+  active checklist template shares an asset's category.
+- **Decision:** Auto-selection, run when a `draft` inspection's detail
+  screen first loads, tries the asset's exact `category` among the
+  local checklist-template cache; if more than one active template
+  matches, the **most-recently-updated one wins**. If no category match
+  exists, it falls back to the most-recently-updated `Generic` template.
+  If neither exists locally, the inspection is left untemplated — an
+  already-supported, honest state (7.1's `complete_inspection` already
+  succeeds cleanly with no template assigned), not a broken one. The
+  whole lookup is local/synchronous: `LocalInspectionsRepository` gained
+  a `LocalChecklistTemplates` cache table refreshed best-effort right
+  after sign-in (`refreshChecklistTemplatesFromNetwork`, mirroring 7.2's
+  `refreshFromNetwork` pattern), so no network call sits in the
+  inspection-start critical path — the whole point of an offline-first
+  workflow.
+- **Consequences:** A company with genuinely ambiguous template setup
+  (two active templates for the same category, neither more authoritative
+  than the other) gets a silent pick rather than an error surfaced to the
+  field inspector; if that turns out to cause real confusion, the next
+  option is an explicit `is_default` flag on `ChecklistTemplate` (a
+  backend model change + admin UI toggle), deliberately not built now
+  since it's more scope than the ambiguity currently warrants.
+
+### D-049 — Checklist-Response Merge Is Upsert-by-`item_id`, Not Whole-Array Replace
+
+- **Decision owner:** Discovered during 7.3 implementation, not a
+  brief-driven ambiguity — a real bug, found while building continuous
+  autosave and confirmed by a failing test before any fix landed.
+- **Decision:** Both `LocalInspectionsRepository.updateInspection` and
+  `InspectionService.update_inspection` (7.1) replaced the entire
+  `checklist_responses` array with exactly what a given `PATCH`/call
+  contained, rather than merging by `item_id`. This was invisible under
+  7.2 since nothing ever called `updateInspection` with a checklist
+  subset — but is exactly what 7.3's per-item autosave does every time an
+  inspector answers one more item. Fixed on both layers as an
+  upsert-by-`item_id`: the mobile repository merges the incoming
+  response(s) into the currently-stored array before writing locally
+  *and* before building the outbox payload (both paths could otherwise
+  diverge); `InspectionService.update_inspection` merges the newly
+  validated responses into the current stored array before persisting.
+  A closely related bug surfaced by the same round-trip test:
+  `LocalInspectionsRepository._upsertFromServer` stored
+  `detail.status.name`/`detail.inspectionType.name` — built_value's
+  Dart-identifier enum name (`inProgress`) — instead of the wire value
+  (`in_progress`) every local write path and 7.3's new status-string
+  comparisons (`editable`, auto-start gating) use. Invisible before now
+  because `draft`/`completed`/`cancelled`/`ad_hoc` happen to be spelled
+  identically either way; only `in_progress` differs. Fixed with a new
+  `dartEnumNameToWire` helper (the inverse of the existing
+  `wireToDartEnumName`) applied at that one call site.
+- **Consequences:** Any future code comparing a `LocalInspectionRecord`'s
+  `status`/`inspectionType` against a literal wire-style string can now
+  trust it's always wire-form, regardless of whether the row was written
+  locally or synced from the server. Any future endpoint/repository
+  method accepting a partial list-typed field should default to
+  merge-by-key semantics unless a genuine whole-array-replace use case is
+  identified — silent data loss is the wrong default.
+
+### D-050 — Inspection-Start GPS Capture Is Best-Effort and Non-Blocking
+
+- **Decision owner:** Implied directly by the 7.3 phase brief ("Capture
+  start GPS + timestamp"); the *how* (blocking vs. best-effort) was a
+  judgment call made consistent with the server's own optional-GPS
+  validation.
+- **Decision:** `captureCurrentPosition()` (new `geolocator` dependency;
+  Android `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION` and iOS
+  `NSLocationWhenInUseUsageDescription` permission entries) checks/requests
+  permission, then reads a position bounded by an 8-second
+  `LocationSettings.timeLimit` — wrapped in its own outer 10-second
+  `.timeout`, since the permission-check calls ahead of the position read
+  have no bound of their own and can hang (rather than throw) with no
+  platform channel registered, exactly the situation a plain
+  `flutter test` widget test is in. Any denial, unavailability, or timeout
+  resolves to `(null, null)` and never blocks starting an inspection —
+  consistent with `InspectionService._validate_gps` only validating a
+  value that's actually provided.
+- **Consequences:** A field inspector working inside a steel-walled
+  facility with no GPS fix, or who denies the permission prompt, still
+  gets a fully working inspection with no location recorded — an honest
+  gap, not a stalled workflow. Every widget test that can reach this code
+  path relies on `test/flutter_test_config.dart` swapping in a
+  `GeolocatorPlatform` double that resolves `isLocationServiceEnabled()`
+  to `false` immediately, so no test depends on real platform-channel
+  behavior.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1336,3 +1430,28 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   instead (see TESTING.md) — the mobile client's `assignChecklistTemplate`
   call now threads `expected_revision` through like every other mutation
   type.
+- **2026-07-30 — Phase 7.3 (inspection start flow and checklist
+  filling):** Added D-048 through D-050. Checklist-template auto-selection
+  (D-048) picks the matching category's most-recently-updated active
+  template, falls back to `Generic`, or leaves the inspection untemplated —
+  entirely from a local cache refreshed after sign-in, so no network call
+  sits in the start path. Two real bugs were found and fixed, not designed
+  around (D-049): `updateInspection`'s checklist-response handling (both
+  mobile and backend) was a whole-array replace, not an upsert-by-`item_id`,
+  which 7.2 never exercised but 7.3's per-item autosave would have hit on
+  every second answer; and `_upsertFromServer` stored the Dart-identifier
+  enum name instead of the wire value for `status`/`inspectionType`,
+  invisible until this phase's status-string comparisons needed
+  `in_progress` specifically. GPS capture (D-050) is best-effort and
+  non-blocking, with an outer timeout guarding against a platform channel
+  that hangs instead of throwing. `InspectionDetailScreen` (read-only since
+  7.2) is now interactive for `draft`/`in_progress` with continuous
+  autosave, a progress header, and a Complete button gated on a shared
+  required-items helper; a new "Start Inspection" entry point was added to
+  the asset detail screen (previously QR-only). No route/schema changes,
+  so no contracts regeneration was needed. Backend (272 tests total, 1 new
+  partial-upsert test; 269 passed, 3 credential-only skips) and mobile
+  (154 tests total, all passing — new/updated coverage for the merge fix,
+  template auto-selection/tie-break/fallback, the interactive fill screen,
+  and the auto-start-on-open flow) all green; `flutter analyze`/ruff/mypy
+  clean; `git diff --exit-code -- packages/contracts` confirmed no drift.

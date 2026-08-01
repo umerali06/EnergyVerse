@@ -185,6 +185,18 @@ class _IdentityApi implements ApiContract {
     AssignChecklistTemplateRequest request,
   ) =>
       throw UnimplementedError();
+
+  @override
+  Future<ChecklistTemplateListPage> getChecklistTemplates({
+    String? category,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) =>
+      throw UnimplementedError();
 }
 
 void main() {

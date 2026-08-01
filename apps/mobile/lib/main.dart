@@ -80,6 +80,10 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     final uid = _auth.currentUser?.uid;
     if (uid != null) {
       unawaited(_repository.reconcileSessionOwner(uid));
+      // Best-effort, so a field inspector who was online earlier today still
+      // has checklist templates cached for fully-offline auto-selection
+      // (Phase 7.3) even if they open the app in airplane mode next.
+      unawaited(_repository.refreshChecklistTemplatesFromNetwork());
     }
   }
 

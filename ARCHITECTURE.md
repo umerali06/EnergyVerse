@@ -1408,6 +1408,103 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   `LocalInspectionsRepository.assignChecklistTemplate` threads
   `baseRevision` through as `expected_revision`, same as `updateInspection`.
 
+### Phase 7.3 Inspection Start Flow and Checklist Filling
+
+- **Checklist-template auto-selection runs entirely offline** (D-048).
+  `LocalInspectionsRepository` gains a `LocalChecklistTemplates` cache
+  table (`id, category, name, version, itemsJson, updatedAt` — same
+  JSON-blob-for-items convention as `LocalInspections.checklistItemsSnapshot`)
+  and `refreshChecklistTemplatesFromNetwork()`, a best-effort background
+  refresh (list + per-template detail fetch) triggered from `main.dart`
+  right after sign-in resolves, alongside 7.2's `reconcileSessionOwner`.
+  `selectChecklistTemplateForCategory(category)` then reads that cache
+  synchronously: exact category match, most-recently-updated wins if more
+  than one is active (the resolved tie-break question); falls back to the
+  most-recently-updated `Generic` template if no category match exists;
+  returns `null` (no template, an already-supported completable state) if
+  neither is cached. No network call sits in the inspection-start path at
+  all — the only network dependency is having refreshed the cache at some
+  earlier point while online, which the sign-in hook makes the common case.
+- **The asset's category now travels with the local draft.** A new
+  local-only `LocalInspections.assetCategory` column (this repository's
+  first schema migration, v1 → v2, `MigrationStrategy.onUpgrade` adding the
+  column and creating `LocalChecklistTemplates`) is populated by
+  `createDraft`'s caller — both entry points already have the asset object
+  in hand — so the detail screen can select a template without an asset
+  network fetch either.
+- **The detail screen is interactive now** (`InspectionDetailScreen`,
+  explicitly read-only since 7.2 — its own doc comment deferred this here).
+  On load, a `draft` inspection auto-assigns its matching template (if
+  none is set yet) and transitions to `in_progress` in one place — this
+  covers both a genuinely fresh start and resuming a stale local draft
+  from before this phase shipped, without two separate code paths. The
+  checklist section renders per-item interactive input by `item.itemType`:
+  `boolean` → Pass/Fail, `numeric` → a numeric field, `text` → a multiline
+  field, `select` → options as a dropdown. (The model's real, already-locked
+  types from 7.1/D-044 — not the phase brief's illustrative
+  `pass_fail`/`rating` naming; `select` covers rating-style fixed scales
+  via its `options` list, so no new wire type was needed.) Boolean/select
+  save immediately; text/numeric debounce 500ms — every save is a single-item
+  `updateInspection(id, checklistResponses: [thatOneItem])` call. A progress
+  header ("answered / total · N required remaining") and a Complete button
+  gated on a shared `missingRequiredItemIds` helper (extracted so the
+  offline-authoritative check in `completeInspection` and the UI gate never
+  drift apart) round out the screen. Reserved, visibly-disabled rows for
+  photos/voice/readings/signature communicate the 7.4+ capture steps'
+  eventual shape without faking them. There is no section grouping — the
+  template model has no sections field, so snapshot array order is display
+  order, exactly as the brief's own conditional ("if the template has it")
+  anticipated.
+- **New "Start Inspection" entry point:** the asset detail screen
+  (`apps/mobile/lib/assets/asset_detail_screen.dart`) gains its own
+  `inspections.write`-gated button beside "Edit", calling the same
+  local-first `createDraft` + GPS-capture path the QR scan-result screen
+  already used — previously QR scanning was the only way in.
+- **Best-effort GPS capture** (`apps/mobile/lib/inspections/gps_capture.dart`,
+  new `geolocator` dependency, Android `ACCESS_FINE_LOCATION`/
+  `ACCESS_COARSE_LOCATION` and iOS `NSLocationWhenInUseUsageDescription`
+  permission entries): checks/requests permission, reads a position with an
+  8-second `LocationSettings.timeLimit`, and is wrapped in its own outer
+  10-second `.timeout` — the permission-check calls ahead of the position
+  read have no bound of their own and can hang rather than throw with no
+  platform channel registered (which is exactly what a plain widget test
+  looks like). GPS is optional server-side (`_validate_gps` only validates
+  a value that's actually provided), so a denied/unavailable/timed-out
+  reading never blocks starting an inspection.
+- **Partial-response merge fix, not a design choice — a real bug found
+  while building this phase's autosave.** `LocalInspectionsRepository
+  .updateInspection` and `InspectionService.update_inspection` both
+  replaced the entire `checklist_responses` array with whatever the
+  request contained, rather than merging by `item_id`. That was harmless
+  under 7.2 (nothing ever called `updateInspection` with a checklist
+  subset), but is exactly what continuous per-item autosave does — every
+  answer would have silently erased every other already-answered item.
+  Fixed on both layers as an upsert-by-`item_id` (D-048): the mobile
+  repository merges before writing locally and before building the outbox
+  payload; the backend service merges the validated incoming responses
+  into the current stored array. A second, related fix surfaced while
+  testing the merge round-trip: `_upsertFromServer` stored
+  `detail.status.name`/`detail.inspectionType.name` — built_value's
+  camelCase *Dart identifier* (`inProgress`) — instead of the wire value
+  (`in_progress`) every local write path and this phase's new
+  status-string comparisons use; invisible before now because `draft`,
+  `completed`, and `cancelled` happen to be spelled identically either
+  way. A new `dartEnumNameToWire` helper (the inverse of the existing
+  `wireToDartEnumName`) fixes the one call site.
+- **No contracts regeneration was needed this phase** — no route or
+  schema changed; `ChecklistTemplatesApi`'s list/get methods already
+  existed in the generated Dart client since 7.1, just never wired into
+  the app-level `ApiContract`/`ApiService` facade until now. No new audit
+  action was needed either — the existing `update()`/`_write_audit` path
+  (Phase 0.4/3.4) already covers answer autosave; there is no separate
+  "answered a checklist item" audit event.
+- **Admin's read-only checklist rendering** (7.1) gains the assigned
+  template's name/version in the section header and each item's type
+  inline, plus an explicit "Filled in the field — read-only here" note —
+  D-045's mobile-only-filling decision made visible in the UI itself, not
+  only in the docs. No write affordance was added; filling stays a field
+  activity by design.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -1469,3 +1566,5 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 4.3 — asset create/edit + media upload | Activates 4.1's create/update endpoints through reusable admin and mobile forms and fills 4.2's Media tab. `AssetManagementService` remains the server-authoritative tenant/RBAC boundary, adding case-insensitive company-scoped tag uniqueness, hierarchy-cycle and required-field validation. Media reuses 3.3's private Storage adapter under `companies/{company_id}/assets/{asset_id}/{kind}/{uuid}_{filename}`; Firestore stores structured references in `photos`/`documents`/`manuals`, with `ArrayUnion`/`ArrayRemove` preventing concurrent replacement and detail reads materializing fresh one-hour signed URLs. Android/iOS runners establish the permanent D-037 identity `com.flacronenterprises.energyverse` and display name `EnergyVerse`; camera/gallery selection remains reference-media capture, not Phase 7 inspection/AR capture. Contracts expose the upload/delete endpoints and `AssetMediaResponse` to both generated clients. | 2026-07-27 |
 | Phase 4.4 — dashboard KPI widgets + pluggable widget framework (resolves 2.3) | Replaces 2.2's hardcoded `ReservedKpiRegion`/`_ReservedKpiRegion` array with a real registry (`registerWidget`/`registerDashboardWidget` + `DashboardWidgetGrid`) on both clients, gated by 0.6 permissions and a real-but-currently-inert tier hook, each widget isolated in its own failure boundary. New `AssetRepository.count()` (Firestore `count()` aggregation, D-039) backs a new `AssetManagementService.get_dashboard_summary()` behind a new `GET /api/v1/dashboard/assets-summary` route, gated by `assets.read` specifically (not the whole-dashboard `reports.read` gate). Registers the first 3 real widgets — Total Assets, Critical Assets (crimson emphasis, links to the 4.2 asset list pre-filtered via a new admin URL-param read on mount / mobile route argument), and Asset Condition (admin reuses D-020's `DonutChart`; mobile's `chart.dart` gains its own `DonutChart`/`DonutSlice` to reach the same reusable-chart contract). Mobile adds a role-based task-focused subset (Total + Critical only) for field_inspector/maintenance_technician. Work Orders/Permits/Safety continue rendering through the same registry as honest empty-state widgets (`reserved-widgets.tsx`/`reserved_widgets.dart`) until their own phases arrive. Contracts regenerated for `AssetDashboardSummary`/`AssetCategoryCount`/`AssetFacilityCount` and the new `DashboardApi` method — zero new composite indexes needed since every count filter is a plain equality filter. Phase 2.3 is retroactively resolved by this implementation. | 2026-07-28 |
 | Phase 7.1 — inspection data model, backend CRUD, and lifecycle | Adds the flagship module's spine: a new `inspections` collection (client-generated UUID id, idempotent upsert, monotonic `revision` for the 7.2 sync/conflict contract) and a new `checklist_templates` collection (per-category, lightly versioned, snapshotted onto the inspection at assignment time), each with a thin-route/fat-service split (`app/inspections/`, `app/checklists/`) mirroring 4.1's `app/assets/` exactly, including the same one-equality-filter Firestore query + in-memory-filter pattern and four new composite indexes. Resolves D-033: `AssetManagementService.get_asset_history` now queries real completed inspections by `asset_id` instead of returning a hard-coded empty page. New `checklist_templates.read`/`.write` permissions join the already-existing `inspections.read`/`.write` placeholders from 0.4 — `operations_manager` gains both (template management), all read-only roles gain `.read`; existing `inspections.*` grants are untouched (no assignment feature exists yet, deferred to 7.11). Seed gains 3 checklist templates and 3 demo inspections (completed/in_progress/draft) for the Acme tenant. Admin gains `apps/admin/src/inspections/` (list + read-only detail) and `apps/admin/src/checklist-templates/` (list + create/edit form), replacing the Inspections `ComingSoonScreen` stub; mobile gains `apps/mobile/lib/inspections/` (list + read-only detail, D-034's pushed-route pattern) and a real "Start Inspection" draft-creation flow on the QR scan-result screen (previously a stub). Both clients' asset-detail Inspections tab now renders real data instead of the 4.2 static empty state. Contracts regenerated for `InspectionsApi`/`ChecklistTemplatesApi` and their models; mobile's `ApiContract` gained the three new methods as real (fakeable) interface methods, touching every existing hand-rolled `FakeApi` test double. No offline engine, camera/annotation/voice/readings/signature/AR/AI capture, or admin review UI — those are 7.2–7.11. | 2026-07-29 |
+| Phase 7.2 — offline persistence and sync engine | Adds the local-first engine every subsequent inspection phase builds on: a Drift (SQLite) `LocalInspections`+`Outbox` store behind a single `LocalInspectionsRepository` facade, and a `SyncEngine` that drains the outbox against the 7.1 API on connectivity/resume/periodic/manual triggers with revision-based conflict surfacing (a two-button "keep mine"/"use server's" resolution, no diff view). `InspectionsController`/`InspectionDetailScreen`/`QrScanResultScreen` no longer call `ApiContract` directly for inspections. See "Phase 7.2 Offline Persistence and Sync Engine" above for the full breakdown (this row was missing when the phase shipped; backfilled alongside 7.3 for an accurate record). | 2026-07-29 |
+| Phase 7.3 — inspection start flow and checklist filling | Turns 7.1's data model + 7.2's offline engine into the real field workflow. Mobile: `LocalInspectionsRepository` gains a `LocalChecklistTemplates` cache table (refreshed best-effort after sign-in) and `selectChecklistTemplateForCategory` (category match → most-recently-updated tie-break → `Generic` fallback → no-template if nothing's cached), so template auto-selection runs entirely offline; a new local-only `LocalInspections.assetCategory` column (schema v1→v2, this repository's first Drift migration) carries the asset's category into the local draft without a network fetch. `InspectionDetailScreen` (explicitly read-only since 7.2) now renders interactive per-item inputs (`boolean`/`numeric`/`text`/`select` — the model's real types, not the phase brief's illustrative `pass_fail`/`rating` naming) with autosave through `updateInspection`, a progress header, reserved disabled rows for the 7.4+ capture steps, and a Complete button gated on `missingRequiredItemIds`; on load, a `draft` inspection gets its template auto-assigned and transitions to `in_progress` in one place, covering both a fresh start and resuming a stale local draft. New "Start Inspection" entry point on the asset detail screen (previously QR-only); both entry points capture best-effort GPS via a new `geolocator` dependency (Android/iOS permission entries added), non-blocking if denied or unavailable. **Bug fix, not new design:** `updateInspection`'s checklist-response merge was a wholesale array replace, not an upsert by `item_id` — harmless under 7.2 (never exercised with a real partial update) but would have silently erased prior answers under 7.3's continuous per-item autosave; fixed on both the mobile repository and `InspectionService.update_inspection` (upsert-by-`item_id`, D-048). Also fixed in the same pass: `_upsertFromServer` was storing `status`/`inspectionType` as builtvalue's Dart-identifier enum name (`inProgress`) instead of the wire value (`in_progress`) that every local write path and this phase's new status-gated rendering compare against — invisible before now since `draft`/`completed`/`cancelled` happen to be identical either way. No route/schema changes, so **no contracts regeneration was needed**; no new audit action needed (the existing `update()`/`_write_audit` path already covers answer autosave). Admin's read-only checklist rendering (7.1) gains the assigned template's name/version and each item's type, plus an explicit "filled in the field — read-only here" note (D-045's mobile-only-filling decision made visible in the UI, not just the docs). | 2026-07-30 |

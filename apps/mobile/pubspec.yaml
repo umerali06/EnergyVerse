@@ -28,6 +28,12 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.0
   connectivity_plus: ^6.1.0
+  geolocator: ^13.0.2
+  # Pinned to whatever fev_api_client (a path dependency) already resolves.
+  # A real dependency (not dev-only) since Phase 7.3's checklist-fill screen
+  # constructs `ChecklistResponse.value` (an AnyOf) at runtime, not just in
+  # test fixtures.
+  one_of: 1.5.0
 
 dev_dependencies:
   flutter_test:
@@ -36,10 +42,7 @@ dev_dependencies:
   drift_dev: ^2.23.0
   build_runner: ^2.4.13
   fake_async: ^1.3.1
-  # Pinned to whatever fev_api_client (a path dependency) already resolves,
-  # so test fixtures can construct a ChecklistResponse.value (an AnyOf)
-  # without an implicit-transitive-dependency lint.
-  one_of: 1.5.0
+  geolocator_platform_interface: ^4.2.8
 
 flutter:
   uses-material-design: true

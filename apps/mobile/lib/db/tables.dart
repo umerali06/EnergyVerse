@@ -23,6 +23,12 @@ class LocalInspections extends Table {
   TextColumn get notes => text().nullable()();
   TextColumn get checklistTemplateId => text().nullable()();
   IntColumn get checklistTemplateVersion => integer().nullable()();
+
+  /// The asset's category at draft-creation time (LOCAL ONLY -- never sent to
+  /// the server, which already knows it via `asset_id`). Lets Phase 7.3's
+  /// checklist-template auto-selection run entirely offline when the detail
+  /// screen loads, without a network fetch of the asset itself.
+  TextColumn get assetCategory => text().nullable()();
   TextColumn get checklistItemsSnapshot =>
       text().withDefault(const Constant('[]'))();
   TextColumn get checklistResponses =>
@@ -58,6 +64,24 @@ class LocalInspections extends Table {
   /// "discard mine, use server's" has something to restore from without a
   /// second round trip.
   TextColumn get conflictServerSnapshot => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A local, best-effort cache of the company's checklist templates (Phase
+/// 7.3) -- refreshed opportunistically (after sign-in) so a field inspector
+/// who was online at some point today can still have a matching template
+/// auto-selected and snapshotted entirely offline. `itemsJson` mirrors
+/// `LocalInspections.checklistItemsSnapshot`'s JSON-blob convention: the
+/// full item list is small and never queried relationally.
+class LocalChecklistTemplates extends Table {
+  TextColumn get id => text()();
+  TextColumn get category => text()();
+  TextColumn get name => text()();
+  IntColumn get version => integer()();
+  TextColumn get itemsJson => text().withDefault(const Constant('[]'))();
+  DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};

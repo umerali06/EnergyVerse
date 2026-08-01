@@ -96,16 +96,31 @@ function DashboardWithPermissions() {
   );
 }
 
+function checklistTemplateDetail(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "template-1",
+    name: "Pump Maintenance",
+    version: 1,
+    category: "pump",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+    items: [],
+    ...overrides,
+  };
+}
+
 function renderDetail({
   permissions = ["inspections.read", "inspections.write"],
   getInspection = vi.fn(async () => inspectionDetail()),
   cancelInspection = vi.fn(async () => inspectionDetail({ status: "cancelled" })),
   deleteInspection = vi.fn(async () => ({ id: "inspection-1", deleted: true })),
+  getChecklistTemplate = vi.fn(async () => checklistTemplateDetail()),
 }: {
   permissions?: string[];
   getInspection?: ReturnType<typeof vi.fn>;
   cancelInspection?: ReturnType<typeof vi.fn>;
   deleteInspection?: ReturnType<typeof vi.fn>;
+  getChecklistTemplate?: ReturnType<typeof vi.fn>;
 } = {}) {
   const identity = {
     uid: "demo-acme-company_admin",
@@ -121,6 +136,7 @@ function renderDetail({
     getInspection,
     cancelInspection,
     deleteInspection,
+    getChecklistTemplate,
   };
   return render(
     <ThemeProvider>
@@ -139,10 +155,14 @@ describe("inspection detail page", () => {
     expect(await screen.findByText("Q3 Routine Inspection")).toBeInTheDocument();
     expect(screen.getByText("In progress")).toBeInTheDocument();
     expect(
-      screen.getByText((_, element) => element?.textContent === "Vibration normal (required)"),
+      screen.getByText(
+        (_, element) => element?.textContent === "Vibration normal (required)boolean",
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByText("boolean")).toBeInTheDocument();
     expect(screen.getByText("Not answered")).toBeInTheDocument();
     expect(screen.getByText("Started ahead of schedule.")).toBeInTheDocument();
+    expect(await screen.findByText("Checklist — Pump Maintenance (v1)")).toBeInTheDocument();
   });
 
   it("hides Cancel/Delete controls from a read-only user", async () => {

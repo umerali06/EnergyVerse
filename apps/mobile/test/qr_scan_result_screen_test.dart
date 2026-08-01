@@ -93,6 +93,10 @@ void main() {
       expect(created, hasLength(1));
       expect(created.single.assetId, 'asset-1');
       expect(created.single.inspectionType, 'ad_hoc');
+      // Stashed locally (Phase 7.3) so the detail screen can auto-select a
+      // matching checklist template entirely offline -- the server never
+      // sees this column, it already knows the category via asset_id.
+      expect(created.single.assetCategory, 'Pump');
       expect(created.single.syncState, LocalSyncState.localOnly.wireValue);
       expect(find.text('Inspection detail: ${created.single.id}'), findsOneWidget);
     },

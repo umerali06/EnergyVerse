@@ -378,6 +378,47 @@ def test_checklist_response_accepts_valid_values(wiring: dict[str, Any]) -> None
     assert responses[0]["answered_at"] is not None
 
 
+def test_checklist_response_partial_update_preserves_other_answers(
+    wiring: dict[str, Any],
+) -> None:
+    """Autosaving one item at a time (7.3's continuous-autosave UX) must not
+    erase items answered in an earlier PATCH -- each PATCH upserts by item_id
+    rather than replacing the whole checklist_responses array."""
+    created = _create_inspection(_identity()).json()
+    inspection_id = created["id"]
+    _assign_pump_template(_identity(), inspection_id)
+
+    first = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{inspection_id}",
+        json={"checklist_responses": [{"item_id": "vibration_normal", "value": True}]},
+    )
+    assert {r["item_id"] for r in first.json()["checklist_responses"]} == {"vibration_normal"}
+
+    second = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{inspection_id}",
+        json={"checklist_responses": [{"item_id": "bearing_temp_f", "value": 140.0}]},
+    )
+    assert second.status_code == 200
+    by_item = {r["item_id"]: r["value"] for r in second.json()["checklist_responses"]}
+    assert by_item == {"vibration_normal": True, "bearing_temp_f": 140.0}
+
+    # Re-answering an already-set item updates it in place rather than duplicating it.
+    third = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{inspection_id}",
+        json={"checklist_responses": [{"item_id": "vibration_normal", "value": False}]},
+    )
+    responses = third.json()["checklist_responses"]
+    assert len(responses) == 2
+    by_item = {r["item_id"]: r["value"] for r in responses}
+    assert by_item == {"vibration_normal": False, "bearing_temp_f": 140.0}
+
+
 # --- lifecycle -----------------------------------------------------------------
 
 

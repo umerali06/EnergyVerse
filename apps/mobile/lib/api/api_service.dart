@@ -137,6 +137,12 @@ abstract interface class ApiContract {
     String inspectionId,
     AssignChecklistTemplateRequest request,
   );
+  Future<ChecklistTemplateListPage> getChecklistTemplates({
+    String? category,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId);
 }
 
 extension AssetWriteContract on ApiContract {
@@ -907,6 +913,49 @@ class ApiService implements ApiContract {
             assignChecklistTemplateRequest: request,
           );
       return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<ChecklistTemplateListPage> getChecklistTemplates({
+    String? category,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getChecklistTemplatesApi().listChecklistTemplates(
+            category: category,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty checklist template list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) async {
+    try {
+      final response =
+          await _client.getChecklistTemplatesApi().getChecklistTemplate(templateId: templateId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty checklist template detail',
+        );
+      }
+      return value;
     } on DioException catch (error) {
       throw _typedError(error);
     }

@@ -20,6 +20,8 @@
 	<string>EnergyVerse uses the camera to attach asset reference photos and scan asset QR codes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>EnergyVerse uses the photo library to attach asset reference photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>EnergyVerse captures the inspection's location when you start it in the field.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
