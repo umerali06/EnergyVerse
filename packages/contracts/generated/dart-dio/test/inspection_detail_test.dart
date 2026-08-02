@@ -102,7 +102,7 @@ void main() {
       // TODO
     });
 
-    // BuiltList<BuiltMap<String, JsonObject>> media
+    // BuiltList<InspectionMediaResponse> media
     test('to test the property `media`', () async {
       // TODO
     });

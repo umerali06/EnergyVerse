@@ -16,6 +16,8 @@ import 'design_system/showcase.dart';
 import 'design_system/theme.dart';
 import 'firebase_options.dart';
 import 'inspections/local_inspections_repository.dart';
+import 'media/local_media_repository.dart';
+import 'media/media_upload_worker.dart';
 import 'sync/sync_engine.dart';
 
 Future<void> main() async {
@@ -48,6 +50,8 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
   late final AppDatabase _db;
   late final LocalInspectionsRepository _repository;
   late final SyncEngine _sync;
+  late final LocalMediaRepository _mediaRepository;
+  late final MediaUploadWorker _mediaWorker;
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
@@ -65,7 +69,12 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
         );
     _db = widget.database ?? AppDatabase();
     _repository = LocalInspectionsRepository(db: _db, api: _api);
-    _sync = SyncEngine(repository: _repository, api: _api);
+    _mediaRepository = LocalMediaRepository(db: _db);
+    _sync = SyncEngine(repository: _repository, api: _api, mediaRepository: _mediaRepository);
+    _mediaWorker = MediaUploadWorker(
+      mediaRepository: _mediaRepository,
+      inspectionsRepository: _repository,
+    );
     _auth = AuthController(
       gateway: _gateway,
       api: _api,
@@ -89,7 +98,10 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _sync.kick();
+    if (state == AppLifecycleState.resumed) {
+      _sync.kick();
+      _mediaWorker.kick();
+    }
   }
 
   @override
@@ -97,6 +109,7 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _auth.removeListener(_handleAuthChange);
     _sync.dispose();
+    _mediaWorker.dispose();
     _auth.dispose();
     _theme.dispose();
     unawaited(_db.close());
@@ -129,7 +142,15 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
           // can read/watch the offline cache and trigger a sync.
           builder: (context, child) => AuthProvider(
             controller: _auth,
-            child: SyncProvider(engine: _sync, repository: _repository, child: child!),
+            child: SyncProvider(
+              engine: _sync,
+              repository: _repository,
+              child: MediaProvider(
+                worker: _mediaWorker,
+                repository: _mediaRepository,
+                child: child!,
+              ),
+            ),
           ),
           onGenerateRoute: (settings) {
             if (kDebugMode && settings.name == DesignSystemShowcase.routeName) {

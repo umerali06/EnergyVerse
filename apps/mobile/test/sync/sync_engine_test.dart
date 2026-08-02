@@ -7,6 +7,7 @@ import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/inspections/local_inspections_repository.dart';
+import 'package:fev_mobile/media/local_media_repository.dart';
 import 'package:fev_mobile/sync/sync_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -425,5 +426,179 @@ void main() {
         await (secondDb.select(secondDb.localInspections)..where((t) => t.id.equals(id))).getSingle();
     expect(row.syncState, 'synced');
     expect(await secondDb.select(secondDb.outbox).get(), isEmpty);
+  });
+
+  group('media reference sync (Phase 7.4)', () {
+    test('attach-media replays and clears the now-redundant MediaQueue row via markReferenced',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final api = FakeSyncApi(
+        createInspection: (request) async => _detailFrom(id: request.id, revision: 1),
+        attachInspectionMedia: (id, request) async => _detailFrom(id: id, revision: 1),
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final mediaRepository = LocalMediaRepository(db: db);
+      final engine = SyncEngine(
+        repository: repository,
+        api: api,
+        mediaRepository: mediaRepository,
+        connectivityStreamFactory: () => const Stream<List<ConnectivityResult>>.empty(),
+        checkConnectivity: () async => [ConnectivityResult.wifi],
+        periodicInterval: const Duration(days: 1),
+      );
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+
+      final localId = await mediaRepository.enqueueCapture(
+        companyId: 'acme-energy',
+        inspectionId: id,
+        kind: 'photo',
+        localFilePath: '/tmp/photo.jpg',
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        sizeBytes: 100,
+        capturedAt: DateTime.utc(2026, 1, 1),
+      );
+      await repository.enqueueAttachMedia(
+        inspectionId: id,
+        request: AttachInspectionMediaRequest(
+          (b) => b
+            ..localId = localId
+            ..filename = 'photo.jpg'
+            ..kind = AttachInspectionMediaRequestKindEnum.photo
+            ..contentType = 'image/jpeg'
+            ..size = 100
+            ..capturedAt = DateTime.utc(2026, 1, 1),
+        ),
+      );
+
+      await engine.syncNow();
+
+      expect(api.calls, contains('attachInspectionMedia:$id'));
+      expect(await db.select(db.mediaQueue).get(), isEmpty);
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+
+    test('edit-media dispatches the media_id + request wrapper payload', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      String? capturedMediaId;
+      UpdateInspectionMediaRequest? capturedRequest;
+      final api = FakeSyncApi(
+        createInspection: (request) async => _detailFrom(id: request.id, revision: 1),
+        updateInspectionMedia: (id, mediaId, request) async {
+          capturedMediaId = mediaId;
+          capturedRequest = request;
+          return _detailFrom(id: id, revision: 1);
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await repository.enqueueEditMedia(
+        inspectionId: id,
+        mediaId: 'media-1',
+        request: UpdateInspectionMediaRequest(
+          (b) => b..beforeAfterTag = UpdateInspectionMediaRequestBeforeAfterTagEnum.before,
+        ),
+      );
+
+      await engine.syncNow();
+
+      expect(capturedMediaId, 'media-1');
+      expect(capturedRequest?.beforeAfterTag?.name, 'before');
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+
+    test('detach-media dispatches just the media_id, no request body', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      String? capturedMediaId;
+      final api = FakeSyncApi(
+        createInspection: (request) async => _detailFrom(id: request.id, revision: 1),
+        detachInspectionMedia: (id, mediaId) async {
+          capturedMediaId = mediaId;
+          return _detailFrom(id: id, revision: 1);
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await repository.enqueueDetachMedia(inspectionId: id, mediaId: 'media-2');
+
+      await engine.syncNow();
+
+      expect(capturedMediaId, 'media-2');
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+
+    test('an inspection can be completed while a sibling media item is still queued', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final api = FakeSyncApi(
+        createInspection: (request) async => _detailFrom(id: request.id, revision: 1),
+        completeInspection: (id) async => _detailFrom(id: id, revision: 2, status: 'completed'),
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final mediaRepository = LocalMediaRepository(db: db);
+      final engine = SyncEngine(
+        repository: repository,
+        api: api,
+        mediaRepository: mediaRepository,
+        connectivityStreamFactory: () => const Stream<List<ConnectivityResult>>.empty(),
+        checkConnectivity: () async => [ConnectivityResult.wifi],
+        periodicInterval: const Duration(days: 1),
+      );
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await mediaRepository.enqueueCapture(
+        companyId: 'acme-energy',
+        inspectionId: id,
+        kind: 'video',
+        localFilePath: '/tmp/clip.mp4',
+        filename: 'clip.mp4',
+        contentType: 'video/mp4',
+        sizeBytes: 1000,
+        capturedAt: DateTime.utc(2026, 1, 1),
+      );
+      await repository.completeInspection(id);
+
+      await engine.syncNow();
+
+      final row = await (db.select(db.localInspections)..where((t) => t.id.equals(id))).getSingle();
+      expect(row.status, 'completed');
+      expect(row.syncState, 'synced');
+      // The media item never touched the inspection outbox and is still
+      // sitting locally queued -- "media pending" state stays honest even
+      // though the inspection record itself has fully synced.
+      expect(await mediaRepository.pendingCountForInspection(id), 1);
+    });
   });
 }

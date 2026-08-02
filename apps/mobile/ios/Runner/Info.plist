@@ -17,11 +17,13 @@
 	<key>CFBundleName</key>
 	<string>EnergyVerse</string>
 	<key>NSCameraUsageDescription</key>
-	<string>EnergyVerse uses the camera to attach asset reference photos and scan asset QR codes.</string>
+	<string>EnergyVerse uses the camera to attach asset reference photos, scan asset QR codes, and capture inspection photos and videos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>EnergyVerse records audio with inspection videos you capture in the field.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>EnergyVerse uses the photo library to attach asset reference photos.</string>
+	<string>EnergyVerse uses the photo library to attach asset reference photos and inspection media.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>EnergyVerse captures the inspection's location when you start it in the field.</string>
+	<string>EnergyVerse captures the inspection's location when you start it and while you're capturing photos or videos in the field.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

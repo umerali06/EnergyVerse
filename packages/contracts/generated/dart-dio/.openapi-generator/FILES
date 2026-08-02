@@ -19,6 +19,7 @@ doc/AssetMediaResponse.md
 doc/AssetQrLabel.md
 doc/AssetsApi.md
 doc/AssignChecklistTemplateRequest.md
+doc/AttachInspectionMediaRequest.md
 doc/AuditApi.md
 doc/AuditLogEntry.md
 doc/AuditLogFacets.md
@@ -61,6 +62,7 @@ doc/InspectionDeleted.md
 doc/InspectionDetail.md
 doc/InspectionListItem.md
 doc/InspectionListPage.md
+doc/InspectionMediaResponse.md
 doc/InspectionsApi.md
 doc/InviteUserRequest.md
 doc/PermissionCatalog.md
@@ -88,6 +90,7 @@ doc/UpdateChecklistTemplateRequest.md
 doc/UpdateCompanyRequest.md
 doc/UpdateCompanyStatusRequest.md
 doc/UpdateFacilityRequest.md
+doc/UpdateInspectionMediaRequest.md
 doc/UpdateInspectionRequest.md
 doc/UpdatePlatformCompanyRequest.md
 doc/UpdateRoleRequest.md
@@ -140,6 +143,7 @@ lib/src/model/asset_list_page.dart
 lib/src/model/asset_media_response.dart
 lib/src/model/asset_qr_label.dart
 lib/src/model/assign_checklist_template_request.dart
+lib/src/model/attach_inspection_media_request.dart
 lib/src/model/audit_log_entry.dart
 lib/src/model/audit_log_facets.dart
 lib/src/model/audit_log_page.dart
@@ -177,6 +181,7 @@ lib/src/model/inspection_deleted.dart
 lib/src/model/inspection_detail.dart
 lib/src/model/inspection_list_item.dart
 lib/src/model/inspection_list_page.dart
+lib/src/model/inspection_media_response.dart
 lib/src/model/invite_user_request.dart
 lib/src/model/permission_catalog.dart
 lib/src/model/permission_catalog_group.dart
@@ -197,6 +202,7 @@ lib/src/model/update_checklist_template_request.dart
 lib/src/model/update_company_request.dart
 lib/src/model/update_company_status_request.dart
 lib/src/model/update_facility_request.dart
+lib/src/model/update_inspection_media_request.dart
 lib/src/model/update_inspection_request.dart
 lib/src/model/update_platform_company_request.dart
 lib/src/model/update_role_request.dart
@@ -227,6 +233,7 @@ test/asset_media_response_test.dart
 test/asset_qr_label_test.dart
 test/assets_api_test.dart
 test/assign_checklist_template_request_test.dart
+test/attach_inspection_media_request_test.dart
 test/audit_api_test.dart
 test/audit_log_entry_test.dart
 test/audit_log_facets_test.dart
@@ -269,6 +276,7 @@ test/inspection_deleted_test.dart
 test/inspection_detail_test.dart
 test/inspection_list_item_test.dart
 test/inspection_list_page_test.dart
+test/inspection_media_response_test.dart
 test/inspections_api_test.dart
 test/invite_user_request_test.dart
 test/permission_catalog_group_test.dart
@@ -296,6 +304,7 @@ test/update_checklist_template_request_test.dart
 test/update_company_request_test.dart
 test/update_company_status_request_test.dart
 test/update_facility_request_test.dart
+test/update_inspection_media_request_test.dart
 test/update_inspection_request_test.dart
 test/update_platform_company_request_test.dart
 test/update_role_request_test.dart

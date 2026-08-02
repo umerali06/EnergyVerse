@@ -10,14 +10,17 @@ All URIs are relative to *http://localhost*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**assignInspectionChecklistTemplate**](InspectionsApi.md#assigninspectionchecklisttemplate) | **POST** /api/v1/inspections/{inspection_id}/checklist-template | Assign Checklist Template
+[**attachInspectionMedia**](InspectionsApi.md#attachinspectionmedia) | **POST** /api/v1/inspections/{inspection_id}/media | Attach Inspection Media
 [**cancelInspection**](InspectionsApi.md#cancelinspection) | **POST** /api/v1/inspections/{inspection_id}/cancel | Cancel Inspection
 [**completeInspection**](InspectionsApi.md#completeinspection) | **POST** /api/v1/inspections/{inspection_id}/complete | Complete Inspection
 [**createInspection**](InspectionsApi.md#createinspection) | **POST** /api/v1/inspections | Create Inspection
 [**deleteInspection**](InspectionsApi.md#deleteinspection) | **DELETE** /api/v1/inspections/{inspection_id} | Delete Inspection
+[**detachInspectionMedia**](InspectionsApi.md#detachinspectionmedia) | **DELETE** /api/v1/inspections/{inspection_id}/media/{media_id} | Detach Inspection Media
 [**getInspection**](InspectionsApi.md#getinspection) | **GET** /api/v1/inspections/{inspection_id} | Get Inspection
 [**listInspections**](InspectionsApi.md#listinspections) | **GET** /api/v1/inspections | List Inspections
 [**startInspection**](InspectionsApi.md#startinspection) | **POST** /api/v1/inspections/{inspection_id}/start | Start Inspection
 [**updateInspection**](InspectionsApi.md#updateinspection) | **PATCH** /api/v1/inspections/{inspection_id} | Update Inspection
+[**updateInspectionMedia**](InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 
 
 # **assignInspectionChecklistTemplate**
@@ -47,6 +50,51 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **inspectionId** | **String**|  |
  **assignChecklistTemplateRequest** | [**AssignChecklistTemplateRequest**](AssignChecklistTemplateRequest.md)|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **attachInspectionMedia**
+> InspectionDetail attachInspectionMedia(inspectionId, attachInspectionMediaRequest)
+
+Attach Inspection Media
+
+Registers a reference to media the mobile client already uploaded directly to Firebase Storage (Phase 7.4) -- no bytes pass through here.
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final AttachInspectionMediaRequest attachInspectionMediaRequest = ; // AttachInspectionMediaRequest |
+
+try {
+    final response = api.attachInspectionMedia(inspectionId, attachInspectionMediaRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->attachInspectionMedia: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **attachInspectionMediaRequest** | [**AttachInspectionMediaRequest**](AttachInspectionMediaRequest.md)|  |
 
 ### Return type
 
@@ -229,6 +277,51 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **detachInspectionMedia**
+> InspectionDetail detachInspectionMedia(inspectionId, mediaId)
+
+Detach Inspection Media
+
+Idempotent on an already-detached `media_id` -- the mobile outbox replays this call at-least-once.
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final String mediaId = mediaId_example; // String |
+
+try {
+    final response = api.detachInspectionMedia(inspectionId, mediaId);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->detachInspectionMedia: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **mediaId** | **String**|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **getInspection**
 > InspectionDetail getInspection(inspectionId)
 
@@ -393,6 +486,51 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **inspectionId** | **String**|  |
  **updateInspectionRequest** | [**UpdateInspectionRequest**](UpdateInspectionRequest.md)|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateInspectionMedia**
+> InspectionDetail updateInspectionMedia(inspectionId, mediaId, updateInspectionMediaRequest)
+
+Update Inspection Media
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final String mediaId = mediaId_example; // String |
+final UpdateInspectionMediaRequest updateInspectionMediaRequest = ; // UpdateInspectionMediaRequest |
+
+try {
+    final response = api.updateInspectionMedia(inspectionId, mediaId, updateInspectionMediaRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->updateInspectionMedia: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **mediaId** | **String**|  |
+ **updateInspectionMediaRequest** | [**UpdateInspectionMediaRequest**](UpdateInspectionMediaRequest.md)|  |
 
 ### Return type
 

@@ -7,6 +7,7 @@ import '../dashboard/format.dart';
 import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
+import '../media/inspection_media_gallery.dart';
 import '../sync/sync_engine.dart';
 import 'inspections_screen.dart' show inspectionStatusFor, inspectionStatusLabel, syncStateBadge;
 import 'local_inspections_repository.dart';
@@ -244,6 +245,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                 responses: responses,
                 editable: editable,
               ),
+            const SizedBox(height: DsSpacing.s5),
+            InspectionMediaSection(
+              key: ValueKey('media-${inspection.id}'),
+              inspectionId: inspection.id,
+              checklistItems: snapshotItems,
+              serverMedia: inspection.media,
+              editable: editable,
+            ),
             if (editable) ...[
               const SizedBox(height: DsSpacing.s5),
               Text(
@@ -251,7 +260,6 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                 style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1),
               ),
               const SizedBox(height: DsSpacing.s2),
-              const _ReservedCaptureRow(label: 'Photos', icon: Icons.photo_camera_outlined),
               const _ReservedCaptureRow(label: 'Voice notes', icon: Icons.mic_none_outlined),
               const _ReservedCaptureRow(label: 'Readings', icon: Icons.speed_outlined),
               const _ReservedCaptureRow(label: 'Signature', icon: Icons.draw_outlined),

@@ -181,7 +181,7 @@ class _$InspectionDetail extends InspectionDetail {
   @override
   final String inspectorId;
   @override
-  final BuiltList<BuiltMap<String, JsonObject?>>? media;
+  final BuiltList<InspectionMediaResponse>? media;
   @override
   final String? notes;
   @override
@@ -477,10 +477,10 @@ class InspectionDetailBuilder
   String? get inspectorId => _$this._inspectorId;
   set inspectorId(String? inspectorId) => _$this._inspectorId = inspectorId;
 
-  ListBuilder<BuiltMap<String, JsonObject?>>? _media;
-  ListBuilder<BuiltMap<String, JsonObject?>> get media =>
-      _$this._media ??= new ListBuilder<BuiltMap<String, JsonObject?>>();
-  set media(ListBuilder<BuiltMap<String, JsonObject?>>? media) =>
+  ListBuilder<InspectionMediaResponse>? _media;
+  ListBuilder<InspectionMediaResponse> get media =>
+      _$this._media ??= new ListBuilder<InspectionMediaResponse>();
+  set media(ListBuilder<InspectionMediaResponse>? media) =>
       _$this._media = media;
 
   String? _notes;

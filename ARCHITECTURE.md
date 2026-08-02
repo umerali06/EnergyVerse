@@ -1505,6 +1505,165 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   only in the docs. No write affordance was added; filling stays a field
   activity by design.
 
+### Phase 7.4 Camera Capture (Photos + Videos), GPS/Timestamp, and Before/After
+
+- **A second, entirely separate offline queue — the phase's central design
+  point.** `MediaQueue` (new Drift table) and `MediaUploadWorker` (new
+  class, mirroring `SyncEngine`'s connectivity/app-resume/periodic/manual
+  trigger shape and backoff formula almost line-for-line) never share a
+  drain loop, a transaction, or even a Timer with 7.2's `Outbox`/
+  `SyncEngine`. A multi-minute 1080p video uploading in the background can
+  never stall a lightweight checklist-answer autosave, and vice versa — an
+  inspection can (and does, see below) sync to `completed` while its media
+  is still uploading.
+- **Direct-to-Storage upload from the mobile client, not proxied through
+  the backend (D-0xx) — a deliberate departure from 4.3's asset-media
+  pattern.** 4.3's `AssetMediaStorage` is server-mediated in both
+  directions: the client sends multipart bytes to a FastAPI route, which
+  uploads to Storage itself. Proxying a 150–270MB video that way would
+  double the network hop and hold the whole file in the backend's memory —
+  working directly against this phase's own "large videos must not stall
+  sync" requirement. Instead: `firebase_storage`'s `putFile` uploads
+  straight from the device to
+  `companies/{company_id}/inspections/{inspection_id}/media/{local_id}_{filename}`
+  (a Dart port of the same path formula, `inspectionMediaStoragePath()`,
+  mirrors the backend's `InspectionMediaStorage.object_path()` field-for-
+  field so client and server never disagree on where a file lives). New
+  `storage.rules` carve-out (the first ever, since 3.3's `CompanyLogoStorage`
+  doc comment establishes "server-mediated for everything"): a `create`-only
+  rule checks the caller's `company_id` custom claim matches the path
+  segment and caps `request.resource.size` at 500MB; it cannot check the
+  finer-grained `inspections.write` permission or that `inspectionId` is
+  real (those aren't in the token) — an unreferenced write under this rule
+  is an inert orphan object, never readable (`allow read: if false`; every
+  read stays signed-URL-only via the backend) and never live in
+  `inspection.media[]` until the backend's attach endpoint registers it.
+- **The backend never receives media bytes at all — `InspectionMediaStorage`
+  (new, alongside `AssetMediaStorage`) only verifies and reads back what
+  the client already uploaded** (`verify_uploaded()`: `blob.exists()` +
+  `blob.reload()` for size/content-type) and issues signed URLs for
+  display. `InspectionMedia` (new entity, mirroring `AssetMedia`) adds
+  `local_id` (the idempotency key), `kind` (`photo`/`video`), GPS,
+  `captured_at`, `checklist_item_id`, and `before_after_tag` to the
+  familiar path/filename/content_type/size/uploaded_by/uploaded_at shape.
+  Three new routes on the existing `inspections` router —
+  `POST .../media` (attach), `PATCH .../media/{id}` (edit tag/link),
+  `DELETE .../media/{id}` (detach) — all gated by the existing
+  `inspections.write`, all **idempotent by `local_id`/`media_id` and
+  deliberately carrying no `expected_revision`**: media traffic must never
+  collide with the checklist-autosave revision protocol (D-047's own
+  warning to future mutation types, now acted on). A byte-identical
+  re-attach (same `local_id` + identical fields) is a true no-op; a
+  conflicting re-attach 409s; a detach/edit on an already-detached/missing
+  `media_id` returns the record unchanged rather than 404ing — the mobile
+  outbox replays every mutation type at-least-once, and media's replay
+  story has to be at least as forgiving as 7.2's own.
+- **Mobile capture** (`apps/mobile/lib/media/media_capture_screen.dart`):
+  new `camera`/`video_player`/`video_thumbnail`/`firebase_storage`
+  dependencies. Photo/video capture mirrors 4.5's `QrScanScreen` injectable-
+  builder seam exactly (`captureBuilder`, defaulting to a real
+  `_CameraCaptureView`) so widget tests never mount the real `camera`
+  plugin; a gallery-pick fallback via `image_picker` covers both kinds.
+  Video is capped at 3 minutes / `ResolutionPreset.veryHigh` (~1080p) —
+  auto-stops recording at the cap rather than trusting the inspector to
+  notice. `LocalMediaRepository.enqueueCapture()` computes the Storage path
+  and inserts a `queued` `MediaQueue` row; nothing touches the network yet.
+- **`MediaUploadWorker`** drains `MediaQueue` one file at a time via an
+  injected `MediaUploader` seam (not `firebase_storage`'s concrete
+  `Reference`/`UploadTask` directly — those have private constructors deep
+  in the plugin's app-facing wrapper, unlike `image_picker`'s directly-
+  fakeable `ImagePicker`, so a thin uploader interface is the actual
+  testing seam; production wires the real `FirebaseStorage.instance`
+  lazily — see the bug below). On success: marks the row `uploaded`, then
+  separately (not in the same try/catch — see below) calls
+  `LocalInspectionsRepository.enqueueAttachMedia()`, which rides the
+  *existing* 7.2 `Outbox`/`SyncEngine` machinery as a small `attach_media`
+  reference mutation. Once that mutation round-trips, `SyncEngine` calls
+  `LocalMediaRepository.markReferenced()`, deleting the now-fully-redundant
+  `MediaQueue` row — `inspection.media[]` (freshly synced from the server
+  response) is the durable source of truth from that point on. A Storage
+  error is classified transient (`retry-limit-exceeded`, generic/unknown,
+  `cancelled` → exponential backoff, same formula as `SyncEngine`) or
+  permanent (`unauthorized`, `unauthenticated`, etc. → paused via the same
+  `pausedSentinel` convention 7.2 established, requiring an explicit
+  manual retry).
+- **Two real bugs found while building this phase, not designed
+  around:**
+  1. **`_registerReference` failure was reverting an already-successful
+     upload back to `failed`.** The first draft's `_uploadOne` wrapped
+     both the Storage upload *and* the follow-up local-DB enqueue in one
+     try/catch — a failure in the second (a local write, not a network
+     call) incorrectly re-triggered `_handleUploadError`, forcing a
+     pointless full re-upload of bytes that were already sitting in
+     Storage. Fixed by splitting the two steps: `_uploadOne` skips the
+     upload entirely for a row already in `uploaded` state and only
+     retries the reference step, and `dueForUpload()` now reconsiders
+     `uploaded` rows (previously only `queued`/`failed`) for exactly this
+     retry path.
+  2. **`FirebaseStorage.instance` was being resolved eagerly at construction
+     time**, which throws (`[core/no-app] No Firebase App '[DEFAULT]' has
+     been created`) without a real `Firebase.initializeApp()` call — and
+     since `_FevAppState.initState()` constructs a `MediaUploadWorker`
+     unconditionally (which in turn constructs its default `FirebaseMedia
+     Uploader`), this broke every single widget test that mounts `FevApp`,
+     not just media ones. Fixed by resolving it lazily (a getter on
+     `FirebaseMediaUploader`, evaluated only when `upload()`/`delete()`
+     actually run, which no unrelated widget test ever reaches since they
+     queue zero media). This is also why `MediaUploadWorker` depends on a
+     new `MediaUploader`/`MediaUpload` interface (`media_uploader.dart`)
+     rather than `firebase_storage`'s concrete `Reference`/`UploadTask`
+     directly — those have private constructors reachable only through a
+     real `Reference.putFile()` call, so faking them for
+     `media_upload_worker_test.dart` would otherwise require standing up a
+     three-layer `FirebaseStoragePlatform` fake; `FirebaseMediaUploader` is
+     the real implementation, `FakeMediaUploader` the test double.
+  3. **(Mobile ↔ backend, not mobile-only.)** Drift's `DateTimeColumn`
+     round-trips a stored UTC instant back as a **local-flagged** `DateTime`
+     (same real instant, `isUtc: false`) — `built_value`'s JSON serializer
+     requires a strictly UTC-flagged value, so building
+     `AttachInspectionMediaRequest.capturedAt` straight from a `MediaQueue`
+     row threw `Invalid argument (dateTime): Must be in utc for
+     serialization`. Fixed with `.toUtc()` at that one call site (a
+     re-flag, not a re-conversion, since the instant was already correct).
+- **Before/after model: independent tags, not linked pairs (D-053,
+  resolved ambiguity).** `InspectionMedia.before_after_tag` is a plain
+  optional `before`/`after` enum on each item, not a `pair_id` linking two
+  specific items — chosen over an explicit-pair model because it's simpler
+  to maintain (no orphaned-pair bookkeeping when one photo is removed) and
+  the comparison view can let the inspector pick *any* tagged before +
+  *any* tagged after photo, not just one designated pair.
+  `InspectionMediaSection`'s "Compare before/after" button opens a
+  hand-rolled drag-to-reveal slider (`_MediaComparisonScreen`, no
+  third-party package) with two `AppSelect` pickers, one per tag.
+- **Gallery** (`InspectionMediaSection`, wired into
+  `InspectionDetailScreen` between the checklist and the still-reserved
+  voice/readings/signature rows — visible regardless of `editable`, since
+  a completed inspection's media should still render, just without
+  capture/remove/tag actions): unifies server-synced
+  `InspectionMediaResponse` and not-yet-synced `MediaQueueRecord` behind
+  one `_GalleryItem` shape, showing a live "N of M uploaded" count (M
+  includes queued/uploading/uploaded-not-yet-referenced items) — the
+  "media pending" honesty the brief specifically asked for. A new local-
+  only `LocalInspections.media` JSON-blob column (same convention as
+  `checklistItemsSnapshot`) caches the server's synced `media[]` so the
+  gallery's metadata (not the actual image bytes, which still need
+  connectivity) renders fully offline. Local video thumbnails use
+  `video_thumbnail`; a synced (network-URL) video renders a static
+  placeholder instead, since the package's remote-URL thumbnail support
+  is less certain than its local-file path. `Image.network` calls carry an
+  `errorBuilder` so an expired/unreachable signed URL degrades to a broken-
+  image icon instead of surfacing as an uncaught framework error.
+- **Admin gains a read-only mirror** in the existing
+  `InspectionDetailPage` (no new route): a media grid showing each item's
+  thumbnail (photo) or a "Video" placeholder, before/after tag, GPS,
+  captured timestamp, and its linked checklist item's label (looked up
+  from the same `checklistItemsSnapshot` the checklist section already
+  renders) — no upload/edit/remove affordance, matching every other
+  admin-side capture surface's read-only convention.
+- **Contracts regenerated** for `AttachInspectionMediaRequest`,
+  `UpdateInspectionMediaRequest`, `InspectionMediaResponse`, and the three
+  new `InspectionsApi` operations, on both generated clients.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -1568,3 +1727,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.1 — inspection data model, backend CRUD, and lifecycle | Adds the flagship module's spine: a new `inspections` collection (client-generated UUID id, idempotent upsert, monotonic `revision` for the 7.2 sync/conflict contract) and a new `checklist_templates` collection (per-category, lightly versioned, snapshotted onto the inspection at assignment time), each with a thin-route/fat-service split (`app/inspections/`, `app/checklists/`) mirroring 4.1's `app/assets/` exactly, including the same one-equality-filter Firestore query + in-memory-filter pattern and four new composite indexes. Resolves D-033: `AssetManagementService.get_asset_history` now queries real completed inspections by `asset_id` instead of returning a hard-coded empty page. New `checklist_templates.read`/`.write` permissions join the already-existing `inspections.read`/`.write` placeholders from 0.4 — `operations_manager` gains both (template management), all read-only roles gain `.read`; existing `inspections.*` grants are untouched (no assignment feature exists yet, deferred to 7.11). Seed gains 3 checklist templates and 3 demo inspections (completed/in_progress/draft) for the Acme tenant. Admin gains `apps/admin/src/inspections/` (list + read-only detail) and `apps/admin/src/checklist-templates/` (list + create/edit form), replacing the Inspections `ComingSoonScreen` stub; mobile gains `apps/mobile/lib/inspections/` (list + read-only detail, D-034's pushed-route pattern) and a real "Start Inspection" draft-creation flow on the QR scan-result screen (previously a stub). Both clients' asset-detail Inspections tab now renders real data instead of the 4.2 static empty state. Contracts regenerated for `InspectionsApi`/`ChecklistTemplatesApi` and their models; mobile's `ApiContract` gained the three new methods as real (fakeable) interface methods, touching every existing hand-rolled `FakeApi` test double. No offline engine, camera/annotation/voice/readings/signature/AR/AI capture, or admin review UI — those are 7.2–7.11. | 2026-07-29 |
 | Phase 7.2 — offline persistence and sync engine | Adds the local-first engine every subsequent inspection phase builds on: a Drift (SQLite) `LocalInspections`+`Outbox` store behind a single `LocalInspectionsRepository` facade, and a `SyncEngine` that drains the outbox against the 7.1 API on connectivity/resume/periodic/manual triggers with revision-based conflict surfacing (a two-button "keep mine"/"use server's" resolution, no diff view). `InspectionsController`/`InspectionDetailScreen`/`QrScanResultScreen` no longer call `ApiContract` directly for inspections. See "Phase 7.2 Offline Persistence and Sync Engine" above for the full breakdown (this row was missing when the phase shipped; backfilled alongside 7.3 for an accurate record). | 2026-07-29 |
 | Phase 7.3 — inspection start flow and checklist filling | Turns 7.1's data model + 7.2's offline engine into the real field workflow. Mobile: `LocalInspectionsRepository` gains a `LocalChecklistTemplates` cache table (refreshed best-effort after sign-in) and `selectChecklistTemplateForCategory` (category match → most-recently-updated tie-break → `Generic` fallback → no-template if nothing's cached), so template auto-selection runs entirely offline; a new local-only `LocalInspections.assetCategory` column (schema v1→v2, this repository's first Drift migration) carries the asset's category into the local draft without a network fetch. `InspectionDetailScreen` (explicitly read-only since 7.2) now renders interactive per-item inputs (`boolean`/`numeric`/`text`/`select` — the model's real types, not the phase brief's illustrative `pass_fail`/`rating` naming) with autosave through `updateInspection`, a progress header, reserved disabled rows for the 7.4+ capture steps, and a Complete button gated on `missingRequiredItemIds`; on load, a `draft` inspection gets its template auto-assigned and transitions to `in_progress` in one place, covering both a fresh start and resuming a stale local draft. New "Start Inspection" entry point on the asset detail screen (previously QR-only); both entry points capture best-effort GPS via a new `geolocator` dependency (Android/iOS permission entries added), non-blocking if denied or unavailable. **Bug fix, not new design:** `updateInspection`'s checklist-response merge was a wholesale array replace, not an upsert by `item_id` — harmless under 7.2 (never exercised with a real partial update) but would have silently erased prior answers under 7.3's continuous per-item autosave; fixed on both the mobile repository and `InspectionService.update_inspection` (upsert-by-`item_id`, D-048). Also fixed in the same pass: `_upsertFromServer` was storing `status`/`inspectionType` as builtvalue's Dart-identifier enum name (`inProgress`) instead of the wire value (`in_progress`) that every local write path and this phase's new status-gated rendering compare against — invisible before now since `draft`/`completed`/`cancelled` happen to be identical either way. No route/schema changes, so **no contracts regeneration was needed**; no new audit action needed (the existing `update()`/`_write_audit` path already covers answer autosave). Admin's read-only checklist rendering (7.1) gains the assigned template's name/version and each item's type, plus an explicit "filled in the field — read-only here" note (D-045's mobile-only-filling decision made visible in the UI, not just the docs). | 2026-07-30 |
+| Phase 7.4 — camera capture (photos + videos), GPS/timestamp, and before/after | See "Phase 7.4 Camera Capture" above for the full breakdown. In short: a new `MediaQueue` table + `MediaUploadWorker`, entirely independent of 7.2's `Outbox`/`SyncEngine`, uploads media bytes directly from the mobile client to Firebase Storage (a deliberate departure from 4.3's server-mediated asset-media pattern, D-0xx) via a new `storage.rules` carve-out scoped by the caller's `company_id` claim; only a small metadata reference then rides the existing 7.2 outbox as a new `attach_media`/`edit_media`/`detach_media` mutation type, all three idempotent and carrying no `expected_revision` by design. New backend `InspectionMedia` entity and three routes (attach/update/detach) on the existing `inspections` router, gated by the existing `inspections.write`; the backend never touches media bytes, only verifying what the client already uploaded and issuing signed URLs. Mobile capture (`camera`/`video_player`/`video_thumbnail`/`firebase_storage`, new dependencies) mirrors 4.5's `QrScanScreen` injectable-builder testing seam; video is capped at 3 minutes/~1080p. Before/after is an independent per-item tag (not a linked pair). `InspectionMediaSection` (mobile) and a read-only grid in admin's existing `InspectionDetailPage` round out the gallery, with a live "N of M uploaded" count so a completed-while-media-pending inspection stays honest. Contracts regenerated for `AttachInspectionMediaRequest`/`UpdateInspectionMediaRequest`/`InspectionMediaResponse` and the three new `InspectionsApi` operations. | 2026-08-02 |

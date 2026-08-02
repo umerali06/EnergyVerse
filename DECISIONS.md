@@ -54,6 +54,9 @@
 | D-048 | Checklist-template auto-selection at inspection start | **Auto-selection matches the asset's category among locally-cached templates; if more than one is active for that category, the most-recently-updated one wins; falls back to the most-recently-updated `Generic` template if no category match; leaves the inspection untemplated (an already-supported state) if neither is cached. Runs entirely from a local cache refreshed best-effort after sign-in — no network call sits in the inspection-start path.** | **RESOLVED — LOCKED** | 2026-07-30 |
 | D-049 | Checklist-response merge is upsert-by-`item_id`, not whole-array replace | **A real bug, not a design choice: both `LocalInspectionsRepository.updateInspection` and `InspectionService.update_inspection` replaced the entire `checklist_responses` array with whatever a request contained. Harmless under 7.2 (never exercised with a partial update); would have silently erased prior answers under 7.3's per-item autosave. Fixed as an upsert-by-`item_id` on both the mobile repository and the backend service.** | **RESOLVED — LOCKED** | 2026-07-30 |
 | D-050 | Inspection-start GPS capture is best-effort and non-blocking | **`captureCurrentPosition()` (new `geolocator` dependency) checks/requests permission and reads a position with an 8s limit, wrapped in its own outer 10s timeout so a hung or unmocked platform channel can never block starting an inspection. A denied, unavailable, or timed-out reading resolves to `(null, null)` — GPS is optional server-side, so this never blocks the field workflow.** | **RESOLVED — LOCKED** | 2026-07-30 |
+| D-051 | Media queue is separate from inspection-record sync, and uploads direct-to-Storage | **A second, independent Drift table + worker (`MediaQueue`/`MediaUploadWorker`) drains against Firebase Storage, never sharing a drain loop/transaction with 7.2's `Outbox`/`SyncEngine` — heavy media bytes must never stall the lightweight checklist-autosave path. Media uploads directly from the mobile client to Storage (not proxied through the backend like 4.3's asset media) via a new `storage.rules` carve-out scoped to the caller's `company_id` claim; only a small metadata reference then rides the *existing* inspection outbox as a new `attach_media`/`edit_media`/`detach_media` mutation type. All three are idempotent (by `local_id`/`media_id`) and deliberately carry no `expected_revision` — media traffic must never collide with the checklist-revision protocol.** | **RESOLVED — LOCKED** | 2026-08-02 |
+| D-052 | Field video capture caps: 3 minutes, ~1080p | **`kMaxVideoDuration` = 3 minutes, `ResolutionPreset.veryHigh` (~1080p) — the recording auto-stops at the cap rather than trusting the inspector to notice. Matches the backend's `INSPECTION_MEDIA_RULES` video size ceiling (500MB), which a gallery-picked video is checked against locally before enqueueing, to reject an oversized file before a doomed upload attempt.** | **RESOLVED — LOCKED** | 2026-08-02 |
+| D-053 | Before/after model: independent tags, not linked pairs | **`InspectionMedia.before_after_tag` is a plain optional `before`/`after` value on each item, not a `pair_id` linking two specific items. Simpler to maintain (removing one photo never orphans a pair reference) and the comparison view lets the inspector pick any tagged before + any tagged after photo, not just one designated pair — a hand-rolled drag-to-reveal slider, no third-party comparison package.** | **RESOLVED — LOCKED** | 2026-08-02 |
 
 ## Decision Details
 
@@ -1211,6 +1214,83 @@
   to `false` immediately, so no test depends on real platform-channel
   behavior.
 
+### D-051 — Media Queue Is Separate From Inspection-Record Sync, and Uploads Direct-to-Storage
+
+- **Decision owner:** Implied by the 7.4 phase brief's own locked
+  "Media offline architecture" section ("Media is HEAVY and must NOT
+  block the lightweight inspection-record sync"); the *how* (a second
+  Drift table/worker, and direct-to-Storage vs. backend-proxied upload)
+  was a judgment call, the latter explicitly confirmed with the product
+  owner given the tension with 4.3's established server-mediated pattern.
+- **Decision:** `MediaQueue` (new Drift table) and `MediaUploadWorker`
+  (new class) are entirely independent of 7.2's `Outbox`/`SyncEngine` —
+  no shared drain loop, transaction, or Timer. Media bytes upload directly
+  from the mobile client to Firebase Storage via `firebase_storage`'s
+  `putFile` (not proxied through the backend like 4.3's `AssetMediaStorage`
+  asset photos/documents), since proxying a 150–270MB video would double
+  the network hop and risk stalling the very sync path this design exists
+  to protect. A new `storage.rules` carve-out (the first departure from
+  "everything is server-mediated" since 3.3) allows a `create`-only write
+  to `companies/{company_id}/inspections/{inspection_id}/media/{file}`
+  when the caller's `company_id` custom claim matches and the object is
+  under 500MB; it cannot check `inspections.write` or that the inspection
+  is real (neither is in the token), so an unreferenced write is an inert
+  orphan — never readable (`allow read: if false`) and never live in
+  `inspection.media[]` until the backend's attach endpoint registers it.
+  That backend endpoint (and its update/detach siblings) never receive
+  bytes, only verify+read back what's already in Storage, and are
+  idempotent by `local_id`/`media_id` with no `expected_revision` — media
+  traffic must never collide with the checklist-revision protocol
+  (D-047's own warning to future mutation types, acted on here).
+- **Consequences:** An inspection can sync to `completed` while its media
+  is still uploading in the background — the gallery's live "N of M
+  uploaded" count is what keeps that state honest rather than looking
+  finished when bytes are still pending. The Storage security model now
+  has two shapes (server-mediated for everything else, client-direct for
+  inspection media specifically) instead of one uniform rule; any future
+  media-bearing feature should default to asking which shape fits rather
+  than assuming the 4.3 pattern is universal.
+
+### D-052 — Field Video Capture Caps: 3 Minutes, ~1080p
+
+- **Decision owner:** Product owner, resolving the 7.4 phase brief's own
+  flagged ambiguity ("video length/resolution caps... STOP and ask").
+- **Decision:** `kMaxVideoDuration` is 3 minutes; capture resolution is
+  `ResolutionPreset.veryHigh` (the `camera` plugin's ~1080p tier). The
+  `_CameraCaptureView` auto-stops recording the instant the cap is
+  reached rather than trusting the inspector to notice and stop manually.
+  A gallery-picked video is checked against the backend's own
+  `INSPECTION_MEDIA_RULES` video size ceiling (500MB) locally before
+  enqueueing, rejecting an oversized file before a doomed upload attempt
+  and round trip.
+- **Consequences:** A 3-minute/1080p clip can still be very large
+  (~150–270MB depending on bitrate) over poor field connectivity — this
+  is exactly why D-051's separate media queue/worker and direct-to-
+  Storage upload exist, so a single large file's upload time never blocks
+  anything else. If field feedback later calls for longer clips, the cap
+  is a single constant to change; the queue/worker architecture doesn't
+  need to change with it.
+
+### D-053 — Before/After Model: Independent Tags, Not Linked Pairs
+
+- **Decision owner:** Product owner, resolving the 7.4 phase brief's own
+  flagged ambiguity ("before/after model... STOP and ask").
+- **Decision:** `InspectionMedia.before_after_tag` is a plain optional
+  `before`/`after` value on each media item, not a `pair_id` linking two
+  specific items together. The comparison view
+  (`_MediaComparisonScreen`, a hand-rolled drag-to-reveal slider — no
+  third-party comparison package) lets the inspector pick *any*
+  before-tagged photo and *any* after-tagged photo to compare, not just
+  one designated pair.
+- **Consequences:** Simpler to maintain than an explicit-pair model —
+  removing one photo never leaves an orphaned pair reference to clean up,
+  and re-tagging is a single-field edit rather than a two-sided
+  relationship update. The tradeoff: nothing stops an inspector from
+  tagging three "before" photos with no clear single intended
+  counterpart; the UI doesn't enforce a 1:1 relationship, by design, since
+  the brief only asked for a comparison view, not pairing semantics as a
+  data-integrity guarantee.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1455,3 +1535,43 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   template auto-selection/tie-break/fallback, the interactive fill screen,
   and the auto-start-on-open flow) all green; `flutter analyze`/ruff/mypy
   clean; `git diff --exit-code -- packages/contracts` confirmed no drift.
+- **2026-08-02 — Phase 7.4 (camera capture — photos + videos, GPS/
+  timestamp, before/after):** Added D-051 through D-053. Media gets its
+  own Drift queue/worker (`MediaQueue`/`MediaUploadWorker`), entirely
+  independent of 7.2's `Outbox`/`SyncEngine`, and uploads bytes directly
+  from the mobile client to Firebase Storage rather than proxying through
+  the backend like 4.3's asset media — a new `storage.rules` carve-out
+  scoped by the caller's `company_id` claim, with the backend only ever
+  registering a small metadata reference (D-051). Video is capped at 3
+  minutes/~1080p (D-052); before/after is an independent per-item tag, not
+  a linked pair (D-053). Three real bugs were found and fixed, not
+  designed around: (1) `_uploadOne` originally shared one try/catch across
+  the Storage upload *and* the follow-up local-DB reference-enqueue step,
+  so a failure in the second (a pure local write) incorrectly reverted an
+  already-successful upload back to `failed`, forcing a pointless
+  re-upload — fixed by splitting the two steps and having `dueForUpload()`
+  also reconsider `uploaded` rows for reference-only retry; (2)
+  `FirebaseMediaUploader` (the real implementation behind a new
+  `MediaUploader`/`MediaUpload` seam, `media_uploader.dart` — introduced
+  because `firebase_storage`'s concrete `Reference`/`UploadTask` have
+  private constructors too deep in the plugin's wrapper to fake directly)
+  originally resolved `FirebaseStorage.instance` eagerly at construction,
+  which throws without a real `Firebase.initializeApp()` call — since
+  `FevApp` constructs `MediaUploadWorker` (and its default
+  `FirebaseMediaUploader`) unconditionally, that broke every widget test
+  mounting the app shell, not just media ones, until resolved lazily;
+  (3) Drift's `DateTimeColumn`
+  round-trips a stored UTC instant back as a local-flagged `DateTime` (same
+  instant, wrong flag), which `built_value`'s serializer rejects — hit
+  building `AttachInspectionMediaRequest.capturedAt` from a `MediaQueue`
+  row, fixed with a `.toUtc()` re-flag at that one call site. Backend (280
+  tests, up from 269 — 11 new for media attach/update/detach: idempotency,
+  cross-tenant, size/type validation), mobile (180 tests, up from 154 —
+  new coverage across `local_media_repository_test.dart`,
+  `media_upload_worker_test.dart`, `media_capture_screen_test.dart`, new
+  media-mutation cases in `sync_engine_test.dart`, and new media-gallery
+  cases in `inspection_detail_screen_test.dart`), and admin (196 passed +
+  6 credential-only skips, up from 193 — 3 new for the read-only media
+  gallery: empty state, a synced item's tag/GPS/checklist link, a video
+  item) all green; `flutter analyze`/ruff/mypy/ESLint clean; contracts
+  regenerated (3 new models, 3 new operations) with a clean drift check.

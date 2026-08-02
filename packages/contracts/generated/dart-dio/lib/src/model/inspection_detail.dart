@@ -5,6 +5,7 @@
 // ignore_for_file: unused_element
 import 'package:fev_api_client/src/model/checklist_response.dart';
 import 'package:built_collection/built_collection.dart';
+import 'package:fev_api_client/src/model/inspection_media_response.dart';
 import 'package:fev_api_client/src/model/checklist_template_item.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
@@ -107,7 +108,7 @@ abstract class InspectionDetail
   String get inspectorId;
 
   @BuiltValueField(wireName: r'media')
-  BuiltList<BuiltMap<String, JsonObject?>>? get media;
+  BuiltList<InspectionMediaResponse>? get media;
 
   @BuiltValueField(wireName: r'notes')
   String? get notes;
@@ -295,9 +296,8 @@ class _$InspectionDetailSerializer
       yield r'media';
       yield serializers.serialize(
         object.media,
-        specifiedType: const FullType(BuiltList, [
-          FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])
-        ]),
+        specifiedType:
+            const FullType(BuiltList, [FullType(InspectionMediaResponse)]),
       );
     }
     if (object.notes != null) {
@@ -546,11 +546,9 @@ class _$InspectionDetailSerializer
         case r'media':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [
-              FullType(
-                  BuiltMap, [FullType(String), FullType.nullable(JsonObject)])
-            ]),
-          ) as BuiltList<BuiltMap<String, JsonObject?>>;
+            specifiedType:
+                const FullType(BuiltList, [FullType(InspectionMediaResponse)]),
+          ) as BuiltList<InspectionMediaResponse>;
           result.media.replace(valueDes);
           break;
         case r'notes':

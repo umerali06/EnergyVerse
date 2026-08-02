@@ -1,7 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- QR scanning (Phase 4.5) -->
+    <!-- QR scanning (Phase 4.5) and inspection photo/video capture (Phase 7.4) -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- Audio track on recorded inspection videos (Phase 7.4) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- Best-effort start-of-inspection GPS capture (Phase 7.3) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>

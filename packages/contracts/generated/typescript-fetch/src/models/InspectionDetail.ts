@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { InspectionMediaResponse } from './InspectionMediaResponse';
+import {
+    InspectionMediaResponseFromJSON,
+    InspectionMediaResponseFromJSONTyped,
+    InspectionMediaResponseToJSON,
+    InspectionMediaResponseToJSONTyped,
+} from './InspectionMediaResponse';
 import type { ChecklistResponse } from './ChecklistResponse';
 import {
     ChecklistResponseFromJSON,
@@ -150,10 +157,10 @@ export interface InspectionDetail {
     inspectorId: string;
     /**
      *
-     * @type {Array<{ [key: string]: any; }>}
+     * @type {Array<InspectionMediaResponse>}
      * @memberof InspectionDetail
      */
-    media?: Array<{ [key: string]: any; }>;
+    media?: Array<InspectionMediaResponse>;
     /**
      *
      * @type {string}
@@ -285,7 +292,7 @@ export function InspectionDetailFromJSONTyped(json: any, ignoreDiscriminator: bo
         'id': json['id'],
         'inspectionType': json['inspection_type'],
         'inspectorId': json['inspector_id'],
-        'media': json['media'] == null ? undefined : json['media'],
+        'media': json['media'] == null ? undefined : ((json['media'] as Array<any>).map(InspectionMediaResponseFromJSON)),
         'notes': json['notes'] == null ? undefined : json['notes'],
         'origin': json['origin'] == null ? undefined : json['origin'],
         'readings': json['readings'] == null ? undefined : json['readings'],
@@ -329,7 +336,7 @@ export function InspectionDetailToJSONTyped(value?: InspectionDetail | null, ign
         'id': value['id'],
         'inspection_type': value['inspectionType'],
         'inspector_id': value['inspectorId'],
-        'media': value['media'],
+        'media': value['media'] == null ? undefined : ((value['media'] as Array<any>).map(InspectionMediaResponseToJSON)),
         'notes': value['notes'],
         'origin': value['origin'],
         'readings': value['readings'],

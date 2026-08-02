@@ -16,17 +16,21 @@
 import * as runtime from '../runtime';
 import type {
   AssignChecklistTemplateRequest,
+  AttachInspectionMediaRequest,
   CreateInspectionRequest,
   ErrorEnvelope,
   HTTPValidationError,
   InspectionDeleted,
   InspectionDetail,
   InspectionListPage,
+  UpdateInspectionMediaRequest,
   UpdateInspectionRequest,
 } from '../models/index';
 import {
     AssignChecklistTemplateRequestFromJSON,
     AssignChecklistTemplateRequestToJSON,
+    AttachInspectionMediaRequestFromJSON,
+    AttachInspectionMediaRequestToJSON,
     CreateInspectionRequestFromJSON,
     CreateInspectionRequestToJSON,
     ErrorEnvelopeFromJSON,
@@ -39,6 +43,8 @@ import {
     InspectionDetailToJSON,
     InspectionListPageFromJSON,
     InspectionListPageToJSON,
+    UpdateInspectionMediaRequestFromJSON,
+    UpdateInspectionMediaRequestToJSON,
     UpdateInspectionRequestFromJSON,
     UpdateInspectionRequestToJSON,
 } from '../models/index';
@@ -46,6 +52,11 @@ import {
 export interface AssignInspectionChecklistTemplateRequest {
     inspectionId: string;
     assignChecklistTemplateRequest: AssignChecklistTemplateRequest;
+}
+
+export interface AttachInspectionMediaOperationRequest {
+    inspectionId: string;
+    attachInspectionMediaRequest: AttachInspectionMediaRequest;
 }
 
 export interface CancelInspectionRequest {
@@ -62,6 +73,11 @@ export interface CreateInspectionOperationRequest {
 
 export interface DeleteInspectionRequest {
     inspectionId: string;
+}
+
+export interface DetachInspectionMediaRequest {
+    inspectionId: string;
+    mediaId: string;
 }
 
 export interface GetInspectionRequest {
@@ -86,6 +102,12 @@ export interface StartInspectionRequest {
 export interface UpdateInspectionOperationRequest {
     inspectionId: string;
     updateInspectionRequest: UpdateInspectionRequest;
+}
+
+export interface UpdateInspectionMediaOperationRequest {
+    inspectionId: string;
+    mediaId: string;
+    updateInspectionMediaRequest: UpdateInspectionMediaRequest;
 }
 
 /**
@@ -141,6 +163,59 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async assignInspectionChecklistTemplate(requestParameters: AssignInspectionChecklistTemplateRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.assignInspectionChecklistTemplateRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Registers a reference to media the mobile client already uploaded directly to Firebase Storage (Phase 7.4) -- no bytes pass through here.
+     * Attach Inspection Media
+     */
+    async attachInspectionMediaRaw(requestParameters: AttachInspectionMediaOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling attachInspectionMedia().'
+            );
+        }
+
+        if (requestParameters['attachInspectionMediaRequest'] == null) {
+            throw new runtime.RequiredError(
+                'attachInspectionMediaRequest',
+                'Required parameter "attachInspectionMediaRequest" was null or undefined when calling attachInspectionMedia().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/media`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: AttachInspectionMediaRequestToJSON(requestParameters['attachInspectionMediaRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Registers a reference to media the mobile client already uploaded directly to Firebase Storage (Phase 7.4) -- no bytes pass through here.
+     * Attach Inspection Media
+     */
+    async attachInspectionMedia(requestParameters: AttachInspectionMediaOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.attachInspectionMediaRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -310,6 +385,56 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async deleteInspection(requestParameters: DeleteInspectionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDeleted> {
         const response = await this.deleteInspectionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Idempotent on an already-detached `media_id` -- the mobile outbox replays this call at-least-once.
+     * Detach Inspection Media
+     */
+    async detachInspectionMediaRaw(requestParameters: DetachInspectionMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling detachInspectionMedia().'
+            );
+        }
+
+        if (requestParameters['mediaId'] == null) {
+            throw new runtime.RequiredError(
+                'mediaId',
+                'Required parameter "mediaId" was null or undefined when calling detachInspectionMedia().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/media/{media_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"media_id"}}`, encodeURIComponent(String(requestParameters['mediaId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Idempotent on an already-detached `media_id` -- the mobile outbox replays this call at-least-once.
+     * Detach Inspection Media
+     */
+    async detachInspectionMedia(requestParameters: DetachInspectionMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.detachInspectionMediaRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -509,6 +634,64 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async updateInspection(requestParameters: UpdateInspectionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.updateInspectionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Inspection Media
+     */
+    async updateInspectionMediaRaw(requestParameters: UpdateInspectionMediaOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling updateInspectionMedia().'
+            );
+        }
+
+        if (requestParameters['mediaId'] == null) {
+            throw new runtime.RequiredError(
+                'mediaId',
+                'Required parameter "mediaId" was null or undefined when calling updateInspectionMedia().'
+            );
+        }
+
+        if (requestParameters['updateInspectionMediaRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateInspectionMediaRequest',
+                'Required parameter "updateInspectionMediaRequest" was null or undefined when calling updateInspectionMedia().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/media/{media_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"media_id"}}`, encodeURIComponent(String(requestParameters['mediaId']))),
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateInspectionMediaRequestToJSON(requestParameters['updateInspectionMediaRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Update Inspection Media
+     */
+    async updateInspectionMedia(requestParameters: UpdateInspectionMediaOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.updateInspectionMediaRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

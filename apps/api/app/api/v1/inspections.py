@@ -11,10 +11,12 @@ from app.inspections.service import (
 )
 from app.models.api import (
     AssignChecklistTemplateRequest,
+    AttachInspectionMediaRequest,
     CreateInspectionRequest,
     InspectionDeleted,
     InspectionDetail,
     InspectionListPage,
+    UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
     error_responses,
 )
@@ -231,6 +233,71 @@ async def cancel_inspection(
     scope = CompanyScope(company_id=current_user.company_id)
     try:
         return await service.cancel_inspection(scope, inspection_id, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.post(
+    "/{inspection_id}/media",
+    response_model=InspectionDetail,
+    operation_id="attach_inspection_media",
+    responses=error_responses(401, 403, 404, 409, 413, 422, 500),
+)
+async def attach_inspection_media(
+    inspection_id: str,
+    request: AttachInspectionMediaRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Registers a reference to media the mobile client already uploaded
+    directly to Firebase Storage (Phase 7.4) -- no bytes pass through here."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.attach_media(scope, inspection_id, request, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.patch(
+    "/{inspection_id}/media/{media_id}",
+    response_model=InspectionDetail,
+    operation_id="update_inspection_media",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def update_inspection_media(
+    inspection_id: str,
+    media_id: str,
+    request: UpdateInspectionMediaRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.update_media(scope, inspection_id, media_id, request, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.delete(
+    "/{inspection_id}/media/{media_id}",
+    response_model=InspectionDetail,
+    operation_id="detach_inspection_media",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def detach_inspection_media(
+    inspection_id: str,
+    media_id: str,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Idempotent on an already-detached `media_id` -- the mobile outbox
+    replays this call at-least-once."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.detach_media(scope, inspection_id, media_id, current_user.uid)
     except InspectionServiceError as error:
         _raise_api_error(error)
         raise

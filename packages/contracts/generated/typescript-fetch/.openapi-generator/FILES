@@ -36,6 +36,7 @@ src/models/AssetListPage.ts
 src/models/AssetMediaResponse.ts
 src/models/AssetQrLabel.ts
 src/models/AssignChecklistTemplateRequest.ts
+src/models/AttachInspectionMediaRequest.ts
 src/models/AuditLogEntry.ts
 src/models/AuditLogFacets.ts
 src/models/AuditLogPage.ts
@@ -72,6 +73,7 @@ src/models/InspectionDeleted.ts
 src/models/InspectionDetail.ts
 src/models/InspectionListItem.ts
 src/models/InspectionListPage.ts
+src/models/InspectionMediaResponse.ts
 src/models/InviteUserRequest.ts
 src/models/PermissionCatalog.ts
 src/models/PermissionCatalogGroup.ts
@@ -92,6 +94,7 @@ src/models/UpdateChecklistTemplateRequest.ts
 src/models/UpdateCompanyRequest.ts
 src/models/UpdateCompanyStatusRequest.ts
 src/models/UpdateFacilityRequest.ts
+src/models/UpdateInspectionMediaRequest.ts
 src/models/UpdateInspectionRequest.ts
 src/models/UpdatePlatformCompanyRequest.ts
 src/models/UpdateRoleRequest.ts

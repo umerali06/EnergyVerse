@@ -18,6 +18,16 @@ typedef GetChecklistTemplatesFn = Future<ChecklistTemplateListPage> Function({
   int limit,
 });
 typedef GetChecklistTemplateFn = Future<ChecklistTemplateDetail> Function(String templateId);
+typedef AttachMediaFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  AttachInspectionMediaRequest request,
+);
+typedef UpdateMediaFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  String mediaId,
+  UpdateInspectionMediaRequest request,
+);
+typedef DetachMediaFn = Future<InspectionDetail> Function(String inspectionId, String mediaId);
 
 /// A configurable [ApiContract] double for repository/sync-engine tests --
 /// every inspections-write method is overridable via a constructor
@@ -35,6 +45,9 @@ class FakeSyncApi implements ApiContract {
     AssignTemplateFn? assignChecklistTemplate,
     GetChecklistTemplatesFn? getChecklistTemplates,
     GetChecklistTemplateFn? getChecklistTemplate,
+    AttachMediaFn? attachInspectionMedia,
+    UpdateMediaFn? updateInspectionMedia,
+    DetachMediaFn? detachInspectionMedia,
   })  : _getInspection = getInspection,
         _createInspection = createInspection,
         _updateInspection = updateInspection,
@@ -43,7 +56,10 @@ class FakeSyncApi implements ApiContract {
         _cancelInspection = cancelInspection,
         _assignChecklistTemplate = assignChecklistTemplate,
         _getChecklistTemplates = getChecklistTemplates,
-        _getChecklistTemplate = getChecklistTemplate;
+        _getChecklistTemplate = getChecklistTemplate,
+        _attachInspectionMedia = attachInspectionMedia,
+        _updateInspectionMedia = updateInspectionMedia,
+        _detachInspectionMedia = detachInspectionMedia;
 
   final GetInspectionFn? _getInspection;
   final CreateInspectionFn? _createInspection;
@@ -54,6 +70,9 @@ class FakeSyncApi implements ApiContract {
   final AssignTemplateFn? _assignChecklistTemplate;
   final GetChecklistTemplatesFn? _getChecklistTemplates;
   final GetChecklistTemplateFn? _getChecklistTemplate;
+  final AttachMediaFn? _attachInspectionMedia;
+  final UpdateMediaFn? _updateInspectionMedia;
+  final DetachMediaFn? _detachInspectionMedia;
 
   final List<String> calls = [];
 
@@ -114,6 +133,37 @@ class FakeSyncApi implements ApiContract {
     final handler = _assignChecklistTemplate;
     if (handler == null) throw UnimplementedError();
     return handler(inspectionId, request);
+  }
+
+  @override
+  Future<InspectionDetail> attachInspectionMedia(
+    String inspectionId,
+    AttachInspectionMediaRequest request,
+  ) {
+    calls.add('attachInspectionMedia:$inspectionId');
+    final handler = _attachInspectionMedia;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, request);
+  }
+
+  @override
+  Future<InspectionDetail> updateInspectionMedia(
+    String inspectionId,
+    String mediaId,
+    UpdateInspectionMediaRequest request,
+  ) {
+    calls.add('updateInspectionMedia:$inspectionId:$mediaId');
+    final handler = _updateInspectionMedia;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, mediaId, request);
+  }
+
+  @override
+  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) {
+    calls.add('detachInspectionMedia:$inspectionId:$mediaId');
+    final handler = _detachInspectionMedia;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, mediaId);
   }
 
   @override

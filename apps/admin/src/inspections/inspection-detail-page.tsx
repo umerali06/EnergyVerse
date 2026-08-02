@@ -232,6 +232,66 @@ export function InspectionDetailPage({
                   </ul>
                 )}
               </div>
+
+              <div>
+                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                  Media
+                  {(state.inspection.media ?? []).length > 0 &&
+                    ` (${state.inspection.media!.length})`}
+                </p>
+                {(state.inspection.media ?? []).length === 0 ? (
+                  <p className="mt-1 text-bodySmall text-text-muted">
+                    No media has been captured yet.
+                  </p>
+                ) : (
+                  <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {state.inspection.media!.map((item) => {
+                      const linkedItem = (state.inspection!.checklistItemsSnapshot ?? []).find(
+                        (candidate) => candidate.id === item.checklistItemId,
+                      );
+                      return (
+                        <li key={item.id}>
+                          <a
+                            className="group relative block overflow-hidden rounded-md border border-border"
+                            href={item.url}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {item.kind === "photo" ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- signed, tenant-scoped Storage URL, not a static/optimizable asset
+                              <img
+                                alt={item.filename}
+                                className="h-28 w-full bg-elevated object-cover"
+                                src={item.url}
+                              />
+                            ) : (
+                              <div className="flex h-28 w-full items-center justify-center bg-elevated text-caption text-text-muted">
+                                Video
+                              </div>
+                            )}
+                            {item.beforeAfterTag && (
+                              <span className="absolute left-1 top-1 rounded-sm border border-border bg-elevated px-1.5 py-0.5 font-mono text-caption capitalize">
+                                {item.beforeAfterTag}
+                              </span>
+                            )}
+                          </a>
+                          <p className="mt-1 font-mono text-caption text-text-muted">
+                            {formatCompanyDateTime(item.capturedAt)}
+                          </p>
+                          {item.gpsLat != null && item.gpsLng != null && (
+                            <p className="font-mono text-caption text-text-muted">
+                              {item.gpsLat.toFixed(4)}, {item.gpsLng.toFixed(4)}
+                            </p>
+                          )}
+                          {linkedItem && (
+                            <p className="text-caption text-text-secondary">{linkedItem.label}</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             </Card>
           </>
         )}
