@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -94,6 +94,26 @@ function DashboardWithPermissions() {
       <InspectionDetailPage inspectionId="inspection-1" />
     </PermissionProvider>
   );
+}
+
+function mediaFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "media-1",
+    localId: "local-1",
+    url: "https://storage.example.invalid/media-1.jpg",
+    kind: "photo",
+    filename: "photo.jpg",
+    contentType: "image/jpeg",
+    size: 1000,
+    gpsLat: 29.7604,
+    gpsLng: -95.3698,
+    capturedAt: new Date("2026-01-01T00:00:00Z"),
+    checklistItemId: "vibration_normal",
+    beforeAfterTag: "before",
+    uploadedBy: "demo-acme-field_inspector",
+    uploadedAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
 }
 
 function checklistTemplateDetail(overrides: Partial<Record<string, unknown>> = {}) {
@@ -194,5 +214,38 @@ describe("inspection detail page", () => {
     expect(deleteInspection).toHaveBeenCalledWith("inspection-1");
     expect(pushMock).toHaveBeenCalledWith("/inspections");
     confirmSpy.mockRestore();
+  });
+
+  it("shows an honest empty state when no media has been captured yet", async () => {
+    renderDetail();
+    await screen.findByText("Q3 Routine Inspection");
+    expect(screen.getByText("No media has been captured yet.")).toBeInTheDocument();
+  });
+
+  it("renders a media item with its before/after tag, GPS, timestamp, and linked checklist item", async () => {
+    const getInspection = vi.fn(async () => inspectionDetail({ media: [mediaFixture()] }));
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const mediaSection = screen.getByText("Media (1)").closest("div")!;
+    expect(within(mediaSection).getByText("before")).toBeInTheDocument();
+    expect(within(mediaSection).getByText("29.7604, -95.3698")).toBeInTheDocument();
+    expect(within(mediaSection).getByText("Vibration normal")).toBeInTheDocument();
+    const image = within(mediaSection).getByAltText("photo.jpg") as HTMLImageElement;
+    expect(image.src).toBe("https://storage.example.invalid/media-1.jpg");
+    const link = image.closest("a");
+    expect(link).toHaveAttribute("href", "https://storage.example.invalid/media-1.jpg");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("renders a video media item without an img tag", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({ media: [mediaFixture({ id: "media-2", kind: "video", filename: "clip.mp4" })] }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    expect(screen.getByText("Video")).toBeInTheDocument();
+    expect(screen.queryByAltText("clip.mp4")).not.toBeInTheDocument();
   });
 });

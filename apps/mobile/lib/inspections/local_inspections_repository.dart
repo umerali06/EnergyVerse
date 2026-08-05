@@ -30,15 +30,21 @@ enum LocalSyncState {
       );
 }
 
-/// The outbox's mutation kinds. `uploadMedia` is a reserved value for 7.4+
-/// and is intentionally not dispatched anywhere yet.
+/// The outbox's mutation kinds. `attachMedia`/`editMedia`/`detachMedia`
+/// (Phase 7.4) are small metadata-reference mutations only -- the media
+/// BYTES never flow through this outbox; they upload directly to Firebase
+/// Storage via the separate `MediaQueue` table and `MediaUploadWorker`,
+/// entirely independent of `SyncEngine`.
 enum OutboxMutationType {
   create('create'),
   update('update'),
   start('start'),
   complete('complete'),
   cancel('cancel'),
-  assignTemplate('assign_template');
+  assignTemplate('assign_template'),
+  attachMedia('attach_media'),
+  editMedia('edit_media'),
+  detachMedia('detach_media');
 
   const OutboxMutationType(this.wireValue);
 
@@ -114,6 +120,24 @@ List<ChecklistResponse> _decodeChecklistResponses(String json) {
       )
       .toList();
 }
+
+List<InspectionMediaResponse> _decodeInspectionMedia(String json) {
+  final list = jsonDecode(json) as List<dynamic>;
+  return list
+      .map(
+        (item) => standardSerializers.deserializeWith(
+          InspectionMediaResponse.serializer,
+          item as Map<String, dynamic>,
+        )!,
+      )
+      .toList();
+}
+
+String _encodeInspectionMedia(List<InspectionMediaResponse> media) => jsonEncode(
+      media
+          .map((item) => standardSerializers.serializeWith(InspectionMediaResponse.serializer, item))
+          .toList(),
+    );
 
 String _encodeChecklistItems(List<ChecklistTemplateItem> items) => jsonEncode(
       items
@@ -244,11 +268,17 @@ bool isChecklistResponseAnswered(ChecklistResponse response) {
 class LocalInspectionRecord {
   LocalInspectionRecord(this.row)
       : checklistItemsSnapshot = _decodeChecklistItems(row.checklistItemsSnapshot),
-        checklistResponses = _decodeChecklistResponses(row.checklistResponses);
+        checklistResponses = _decodeChecklistResponses(row.checklistResponses),
+        media = _decodeInspectionMedia(row.media);
 
   final LocalInspection row;
   final List<ChecklistTemplateItem> checklistItemsSnapshot;
   final List<ChecklistResponse> checklistResponses;
+
+  /// The server-synced media references (Phase 7.4) -- cached offline, but
+  /// only as current as the last successful refresh/mutation. Not-yet-synced
+  /// captures live separately in `MediaQueue`/`LocalMediaRepository`.
+  final List<InspectionMediaResponse> media;
 
   String get id => row.id;
   String get assetId => row.assetId;
@@ -411,6 +441,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
             checklistResponses: drift.Value(
               _encodeChecklistResponses(detail.checklistResponses?.toList() ?? const []),
             ),
+            media: drift.Value(_encodeInspectionMedia(detail.media?.toList() ?? const [])),
             startedAt: drift.Value(detail.startedAt),
             completedAt: drift.Value(detail.completedAt),
             gpsLat: drift.Value(detail.gpsLat?.toDouble()),
@@ -642,6 +673,49 @@ class LocalInspectionsRepository extends ChangeNotifier {
       await _enqueue(inspectionId: id, type: OutboxMutationType.assignTemplate, payload: payload);
     });
   }
+
+  // ------------------------------------------------------------- media (7.4)
+
+  /// Enqueues the small metadata-reference mutation onto the *existing*
+  /// inspection outbox once [MediaUploadWorker] has already uploaded the
+  /// bytes directly to Storage -- this is the "small reference, not the
+  /// bytes" sync path the media queue design depends on.
+  Future<void> enqueueAttachMedia({
+    required String inspectionId,
+    required AttachInspectionMediaRequest request,
+  }) =>
+      _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.attachMedia,
+        payload: jsonEncode(
+          standardSerializers.serializeWith(AttachInspectionMediaRequest.serializer, request),
+        ),
+      );
+
+  Future<void> enqueueEditMedia({
+    required String inspectionId,
+    required String mediaId,
+    required UpdateInspectionMediaRequest request,
+  }) =>
+      _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.editMedia,
+        payload: jsonEncode({
+          'media_id': mediaId,
+          'request':
+              standardSerializers.serializeWith(UpdateInspectionMediaRequest.serializer, request),
+        }),
+      );
+
+  Future<void> enqueueDetachMedia({
+    required String inspectionId,
+    required String mediaId,
+  }) =>
+      _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.detachMedia,
+        payload: jsonEncode({'media_id': mediaId}),
+      );
 
   // ------------------------------------------------------ checklist templates
 
@@ -964,6 +1038,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
     await _db.transaction(() async {
       await _db.delete(_db.outbox).go();
       await _db.delete(_db.localInspections).go();
+      // Phase 7.4: the media queue is tenant-scoped local data too, and must
+      // not survive a shared-device owner switch any more than the outbox does.
+      await _db.delete(_db.mediaQueue).go();
     });
     notifyListeners();
   }

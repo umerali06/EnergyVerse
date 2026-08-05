@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 
 import '../api/api_service.dart';
 import '../inspections/local_inspections_repository.dart';
+import '../media/local_media_repository.dart';
 
 enum SyncConnectivity { unknown, online, offline }
 
@@ -24,6 +25,7 @@ class SyncEngine extends ChangeNotifier {
   SyncEngine({
     required LocalInspectionsRepository repository,
     required ApiContract api,
+    LocalMediaRepository? mediaRepository,
     ConnectivityStreamFactory? connectivityStreamFactory,
     ConnectivityCheck? checkConnectivity,
     DateTime Function()? now,
@@ -31,6 +33,7 @@ class SyncEngine extends ChangeNotifier {
     Duration connectivityDebounce = const Duration(milliseconds: 500),
   })  : _repository = repository,
         _api = api,
+        _mediaRepository = mediaRepository,
         _now = now ?? DateTime.now,
         _connectivityDebounce = connectivityDebounce {
     final streamFactory = connectivityStreamFactory ?? (() => Connectivity().onConnectivityChanged);
@@ -57,6 +60,7 @@ class SyncEngine extends ChangeNotifier {
 
   final LocalInspectionsRepository _repository;
   final ApiContract _api;
+  final LocalMediaRepository? _mediaRepository;
   final DateTime Function() _now;
   final Duration _connectivityDebounce;
   late final StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
@@ -155,6 +159,7 @@ class SyncEngine extends ChangeNotifier {
     try {
       final detail = await _dispatch(item);
       await _repository.applyMutationSuccess(item: item, server: detail);
+      await _onMutationApplied(item);
       return true;
     } on ApiException catch (error) {
       return _handleError(item, error);
@@ -188,7 +193,39 @@ class SyncEngine extends ChangeNotifier {
           payload as Map<String, dynamic>,
         )!;
         return _api.assignChecklistTemplate(item.inspectionId, request);
+      case OutboxMutationType.attachMedia:
+        final request = standardSerializers.deserializeWith(
+          AttachInspectionMediaRequest.serializer,
+          payload as Map<String, dynamic>,
+        )!;
+        return _api.attachInspectionMedia(item.inspectionId, request);
+      case OutboxMutationType.editMedia:
+        final wrapper = payload as Map<String, dynamic>;
+        final request = standardSerializers.deserializeWith(
+          UpdateInspectionMediaRequest.serializer,
+          wrapper['request'] as Map<String, dynamic>,
+        )!;
+        return _api.updateInspectionMedia(item.inspectionId, wrapper['media_id'] as String, request);
+      case OutboxMutationType.detachMedia:
+        final wrapper = payload as Map<String, dynamic>;
+        return _api.detachInspectionMedia(item.inspectionId, wrapper['media_id'] as String);
     }
+  }
+
+  /// After a mutation round-trips successfully, `attachMedia` has one extra
+  /// step: the local `MediaQueue` row (kept around only for its own
+  /// upload-progress UI) is now fully redundant, since `inspection.media[]`
+  /// -- just refreshed by `applyMutationSuccess` above -- is the durable
+  /// source of truth going forward. `editMedia`/`detachMedia` never leave a
+  /// `MediaQueue` row behind in the first place (they only ever target
+  /// already-referenced media), so there's nothing to clean up for them.
+  Future<void> _onMutationApplied(OutboxItemRecord item) async {
+    if (item.mutationType != OutboxMutationType.attachMedia) return;
+    final request = standardSerializers.deserializeWith(
+      AttachInspectionMediaRequest.serializer,
+      jsonDecode(item.row.payload) as Map<String, dynamic>,
+    )!;
+    await _mediaRepository?.markReferenced(request.localId);
   }
 
   Future<bool> _handleError(OutboxItemRecord item, ApiException error) async {
@@ -268,6 +305,17 @@ class SyncEngine extends ChangeNotifier {
           jsonDecode(item.row.payload) as Map<String, dynamic>,
         )!;
         return current.checklistTemplateId == request.checklistTemplateId;
+      // attachMedia/editMedia/detachMedia never carry `expected_revision`
+      // and the backend is idempotent-by-`local_id`/`media_id` for all
+      // three, so they can only ever fully succeed or fail outright --
+      // structurally, `_handleError` never routes a `revision_conflict`/
+      // `invalid_transition` code to this method for these mutation types.
+      // These cases exist only to satisfy Dart's exhaustive-switch check;
+      // don't "helpfully" replace `true` with real comparison logic.
+      case OutboxMutationType.attachMedia:
+      case OutboxMutationType.editMedia:
+      case OutboxMutationType.detachMedia:
+        return true;
     }
   }
 

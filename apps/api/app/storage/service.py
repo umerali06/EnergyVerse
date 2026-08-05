@@ -126,3 +126,48 @@ class AssetMediaStorage:
 
 def get_asset_media_storage() -> AssetMediaStorage:
     return AssetMediaStorage()
+
+
+class InspectionMediaStorage:
+    """Tenant/inspection-scoped inspection media objects.
+
+    Unlike `AssetMediaStorage`, bytes never pass through this backend: the
+    mobile client uploads directly to Storage (Phase 7.4, D-0xx) so a large
+    video doesn't double-hop through the API. This class only derives the
+    expected object path and verifies/reads back what the client already
+    uploaded via the Admin SDK -- it never writes media bytes itself.
+    """
+
+    def __init__(self, bucket: Any = None) -> None:
+        self._bucket = bucket
+
+    def _get_bucket(self) -> Any:
+        if self._bucket is None:
+            self._bucket = get_storage_bucket()
+        return self._bucket
+
+    @staticmethod
+    def object_path(company_id: str, inspection_id: str, local_id: str, filename: str) -> str:
+        safe_name = Path(filename).name.replace(" ", "_")
+        return (
+            f"companies/{company_id}/inspections/{inspection_id}/media/"
+            f"{local_id}_{safe_name}"
+        )
+
+    def verify_uploaded(self, path: str) -> tuple[bool, int | None, str | None]:
+        blob = self._get_bucket().blob(path)
+        if not blob.exists():
+            return False, None, None
+        blob.reload()
+        return True, blob.size, blob.content_type
+
+    def signed_url_for(self, path: str) -> str:
+        return str(
+            self._get_bucket()
+            .blob(path)
+            .generate_signed_url(expiration=SIGNED_URL_EXPIRATION, version="v4")
+        )
+
+
+def get_inspection_media_storage() -> InspectionMediaStorage:
+    return InspectionMediaStorage()

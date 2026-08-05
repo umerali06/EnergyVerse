@@ -25,6 +25,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(AssetMediaResponseKindEnum.serializer)
       ..add(AssetQrLabel.serializer)
       ..add(AssignChecklistTemplateRequest.serializer)
+      ..add(AttachInspectionMediaRequest.serializer)
+      ..add(AttachInspectionMediaRequestBeforeAfterTagEnum.serializer)
+      ..add(AttachInspectionMediaRequestKindEnum.serializer)
       ..add(AuditLogEntry.serializer)
       ..add(AuditLogFacets.serializer)
       ..add(AuditLogPage.serializer)
@@ -75,6 +78,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(InspectionListItemInspectionTypeEnum.serializer)
       ..add(InspectionListItemStatusEnum.serializer)
       ..add(InspectionListPage.serializer)
+      ..add(InspectionMediaResponse.serializer)
+      ..add(InspectionMediaResponseBeforeAfterTagEnum.serializer)
+      ..add(InspectionMediaResponseKindEnum.serializer)
       ..add(InviteUserRequest.serializer)
       ..add(PermissionCatalog.serializer)
       ..add(PermissionCatalogGroup.serializer)
@@ -100,6 +106,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(UpdateCompanyStatusRequestStatusEnum.serializer)
       ..add(UpdateFacilityRequest.serializer)
       ..add(UpdateFacilityRequestStatusEnum.serializer)
+      ..add(UpdateInspectionMediaRequest.serializer)
+      ..add(UpdateInspectionMediaRequestBeforeAfterTagEnum.serializer)
       ..add(UpdateInspectionRequest.serializer)
       ..add(UpdateInspectionRequestInspectionTypeEnum.serializer)
       ..add(UpdatePlatformCompanyRequest.serializer)
@@ -265,13 +273,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(ChecklistResponse)]),
           () => new ListBuilder<ChecklistResponse>())
       ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
+          const FullType(
+              BuiltList, const [const FullType(InspectionMediaResponse)]),
+          () => new ListBuilder<InspectionMediaResponse>())
       ..addBuilderFactory(
           const FullType(BuiltMap, const [
             const FullType(String),

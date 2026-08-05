@@ -137,6 +137,16 @@ abstract interface class ApiContract {
     String inspectionId,
     AssignChecklistTemplateRequest request,
   );
+  Future<InspectionDetail> attachInspectionMedia(
+    String inspectionId,
+    AttachInspectionMediaRequest request,
+  );
+  Future<InspectionDetail> updateInspectionMedia(
+    String inspectionId,
+    String mediaId,
+    UpdateInspectionMediaRequest request,
+  );
+  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId);
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,
@@ -912,6 +922,52 @@ class ApiService implements ApiContract {
             inspectionId: inspectionId,
             assignChecklistTemplateRequest: request,
           );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> attachInspectionMedia(
+    String inspectionId,
+    AttachInspectionMediaRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().attachInspectionMedia(
+            inspectionId: inspectionId,
+            attachInspectionMediaRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> updateInspectionMedia(
+    String inspectionId,
+    String mediaId,
+    UpdateInspectionMediaRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().updateInspectionMedia(
+            inspectionId: inspectionId,
+            mediaId: mediaId,
+            updateInspectionMediaRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) async {
+    try {
+      final response = await _client
+          .getInspectionsApi()
+          .detachInspectionMedia(inspectionId: inspectionId, mediaId: mediaId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);

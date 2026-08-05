@@ -13,6 +13,9 @@ String _mutationLabel(OutboxMutationType type) => switch (type) {
       OutboxMutationType.complete => 'Complete',
       OutboxMutationType.cancel => 'Cancel',
       OutboxMutationType.assignTemplate => 'Assign checklist template',
+      OutboxMutationType.attachMedia => 'Attach media',
+      OutboxMutationType.editMedia => 'Edit media',
+      OutboxMutationType.detachMedia => 'Detach media',
     };
 
 /// The pending-mutation queue: every outbox row with its mutation type,

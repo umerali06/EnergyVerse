@@ -49,6 +49,7 @@ InspectionListItem _inspectionItemFixture({
 
 InspectionDetail _inspectionDetailFixture({
   InspectionDetailStatusEnum status = InspectionDetailStatusEnum.inProgress,
+  List<InspectionMediaResponse> media = const [],
 }) {
   final now = DateTime.utc(2026, 1, 1);
   final startedAt = DateTime.utc(2026, 1, 2);
@@ -75,7 +76,24 @@ InspectionDetail _inspectionDetailFixture({
             ..itemType = ChecklistTemplateItemItemTypeEnum.boolean
             ..required_ = true,
         ),
-      ),
+      )
+      ..media.addAll(media),
+  );
+}
+
+InspectionMediaResponse _mediaFixture({String id = 'media-1'}) {
+  return InspectionMediaResponse(
+    (b) => b
+      ..id = id
+      ..localId = 'local-1'
+      ..url = 'https://storage.example.invalid/$id.jpg'
+      ..kind = InspectionMediaResponseKindEnum.photo
+      ..filename = 'photo.jpg'
+      ..contentType = 'image/jpeg'
+      ..size = 1000
+      ..capturedAt = DateTime.utc(2026, 1, 1)
+      ..uploadedBy = 'demo-acme-field_inspector'
+      ..uploadedAt = DateTime.utc(2026, 1, 1),
   );
 }
 
@@ -84,10 +102,12 @@ class FakeApi implements ApiContract {
     this.identity, {
     this.status = InspectionDetailStatusEnum.inProgress,
     this.offline = false,
+    this.media = const [],
   });
 
   final CurrentUser identity;
   final InspectionDetailStatusEnum status;
+  final List<InspectionMediaResponse> media;
 
   /// Simulates airplane mode: every inspections network call throws, so
   /// [LocalInspectionsRepository]'s best-effort refreshes are no-ops and
@@ -240,7 +260,7 @@ class FakeApi implements ApiContract {
   @override
   Future<InspectionDetail> getInspection(String inspectionId) async {
     if (offline) throw const ApiException(code: 'network_error', message: 'offline');
-    return _inspectionDetailFixture(status: status);
+    return _inspectionDetailFixture(status: status, media: media);
   }
 
   @override
@@ -268,6 +288,25 @@ class FakeApi implements ApiContract {
     String inspectionId,
     AssignChecklistTemplateRequest request,
   ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> attachInspectionMedia(
+    String inspectionId,
+    AttachInspectionMediaRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionMedia(
+    String inspectionId,
+    String mediaId,
+    UpdateInspectionMediaRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -367,6 +406,17 @@ void main() {
       final completeButton = tester.widget<AppButton>(find.byKey(const Key('complete-inspection')));
       expect(completeButton.onPressed, isNull);
 
+      // The MEDIA section between the checklist and Complete button means
+      // the two are no longer guaranteed within the same viewport -- scroll
+      // back to the Pass/Fail row specifically before tapping it.
+      // `scrollUntilVisible` steps incrementally so the lazily-built ListView
+      // re-mounts the target at all (a single `ensureVisible` jump can't,
+      // since a far-off-screen item isn't built yet -- "No element"); the
+      // follow-up `ensureVisible` then guarantees it's fully unobstructed
+      // (not just barely intersecting the viewport edge) before tapping.
+      await tester.scrollUntilVisible(find.byKey(const Key('item-vibration_normal-pass')), -200);
+      await tester.ensureVisible(find.byKey(const Key('item-vibration_normal-pass')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('item-vibration_normal-pass')));
       await tester.pumpAndSettle();
 
@@ -381,6 +431,8 @@ void main() {
           tester.widget<AppButton>(find.byKey(const Key('complete-inspection')));
       expect(completeButtonAfter.onPressed, isNotNull);
 
+      await tester.ensureVisible(find.byKey(const Key('complete-inspection')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('complete-inspection')));
       await tester.pumpAndSettle();
 
@@ -433,4 +485,74 @@ void main() {
       await disposeApp(tester);
     },
   );
+
+  testWidgets('shows an honest empty state when the inspection has no media yet', (tester) async {
+    final api = FakeApi(identityFor('field_inspector', const ['inspections.read', 'inspections.write']));
+    await tester.pumpWidget(
+      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('MEDIA'), 200);
+    expect(find.text('MEDIA'), findsOneWidget);
+    expect(find.text('No media yet'), findsOneWidget);
+    expect(find.byKey(const Key('media-upload-progress')), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets('renders a synced media item and the upload-progress count', (tester) async {
+    final api = FakeApi(
+      identityFor('field_inspector', const ['inspections.read', 'inspections.write']),
+      media: [_mediaFixture()],
+    );
+    await tester.pumpWidget(
+      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.byKey(const Key('media-upload-progress')), 200);
+    expect(find.byKey(const Key('media-upload-progress')), findsOneWidget);
+    expect(find.text('1 of 1 uploaded'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets('renders a locally-queued item with its upload-state badge, counted as pending', (
+    tester,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final api = FakeApi(identityFor('field_inspector', const ['inspections.read', 'inspections.write']));
+    await db.into(db.mediaQueue).insert(
+          MediaQueueCompanion.insert(
+            localId: 'local-queued-1',
+            inspectionId: 'inspection-1',
+            kind: 'photo',
+            localFilePath: '/tmp/photo.jpg',
+            storagePath: 'companies/acme-energy/inspections/inspection-1/media/local-queued-1_photo.jpg',
+            filename: 'photo.jpg',
+            contentType: 'image/jpeg',
+            sizeBytes: 500,
+            capturedAt: DateTime.utc(2026, 1, 1),
+            createdAt: DateTime.utc(2026, 1, 1),
+          ),
+        );
+
+    await tester.pumpWidget(
+      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: db),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Queued'), 200);
+    expect(find.text('Queued'), findsOneWidget);
+    expect(find.text('0 of 1 uploaded'), findsOneWidget);
+    await disposeApp(tester);
+  });
 }

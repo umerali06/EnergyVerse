@@ -255,6 +255,25 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
+  Future<InspectionDetail> attachInspectionMedia(
+    String inspectionId,
+    AttachInspectionMediaRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionMedia(
+    String inspectionId,
+    String mediaId,
+    UpdateInspectionMediaRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+      throw UnimplementedError();
+
+  @override
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,

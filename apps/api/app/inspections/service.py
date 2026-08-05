@@ -1,7 +1,7 @@
 import base64
 import binascii
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
@@ -15,10 +15,13 @@ from app.db.repositories.inspections import (
 )
 from app.models.api import (
     AssignChecklistTemplateRequest,
+    AttachInspectionMediaRequest,
     CreateInspectionRequest,
     InspectionDetail,
     InspectionListItem,
     InspectionListPage,
+    InspectionMediaResponse,
+    UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
 )
 from app.models.api import (
@@ -31,9 +34,16 @@ from app.models.entities import (
     ChecklistTemplate,
     Inspection,
     InspectionCreate,
+    InspectionMedia,
 )
+from app.storage.service import InspectionMediaStorage, get_inspection_media_storage
 
 TERMINAL_STATUSES = frozenset({"completed", "cancelled"})
+
+INSPECTION_MEDIA_RULES: dict[str, tuple[frozenset[str], int]] = {
+    "photo": (frozenset({"image/jpeg", "image/png", "image/webp", "image/heic"}), 15 * 1024 * 1024),
+    "video": (frozenset({"video/mp4", "video/quicktime"}), 500 * 1024 * 1024),
+}
 
 
 class InspectionServiceError(Exception):
@@ -81,7 +91,16 @@ def _to_list_item(inspection: Inspection) -> InspectionListItem:
     )
 
 
-def _to_detail(inspection: Inspection) -> InspectionDetail:
+def _media_response(
+    media: InspectionMedia, storage: InspectionMediaStorage
+) -> InspectionMediaResponse:
+    return InspectionMediaResponse(
+        **media.model_dump(exclude={"path"}),
+        url=storage.signed_url_for(media.path),
+    )
+
+
+def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> InspectionDetail:
     return InspectionDetail(
         **_to_list_item(inspection).model_dump(),
         notes=inspection.notes,
@@ -97,7 +116,7 @@ def _to_detail(inspection: Inspection) -> InspectionDetail:
         client_created_at=inspection.client_created_at,
         device_id=inspection.device_id,
         origin=inspection.origin,
-        media=inspection.media,
+        media=[_media_response(media, storage) for media in inspection.media],
         annotations=inspection.annotations,
         voice_notes=inspection.voice_notes,
         readings=inspection.readings,
@@ -114,10 +133,12 @@ class InspectionService:
         inspections: InspectionRepository,
         assets: AssetRepository,
         checklist_templates: ChecklistTemplateRepository,
+        storage: InspectionMediaStorage | None = None,
     ) -> None:
         self._inspections = inspections
         self._assets = assets
         self._templates = checklist_templates
+        self._storage = storage or get_inspection_media_storage()
 
     async def _active_asset(self, scope: CompanyScope, asset_id: str) -> Asset:
         asset = await self._assets.get(scope, asset_id)
@@ -188,7 +209,7 @@ class InspectionService:
                 "inspection_id_conflict",
                 "An inspection with this ID already exists with different data",
             ) from error
-        return _to_detail(inspection), created
+        return _to_detail(inspection, self._storage), created
 
     async def list_inspections(
         self,
@@ -240,7 +261,7 @@ class InspectionService:
 
     async def get_inspection(self, scope: CompanyScope, inspection_id: str) -> InspectionDetail:
         inspection = await self._active_inspection(scope, inspection_id)
-        return _to_detail(inspection)
+        return _to_detail(inspection, self._storage)
 
     def _value_matches_type(
         self, value: object, item_type: str, options: list[str] | None
@@ -360,7 +381,7 @@ class InspectionService:
                     "current_revision": error.current.revision,
                 },
             ) from error
-        return _to_detail(updated)
+        return _to_detail(updated, self._storage)
 
     async def assign_checklist_template(
         self,
@@ -403,7 +424,7 @@ class InspectionService:
                     "current_revision": error.current.revision,
                 },
             ) from error
-        return _to_detail(updated)
+        return _to_detail(updated, self._storage)
 
     async def start_inspection(
         self, scope: CompanyScope, inspection_id: str, actor_uid: str
@@ -425,7 +446,7 @@ class InspectionService:
                 "invalid_transition",
                 f"Inspection cannot start from status '{error.current.status}'",
             ) from error
-        return _to_detail(updated)
+        return _to_detail(updated, self._storage)
 
     @staticmethod
     def _has_answer(inspection: Inspection, item_id: str) -> bool:
@@ -472,7 +493,7 @@ class InspectionService:
                 "invalid_transition",
                 f"Inspection cannot complete from status '{error.current.status}'",
             ) from error
-        return _to_detail(updated)
+        return _to_detail(updated, self._storage)
 
     async def cancel_inspection(
         self, scope: CompanyScope, inspection_id: str, actor_uid: str
@@ -494,13 +515,123 @@ class InspectionService:
                 "invalid_transition",
                 f"Inspection cannot cancel from status '{error.current.status}'",
             ) from error
-        return _to_detail(updated)
+        return _to_detail(updated, self._storage)
 
     async def delete_inspection(
         self, scope: CompanyScope, inspection_id: str, actor_uid: str
     ) -> None:
         await self._active_inspection(scope, inspection_id)
         await self._inspections.soft_delete(scope, inspection_id, actor_uid)
+
+    async def attach_media(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        request: AttachInspectionMediaRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        """Registers a reference to media the mobile client already uploaded
+        directly to Storage (Phase 7.4) -- this never receives bytes. Bypasses
+        `expected_revision` entirely by design, so heavy media traffic can
+        never collide with the checklist-autosave revision protocol."""
+        current = await self._active_inspection(scope, inspection_id)
+
+        existing = next((m for m in current.media if m.local_id == request.local_id), None)
+        if existing is not None:
+            if (
+                existing.filename == request.filename
+                and existing.kind == request.kind
+                and existing.content_type == request.content_type
+                and existing.size == request.size
+            ):
+                return _to_detail(current, self._storage)
+            raise InspectionServiceError(
+                409,
+                "media_reference_conflict",
+                "A different media reference already exists for this local_id",
+                {"local_id": request.local_id},
+            )
+
+        expected_path = self._storage.object_path(
+            scope.company_id, inspection_id, request.local_id, request.filename
+        )
+        exists, storage_size, storage_content_type = self._storage.verify_uploaded(expected_path)
+        if not exists:
+            raise InspectionServiceError(
+                422,
+                "media_not_uploaded",
+                "Upload the file to Storage before registering it",
+                {"path": expected_path},
+            )
+
+        allowed_types, max_size = INSPECTION_MEDIA_RULES[request.kind]
+        if storage_content_type not in allowed_types:
+            raise InspectionServiceError(
+                422,
+                "media_content_type_invalid",
+                "Uploaded content type is not allowed for this kind",
+                {"content_type": storage_content_type, "kind": request.kind},
+            )
+        if storage_size is not None and storage_size > max_size:
+            raise InspectionServiceError(
+                413,
+                "media_too_large",
+                "Uploaded file exceeds the allowed size for this kind",
+                {"size": storage_size, "max_size": max_size, "kind": request.kind},
+            )
+
+        media = InspectionMedia(
+            id=f"media_{uuid4().hex}",
+            local_id=request.local_id,
+            path=expected_path,
+            kind=request.kind,
+            filename=request.filename,
+            content_type=storage_content_type or request.content_type,
+            size=storage_size if storage_size is not None else request.size,
+            gps_lat=request.gps_lat,
+            gps_lng=request.gps_lng,
+            captured_at=request.captured_at,
+            checklist_item_id=request.checklist_item_id,
+            before_after_tag=request.before_after_tag,
+            uploaded_by=actor_uid,
+            uploaded_at=utc_now(),
+        )
+        updated = await self._inspections.append_media(scope, inspection_id, media, actor_uid)
+        return _to_detail(updated, self._storage)
+
+    async def update_media(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        media_id: str,
+        request: UpdateInspectionMediaRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        await self._active_inspection(scope, inspection_id)
+        updated = await self._inspections.update_media(
+            scope,
+            inspection_id,
+            media_id,
+            checklist_item_id=request.checklist_item_id,
+            before_after_tag=request.before_after_tag,
+            actor_uid=actor_uid,
+        )
+        return _to_detail(updated, self._storage)
+
+    async def detach_media(
+        self, scope: CompanyScope, inspection_id: str, media_id: str, actor_uid: str
+    ) -> InspectionDetail:
+        """Idempotent on an already-detached `media_id` (deliberate deviation
+        from the asset media pattern) since detach replays via the mobile
+        outbox at-least-once. Never deletes the Storage object -- the backend
+        never touches media bytes under the direct-upload design; an orphaned
+        blob after a detach is an accepted gap this phase."""
+        current = await self._active_inspection(scope, inspection_id)
+        media = next((m for m in current.media if m.id == media_id), None)
+        if media is None:
+            return _to_detail(current, self._storage)
+        updated = await self._inspections.remove_media(scope, inspection_id, media, actor_uid)
+        return _to_detail(updated, self._storage)
 
 
 def get_inspection_service() -> InspectionService:
@@ -510,4 +641,5 @@ def get_inspection_service() -> InspectionService:
         inspections=InspectionRepository(client, audit),
         assets=AssetRepository(client, audit),
         checklist_templates=ChecklistTemplateRepository(client, audit),
+        storage=get_inspection_media_storage(),
     )

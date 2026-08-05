@@ -33,6 +33,12 @@ class LocalInspections extends Table {
       text().withDefault(const Constant('[]'))();
   TextColumn get checklistResponses =>
       text().withDefault(const Constant('[]'))();
+
+  /// The server's `InspectionDetail.media[]` (Phase 7.4), same JSON-blob
+  /// convention -- cached locally so the gallery (GPS/timestamp/tags/
+  /// checklist-item link) renders fully offline; only the signed `url`
+  /// itself needs connectivity to actually load an image/video.
+  TextColumn get media => text().withDefault(const Constant('[]'))();
   DateTimeColumn get startedAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
   RealColumn get gpsLat => real().nullable()();
@@ -99,8 +105,14 @@ class Outbox extends Table {
   TextColumn get id => text().unique()();
   TextColumn get inspectionId => text()();
 
-  /// `create | update | start | complete | cancel | assign_template`.
-  /// `upload_media` is reserved for 7.4+, not implemented here.
+  /// `create | update | start | complete | cancel | assign_template |
+  /// attach_media | edit_media | detach_media`. The last three are Phase
+  /// 7.4's small metadata-reference mutations only -- the media BYTES never
+  /// flow through this outbox; they upload directly to Firebase Storage via
+  /// the separate [MediaQueue] table and `MediaUploadWorker`, independent of
+  /// `SyncEngine`, so heavy media traffic can never stall lightweight
+  /// inspection-record sync. (A prior `upload_media` reservation comment
+  /// here anticipated a single combined queue; this supersedes that design.)
   TextColumn get mutationType => text()();
 
   /// The built_value request object, serialized to JSON via the generated
@@ -115,4 +127,53 @@ class Outbox extends Table {
   /// `nextAttemptAt IS NULL OR nextAttemptAt <= now`, rather than
   /// hot-looping on a still-backing-off row while other rows could drain.
   DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+}
+
+/// The pending MEDIA-upload queue (Phase 7.4) -- deliberately SEPARATE from
+/// [Outbox]: media bytes are heavy (a video can be hundreds of MB) and must
+/// never share a drain loop with the lightweight inspection-record
+/// mutations above. [MediaUploadWorker] drains this table independently of
+/// `SyncEngine`; once a file finishes uploading directly to Firebase
+/// Storage, only its small metadata reference is enqueued onto [Outbox] (an
+/// `attach_media`/`edit_media`/`detach_media` row) to sync into
+/// `inspection.media[]`.
+class MediaQueue extends Table {
+  /// Client-generated UUID; also the Storage object path's uuid segment
+  /// (`companies/{cid}/inspections/{iid}/media/{localId}_{filename}`) and
+  /// the idempotency key the backend's attach endpoint dedupes on.
+  TextColumn get localId => text()();
+  TextColumn get inspectionId => text()();
+  TextColumn get checklistItemId => text().nullable()();
+  TextColumn get kind => text()(); // 'photo' | 'video'
+  TextColumn get localFilePath => text()();
+
+  /// Computed at capture time via a Dart port of the backend's
+  /// `InspectionMediaStorage.object_path()` formula -- deterministic, no
+  /// server round trip needed before an upload can start.
+  TextColumn get storagePath => text()();
+  TextColumn get filename => text()();
+  TextColumn get contentType => text()();
+  IntColumn get sizeBytes => integer()();
+  RealColumn get gpsLat => real().nullable()();
+  RealColumn get gpsLng => real().nullable()();
+  DateTimeColumn get capturedAt => dateTime()();
+  TextColumn get beforeAfterTag => text().nullable()(); // 'before' | 'after' | null
+
+  /// `queued | uploading | uploaded | referenced | failed`.
+  TextColumn get uploadState =>
+      text().withDefault(const Constant('queued'))();
+
+  /// UI progress only, via `UploadTask.snapshotEvents` -- NOT resumed across
+  /// an app restart (D-0xx: resumability is Firebase Storage's own
+  /// within-session resumable protocol, not custom byte-offset persistence).
+  IntColumn get uploadedBytes => integer().withDefault(const Constant(0))();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  TextColumn get lastError => text().nullable()();
+
+  /// Same backoff-window convention as [Outbox.nextAttemptAt].
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
 }

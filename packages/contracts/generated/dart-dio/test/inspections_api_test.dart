@@ -13,6 +13,15 @@ void main() {
       // TODO
     });
 
+    // Attach Inspection Media
+    //
+    // Registers a reference to media the mobile client already uploaded directly to Firebase Storage (Phase 7.4) -- no bytes pass through here.
+    //
+    //Future<InspectionDetail> attachInspectionMedia(String inspectionId, AttachInspectionMediaRequest attachInspectionMediaRequest) async
+    test('test attachInspectionMedia', () async {
+      // TODO
+    });
+
     // Cancel Inspection
     //
     //Future<InspectionDetail> cancelInspection(String inspectionId) async
@@ -43,6 +52,15 @@ void main() {
       // TODO
     });
 
+    // Detach Inspection Media
+    //
+    // Idempotent on an already-detached `media_id` -- the mobile outbox replays this call at-least-once.
+    //
+    //Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) async
+    test('test detachInspectionMedia', () async {
+      // TODO
+    });
+
     // Get Inspection
     //
     //Future<InspectionDetail> getInspection(String inspectionId) async
@@ -68,6 +86,13 @@ void main() {
     //
     //Future<InspectionDetail> updateInspection(String inspectionId, UpdateInspectionRequest updateInspectionRequest) async
     test('test updateInspection', () async {
+      // TODO
+    });
+
+    // Update Inspection Media
+    //
+    //Future<InspectionDetail> updateInspectionMedia(String inspectionId, String mediaId, UpdateInspectionMediaRequest updateInspectionMediaRequest) async
+    test('test updateInspectionMedia', () async {
       // TODO
     });
   });

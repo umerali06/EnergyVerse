@@ -302,6 +302,23 @@ class ChecklistResponse(StrictModel):
     answered_by: str | None = None
 
 
+class InspectionMedia(StrictModel):
+    id: str
+    local_id: str
+    path: str
+    kind: Literal["photo", "video"]
+    filename: str
+    content_type: str
+    size: int
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    captured_at: datetime
+    checklist_item_id: str | None = None
+    before_after_tag: Literal["before", "after"] | None = None
+    uploaded_by: str
+    uploaded_at: datetime
+
+
 class Inspection(TenantDoc):
     id: str
     asset_id: str
@@ -325,8 +342,8 @@ class Inspection(TenantDoc):
     origin: str | None = None
     revision: int = 1
     deleted_at: datetime | None = None
-    # Reserved, always-empty in 7.1 -- later phases give these real shapes.
-    media: list[dict[str, Any]] = Field(default_factory=list)
+    media: list[InspectionMedia] = Field(default_factory=list)
+    # Reserved, always-empty until their own phases give these real shapes.
     annotations: list[dict[str, Any]] = Field(default_factory=list)
     voice_notes: list[dict[str, Any]] = Field(default_factory=list)
     readings: dict[str, Any] = Field(default_factory=dict)

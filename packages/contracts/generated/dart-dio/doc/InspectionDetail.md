@@ -27,7 +27,7 @@ Name | Type | Description | Notes
 **id** | **String** |  |
 **inspectionType** | **String** |  |
 **inspectorId** | **String** |  |
-**media** | [**BuiltList&lt;BuiltMap&lt;String, JsonObject&gt;&gt;**](BuiltMap.md) |  | [optional]
+**media** | [**BuiltList&lt;InspectionMediaResponse&gt;**](InspectionMediaResponse.md) |  | [optional]
 **notes** | **String** |  | [optional]
 **origin** | **String** |  | [optional]
 **readings** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional]

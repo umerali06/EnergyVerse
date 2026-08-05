@@ -1,8 +1,13 @@
-from google.cloud.firestore_v1 import FieldFilter
+from google.cloud.firestore_v1 import ArrayRemove, ArrayUnion, FieldFilter
 
 from app.db.repositories.base import FIRESTORE_OPERATION_TIMEOUT_SECONDS, TenantRepository
 from app.models.base import CompanyScope, tenant_creation_fields, utc_now
-from app.models.entities import ChecklistTemplateItem, Inspection, InspectionCreate
+from app.models.entities import (
+    ChecklistTemplateItem,
+    Inspection,
+    InspectionCreate,
+    InspectionMedia,
+)
 
 # Matches the D-019/3.4/4.1 in-memory read-cap convention -- the Firestore
 # query itself is already bounded by company_id plus at most one equality
@@ -242,6 +247,107 @@ class InspectionRepository(TenantRepository[Inspection]):
             },
         )
         return model
+
+    async def append_media(
+        self, scope: CompanyScope, inspection_id: str, media: InspectionMedia, actor_uid: str
+    ) -> Inspection:
+        """No `expected_revision`/revision bump by design (D-0xx, Phase 7.4):
+        media traffic must never collide with the checklist-autosave revision
+        protocol. Mirrors `AssetRepository.append_media`'s ArrayUnion pattern."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        await self._collection.document(inspection_id).update(
+            {"media": ArrayUnion([media.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.media_attached",
+            target_id=inspection_id,
+            metadata={"media": media.model_dump(mode="json")},
+        )
+        return updated
+
+    async def remove_media(
+        self, scope: CompanyScope, inspection_id: str, media: InspectionMedia, actor_uid: str
+    ) -> Inspection:
+        """Idempotent: an already-removed `media` entry is a harmless
+        ArrayRemove no-op, since detach replays via the mobile outbox
+        at-least-once (unlike `AssetRepository.remove_media`'s sibling)."""
+        await self._collection.document(inspection_id).update(
+            {"media": ArrayRemove([media.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        if updated is None:
+            raise LookupError("inspection not found in company scope")
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.media_detached",
+            target_id=inspection_id,
+            metadata={"media": media.model_dump(mode="json")},
+        )
+        return updated
+
+    async def update_media(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        media_id: str,
+        *,
+        checklist_item_id: str | None,
+        before_after_tag: str | None,
+        actor_uid: str,
+    ) -> Inspection:
+        """Idempotent-on-missing (same at-least-once posture as attach/detach):
+        if `media_id` is no longer present, returns the current record
+        unchanged rather than raising. No revision involvement, same as
+        `append_media`/`remove_media`."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        existing = next((m for m in current.media if m.id == media_id), None)
+        if existing is None:
+            return current
+
+        new_checklist_item_id = (
+            checklist_item_id if checklist_item_id is not None else existing.checklist_item_id
+        )
+        new_before_after_tag = (
+            before_after_tag if before_after_tag is not None else existing.before_after_tag
+        )
+        updated_media = existing.model_copy(
+            update={
+                "checklist_item_id": new_checklist_item_id,
+                "before_after_tag": new_before_after_tag,
+            }
+        )
+        new_media_list = [updated_media if m.id == media_id else m for m in current.media]
+        await self._collection.document(inspection_id).update(
+            {
+                "media": [m.model_dump() for m in new_media_list],
+                "updated_at": utc_now(),
+            },
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.media_edited",
+            target_id=inspection_id,
+            metadata={"media": updated_media.model_dump(mode="json")},
+        )
+        return updated
 
     async def query(
         self,

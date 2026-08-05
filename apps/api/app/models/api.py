@@ -457,6 +457,23 @@ class ChecklistResponse(BaseModel):
     answered_by: str | None = None
 
 
+class InspectionMediaResponse(BaseModel):
+    id: str
+    local_id: str
+    url: str
+    kind: Literal["photo", "video"]
+    filename: str
+    content_type: str
+    size: int
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    captured_at: datetime
+    checklist_item_id: str | None = None
+    before_after_tag: Literal["before", "after"] | None = None
+    uploaded_by: str
+    uploaded_at: datetime
+
+
 class InspectionListItem(BaseModel):
     id: str
     asset_id: str
@@ -489,7 +506,7 @@ class InspectionDetail(InspectionListItem):
     client_created_at: datetime
     device_id: str | None = None
     origin: str | None = None
-    media: list[dict[str, Any]] = Field(default_factory=list)
+    media: list[InspectionMediaResponse] = Field(default_factory=list)
     annotations: list[dict[str, Any]] = Field(default_factory=list)
     voice_notes: list[dict[str, Any]] = Field(default_factory=list)
     readings: dict[str, Any] = Field(default_factory=dict)
@@ -524,6 +541,29 @@ class UpdateInspectionRequest(BaseModel):
 class AssignChecklistTemplateRequest(BaseModel):
     checklist_template_id: str = Field(min_length=1)
     expected_revision: int | None = None
+
+
+class AttachInspectionMediaRequest(BaseModel):
+    local_id: str = Field(min_length=1, max_length=200)
+    filename: str = Field(min_length=1, max_length=300)
+    kind: Literal["photo", "video"]
+    content_type: str = Field(min_length=1, max_length=120)
+    size: int = Field(gt=0)
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
+    captured_at: datetime
+    checklist_item_id: str | None = Field(default=None, max_length=200)
+    before_after_tag: Literal["before", "after"] | None = None
+
+
+class UpdateInspectionMediaRequest(BaseModel):
+    checklist_item_id: str | None = Field(default=None, max_length=200)
+    before_after_tag: Literal["before", "after"] | None = None
+
+
+class InspectionMediaDetached(BaseModel):
+    id: str
+    detached: bool = True
 
 
 class InspectionDeleted(BaseModel):

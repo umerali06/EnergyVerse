@@ -16,6 +16,7 @@ from app.main import app
 from app.models.entities import CurrentUser
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
 from app.rbac.dependencies import get_access_denial_audit
+from app.storage.service import InspectionMediaStorage
 from scripts.seed import (
     ACME_COMPANY_ID,
     ASSET_FEED_PUMP_ID,
@@ -24,6 +25,7 @@ from scripts.seed import (
     run_seed,
 )
 from tests.fakes.firestore import FakeAsyncClient
+from tests.fakes.storage import FakeBucket
 
 BETA_COMPANY_ID = "beta-utilities"
 CLIENT_CREATED_AT = "2026-07-20T10:00:00Z"
@@ -35,15 +37,17 @@ def wiring() -> dict[str, Any]:
     asyncio.run(run_seed(client))
 
     audit = AuditService(AuditLogRepository(client))
+    bucket = FakeBucket()
     service = InspectionService(
         inspections=InspectionRepository(client, audit),
         assets=AssetRepository(client, audit),
         checklist_templates=ChecklistTemplateRepository(client, audit),
+        storage=InspectionMediaStorage(bucket),
     )
 
     app.dependency_overrides[get_inspection_service] = lambda: service
     app.dependency_overrides[get_access_denial_audit] = lambda: audit
-    yield {"client": client}
+    yield {"client": client, "bucket": bucket}
     app.dependency_overrides.pop(get_inspection_service, None)
     app.dependency_overrides.pop(get_access_denial_audit, None)
 
@@ -526,3 +530,212 @@ def test_list_inspections_filters_by_asset_and_status(wiring: dict[str, Any]) ->
     assert len(items) == 1
     assert items[0]["asset_id"] == ASSET_FEED_PUMP_ID
     assert items[0]["status"] == "completed"
+
+
+# --- media (Phase 7.4) -----------------------------------------------------
+
+
+def _media_path(company_id: str, inspection_id: str, local_id: str, filename: str) -> str:
+    return f"companies/{company_id}/inspections/{inspection_id}/media/{local_id}_{filename}"
+
+
+def _attach_media(
+    identity: CurrentUser,
+    inspection_id: str,
+    *,
+    local_id: str,
+    filename: str = "photo.jpg",
+    kind: str = "photo",
+    content_type: str = "image/jpeg",
+    size: int = 100,
+    captured_at: str = "2026-08-01T10:00:00Z",
+    **overrides: Any,
+) -> Any:
+    payload: dict[str, Any] = {
+        "local_id": local_id,
+        "filename": filename,
+        "kind": kind,
+        "content_type": content_type,
+        "size": size,
+        "captured_at": captured_at,
+    }
+    payload.update(overrides)
+    return _request(
+        identity, "POST", f"/api/v1/inspections/{inspection_id}/media", json=payload
+    )
+
+
+def test_attach_inspection_media_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "photo.jpg"),
+        b"real-image-bytes",
+        "image/jpeg",
+    )
+    response = _attach_media(_identity(), created["id"], local_id=local_id)
+    assert response.status_code == 200
+    media = response.json()["media"]
+    assert len(media) == 1
+    assert media[0]["local_id"] == local_id
+    assert media[0]["kind"] == "photo"
+    assert media[0]["filename"] == "photo.jpg"
+    assert media[0]["url"].startswith("https://fake-storage.invalid/")
+    assert media[0]["size"] == len(b"real-image-bytes")
+    # attach never bumps revision -- must never collide with checklist autosave.
+    assert response.json()["revision"] == created["revision"]
+
+
+def test_attach_inspection_media_idempotent_replay(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    # 100 bytes to match `_attach_media`'s default `size=100` -- the service
+    # trusts Storage-reported size/content_type over the client-asserted
+    # request fields, so a true idempotent replay needs both to agree.
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "photo.jpg"),
+        b"x" * 100,
+        "image/jpeg",
+    )
+    first = _attach_media(_identity(), created["id"], local_id=local_id)
+    assert first.status_code == 200
+    second = _attach_media(_identity(), created["id"], local_id=local_id)
+    assert second.status_code == 200
+    assert len(second.json()["media"]) == 1
+
+
+def test_attach_inspection_media_conflicting_replay_returns_409(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "photo.jpg"),
+        b"bytes",
+        "image/jpeg",
+    )
+    first = _attach_media(_identity(), created["id"], local_id=local_id)
+    assert first.status_code == 200
+    conflicting = _attach_media(
+        _identity(), created["id"], local_id=local_id, filename="different.jpg"
+    )
+    assert conflicting.status_code == 409
+    assert conflicting.json()["error"] == "media_reference_conflict"
+
+
+def test_attach_inspection_media_requires_uploaded_blob(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _attach_media(_identity(), created["id"], local_id=str(uuid.uuid4()))
+    assert response.status_code == 422
+    assert response.json()["error"] == "media_not_uploaded"
+
+
+def test_attach_inspection_media_rejects_wrong_content_type(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "doc.pdf"),
+        b"bytes",
+        "application/pdf",
+    )
+    response = _attach_media(
+        _identity(), created["id"], local_id=local_id, filename="doc.pdf"
+    )
+    assert response.status_code == 422
+    assert response.json()["error"] == "media_content_type_invalid"
+
+
+def test_attach_inspection_media_rejects_oversized_blob(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "huge.jpg"),
+        b"x" * (16 * 1024 * 1024),
+        "image/jpeg",
+    )
+    response = _attach_media(
+        _identity(), created["id"], local_id=local_id, filename="huge.jpg"
+    )
+    assert response.status_code == 413
+    assert response.json()["error"] == "media_too_large"
+
+
+def test_attach_inspection_media_cross_tenant_returns_404(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _attach_media(
+        _identity(company_id=BETA_COMPANY_ID), created["id"], local_id=str(uuid.uuid4())
+    )
+    assert response.status_code == 404
+    assert response.json()["error"] == "inspection_not_found"
+
+
+def test_update_inspection_media_sets_checklist_link_and_tag(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "photo.jpg"),
+        b"bytes",
+        "image/jpeg",
+    )
+    attached = _attach_media(_identity(), created["id"], local_id=local_id).json()
+    media_id = attached["media"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/media/{media_id}",
+        json={"checklist_item_id": "vibration_normal", "before_after_tag": "before"},
+    )
+    assert response.status_code == 200
+    media = response.json()["media"][0]
+    assert media["checklist_item_id"] == "vibration_normal"
+    assert media["before_after_tag"] == "before"
+
+
+def test_update_inspection_media_is_idempotent_on_missing(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/media/does-not-exist",
+        json={"before_after_tag": "after"},
+    )
+    assert response.status_code == 200
+    assert response.json()["media"] == []
+
+
+def test_detach_inspection_media_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    path = _media_path(ACME_COMPANY_ID, created["id"], local_id, "photo.jpg")
+    wiring["bucket"].seed(path, b"bytes", "image/jpeg")
+    attached = _attach_media(_identity(), created["id"], local_id=local_id).json()
+    media_id = attached["media"][0]["id"]
+
+    response = _request(
+        _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/media/{media_id}"
+    )
+    assert response.status_code == 200
+    assert response.json()["media"] == []
+    # The backend never deletes Storage bytes on detach (direct-upload design).
+    assert path in wiring["bucket"].objects
+
+
+def test_detach_inspection_media_replay_is_idempotent(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "photo.jpg"),
+        b"bytes",
+        "image/jpeg",
+    )
+    attached = _attach_media(_identity(), created["id"], local_id=local_id).json()
+    media_id = attached["media"][0]["id"]
+
+    first = _request(
+        _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/media/{media_id}"
+    )
+    assert first.status_code == 200
+    second = _request(
+        _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/media/{media_id}"
+    )
+    assert second.status_code == 200
+    assert second.json()["media"] == []

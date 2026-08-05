@@ -10,12 +10,14 @@ import 'package:dio/dio.dart';
 
 import 'package:fev_api_client/src/api_util.dart';
 import 'package:fev_api_client/src/model/assign_checklist_template_request.dart';
+import 'package:fev_api_client/src/model/attach_inspection_media_request.dart';
 import 'package:fev_api_client/src/model/create_inspection_request.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
 import 'package:fev_api_client/src/model/http_validation_error.dart';
 import 'package:fev_api_client/src/model/inspection_deleted.dart';
 import 'package:fev_api_client/src/model/inspection_detail.dart';
 import 'package:fev_api_client/src/model/inspection_list_page.dart';
+import 'package:fev_api_client/src/model/update_inspection_media_request.dart';
 import 'package:fev_api_client/src/model/update_inspection_request.dart';
 
 class InspectionsApi {
@@ -80,6 +82,113 @@ class InspectionsApi {
     try {
       const _type = FullType(AssignChecklistTemplateRequest);
       _bodyData = _serializers.serialize(assignChecklistTemplateRequest,
+          specifiedType: _type);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Attach Inspection Media
+  /// Registers a reference to media the mobile client already uploaded directly to Firebase Storage (Phase 7.4) -- no bytes pass through here.
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [attachInspectionMediaRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> attachInspectionMedia({
+    required String inspectionId,
+    required AttachInspectionMediaRequest attachInspectionMediaRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/inspections/{inspection_id}/media'.replaceAll(
+        '{' r'inspection_id' '}',
+        encodeQueryParameter(_serializers, inspectionId, const FullType(String))
+            .toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(AttachInspectionMediaRequest);
+      _bodyData = _serializers.serialize(attachInspectionMediaRequest,
           specifiedType: _type);
     } catch (error, stackTrace) {
       throw DioException(
@@ -491,6 +600,99 @@ class InspectionsApi {
     );
   }
 
+  /// Detach Inspection Media
+  /// Idempotent on an already-detached &#x60;media_id&#x60; -- the mobile outbox replays this call at-least-once.
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [mediaId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> detachInspectionMedia({
+    required String inspectionId,
+    required String mediaId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/inspections/{inspection_id}/media/{media_id}'
+        .replaceAll(
+            '{' r'inspection_id' '}',
+            encodeQueryParameter(
+                    _serializers, inspectionId, const FullType(String))
+                .toString())
+        .replaceAll(
+            '{' r'media_id' '}',
+            encodeQueryParameter(_serializers, mediaId, const FullType(String))
+                .toString());
+    final _options = Options(
+      method: r'DELETE',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
   /// Get Inspection
   ///
   ///
@@ -832,6 +1034,121 @@ class InspectionsApi {
       const _type = FullType(UpdateInspectionRequest);
       _bodyData =
           _serializers.serialize(updateInspectionRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Update Inspection Media
+  ///
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [mediaId]
+  /// * [updateInspectionMediaRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> updateInspectionMedia({
+    required String inspectionId,
+    required String mediaId,
+    required UpdateInspectionMediaRequest updateInspectionMediaRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/inspections/{inspection_id}/media/{media_id}'
+        .replaceAll(
+            '{' r'inspection_id' '}',
+            encodeQueryParameter(
+                    _serializers, inspectionId, const FullType(String))
+                .toString())
+        .replaceAll(
+            '{' r'media_id' '}',
+            encodeQueryParameter(_serializers, mediaId, const FullType(String))
+                .toString());
+    final _options = Options(
+      method: r'PATCH',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(UpdateInspectionMediaRequest);
+      _bodyData = _serializers.serialize(updateInspectionMediaRequest,
+          specifiedType: _type);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _options.compose(

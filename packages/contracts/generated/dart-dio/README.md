@@ -103,14 +103,17 @@ Class | Method | HTTP request | Description
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**listFacilities**](doc/FacilitiesApi.md#listfacilities) | **GET** /api/v1/facilities | List Facilities
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**updateFacility**](doc/FacilitiesApi.md#updatefacility) | **PATCH** /api/v1/facilities/{facility_id} | Update Facility
 [*InspectionsApi*](doc/InspectionsApi.md) | [**assignInspectionChecklistTemplate**](doc/InspectionsApi.md#assigninspectionchecklisttemplate) | **POST** /api/v1/inspections/{inspection_id}/checklist-template | Assign Checklist Template
+[*InspectionsApi*](doc/InspectionsApi.md) | [**attachInspectionMedia**](doc/InspectionsApi.md#attachinspectionmedia) | **POST** /api/v1/inspections/{inspection_id}/media | Attach Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**cancelInspection**](doc/InspectionsApi.md#cancelinspection) | **POST** /api/v1/inspections/{inspection_id}/cancel | Cancel Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**completeInspection**](doc/InspectionsApi.md#completeinspection) | **POST** /api/v1/inspections/{inspection_id}/complete | Complete Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**createInspection**](doc/InspectionsApi.md#createinspection) | **POST** /api/v1/inspections | Create Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**deleteInspection**](doc/InspectionsApi.md#deleteinspection) | **DELETE** /api/v1/inspections/{inspection_id} | Delete Inspection
+[*InspectionsApi*](doc/InspectionsApi.md) | [**detachInspectionMedia**](doc/InspectionsApi.md#detachinspectionmedia) | **DELETE** /api/v1/inspections/{inspection_id}/media/{media_id} | Detach Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**getInspection**](doc/InspectionsApi.md#getinspection) | **GET** /api/v1/inspections/{inspection_id} | Get Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**listInspections**](doc/InspectionsApi.md#listinspections) | **GET** /api/v1/inspections | List Inspections
 [*InspectionsApi*](doc/InspectionsApi.md) | [**startInspection**](doc/InspectionsApi.md#startinspection) | **POST** /api/v1/inspections/{inspection_id}/start | Start Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspection**](doc/InspectionsApi.md#updateinspection) | **PATCH** /api/v1/inspections/{inspection_id} | Update Inspection
+[*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionMedia**](doc/InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 [*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
 [*PlatformApi*](doc/PlatformApi.md) | [**getPlatformCompany**](doc/PlatformApi.md#getplatformcompany) | **GET** /api/v1/platform/companies/{company_id} | Get Platform Company
 [*PlatformApi*](doc/PlatformApi.md) | [**getPlatformStats**](doc/PlatformApi.md#getplatformstats) | **GET** /api/v1/platform/stats | Get Platform Stats
@@ -152,6 +155,7 @@ Class | Method | HTTP request | Description
  - [AssetMediaResponse](doc/AssetMediaResponse.md)
  - [AssetQrLabel](doc/AssetQrLabel.md)
  - [AssignChecklistTemplateRequest](doc/AssignChecklistTemplateRequest.md)
+ - [AttachInspectionMediaRequest](doc/AttachInspectionMediaRequest.md)
  - [AuditLogEntry](doc/AuditLogEntry.md)
  - [AuditLogFacets](doc/AuditLogFacets.md)
  - [AuditLogPage](doc/AuditLogPage.md)
@@ -188,6 +192,7 @@ Class | Method | HTTP request | Description
  - [InspectionDetail](doc/InspectionDetail.md)
  - [InspectionListItem](doc/InspectionListItem.md)
  - [InspectionListPage](doc/InspectionListPage.md)
+ - [InspectionMediaResponse](doc/InspectionMediaResponse.md)
  - [InviteUserRequest](doc/InviteUserRequest.md)
  - [PermissionCatalog](doc/PermissionCatalog.md)
  - [PermissionCatalogGroup](doc/PermissionCatalogGroup.md)
@@ -208,6 +213,7 @@ Class | Method | HTTP request | Description
  - [UpdateCompanyRequest](doc/UpdateCompanyRequest.md)
  - [UpdateCompanyStatusRequest](doc/UpdateCompanyStatusRequest.md)
  - [UpdateFacilityRequest](doc/UpdateFacilityRequest.md)
+ - [UpdateInspectionMediaRequest](doc/UpdateInspectionMediaRequest.md)
  - [UpdateInspectionRequest](doc/UpdateInspectionRequest.md)
  - [UpdatePlatformCompanyRequest](doc/UpdatePlatformCompanyRequest.md)
  - [UpdateRoleRequest](doc/UpdateRoleRequest.md)
