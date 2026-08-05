@@ -50,7 +50,8 @@ Only one micro-task may be active at a time.
 | 7.2 | Offline engine — local store, sync queue, and conflict resolution | Done |
 | 7.3 | Inspection start flow — checklist-template auto-selection, GPS capture, interactive offline-first checklist filling with continuous autosave, and completion gating | Done |
 | 7.4 | Camera capture — photos and videos with GPS/timestamp tagging, before/after comparison, a separate offline media-upload queue/worker, and admin media review | Done |
-| 7.5 | To be defined | In progress |
+| 7.5 | Damage annotation — draw/label shapes on inspection photos, offline-first via the record outbox, admin review overlay | Done |
+| 7.6 | To be defined | In progress |
 | 8 | To be defined | Not started |
 | 9 | To be defined | Not started |
 | 10 | To be defined | Not started |

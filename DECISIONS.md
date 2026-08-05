@@ -57,6 +57,8 @@
 | D-051 | Media queue is separate from inspection-record sync, and uploads direct-to-Storage | **A second, independent Drift table + worker (`MediaQueue`/`MediaUploadWorker`) drains against Firebase Storage, never sharing a drain loop/transaction with 7.2's `Outbox`/`SyncEngine` — heavy media bytes must never stall the lightweight checklist-autosave path. Media uploads directly from the mobile client to Storage (not proxied through the backend like 4.3's asset media) via a new `storage.rules` carve-out scoped to the caller's `company_id` claim; only a small metadata reference then rides the *existing* inspection outbox as a new `attach_media`/`edit_media`/`detach_media` mutation type. All three are idempotent (by `local_id`/`media_id`) and deliberately carry no `expected_revision` — media traffic must never collide with the checklist-revision protocol.** | **RESOLVED — LOCKED** | 2026-08-02 |
 | D-052 | Field video capture caps: 3 minutes, ~1080p | **`kMaxVideoDuration` = 3 minutes, `ResolutionPreset.veryHigh` (~1080p) — the recording auto-stops at the cap rather than trusting the inspector to notice. Matches the backend's `INSPECTION_MEDIA_RULES` video size ceiling (500MB), which a gallery-picked video is checked against locally before enqueueing, to reject an oversized file before a doomed upload attempt.** | **RESOLVED — LOCKED** | 2026-08-02 |
 | D-053 | Before/after model: independent tags, not linked pairs | **`InspectionMedia.before_after_tag` is a plain optional `before`/`after` value on each item, not a `pair_id` linking two specific items. Simpler to maintain (removing one photo never orphans a pair reference) and the comparison view lets the inspector pick any tagged before + any tagged after photo, not just one designated pair — a hand-rolled drag-to-reveal slider, no third-party comparison package.** | **RESOLVED — LOCKED** | 2026-08-02 |
+| D-054 | Damage annotation data model: normalized vector, one `points[]` shape for all five tools, AI-reusable | **`Inspection.annotations[]` (top-level, not nested under `media[]`), each carrying `media_local_id` + `shape` + normalized (0-1) `points[]` + `color`/`damage_type`/`note` + `source` (`manual`\|`ai`, default `manual`) + nullable `confidence`. One `points[]` field covers point/rectangle/circle/arrow/freehand instead of a shape-specific schema, so Phase 7.10's AI-detected regions render on the exact same overlay model without a schema change.** | **RESOLVED — LOCKED** | 2026-08-05 |
+| D-055 | Annotation mutation protocol mirrors 7.4 media, not checklist-autosave revision | **Three new `inspections` routes (create/update/delete annotation), idempotent by client-generated annotation `id`, deliberately carrying no `expected_revision` — annotation traffic must never collide with 7.3's checklist-autosave revision bump, same rationale as D-051's media decision. Mobile rides the existing 7.2 record outbox (three new `OutboxMutationType` values), never a separate queue, but writes to the local cache optimistically (unlike media) since there's no secondary upload step between "drawn" and "visible offline."** | **RESOLVED — LOCKED** | 2026-08-05 |
 
 ## Decision Details
 
@@ -1291,6 +1293,70 @@
   the brief only asked for a comparison view, not pairing semantics as a
   data-integrity guarantee.
 
+### D-054 — Damage Annotation Data Model: Normalized Vector, One `points[]` Shape, AI-Reusable
+
+- **Decision owner:** Engineering, resolving the 7.5 phase brief's own
+  design constraint ("design the annotation layer so 7.10's AI-detected
+  regions can later render on the SAME layer... but only BUILD manual
+  drawing now").
+- **Decision:** `Inspection.annotations[]` stays top-level (the 7.1-era
+  placeholder field's location), not nested under `media[]` — each
+  `Annotation` carries its own `media_local_id` so it's still queryable
+  per-photo by filtering the flat list, without needing a second index or
+  a nested-array-in-Firestore update path. Coordinates are normalized
+  (0–1, relative to the photo's own rendered box, never raw pixels), and
+  a single `points: list[{x, y}]` field represents every one of the five
+  shapes (`point`: 1 point; `rectangle`/`circle`/`arrow`: 2 points as
+  corners/bounding-box/tail-head; `freehand`: 2+ points as a polyline)
+  instead of a shape-specific schema (e.g. a separate `radius` for circle,
+  `x`/`y`/`width`/`height` for rectangle). `source` (`manual`\|`ai`,
+  default `manual`) and `confidence` (nullable) exist in the schema now,
+  populated only as `manual`/`null` until Phase 7.10 adds AI-detected
+  regions.
+- **Consequences:** Phase 7.10 can add an AI-detected region as a plain
+  `Annotation` with `source="ai"` and a real `confidence`, rendered by the
+  exact same overlay painters (mobile `AnnotationOverlayPainter`, admin
+  `AnnotationOverlay`) with zero schema or rendering-code change — the
+  cost paid now is a slightly more abstract `points[]` representation
+  (callers must know how many points a given `shape` expects) instead of
+  named fields per shape, and every renderer must switch on `shape` to
+  interpret `points[]` correctly rather than reading self-describing
+  fields.
+
+### D-055 — Annotation Mutation Protocol Mirrors 7.4 Media, Not Checklist-Autosave Revision
+
+- **Decision owner:** Engineering, extending D-051's (7.4 media) own
+  documented warning that future mutation types touching a small array
+  field should not collide with the checklist-autosave revision protocol.
+- **Decision:** The three new annotation routes (`POST .../annotations`,
+  `PATCH .../annotations/{id}`, `DELETE .../annotations/{id}`) are
+  idempotent by the client-generated annotation `id` and carry no
+  `expected_revision`, exactly mirroring `attach_media`/`update_media`/
+  `detach_media`'s posture rather than `update_inspection`'s revision-
+  checked one. `InspectionRepository` gained `append_annotation`/
+  `update_annotation`/`remove_annotation` using the same `ArrayUnion`/
+  `ArrayRemove`/full-array-rewrite mechanics as the media repository
+  methods. On mobile, the three new `OutboxMutationType` values
+  (`create_annotation`/`update_annotation`/`delete_annotation`) ride the
+  existing 7.2 `Outbox`/`SyncEngine` — the same outbox media's mutations
+  use — rather than a new queue, since annotations are small vector data
+  with nothing resembling media's heavy-byte upload problem. Unlike
+  media, though, annotation writes land in the local `LocalInspections.
+  annotations` cache **optimistically** (immediately, before the matching
+  outbox row even attempts to send) rather than waiting for
+  `MediaQueue`-style secondary-table visibility, since there's no
+  equivalent secondary queue for annotations to be visible through in the
+  interim.
+- **Consequences:** Annotation traffic can never trigger a
+  `revision_conflict` against a concurrent checklist edit, matching
+  media's own guarantee. The cost is the same one D-051 already accepted
+  for media: no annotation mutation participates in the inspection's
+  optimistic-concurrency story at all, so two inspectors editing the
+  *same* annotation concurrently (rare in practice — annotations are
+  effectively single-writer, drawn by whoever is holding the phone) would
+  have last-write-wins semantics with no conflict surfaced, unlike a
+  concurrent checklist edit.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1575,3 +1641,39 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   gallery: empty state, a synced item's tag/GPS/checklist link, a video
   item) all green; `flutter analyze`/ruff/mypy/ESLint clean; contracts
   regenerated (3 new models, 3 new operations) with a clean drift check.
+- **2026-08-05 — Phase 7.5 (damage annotation — draw on inspection
+  photos):** Added D-054 and D-055. `Inspection.annotations[]` (the
+  7.1-era untyped placeholder) is now a real `Annotation` model: one
+  normalized (0-1) `points[]` field covers all five shapes so Phase
+  7.10's AI-detected regions can render on the exact same overlay model
+  later (D-054). The three new annotation routes copy D-051's media
+  precedent — idempotent by client-generated `id`, no `expected_revision`
+  — rather than the checklist-autosave revision protocol (D-055); mobile
+  annotations ride the existing 7.2 outbox (three new
+  `OutboxMutationType` values) but, unlike media, write to the local
+  cache optimistically since there's no secondary upload queue standing
+  between "drawn" and "visible offline." One real test-fixture gotcha
+  surfaced while building `sync_engine_test.dart`'s coverage (not a
+  production bug): a fake API stub that echoes back an empty
+  `annotations: []` on a mutation response silently wipes the local
+  optimistic write on the very next `applyMutationSuccess`, since that
+  method overwrites the entire local row from whatever the server
+  returned — fixed by making the fakes echo a realistic response, the
+  same way the real backend already does. One real mobile robustness
+  gap the new widget test caught and fixed in production code: the
+  annotation canvas's `Image` had no `errorBuilder`, so a broken/expired
+  signed photo URL crashed as an uncaught `NetworkImageLoadException`
+  instead of degrading gracefully like the gallery's own
+  `_networkImage`. Backend (291 tests, up from 280 — 11 new for
+  create/update/delete annotation: idempotency, cross-tenant,
+  media-not-found, revision-isolation from checklist autosave), mobile
+  (193 tests, up from 180 — new `annotations`/`annotation sync` groups
+  in `local_inspections_repository_test.dart`/`sync_engine_test.dart`,
+  new overlay/canvas-navigation cases in
+  `inspection_detail_screen_test.dart`), and admin (200 passed + 6
+  credential-only skips, up from 196 — 4 new for the read-only SVG
+  overlay: absent/present toggle, correct shape+tooltip, per-photo
+  scoping) all green; `flutter analyze`/ruff/mypy/ESLint clean; `next
+  build` + bundle-budget clean; contracts regenerated (5 new models, 3
+  new operations) with a clean drift check; real-creds round-trip
+  verified end to end against the live Firebase project.

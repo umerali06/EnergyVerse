@@ -739,3 +739,227 @@ def test_detach_inspection_media_replay_is_idempotent(wiring: dict[str, Any]) ->
     )
     assert second.status_code == 200
     assert second.json()["media"] == []
+
+
+# --- annotations (Phase 7.5) -------------------------------------------------
+
+
+def _attach_photo(identity: CurrentUser, bucket: Any, inspection_id: str) -> str:
+    """Seeds a real photo and attaches it, returning its `local_id` -- the
+    stable client-generated key annotations reference (works even before a
+    media item has synced/been assigned a server `id`)."""
+    local_id = str(uuid.uuid4())
+    wiring_path = _media_path(ACME_COMPANY_ID, inspection_id, local_id, "photo.jpg")
+    bucket.seed(wiring_path, b"bytes", "image/jpeg")
+    attached = _attach_media(identity, inspection_id, local_id=local_id)
+    assert attached.status_code == 200
+    return local_id
+
+
+def _create_annotation(
+    identity: CurrentUser,
+    inspection_id: str,
+    *,
+    annotation_id: str | None = None,
+    media_local_id: str,
+    shape: str = "rectangle",
+    points: list[dict[str, float]] | None = None,
+    color: str = "#FF0000",
+    damage_type: str | None = "corrosion",
+    note: str | None = "Visible corrosion on flange",
+    **overrides: Any,
+) -> Any:
+    payload: dict[str, Any] = {
+        "id": annotation_id or str(uuid.uuid4()),
+        "media_local_id": media_local_id,
+        "shape": shape,
+        "points": points or [{"x": 0.1, "y": 0.1}, {"x": 0.4, "y": 0.4}],
+        "color": color,
+        "damage_type": damage_type,
+        "note": note,
+    }
+    payload.update(overrides)
+    return _request(
+        identity, "POST", f"/api/v1/inspections/{inspection_id}/annotations", json=payload
+    )
+
+
+def test_create_annotation_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+
+    response = _create_annotation(_identity(), created["id"], media_local_id=media_local_id)
+    assert response.status_code == 200
+    annotations = response.json()["annotations"]
+    assert len(annotations) == 1
+    annotation = annotations[0]
+    assert annotation["media_local_id"] == media_local_id
+    assert annotation["shape"] == "rectangle"
+    assert annotation["points"] == [{"x": 0.1, "y": 0.1}, {"x": 0.4, "y": 0.4}]
+    assert annotation["color"] == "#FF0000"
+    assert annotation["damage_type"] == "corrosion"
+    assert annotation["note"] == "Visible corrosion on flange"
+    assert annotation["source"] == "manual"
+    assert annotation["confidence"] is None
+    assert annotation["created_by"] == "test-user"
+    # annotation traffic never bumps revision -- must never collide with
+    # the checklist-autosave revision protocol, same as media.
+    assert response.json()["revision"] == created["revision"]
+
+
+def test_create_annotation_rejects_unknown_media(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _create_annotation(
+        _identity(), created["id"], media_local_id=str(uuid.uuid4())
+    )
+    assert response.status_code == 404
+    assert response.json()["error"] == "media_not_found"
+
+
+def test_create_annotation_idempotent_replay(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    annotation_id = str(uuid.uuid4())
+
+    first = _create_annotation(
+        _identity(), created["id"], annotation_id=annotation_id, media_local_id=media_local_id
+    )
+    assert first.status_code == 200
+    second = _create_annotation(
+        _identity(), created["id"], annotation_id=annotation_id, media_local_id=media_local_id
+    )
+    assert second.status_code == 200
+    assert len(second.json()["annotations"]) == 1
+
+
+def test_create_annotation_conflicting_replay_returns_409(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    annotation_id = str(uuid.uuid4())
+
+    first = _create_annotation(
+        _identity(), created["id"], annotation_id=annotation_id, media_local_id=media_local_id
+    )
+    assert first.status_code == 200
+    conflicting = _create_annotation(
+        _identity(),
+        created["id"],
+        annotation_id=annotation_id,
+        media_local_id=media_local_id,
+        color="#00FF00",
+    )
+    assert conflicting.status_code == 409
+    assert conflicting.json()["error"] == "annotation_conflict"
+
+
+def test_create_annotation_cross_tenant_returns_404(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    response = _create_annotation(
+        _identity(company_id=BETA_COMPANY_ID), created["id"], media_local_id=media_local_id
+    )
+    assert response.status_code == 404
+    assert response.json()["error"] == "inspection_not_found"
+
+
+def test_update_annotation_edits_note_and_damage_type(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    attached = _create_annotation(_identity(), created["id"], media_local_id=media_local_id).json()
+    annotation_id = attached["annotations"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/annotations/{annotation_id}",
+        json={"damage_type": "crack", "note": "Updated note"},
+    )
+    assert response.status_code == 200
+    annotation = response.json()["annotations"][0]
+    assert annotation["damage_type"] == "crack"
+    assert annotation["note"] == "Updated note"
+    # unrelated fields are preserved, not clobbered by the partial update.
+    assert annotation["color"] == "#FF0000"
+
+
+def test_update_annotation_moves_points(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    attached = _create_annotation(_identity(), created["id"], media_local_id=media_local_id).json()
+    annotation_id = attached["annotations"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/annotations/{annotation_id}",
+        json={"points": [{"x": 0.2, "y": 0.2}, {"x": 0.5, "y": 0.5}]},
+    )
+    assert response.status_code == 200
+    annotation = response.json()["annotations"][0]
+    assert annotation["points"] == [{"x": 0.2, "y": 0.2}, {"x": 0.5, "y": 0.5}]
+
+
+def test_update_annotation_is_idempotent_on_missing(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/annotations/does-not-exist",
+        json={"note": "irrelevant"},
+    )
+    assert response.status_code == 200
+    assert response.json()["annotations"] == []
+
+
+def test_delete_annotation_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    attached = _create_annotation(_identity(), created["id"], media_local_id=media_local_id).json()
+    annotation_id = attached["annotations"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "DELETE",
+        f"/api/v1/inspections/{created['id']}/annotations/{annotation_id}",
+    )
+    assert response.status_code == 200
+    assert response.json()["annotations"] == []
+
+
+def test_delete_annotation_replay_is_idempotent(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    attached = _create_annotation(_identity(), created["id"], media_local_id=media_local_id).json()
+    annotation_id = attached["annotations"][0]["id"]
+
+    first = _request(
+        _identity(),
+        "DELETE",
+        f"/api/v1/inspections/{created['id']}/annotations/{annotation_id}",
+    )
+    assert first.status_code == 200
+    second = _request(
+        _identity(),
+        "DELETE",
+        f"/api/v1/inspections/{created['id']}/annotations/{annotation_id}",
+    )
+    assert second.status_code == 200
+    assert second.json()["annotations"] == []
+
+
+def test_annotation_survives_inspection_sync_round_trip(wiring: dict[str, Any]) -> None:
+    """An annotation persists unchanged across an unrelated inspection PATCH
+    (the checklist-autosave path) -- proves the two protocols never collide."""
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    attached = _create_annotation(_identity(), created["id"], media_local_id=media_local_id).json()
+    annotation_before = attached["annotations"][0]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}",
+        json={"notes": "unrelated autosave edit"},
+    )
+    assert response.status_code == 200
+    assert response.json()["annotations"] == [annotation_before]

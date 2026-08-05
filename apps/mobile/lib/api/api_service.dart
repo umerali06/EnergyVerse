@@ -147,6 +147,16 @@ abstract interface class ApiContract {
     UpdateInspectionMediaRequest request,
   );
   Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId);
+  Future<InspectionDetail> createInspectionAnnotation(
+    String inspectionId,
+    CreateAnnotationRequest request,
+  );
+  Future<InspectionDetail> updateInspectionAnnotation(
+    String inspectionId,
+    String annotationId,
+    UpdateAnnotationRequest request,
+  );
+  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId);
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,
@@ -968,6 +978,55 @@ class ApiService implements ApiContract {
       final response = await _client
           .getInspectionsApi()
           .detachInspectionMedia(inspectionId: inspectionId, mediaId: mediaId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> createInspectionAnnotation(
+    String inspectionId,
+    CreateAnnotationRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().createInspectionAnnotation(
+            inspectionId: inspectionId,
+            createAnnotationRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> updateInspectionAnnotation(
+    String inspectionId,
+    String annotationId,
+    UpdateAnnotationRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().updateInspectionAnnotation(
+            inspectionId: inspectionId,
+            annotationId: annotationId,
+            updateAnnotationRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> deleteInspectionAnnotation(
+    String inspectionId,
+    String annotationId,
+  ) async {
+    try {
+      final response = await _client
+          .getInspectionsApi()
+          .deleteInspectionAnnotation(inspectionId: inspectionId, annotationId: annotationId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);

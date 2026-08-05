@@ -219,6 +219,25 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
+  Future<InspectionDetail> createInspectionAnnotation(
+    String inspectionId,
+    CreateAnnotationRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionAnnotation(
+    String inspectionId,
+    String annotationId,
+    UpdateAnnotationRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) =>
+      throw UnimplementedError();
+
+  @override
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,

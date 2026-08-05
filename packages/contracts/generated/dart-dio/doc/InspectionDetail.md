@@ -9,7 +9,7 @@ import 'package:fev_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **aiAnalysis** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional]
-**annotations** | [**BuiltList&lt;BuiltMap&lt;String, JsonObject&gt;&gt;**](BuiltMap.md) |  | [optional]
+**annotations** | [**BuiltList&lt;AnnotationResponse&gt;**](AnnotationResponse.md) |  | [optional]
 **arMeasurements** | [**BuiltList&lt;BuiltMap&lt;String, JsonObject&gt;&gt;**](BuiltMap.md) |  | [optional]
 **areaId** | **String** |  | [optional]
 **assetId** | **String** |  |

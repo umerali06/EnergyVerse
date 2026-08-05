@@ -7,6 +7,12 @@ part of 'serializers.dart';
 // **************************************************************************
 
 Serializers _$serializers = (new Serializers().toBuilder()
+      ..add(AnnotationPointInput.serializer)
+      ..add(AnnotationPointResponse.serializer)
+      ..add(AnnotationResponse.serializer)
+      ..add(AnnotationResponseDamageTypeEnum.serializer)
+      ..add(AnnotationResponseShapeEnum.serializer)
+      ..add(AnnotationResponseSource_Enum.serializer)
       ..add(AreaDeleted.serializer)
       ..add(AreaDetail.serializer)
       ..add(AreaListPage.serializer)
@@ -43,6 +49,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(CompanyProfile.serializer)
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
+      ..add(CreateAnnotationRequest.serializer)
+      ..add(CreateAnnotationRequestDamageTypeEnum.serializer)
+      ..add(CreateAnnotationRequestShapeEnum.serializer)
       ..add(CreateAreaRequest.serializer)
       ..add(CreateAssetRequest.serializer)
       ..add(CreateAssetRequestCurrentStatusEnum.serializer)
@@ -97,6 +106,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ServiceResponse.serializer)
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
+      ..add(UpdateAnnotationRequest.serializer)
+      ..add(UpdateAnnotationRequestDamageTypeEnum.serializer)
       ..add(UpdateAreaRequest.serializer)
       ..add(UpdateAssetRequest.serializer)
       ..add(UpdateAssetRequestCurrentStatusEnum.serializer)
@@ -122,6 +133,18 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ValidationError.serializer)
       ..add(ValidationErrorLocInner.serializer)
       ..add(Value.serializer)
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(AnnotationPointInput)]),
+          () => new ListBuilder<AnnotationPointInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(AnnotationPointInput)]),
+          () => new ListBuilder<AnnotationPointInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(AnnotationPointResponse)]),
+          () => new ListBuilder<AnnotationPointResponse>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AreaDetail)]),
           () => new ListBuilder<AreaDetail>())
@@ -250,13 +273,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
           ]),
           () => new MapBuilder<String, JsonObject?>())
       ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
+          const FullType(BuiltList, const [const FullType(AnnotationResponse)]),
+          () => new ListBuilder<AnnotationResponse>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [
             const FullType(BuiltMap, const [

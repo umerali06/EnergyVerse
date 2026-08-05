@@ -474,6 +474,39 @@ class InspectionMediaResponse(BaseModel):
     uploaded_at: datetime
 
 
+class AnnotationPointResponse(BaseModel):
+    x: float
+    y: float
+
+
+class AnnotationResponse(BaseModel):
+    id: str
+    media_local_id: str
+    shape: Literal["freehand", "rectangle", "circle", "arrow", "point"]
+    points: list[AnnotationPointResponse]
+    color: str
+    damage_type: (
+        Literal[
+            "corrosion",
+            "rust",
+            "crack",
+            "surface_damage",
+            "paint_deterioration",
+            "missing_bolt",
+            "broken_component",
+            "leak",
+            "wear",
+            "other",
+        ]
+        | None
+    ) = None
+    note: str | None = None
+    source: Literal["manual", "ai"] = "manual"
+    confidence: float | None = None
+    created_by: str
+    created_at: datetime
+
+
 class InspectionListItem(BaseModel):
     id: str
     asset_id: str
@@ -507,7 +540,7 @@ class InspectionDetail(InspectionListItem):
     device_id: str | None = None
     origin: str | None = None
     media: list[InspectionMediaResponse] = Field(default_factory=list)
-    annotations: list[dict[str, Any]] = Field(default_factory=list)
+    annotations: list[AnnotationResponse] = Field(default_factory=list)
     voice_notes: list[dict[str, Any]] = Field(default_factory=list)
     readings: dict[str, Any] = Field(default_factory=dict)
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
@@ -564,6 +597,56 @@ class UpdateInspectionMediaRequest(BaseModel):
 class InspectionMediaDetached(BaseModel):
     id: str
     detached: bool = True
+
+
+class AnnotationPointInput(BaseModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class CreateAnnotationRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    media_local_id: str = Field(min_length=1, max_length=200)
+    shape: Literal["freehand", "rectangle", "circle", "arrow", "point"]
+    points: list[AnnotationPointInput] = Field(min_length=1)
+    color: str = Field(min_length=1, max_length=20)
+    damage_type: (
+        Literal[
+            "corrosion",
+            "rust",
+            "crack",
+            "surface_damage",
+            "paint_deterioration",
+            "missing_bolt",
+            "broken_component",
+            "leak",
+            "wear",
+            "other",
+        ]
+        | None
+    ) = None
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class UpdateAnnotationRequest(BaseModel):
+    points: list[AnnotationPointInput] | None = Field(default=None, min_length=1)
+    color: str | None = Field(default=None, min_length=1, max_length=20)
+    damage_type: (
+        Literal[
+            "corrosion",
+            "rust",
+            "crack",
+            "surface_damage",
+            "paint_deterioration",
+            "missing_bolt",
+            "broken_component",
+            "leak",
+            "wear",
+            "other",
+        ]
+        | None
+    ) = None
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class InspectionDeleted(BaseModel):

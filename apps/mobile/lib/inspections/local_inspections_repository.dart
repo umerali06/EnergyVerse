@@ -44,7 +44,10 @@ enum OutboxMutationType {
   assignTemplate('assign_template'),
   attachMedia('attach_media'),
   editMedia('edit_media'),
-  detachMedia('detach_media');
+  detachMedia('detach_media'),
+  createAnnotation('create_annotation'),
+  updateAnnotation('update_annotation'),
+  deleteAnnotation('delete_annotation');
 
   const OutboxMutationType(this.wireValue);
 
@@ -79,7 +82,8 @@ String wireToDartEnumName(String wireValue) {
   final parts = wireValue.split('_');
   if (parts.length == 1) return wireValue;
   final rest = parts.skip(1).map(
-        (part) => part.isEmpty ? part : part[0].toUpperCase() + part.substring(1),
+        (part) =>
+            part.isEmpty ? part : part[0].toUpperCase() + part.substring(1),
       );
   return parts.first + rest.join();
 }
@@ -133,15 +137,37 @@ List<InspectionMediaResponse> _decodeInspectionMedia(String json) {
       .toList();
 }
 
-String _encodeInspectionMedia(List<InspectionMediaResponse> media) => jsonEncode(
+String _encodeInspectionMedia(List<InspectionMediaResponse> media) =>
+    jsonEncode(
       media
-          .map((item) => standardSerializers.serializeWith(InspectionMediaResponse.serializer, item))
+          .map((item) => standardSerializers.serializeWith(
+              InspectionMediaResponse.serializer, item))
+          .toList(),
+    );
+
+List<AnnotationResponse> _decodeAnnotations(String json) {
+  final list = jsonDecode(json) as List<dynamic>;
+  return list
+      .map(
+        (item) => standardSerializers.deserializeWith(
+          AnnotationResponse.serializer,
+          item as Map<String, dynamic>,
+        )!,
+      )
+      .toList();
+}
+
+String _encodeAnnotations(List<AnnotationResponse> annotations) => jsonEncode(
+      annotations
+          .map((item) => standardSerializers.serializeWith(
+              AnnotationResponse.serializer, item))
           .toList(),
     );
 
 String _encodeChecklistItems(List<ChecklistTemplateItem> items) => jsonEncode(
       items
-          .map((item) => standardSerializers.serializeWith(ChecklistTemplateItem.serializer, item))
+          .map((item) => standardSerializers.serializeWith(
+              ChecklistTemplateItem.serializer, item))
           .toList(),
     );
 
@@ -163,12 +189,14 @@ ChecklistResponse _normalizeResponseValue(ChecklistResponse response) {
   final valueType = raw is bool ? bool : (raw is num ? num : String);
   return response.rebuild(
     (b) => b.value.replace(
-      Value((v) => v.anyOf = AnyOfDynamic(types: [valueType], values: {0: raw})),
+      Value(
+          (v) => v.anyOf = AnyOfDynamic(types: [valueType], values: {0: raw})),
     ),
   );
 }
 
-String _encodeChecklistResponses(List<ChecklistResponse> responses) => jsonEncode(
+String _encodeChecklistResponses(List<ChecklistResponse> responses) =>
+    jsonEncode(
       responses
           .map(
             (r) => standardSerializers.serializeWith(
@@ -208,7 +236,9 @@ List<String> missingRequiredItemIds(
 ) {
   return [
     for (final item in items)
-      if (item.required_ && !responses.any((r) => r.itemId == item.id && isChecklistResponseAnswered(r)))
+      if (item.required_ &&
+          !responses.any(
+              (r) => r.itemId == item.id && isChecklistResponseAnswered(r)))
         item.id,
   ];
 }
@@ -247,7 +277,8 @@ ChecklistResponse buildChecklistResponse({
       ..note = note
       ..value.replace(
         Value(
-          (v) => v.anyOf = AnyOfDynamic(types: [valueType], values: {0: rawValue}),
+          (v) =>
+              v.anyOf = AnyOfDynamic(types: [valueType], values: {0: rawValue}),
         ),
       ),
   );
@@ -267,9 +298,11 @@ bool isChecklistResponseAnswered(ChecklistResponse response) {
 /// them into `inspectionStatusFor`/`inspectionStatusLabel`.
 class LocalInspectionRecord {
   LocalInspectionRecord(this.row)
-      : checklistItemsSnapshot = _decodeChecklistItems(row.checklistItemsSnapshot),
+      : checklistItemsSnapshot =
+            _decodeChecklistItems(row.checklistItemsSnapshot),
         checklistResponses = _decodeChecklistResponses(row.checklistResponses),
-        media = _decodeInspectionMedia(row.media);
+        media = _decodeInspectionMedia(row.media),
+        annotations = _decodeAnnotations(row.annotations);
 
   final LocalInspection row;
   final List<ChecklistTemplateItem> checklistItemsSnapshot;
@@ -279,6 +312,12 @@ class LocalInspectionRecord {
   /// only as current as the last successful refresh/mutation. Not-yet-synced
   /// captures live separately in `MediaQueue`/`LocalMediaRepository`.
   final List<InspectionMediaResponse> media;
+
+  /// Damage annotations (Phase 7.5) -- unlike [media], this list is written
+  /// optimistically at draw/edit/delete time (see [createAnnotation] et
+  /// al.), so it already reflects not-yet-synced local edits, not just the
+  /// last server response.
+  final List<AnnotationResponse> annotations;
 
   String get id => row.id;
   String get assetId => row.assetId;
@@ -321,7 +360,8 @@ class OutboxItemRecord {
 
   String get id => row.id;
   String get inspectionId => row.inspectionId;
-  OutboxMutationType get mutationType => OutboxMutationType.fromWire(row.mutationType);
+  OutboxMutationType get mutationType =>
+      OutboxMutationType.fromWire(row.mutationType);
   int get attempts => row.attempts;
   String? get lastError => row.lastError;
   DateTime? get lastAttemptAt => row.lastAttemptAt;
@@ -351,7 +391,8 @@ final DateTime pausedSentinel = DateTime.utc(9999);
 /// screens that render reactively; only this cross-cutting "did anything
 /// change" signal avoids them.
 class LocalInspectionsRepository extends ChangeNotifier {
-  LocalInspectionsRepository({required AppDatabase db, required ApiContract api, Uuid? uuid})
+  LocalInspectionsRepository(
+      {required AppDatabase db, required ApiContract api, Uuid? uuid})
       : _db = db,
         _api = api,
         _uuid = uuid ?? const Uuid();
@@ -362,13 +403,28 @@ class LocalInspectionsRepository extends ChangeNotifier {
 
   // ---------------------------------------------------------------- reads
 
-  Stream<List<LocalInspectionRecord>> watchInspections({String? assetId, String? status}) {
+  Stream<List<LocalInspectionRecord>> watchInspections(
+      {String? assetId, String? status}) {
     final query = _db.select(_db.localInspections)
       ..where((t) => t.deletedAt.isNull())
       ..orderBy([(t) => drift.OrderingTerm.desc(t.updatedAt)]);
     if (assetId != null) query.where((t) => t.assetId.equals(assetId));
     if (status != null) query.where((t) => t.status.equals(status));
-    return query.watch().map((rows) => rows.map(LocalInspectionRecord.new).toList());
+    return query
+        .watch()
+        .map((rows) => rows.map(LocalInspectionRecord.new).toList());
+  }
+
+  /// A plain one-shot read (not `.watch()`) -- for callers that just need
+  /// the current row once, e.g. re-reading annotations right after a local
+  /// write, without holding a Drift stream subscription open (see this
+  /// class's own doc comment on why that trips `flutter_test`'s
+  /// pending-timer check).
+  Future<LocalInspectionRecord?> getInspection(String id) async {
+    final row = await (_db.select(_db.localInspections)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    return row == null ? null : LocalInspectionRecord(row);
   }
 
   Stream<LocalInspectionRecord?> watchInspection(String id) {
@@ -383,7 +439,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
   /// errors -- callers keep whatever the local cache already has.
   Future<void> refreshFromNetwork({String? assetId, String? status}) async {
     try {
-      final page = await _api.getInspections(assetId: assetId, status: status, limit: 100);
+      final page = await _api.getInspections(
+          assetId: assetId, status: status, limit: 100);
       for (final item in page.items) {
         await _upsertSyncedIfIdle(
           id: item.id,
@@ -397,7 +454,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
 
   Future<void> refreshDetailFromNetwork(String id) async {
     try {
-      await _upsertSyncedIfIdle(id: id, fetchDetail: () => _api.getInspection(id));
+      await _upsertSyncedIfIdle(
+          id: id, fetchDetail: () => _api.getInspection(id));
     } catch (_) {
       // Best-effort refresh; the local cache stays as-is.
     }
@@ -407,7 +465,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
     required String id,
     required Future<InspectionDetail> Function() fetchDetail,
   }) async {
-    final current = await (_db.select(_db.localInspections)..where((t) => t.id.equals(id)))
+    final current = await (_db.select(_db.localInspections)
+          ..where((t) => t.id.equals(id)))
         .getSingleOrNull();
     if (current != null &&
         current.syncState != LocalSyncState.synced.wireValue &&
@@ -434,14 +493,20 @@ class LocalInspectionsRepository extends ChangeNotifier {
             title: drift.Value(detail.title),
             notes: drift.Value(detail.notes),
             checklistTemplateId: drift.Value(detail.checklistTemplateId),
-            checklistTemplateVersion: drift.Value(detail.checklistTemplateVersion),
+            checklistTemplateVersion:
+                drift.Value(detail.checklistTemplateVersion),
             checklistItemsSnapshot: drift.Value(
-              _encodeChecklistItems(detail.checklistItemsSnapshot?.toList() ?? const []),
+              _encodeChecklistItems(
+                  detail.checklistItemsSnapshot?.toList() ?? const []),
             ),
             checklistResponses: drift.Value(
-              _encodeChecklistResponses(detail.checklistResponses?.toList() ?? const []),
+              _encodeChecklistResponses(
+                  detail.checklistResponses?.toList() ?? const []),
             ),
-            media: drift.Value(_encodeInspectionMedia(detail.media?.toList() ?? const [])),
+            media: drift.Value(
+                _encodeInspectionMedia(detail.media?.toList() ?? const [])),
+            annotations: drift.Value(
+                _encodeAnnotations(detail.annotations?.toList() ?? const [])),
             startedAt: drift.Value(detail.startedAt),
             completedAt: drift.Value(detail.completedAt),
             gpsLat: drift.Value(detail.gpsLat?.toDouble()),
@@ -510,7 +575,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
         inspectionId: id,
         type: OutboxMutationType.create,
         payload: jsonEncode(
-          standardSerializers.serializeWith(CreateInspectionRequest.serializer, request),
+          standardSerializers.serializeWith(
+              CreateInspectionRequest.serializer, request),
         ),
       );
     });
@@ -532,8 +598,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
     List<ChecklistResponse>? checklistResponses,
   }) async {
     await _db.transaction(() async {
-      final current =
-          await (_db.select(_db.localInspections)..where((t) => t.id.equals(id))).getSingle();
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
       final mergedTitle = title ?? current.title;
       final mergedNotes = notes ?? current.notes;
       final mergedType = inspectionType ?? current.inspectionType;
@@ -544,14 +611,16 @@ class LocalInspectionsRepository extends ChangeNotifier {
         checklistResponses,
       ).map(_normalizeResponseValue).toList();
 
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
+      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
+          .write(
         LocalInspectionsCompanion(
           title: drift.Value(mergedTitle),
           notes: drift.Value(mergedNotes),
           inspectionType: drift.Value(mergedType),
           gpsLat: drift.Value(mergedLat),
           gpsLng: drift.Value(mergedLng),
-          checklistResponses: drift.Value(_encodeChecklistResponses(mergedResponses)),
+          checklistResponses:
+              drift.Value(_encodeChecklistResponses(mergedResponses)),
           updatedAt: drift.Value(DateTime.now().toUtc()),
           syncState: const drift.Value('pending_sync'),
         ),
@@ -570,7 +639,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
           ..expectedRevision = current.baseRevision,
       );
       final payload = jsonEncode(
-        standardSerializers.serializeWith(UpdateInspectionRequest.serializer, request),
+        standardSerializers.serializeWith(
+            UpdateInspectionRequest.serializer, request),
       );
 
       final coalesceTarget = await (_db.select(_db.outbox)
@@ -582,10 +652,14 @@ class LocalInspectionsRepository extends ChangeNotifier {
             ))
           .getSingleOrNull();
       if (coalesceTarget != null) {
-        await (_db.update(_db.outbox)..where((t) => t.id.equals(coalesceTarget.id)))
+        await (_db.update(_db.outbox)
+              ..where((t) => t.id.equals(coalesceTarget.id)))
             .write(OutboxCompanion(payload: drift.Value(payload)));
       } else {
-        await _enqueue(inspectionId: id, type: OutboxMutationType.update, payload: payload);
+        await _enqueue(
+            inspectionId: id,
+            type: OutboxMutationType.update,
+            payload: payload);
       }
     });
   }
@@ -593,9 +667,11 @@ class LocalInspectionsRepository extends ChangeNotifier {
   Future<void> startInspection(String id) async {
     await _db.transaction(() async {
       final now = DateTime.now().toUtc();
-      final current =
-          await (_db.select(_db.localInspections)..where((t) => t.id.equals(id))).getSingle();
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
+      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
+          .write(
         LocalInspectionsCompanion(
           status: const drift.Value('in_progress'),
           startedAt: drift.Value(current.startedAt ?? now),
@@ -603,21 +679,24 @@ class LocalInspectionsRepository extends ChangeNotifier {
           syncState: const drift.Value('pending_sync'),
         ),
       );
-      await _enqueue(inspectionId: id, type: OutboxMutationType.start, payload: '{}');
+      await _enqueue(
+          inspectionId: id, type: OutboxMutationType.start, payload: '{}');
     });
   }
 
   Future<void> completeInspection(String id) async {
     await _db.transaction(() async {
-      final current =
-          await (_db.select(_db.localInspections)..where((t) => t.id.equals(id))).getSingle();
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
       final items = _decodeChecklistItems(current.checklistItemsSnapshot);
       final responses = _decodeChecklistResponses(current.checklistResponses);
       final missing = missingRequiredItemIds(items, responses);
       if (missing.isNotEmpty) throw ChecklistIncompleteError(missing);
 
       final now = DateTime.now().toUtc();
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
+      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
+          .write(
         LocalInspectionsCompanion(
           status: const drift.Value('completed'),
           completedAt: drift.Value(now),
@@ -625,21 +704,24 @@ class LocalInspectionsRepository extends ChangeNotifier {
           syncState: const drift.Value('pending_sync'),
         ),
       );
-      await _enqueue(inspectionId: id, type: OutboxMutationType.complete, payload: '{}');
+      await _enqueue(
+          inspectionId: id, type: OutboxMutationType.complete, payload: '{}');
     });
   }
 
   Future<void> cancelInspection(String id) async {
     await _db.transaction(() async {
       final now = DateTime.now().toUtc();
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
+      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
+          .write(
         LocalInspectionsCompanion(
           status: const drift.Value('cancelled'),
           updatedAt: drift.Value(now),
           syncState: const drift.Value('pending_sync'),
         ),
       );
-      await _enqueue(inspectionId: id, type: OutboxMutationType.cancel, payload: '{}');
+      await _enqueue(
+          inspectionId: id, type: OutboxMutationType.cancel, payload: '{}');
     });
   }
 
@@ -650,10 +732,12 @@ class LocalInspectionsRepository extends ChangeNotifier {
     required List<ChecklistTemplateItem> items,
   }) async {
     await _db.transaction(() async {
-      final current =
-          await (_db.select(_db.localInspections)..where((t) => t.id.equals(id))).getSingle();
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
       final now = DateTime.now().toUtc();
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
+      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
+          .write(
         LocalInspectionsCompanion(
           checklistTemplateId: drift.Value(templateId),
           checklistTemplateVersion: drift.Value(version),
@@ -668,9 +752,13 @@ class LocalInspectionsRepository extends ChangeNotifier {
           ..expectedRevision = current.baseRevision,
       );
       final payload = jsonEncode(
-        standardSerializers.serializeWith(AssignChecklistTemplateRequest.serializer, request),
+        standardSerializers.serializeWith(
+            AssignChecklistTemplateRequest.serializer, request),
       );
-      await _enqueue(inspectionId: id, type: OutboxMutationType.assignTemplate, payload: payload);
+      await _enqueue(
+          inspectionId: id,
+          type: OutboxMutationType.assignTemplate,
+          payload: payload);
     });
   }
 
@@ -688,7 +776,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
         inspectionId: inspectionId,
         type: OutboxMutationType.attachMedia,
         payload: jsonEncode(
-          standardSerializers.serializeWith(AttachInspectionMediaRequest.serializer, request),
+          standardSerializers.serializeWith(
+              AttachInspectionMediaRequest.serializer, request),
         ),
       );
 
@@ -702,8 +791,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
         type: OutboxMutationType.editMedia,
         payload: jsonEncode({
           'media_id': mediaId,
-          'request':
-              standardSerializers.serializeWith(UpdateInspectionMediaRequest.serializer, request),
+          'request': standardSerializers.serializeWith(
+              UpdateInspectionMediaRequest.serializer, request),
         }),
       );
 
@@ -716,6 +805,177 @@ class LocalInspectionsRepository extends ChangeNotifier {
         type: OutboxMutationType.detachMedia,
         payload: jsonEncode({'media_id': mediaId}),
       );
+
+  // -------------------------------------------------------- annotations (7.5)
+
+  /// Draws a new annotation on the photo identified by [mediaLocalId] and
+  /// persists it immediately -- an optimistic write to the local
+  /// `annotations` blob, same offline-first posture as every other local
+  /// write in this repository. Unlike media, an annotation is small vector
+  /// data with no separate upload queue standing between "drawn" and
+  /// "visible offline", so it goes straight into the same record + outbox
+  /// [enqueueAttachMedia] etc. use, never [MediaQueue].
+  Future<String> createAnnotation({
+    required String inspectionId,
+    required String mediaLocalId,
+    required String shape,
+    required List<AnnotationPointResponse> points,
+    required String color,
+    required String createdBy,
+    String? damageType,
+    String? note,
+  }) async {
+    final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _db.transaction(() async {
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .getSingle();
+      final annotation = AnnotationResponse(
+        (b) => b
+          ..id = id
+          ..mediaLocalId = mediaLocalId
+          ..shape =
+              AnnotationResponseShapeEnum.valueOf(wireToDartEnumName(shape))
+          ..points.replace(points)
+          ..color = color
+          ..damageType = damageType == null
+              ? null
+              : AnnotationResponseDamageTypeEnum.valueOf(
+                  wireToDartEnumName(damageType))
+          ..note = note
+          ..source_ = AnnotationResponseSource_Enum.manual
+          ..createdBy = createdBy
+          ..createdAt = now,
+      );
+      final updatedAnnotations = [
+        ..._decodeAnnotations(current.annotations),
+        annotation
+      ];
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .write(
+        LocalInspectionsCompanion(
+            annotations: drift.Value(_encodeAnnotations(updatedAnnotations))),
+      );
+
+      final request = CreateAnnotationRequest(
+        (b) => b
+          ..id = id
+          ..mediaLocalId = mediaLocalId
+          ..shape = CreateAnnotationRequestShapeEnum.valueOf(
+              wireToDartEnumName(shape))
+          ..points.replace(points.map((p) => AnnotationPointInput((pb) => pb
+            ..x = p.x
+            ..y = p.y)))
+          ..color = color
+          ..damageType = damageType == null
+              ? null
+              : CreateAnnotationRequestDamageTypeEnum.valueOf(
+                  wireToDartEnumName(damageType))
+          ..note = note,
+      );
+      await _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.createAnnotation,
+        payload: jsonEncode(
+          standardSerializers.serializeWith(
+              CreateAnnotationRequest.serializer, request),
+        ),
+      );
+    });
+    return id;
+  }
+
+  /// Edits an existing annotation's shape/color/damage type/note -- `null`
+  /// arguments leave that field unchanged, same convention as
+  /// [updateInspection]'s `title`/`notes`. A no-op if [annotationId] isn't
+  /// found locally (e.g. it was already deleted).
+  Future<void> updateAnnotation({
+    required String inspectionId,
+    required String annotationId,
+    List<AnnotationPointResponse>? points,
+    String? color,
+    String? damageType,
+    String? note,
+  }) async {
+    await _db.transaction(() async {
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .getSingle();
+      final existingAnnotations = _decodeAnnotations(current.annotations);
+      final index = existingAnnotations.indexWhere((a) => a.id == annotationId);
+      if (index == -1) return;
+
+      final updatedAnnotation = existingAnnotations[index].rebuild((b) {
+        if (points != null) b.points.replace(points);
+        if (color != null) b.color = color;
+        if (damageType != null) {
+          b.damageType = AnnotationResponseDamageTypeEnum.valueOf(
+              wireToDartEnumName(damageType));
+        }
+        if (note != null) b.note = note;
+      });
+      final updatedAnnotations = [...existingAnnotations];
+      updatedAnnotations[index] = updatedAnnotation;
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .write(
+        LocalInspectionsCompanion(
+            annotations: drift.Value(_encodeAnnotations(updatedAnnotations))),
+      );
+
+      final request = UpdateAnnotationRequest((b) {
+        if (points != null) {
+          b.points.replace(points.map((p) => AnnotationPointInput((pb) => pb
+            ..x = p.x
+            ..y = p.y)));
+        }
+        if (color != null) b.color = color;
+        if (damageType != null) {
+          b.damageType = UpdateAnnotationRequestDamageTypeEnum.valueOf(
+              wireToDartEnumName(damageType));
+        }
+        if (note != null) b.note = note;
+      });
+      await _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.updateAnnotation,
+        payload: jsonEncode({
+          'annotation_id': annotationId,
+          'request': standardSerializers.serializeWith(
+              UpdateAnnotationRequest.serializer, request),
+        }),
+      );
+    });
+  }
+
+  /// Removes an annotation -- idempotent-on-missing locally, same posture as
+  /// [enqueueDetachMedia].
+  Future<void> deleteAnnotation({
+    required String inspectionId,
+    required String annotationId,
+  }) async {
+    await _db.transaction(() async {
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .getSingle();
+      final remaining = _decodeAnnotations(current.annotations)
+          .where((a) => a.id != annotationId)
+          .toList();
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .write(
+        LocalInspectionsCompanion(
+            annotations: drift.Value(_encodeAnnotations(remaining))),
+      );
+      await _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.deleteAnnotation,
+        payload: jsonEncode({'annotation_id': annotationId}),
+      );
+    });
+  }
 
   // ------------------------------------------------------ checklist templates
 
@@ -763,7 +1023,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
     return _bestTemplateForCategory('Generic');
   }
 
-  Future<LocalChecklistTemplate?> _bestTemplateForCategory(String category) async {
+  Future<LocalChecklistTemplate?> _bestTemplateForCategory(
+      String category) async {
     final query = _db.select(_db.localChecklistTemplates)
       ..where((t) => t.category.equals(category))
       ..orderBy([(t) => drift.OrderingTerm.desc(t.updatedAt)])
@@ -774,7 +1035,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
   /// Decodes a cached [LocalChecklistTemplate]'s items for
   /// [assignChecklistTemplate] -- callers only ever get a template row from
   /// [selectChecklistTemplateForCategory], never construct one themselves.
-  List<ChecklistTemplateItem> decodeTemplateItems(LocalChecklistTemplate template) =>
+  List<ChecklistTemplateItem> decodeTemplateItems(
+          LocalChecklistTemplate template) =>
       _decodeChecklistItems(template.itemsJson);
 
   /// `keepLocal`: requeues the local edit as a fresh `update` against the
@@ -785,8 +1047,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
   /// data loss this flow exists to prevent.
   Future<void> resolveConflict(String id, {required bool keepLocal}) async {
     await _db.transaction(() async {
-      final current =
-          await (_db.select(_db.localInspections)..where((t) => t.id.equals(id))).getSingle();
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
       final snapshotJson = current.conflictServerSnapshot;
       if (snapshotJson == null) return;
       final snapshot = standardSerializers.deserializeWith(
@@ -795,13 +1058,15 @@ class LocalInspectionsRepository extends ChangeNotifier {
       )!;
 
       if (!keepLocal) {
-        await (_db.delete(_db.outbox)..where((t) => t.inspectionId.equals(id))).go();
+        await (_db.delete(_db.outbox)..where((t) => t.inspectionId.equals(id)))
+            .go();
         await _upsertFromServer(snapshot, syncState: LocalSyncState.synced);
         notifyListeners();
         return;
       }
 
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id))).write(
+      await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
+          .write(
         LocalInspectionsCompanion(
           revision: drift.Value(snapshot.revision),
           baseRevision: drift.Value(snapshot.revision),
@@ -820,7 +1085,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
           ..gpsLat = current.gpsLat
           ..gpsLng = current.gpsLng
           ..checklistResponses.replace(
-            _decodeChecklistResponses(current.checklistResponses).map(_normalizeResponseValue),
+            _decodeChecklistResponses(current.checklistResponses)
+                .map(_normalizeResponseValue),
           )
           ..expectedRevision = snapshot.revision,
       );
@@ -828,7 +1094,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
         inspectionId: id,
         type: OutboxMutationType.update,
         payload: jsonEncode(
-          standardSerializers.serializeWith(UpdateInspectionRequest.serializer, request),
+          standardSerializers.serializeWith(
+              UpdateInspectionRequest.serializer, request),
         ),
       );
     });
@@ -837,7 +1104,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
   // -------------------------------------------------------------- outbox
 
   Stream<List<OutboxItemRecord>> watchOutbox() {
-    return (_db.select(_db.outbox)..orderBy([(t) => drift.OrderingTerm.asc(t.sequence)]))
+    return (_db.select(_db.outbox)
+          ..orderBy([(t) => drift.OrderingTerm.asc(t.sequence)]))
         .watch()
         .map((rows) => rows.map(OutboxItemRecord.new).toList());
   }
@@ -862,15 +1130,17 @@ class LocalInspectionsRepository extends ChangeNotifier {
 
   Future<void> discardOutboxItem(String outboxId) async {
     await _db.transaction(() async {
-      final item =
-          await (_db.select(_db.outbox)..where((t) => t.id.equals(outboxId))).getSingleOrNull();
+      final item = await (_db.select(_db.outbox)
+            ..where((t) => t.id.equals(outboxId)))
+          .getSingleOrNull();
       if (item == null) return;
       await (_db.delete(_db.outbox)..where((t) => t.id.equals(outboxId))).go();
       final remaining = await (_db.select(_db.outbox)
             ..where((t) => t.inspectionId.equals(item.inspectionId)))
           .get();
       if (remaining.isEmpty) {
-        await (_db.update(_db.localInspections)..where((t) => t.id.equals(item.inspectionId)))
+        await (_db.update(_db.localInspections)
+              ..where((t) => t.id.equals(item.inspectionId)))
             .write(
           const LocalInspectionsCompanion(
             syncState: drift.Value('error'),
@@ -915,9 +1185,13 @@ class LocalInspectionsRepository extends ChangeNotifier {
     final query = _db.select(_db.outbox)
       ..orderBy([(t) => drift.OrderingTerm.asc(t.sequence)]);
     if (bypassBackoff) {
-      query.where((t) => t.nextAttemptAt.isNull() | t.nextAttemptAt.isSmallerThanValue(pausedSentinel));
+      query.where((t) =>
+          t.nextAttemptAt.isNull() |
+          t.nextAttemptAt.isSmallerThanValue(pausedSentinel));
     } else {
-      query.where((t) => t.nextAttemptAt.isNull() | t.nextAttemptAt.isSmallerOrEqualValue(now));
+      query.where((t) =>
+          t.nextAttemptAt.isNull() |
+          t.nextAttemptAt.isSmallerOrEqualValue(now));
     }
     final rows = await query.get();
     return rows.map(OutboxItemRecord.new).toList();
@@ -939,7 +1213,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
           .get();
       await _upsertFromServer(
         server,
-        syncState: remaining.isEmpty ? LocalSyncState.synced : LocalSyncState.pendingSync,
+        syncState: remaining.isEmpty
+            ? LocalSyncState.synced
+            : LocalSyncState.pendingSync,
       );
     });
     notifyListeners();
@@ -960,7 +1236,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
           nextAttemptAt: drift.Value(nextAttemptAt),
         ),
       );
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(item.inspectionId))).write(
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(item.inspectionId)))
+          .write(
         LocalInspectionsCompanion(
           lastAttemptAt: drift.Value(now),
           errorMessage: drift.Value(message),
@@ -974,7 +1252,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
   /// stays (for manual retry/discard) but is paused via [pausedSentinel] so
   /// the drain loop doesn't immediately retry a mutation that can't
   /// possibly succeed as-is.
-  Future<void> markPermanentError(OutboxItemRecord item, {required String message}) async {
+  Future<void> markPermanentError(OutboxItemRecord item,
+      {required String message}) async {
     await _db.transaction(() async {
       final now = DateTime.now().toUtc();
       await (_db.update(_db.outbox)..where((t) => t.id.equals(item.id))).write(
@@ -985,7 +1264,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
           nextAttemptAt: drift.Value(pausedSentinel),
         ),
       );
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(item.inspectionId))).write(
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(item.inspectionId)))
+          .write(
         LocalInspectionsCompanion(
           syncState: const drift.Value('error'),
           lastAttemptAt: drift.Value(now),
@@ -1006,13 +1287,18 @@ class LocalInspectionsRepository extends ChangeNotifier {
     required InspectionDetail serverSnapshot,
   }) async {
     await _db.transaction(() async {
-      await (_db.delete(_db.outbox)..where((t) => t.inspectionId.equals(inspectionId))).go();
-      await (_db.update(_db.localInspections)..where((t) => t.id.equals(inspectionId))).write(
+      await (_db.delete(_db.outbox)
+            ..where((t) => t.inspectionId.equals(inspectionId)))
+          .go();
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .write(
         LocalInspectionsCompanion(
           syncState: const drift.Value('conflict'),
           errorMessage: const drift.Value(null),
           conflictServerSnapshot: drift.Value(
-            jsonEncode(standardSerializers.serializeWith(InspectionDetail.serializer, serverSnapshot)),
+            jsonEncode(standardSerializers.serializeWith(
+                InspectionDetail.serializer, serverSnapshot)),
           ),
         ),
       );

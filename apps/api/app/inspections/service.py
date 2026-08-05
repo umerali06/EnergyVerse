@@ -16,11 +16,13 @@ from app.db.repositories.inspections import (
 from app.models.api import (
     AssignChecklistTemplateRequest,
     AttachInspectionMediaRequest,
+    CreateAnnotationRequest,
     CreateInspectionRequest,
     InspectionDetail,
     InspectionListItem,
     InspectionListPage,
     InspectionMediaResponse,
+    UpdateAnnotationRequest,
     UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
 )
@@ -29,6 +31,7 @@ from app.models.api import (
 )
 from app.models.base import CompanyScope, utc_now
 from app.models.entities import (
+    Annotation,
     Asset,
     ChecklistResponse,
     ChecklistTemplate,
@@ -117,7 +120,7 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
         device_id=inspection.device_id,
         origin=inspection.origin,
         media=[_media_response(media, storage) for media in inspection.media],
-        annotations=inspection.annotations,
+        annotations=[annotation.model_dump() for annotation in inspection.annotations],
         voice_notes=inspection.voice_notes,
         readings=inspection.readings,
         ar_measurements=inspection.ar_measurements,
@@ -631,6 +634,100 @@ class InspectionService:
         if media is None:
             return _to_detail(current, self._storage)
         updated = await self._inspections.remove_media(scope, inspection_id, media, actor_uid)
+        return _to_detail(updated, self._storage)
+
+    async def create_annotation(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        request: CreateAnnotationRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        """Idempotent by client-generated `id` (offline-safe, mirrors
+        `attach_media`'s by-`local_id` dedup): a byte-identical resubmit from
+        the mobile outbox's at-least-once replay is a no-op. Bypasses
+        `expected_revision` entirely, same rationale as media -- annotation
+        traffic must never collide with the checklist-autosave revision
+        protocol."""
+        current = await self._active_inspection(scope, inspection_id)
+
+        if not any(m.local_id == request.media_local_id for m in current.media):
+            raise InspectionServiceError(
+                404,
+                "media_not_found",
+                "Annotation references a media item that does not exist on this inspection",
+                {"media_local_id": request.media_local_id},
+            )
+
+        existing = next((a for a in current.annotations if a.id == request.id), None)
+        if existing is not None:
+            if (
+                existing.media_local_id == request.media_local_id
+                and existing.shape == request.shape
+                and [p.model_dump() for p in existing.points]
+                == [p.model_dump() for p in request.points]
+                and existing.color == request.color
+                and existing.damage_type == request.damage_type
+                and existing.note == request.note
+            ):
+                return _to_detail(current, self._storage)
+            raise InspectionServiceError(
+                409,
+                "annotation_conflict",
+                "A different annotation already exists for this id",
+                {"id": request.id},
+            )
+
+        annotation = Annotation(
+            id=request.id,
+            media_local_id=request.media_local_id,
+            shape=request.shape,
+            points=[p.model_dump() for p in request.points],
+            color=request.color,
+            damage_type=request.damage_type,
+            note=request.note,
+            source="manual",
+            confidence=None,
+            created_by=actor_uid,
+            created_at=utc_now(),
+        )
+        updated = await self._inspections.append_annotation(
+            scope, inspection_id, annotation, actor_uid
+        )
+        return _to_detail(updated, self._storage)
+
+    async def update_annotation(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        annotation_id: str,
+        request: UpdateAnnotationRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        """Idempotent-on-missing, same posture as `update_media`."""
+        await self._active_inspection(scope, inspection_id)
+        changes = request.model_dump(exclude_unset=True)
+        updated = await self._inspections.update_annotation(
+            scope,
+            inspection_id,
+            annotation_id,
+            changes=changes,
+            actor_uid=actor_uid,
+        )
+        return _to_detail(updated, self._storage)
+
+    async def delete_annotation(
+        self, scope: CompanyScope, inspection_id: str, annotation_id: str, actor_uid: str
+    ) -> InspectionDetail:
+        """Idempotent on an already-deleted `annotation_id` -- the mobile
+        outbox replays this call at-least-once, mirrors `detach_media`."""
+        current = await self._active_inspection(scope, inspection_id)
+        annotation = next((a for a in current.annotations if a.id == annotation_id), None)
+        if annotation is None:
+            return _to_detail(current, self._storage)
+        updated = await self._inspections.remove_annotation(
+            scope, inspection_id, annotation, actor_uid
+        )
         return _to_detail(updated, self._storage)
 
 

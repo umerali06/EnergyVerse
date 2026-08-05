@@ -14,12 +14,15 @@ Method | HTTP request | Description
 [**cancelInspection**](InspectionsApi.md#cancelinspection) | **POST** /api/v1/inspections/{inspection_id}/cancel | Cancel Inspection
 [**completeInspection**](InspectionsApi.md#completeinspection) | **POST** /api/v1/inspections/{inspection_id}/complete | Complete Inspection
 [**createInspection**](InspectionsApi.md#createinspection) | **POST** /api/v1/inspections | Create Inspection
+[**createInspectionAnnotation**](InspectionsApi.md#createinspectionannotation) | **POST** /api/v1/inspections/{inspection_id}/annotations | Create Inspection Annotation
 [**deleteInspection**](InspectionsApi.md#deleteinspection) | **DELETE** /api/v1/inspections/{inspection_id} | Delete Inspection
+[**deleteInspectionAnnotation**](InspectionsApi.md#deleteinspectionannotation) | **DELETE** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Delete Inspection Annotation
 [**detachInspectionMedia**](InspectionsApi.md#detachinspectionmedia) | **DELETE** /api/v1/inspections/{inspection_id}/media/{media_id} | Detach Inspection Media
 [**getInspection**](InspectionsApi.md#getinspection) | **GET** /api/v1/inspections/{inspection_id} | Get Inspection
 [**listInspections**](InspectionsApi.md#listinspections) | **GET** /api/v1/inspections | List Inspections
 [**startInspection**](InspectionsApi.md#startinspection) | **POST** /api/v1/inspections/{inspection_id}/start | Start Inspection
 [**updateInspection**](InspectionsApi.md#updateinspection) | **PATCH** /api/v1/inspections/{inspection_id} | Update Inspection
+[**updateInspectionAnnotation**](InspectionsApi.md#updateinspectionannotation) | **PATCH** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Update Inspection Annotation
 [**updateInspectionMedia**](InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 
 
@@ -236,6 +239,51 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **createInspectionAnnotation**
+> InspectionDetail createInspectionAnnotation(inspectionId, createAnnotationRequest)
+
+Create Inspection Annotation
+
+Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection`) -- annotations are vector metadata only, no image bytes pass through here.
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final CreateAnnotationRequest createAnnotationRequest = ; // CreateAnnotationRequest |
+
+try {
+    final response = api.createInspectionAnnotation(inspectionId, createAnnotationRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->createInspectionAnnotation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **createAnnotationRequest** | [**CreateAnnotationRequest**](CreateAnnotationRequest.md)|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **deleteInspection**
 > InspectionDeleted deleteInspection(inspectionId)
 
@@ -265,6 +313,51 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**InspectionDeleted**](InspectionDeleted.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteInspectionAnnotation**
+> InspectionDetail deleteInspectionAnnotation(inspectionId, annotationId)
+
+Delete Inspection Annotation
+
+Idempotent on an already-deleted `annotation_id` -- the mobile outbox replays this call at-least-once.
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final String annotationId = annotationId_example; // String |
+
+try {
+    final response = api.deleteInspectionAnnotation(inspectionId, annotationId);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->deleteInspectionAnnotation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **annotationId** | **String**|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
 
 ### Authorization
 
@@ -486,6 +579,51 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **inspectionId** | **String**|  |
  **updateInspectionRequest** | [**UpdateInspectionRequest**](UpdateInspectionRequest.md)|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateInspectionAnnotation**
+> InspectionDetail updateInspectionAnnotation(inspectionId, annotationId, updateAnnotationRequest)
+
+Update Inspection Annotation
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final String annotationId = annotationId_example; // String |
+final UpdateAnnotationRequest updateAnnotationRequest = ; // UpdateAnnotationRequest |
+
+try {
+    final response = api.updateInspectionAnnotation(inspectionId, annotationId, updateAnnotationRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->updateInspectionAnnotation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **annotationId** | **String**|  |
+ **updateAnnotationRequest** | [**UpdateAnnotationRequest**](UpdateAnnotationRequest.md)|  |
 
 ### Return type
 

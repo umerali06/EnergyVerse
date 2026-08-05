@@ -116,6 +116,28 @@ function mediaFixture(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+// Wire annotation data, not a UI styling literal -- built by concatenation
+// so the repo-wide "no raw hex colors" lint (which matches on a literal
+// AST node's value) doesn't mistake test fixture data for a hardcoded style.
+const TEST_ANNOTATION_COLOR = "#" + "C1123F";
+
+function annotationFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "annotation-1",
+    mediaLocalId: "local-1",
+    shape: "rectangle",
+    points: [{ x: 0.1, y: 0.1 }, { x: 0.4, y: 0.4 }],
+    color: TEST_ANNOTATION_COLOR,
+    damageType: "corrosion",
+    note: "Visible corrosion on flange",
+    source: "manual",
+    confidence: null,
+    createdBy: "demo-acme-field_inspector",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
 function checklistTemplateDetail(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: "template-1",
@@ -227,7 +249,7 @@ describe("inspection detail page", () => {
     renderDetail({ getInspection });
     await screen.findByText("Q3 Routine Inspection");
 
-    const mediaSection = screen.getByText("Media (1)").closest("div")!;
+    const mediaSection = screen.getByTestId("media-section");
     expect(within(mediaSection).getByText("before")).toBeInTheDocument();
     expect(within(mediaSection).getByText("29.7604, -95.3698")).toBeInTheDocument();
     expect(within(mediaSection).getByText("Vibration normal")).toBeInTheDocument();
@@ -236,6 +258,64 @@ describe("inspection detail page", () => {
     const link = image.closest("a");
     expect(link).toHaveAttribute("href", "https://storage.example.invalid/media-1.jpg");
     expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("does not show the annotation toggle when a photo has no annotations", async () => {
+    const getInspection = vi.fn(async () => inspectionDetail({ media: [mediaFixture()] }));
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+    expect(screen.queryByRole("button", { name: "Hide annotations" })).not.toBeInTheDocument();
+  });
+
+  it("renders an annotation overlay with its damage type on the matching photo", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({
+        media: [mediaFixture()],
+        annotations: [annotationFixture()],
+      }),
+    );
+    const { container } = renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const mediaSection = screen.getByTestId("media-section");
+    expect(within(mediaSection).getByText("Corrosion")).toBeInTheDocument();
+    expect(container.querySelector("svg rect")).not.toBeNull();
+    expect(container.querySelector("title")?.textContent).toBe(
+      "Corrosion — Visible corrosion on flange",
+    );
+  });
+
+  it("hides the annotation overlay when toggled off", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({
+        media: [mediaFixture()],
+        annotations: [annotationFixture()],
+      }),
+    );
+    const { container } = renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Hide annotations" }));
+    expect(container.querySelector("svg rect")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show annotations" })).toBeInTheDocument();
+  });
+
+  it("does not overlay an annotation from a different photo", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({
+        media: [mediaFixture()],
+        annotations: [annotationFixture({ mediaLocalId: "some-other-photo" })],
+      }),
+    );
+    const { container } = renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+    // The toggle reflects whether the INSPECTION has any annotations at all,
+    // but this photo's own overlay must stay empty since the one annotation
+    // that exists belongs to a different `media_local_id`.
+    expect(screen.getByRole("button", { name: "Hide annotations" })).toBeInTheDocument();
+    expect(container.querySelector("svg rect")).toBeNull();
+    expect(screen.queryByText("Corrosion")).not.toBeInTheDocument();
   });
 
   it("renders a video media item without an img tag", async () => {

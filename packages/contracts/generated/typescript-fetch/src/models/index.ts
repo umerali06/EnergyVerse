@@ -1,5 +1,8 @@
 /* tslint:disable */
 /* eslint-disable */
+export * from './AnnotationPointInput';
+export * from './AnnotationPointResponse';
+export * from './AnnotationResponse';
 export * from './AreaDeleted';
 export * from './AreaDetail';
 export * from './AreaListPage';
@@ -29,6 +32,7 @@ export * from './ChecklistTemplateListPage';
 export * from './CompanyProfile';
 export * from './CompanyRegistrationRequest';
 export * from './CompanyRegistrationResponse';
+export * from './CreateAnnotationRequest';
 export * from './CreateAreaRequest';
 export * from './CreateAssetRequest';
 export * from './CreateChecklistTemplateRequest';
@@ -67,6 +71,7 @@ export * from './RoleDetail';
 export * from './RoleList';
 export * from './RoleSummary';
 export * from './ServiceResponse';
+export * from './UpdateAnnotationRequest';
 export * from './UpdateAreaRequest';
 export * from './UpdateAssetRequest';
 export * from './UpdateChecklistTemplateRequest';

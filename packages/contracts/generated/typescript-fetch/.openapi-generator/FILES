@@ -21,6 +21,9 @@ src/apis/SystemApi.ts
 src/apis/UsersApi.ts
 src/apis/index.ts
 src/index.ts
+src/models/AnnotationPointInput.ts
+src/models/AnnotationPointResponse.ts
+src/models/AnnotationResponse.ts
 src/models/AreaDeleted.ts
 src/models/AreaDetail.ts
 src/models/AreaListPage.ts
@@ -50,6 +53,7 @@ src/models/ChecklistTemplateListPage.ts
 src/models/CompanyProfile.ts
 src/models/CompanyRegistrationRequest.ts
 src/models/CompanyRegistrationResponse.ts
+src/models/CreateAnnotationRequest.ts
 src/models/CreateAreaRequest.ts
 src/models/CreateAssetRequest.ts
 src/models/CreateChecklistTemplateRequest.ts
@@ -88,6 +92,7 @@ src/models/RoleDetail.ts
 src/models/RoleList.ts
 src/models/RoleSummary.ts
 src/models/ServiceResponse.ts
+src/models/UpdateAnnotationRequest.ts
 src/models/UpdateAreaRequest.ts
 src/models/UpdateAssetRequest.ts
 src/models/UpdateChecklistTemplateRequest.ts

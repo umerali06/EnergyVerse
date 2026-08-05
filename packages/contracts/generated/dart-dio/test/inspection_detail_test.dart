@@ -12,7 +12,7 @@ void main() {
       // TODO
     });
 
-    // BuiltList<BuiltMap<String, JsonObject>> annotations
+    // BuiltList<AnnotationResponse> annotations
     test('to test the property `annotations`', () async {
       // TODO
     });

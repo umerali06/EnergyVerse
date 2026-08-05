@@ -14,6 +14,9 @@ import 'package:built_value/iso_8601_date_time_serializer.dart';
 import 'package:fev_api_client/src/date_serializer.dart';
 import 'package:fev_api_client/src/model/date.dart';
 
+import 'package:fev_api_client/src/model/annotation_point_input.dart';
+import 'package:fev_api_client/src/model/annotation_point_response.dart';
+import 'package:fev_api_client/src/model/annotation_response.dart';
 import 'package:fev_api_client/src/model/area_deleted.dart';
 import 'package:fev_api_client/src/model/area_detail.dart';
 import 'package:fev_api_client/src/model/area_list_page.dart';
@@ -43,6 +46,7 @@ import 'package:fev_api_client/src/model/checklist_template_list_page.dart';
 import 'package:fev_api_client/src/model/company_profile.dart';
 import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
+import 'package:fev_api_client/src/model/create_annotation_request.dart';
 import 'package:fev_api_client/src/model/create_area_request.dart';
 import 'package:fev_api_client/src/model/create_asset_request.dart';
 import 'package:fev_api_client/src/model/create_checklist_template_request.dart';
@@ -81,6 +85,7 @@ import 'package:fev_api_client/src/model/role_detail.dart';
 import 'package:fev_api_client/src/model/role_list.dart';
 import 'package:fev_api_client/src/model/role_summary.dart';
 import 'package:fev_api_client/src/model/service_response.dart';
+import 'package:fev_api_client/src/model/update_annotation_request.dart';
 import 'package:fev_api_client/src/model/update_area_request.dart';
 import 'package:fev_api_client/src/model/update_asset_request.dart';
 import 'package:fev_api_client/src/model/update_checklist_template_request.dart';
@@ -103,6 +108,9 @@ import 'package:fev_api_client/src/model/value.dart';
 part 'serializers.g.dart';
 
 @SerializersFor([
+  AnnotationPointInput,
+  AnnotationPointResponse,
+  AnnotationResponse,
   AreaDeleted,
   AreaDetail,
   AreaListPage,
@@ -132,6 +140,7 @@ part 'serializers.g.dart';
   CompanyProfile,
   CompanyRegistrationRequest,
   CompanyRegistrationResponse,
+  CreateAnnotationRequest,
   CreateAreaRequest,
   CreateAssetRequest,
   CreateChecklistTemplateRequest,
@@ -170,6 +179,7 @@ part 'serializers.g.dart';
   RoleList,
   RoleSummary,
   ServiceResponse,
+  UpdateAnnotationRequest,
   UpdateAreaRequest,
   UpdateAssetRequest,
   UpdateChecklistTemplateRequest,

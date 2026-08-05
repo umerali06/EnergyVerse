@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
+import '../annotations/annotation_canvas_screen.dart';
 import '../auth/auth_controller.dart';
 import '../dashboard/format.dart';
 import '../design_system/primitives.dart';
@@ -26,6 +27,7 @@ import 'media_upload_worker.dart';
 class _GalleryItem {
   _GalleryItem.synced(InspectionMediaResponse media)
       : id = media.id,
+        mediaLocalId = media.localId,
         kind = media.kind.name,
         beforeAfterTag = media.beforeAfterTag?.name,
         checklistItemId = media.checklistItemId,
@@ -37,6 +39,7 @@ class _GalleryItem {
 
   _GalleryItem.queued(MediaQueueRecord row)
       : id = row.localId,
+        mediaLocalId = row.localId,
         kind = row.kind,
         beforeAfterTag = row.beforeAfterTag,
         checklistItemId = row.checklistItemId,
@@ -47,6 +50,12 @@ class _GalleryItem {
         localId = row.localId;
 
   final String id;
+
+  /// The stable client-generated key an annotation references (`media_id`
+  /// on the wire) -- present for both a synced [InspectionMediaResponse]
+  /// and a not-yet-synced [MediaQueueRecord], unlike [id] (server-assigned,
+  /// null for the latter).
+  final String mediaLocalId;
   final String kind;
   final String? beforeAfterTag;
   final String? checklistItemId;
@@ -73,7 +82,8 @@ Widget _networkImage(String url, {BoxFit? fit}) {
     errorBuilder: (context, error, stackTrace) => ColoredBox(
       color: Colors.black12,
       child: Center(
-        child: Icon(Icons.broken_image_outlined, color: Colors.black45.withAlpha(180)),
+        child: Icon(Icons.broken_image_outlined,
+            color: Colors.black45.withAlpha(180)),
       ),
     ),
   );
@@ -106,6 +116,7 @@ class InspectionMediaSection extends StatefulWidget {
     required this.inspectionId,
     required this.checklistItems,
     required this.serverMedia,
+    required this.annotations,
     required this.editable,
     super.key,
   });
@@ -113,6 +124,7 @@ class InspectionMediaSection extends StatefulWidget {
   final String inspectionId;
   final List<ChecklistTemplateItem> checklistItems;
   final List<InspectionMediaResponse> serverMedia;
+  final List<AnnotationResponse> annotations;
   final bool editable;
 
   @override
@@ -120,6 +132,10 @@ class InspectionMediaSection extends StatefulWidget {
 }
 
 class _InspectionMediaSectionState extends State<InspectionMediaSection> {
+  bool _showAnnotationOverlay = true;
+
+  List<AnnotationResponse> _annotationsFor(String mediaLocalId) =>
+      widget.annotations.where((a) => a.mediaLocalId == mediaLocalId).toList();
   Future<void> _capture() async {
     final result = await Navigator.of(context).push<MediaCaptureResult>(
       MaterialPageRoute(builder: (_) => const MediaCaptureScreen()),
@@ -148,7 +164,8 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
 
   Future<void> _remove(_GalleryItem item) {
     if (item.isLocalOnly) {
-      return MediaProvider.repositoryOf(context).removeBeforeSync(item.localId!);
+      return MediaProvider.repositoryOf(context)
+          .removeBeforeSync(item.localId!);
     }
     return SyncProvider.repositoryOf(context).enqueueDetachMedia(
       inspectionId: widget.inspectionId,
@@ -158,7 +175,8 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
 
   Future<void> _setTag(_GalleryItem item, String? tag) {
     if (item.isLocalOnly) {
-      return MediaProvider.repositoryOf(context).setBeforeAfterTag(item.localId!, tag);
+      return MediaProvider.repositoryOf(context)
+          .setBeforeAfterTag(item.localId!, tag);
     }
     return SyncProvider.repositoryOf(context).enqueueEditMedia(
       inspectionId: widget.inspectionId,
@@ -174,7 +192,8 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
 
   Future<void> _setChecklistItem(_GalleryItem item, String? checklistItemId) {
     if (item.isLocalOnly) {
-      return MediaProvider.repositoryOf(context).setChecklistItemId(item.localId!, checklistItemId);
+      return MediaProvider.repositoryOf(context)
+          .setChecklistItemId(item.localId!, checklistItemId);
     }
     // Synced media can only be RE-linked here, not cleared back to
     // unlinked -- `UpdateInspectionMediaRequest` treats a null field as
@@ -185,19 +204,92 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
     return SyncProvider.repositoryOf(context).enqueueEditMedia(
       inspectionId: widget.inspectionId,
       mediaId: item.id,
-      request: UpdateInspectionMediaRequest((b) => b..checklistItemId = checklistItemId),
+      request: UpdateInspectionMediaRequest(
+          (b) => b..checklistItemId = checklistItemId),
     );
   }
 
   void _openComparison(List<_GalleryItem> items) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => _MediaComparisonScreen(items: items)),
+      MaterialPageRoute<void>(
+          builder: (_) => _MediaComparisonScreen(items: items)),
     );
   }
 
   void _view(_GalleryItem item) {
+    if (item.isPhoto) {
+      _openAnnotate(item);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => _MediaViewerScreen(item: item)),
+    );
+  }
+
+  List<AnnotationPointResponse> _toPointResponses(List<Offset> points) => points
+      .map((o) => AnnotationPointResponse((b) => b
+        ..x = o.dx
+        ..y = o.dy))
+      .toList();
+
+  void _openAnnotate(_GalleryItem item) {
+    final repository = SyncProvider.repositoryOf(context);
+    final currentUid = AuthProvider.of(context).currentUser?.uid ?? '';
+    final imageProvider = item.networkUrl != null
+        ? NetworkImage(item.networkUrl!) as ImageProvider
+        : FileImage(File(item.localFilePath!));
+
+    Future<List<AnnotationResponse>> refreshed() async {
+      final record = await repository.getInspection(widget.inspectionId);
+      return (record?.annotations ?? const [])
+          .where((a) => a.mediaLocalId == item.mediaLocalId)
+          .toList();
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AnnotationCanvasScreen(
+          imageProvider: imageProvider,
+          initialAnnotations: _annotationsFor(item.mediaLocalId),
+          editable: widget.editable,
+          onCreate: ({
+            required shape,
+            required points,
+            required color,
+            damageType,
+            note,
+          }) async {
+            await repository.createAnnotation(
+              inspectionId: widget.inspectionId,
+              mediaLocalId: item.mediaLocalId,
+              shape: shape,
+              points: _toPointResponses(points),
+              color: color,
+              createdBy: currentUid,
+              damageType: damageType,
+              note: note,
+            );
+            return refreshed();
+          },
+          onUpdate: ({required annotationId, points, damageType, note}) async {
+            await repository.updateAnnotation(
+              inspectionId: widget.inspectionId,
+              annotationId: annotationId,
+              points: points == null ? null : _toPointResponses(points),
+              damageType: damageType,
+              note: note,
+            );
+            return refreshed();
+          },
+          onDelete: (annotationId) async {
+            await repository.deleteAnnotation(
+              inspectionId: widget.inspectionId,
+              annotationId: annotationId,
+            );
+            return refreshed();
+          },
+        ),
+      ),
     );
   }
 
@@ -213,11 +305,16 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
           ...queued.map(_GalleryItem.queued),
         ];
         final uploadedCount = widget.serverMedia.length;
-        final pendingCount =
-            queued.where((row) => row.uploadState != MediaUploadState.referenced).length;
+        final pendingCount = queued
+            .where((row) => row.uploadState != MediaUploadState.referenced)
+            .length;
         final totalCount = uploadedCount + pendingCount;
-        final canCompare = items.where((i) => i.beforeAfterTag == 'before' && i.isPhoto).isNotEmpty &&
-            items.where((i) => i.beforeAfterTag == 'after' && i.isPhoto).isNotEmpty;
+        final canCompare = items
+                .where((i) => i.beforeAfterTag == 'before' && i.isPhoto)
+                .isNotEmpty &&
+            items
+                .where((i) => i.beforeAfterTag == 'after' && i.isPhoto)
+                .isNotEmpty;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,20 +322,45 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('MEDIA', style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
-                if (totalCount > 0)
-                  Text(
-                    '$uploadedCount of $totalCount uploaded',
-                    key: const Key('media-upload-progress'),
-                    style: TextStyle(color: context.semantic.textMuted),
-                  ),
+                Text('MEDIA',
+                    style: TextStyle(
+                        color: context.semantic.textMuted, letterSpacing: 1)),
+                Row(
+                  children: [
+                    if (totalCount > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(right: DsSpacing.s2),
+                        child: Text(
+                          '$uploadedCount of $totalCount uploaded',
+                          key: const Key('media-upload-progress'),
+                          style: TextStyle(color: context.semantic.textMuted),
+                        ),
+                      ),
+                    if (widget.annotations.isNotEmpty)
+                      IconButton(
+                        key: const Key('toggle-annotation-overlay'),
+                        icon: Icon(
+                          _showAnnotationOverlay
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          size: 18,
+                        ),
+                        tooltip: _showAnnotationOverlay
+                            ? 'Hide annotations'
+                            : 'Show annotations',
+                        onPressed: () => setState(() =>
+                            _showAnnotationOverlay = !_showAnnotationOverlay),
+                      ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: DsSpacing.s2),
             if (items.isEmpty)
               const EmptyState(
                 title: 'No media yet',
-                description: 'Capture a photo or video to attach evidence to this inspection.',
+                description:
+                    'Capture a photo or video to attach evidence to this inspection.',
               )
             else
               GridView.builder(
@@ -253,13 +375,18 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
                 itemBuilder: (context, index) {
                   final item = items[index];
                   return _MediaTile(
+                    key: Key('media-tile-${item.id}'),
                     item: item,
                     checklistItems: widget.checklistItems,
                     editable: widget.editable,
+                    annotations: _showAnnotationOverlay
+                        ? _annotationsFor(item.mediaLocalId)
+                        : const [],
                     onTap: () => _view(item),
                     onRemove: () => unawaited(_remove(item)),
                     onSetTag: (tag) => unawaited(_setTag(item, tag)),
-                    onSetChecklistItem: (id) => unawaited(_setChecklistItem(item, id)),
+                    onSetChecklistItem: (id) =>
+                        unawaited(_setChecklistItem(item, id)),
                   );
                 },
               ),
@@ -293,15 +420,18 @@ class _MediaTile extends StatelessWidget {
     required this.item,
     required this.checklistItems,
     required this.editable,
+    required this.annotations,
     required this.onTap,
     required this.onRemove,
     required this.onSetTag,
     required this.onSetChecklistItem,
+    super.key,
   });
 
   final _GalleryItem item;
   final List<ChecklistTemplateItem> checklistItems;
   final bool editable;
+  final List<AnnotationResponse> annotations;
   final VoidCallback onTap;
   final VoidCallback onRemove;
   final ValueChanged<String?> onSetTag;
@@ -327,13 +457,26 @@ class _MediaTile extends StatelessWidget {
               else
                 const ColoredBox(
                   color: Colors.black45,
-                  child: Center(child: Icon(Icons.play_circle_outline, color: Colors.white)),
+                  child: Center(
+                      child:
+                          Icon(Icons.play_circle_outline, color: Colors.white)),
                 ),
+              // At-a-glance preview only -- the tile crops via `BoxFit.cover`
+              // while this paints against the full tile box, so it can be
+              // very slightly offset for a non-square photo. The canvas
+              // itself (opened on tap) is the authoritative, precisely
+              // aligned view.
+              if (item.isPhoto && annotations.isNotEmpty)
+                Positioned.fill(
+                    child: CustomPaint(
+                        painter: AnnotationOverlayPainter(annotations))),
               if (item.beforeAfterTag != null)
                 Positioned(
                   left: DsSpacing.s1,
                   top: DsSpacing.s1,
-                  child: AppBadge(label: item.beforeAfterTag == 'before' ? 'Before' : 'After'),
+                  child: AppBadge(
+                      label:
+                          item.beforeAfterTag == 'before' ? 'Before' : 'After'),
                 ),
               if (item.uploadStateLabel != null)
                 Positioned(
@@ -346,10 +489,12 @@ class _MediaTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(DsRadius.sm),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
                       child: Text(
                         item.uploadStateLabel!,
-                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 11),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -379,20 +524,26 @@ class _MediaTile extends StatelessWidget {
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'before', child: Text('Tag as before')),
-                      const PopupMenuItem(value: 'after', child: Text('Tag as after')),
+                      const PopupMenuItem(
+                          value: 'before', child: Text('Tag as before')),
+                      const PopupMenuItem(
+                          value: 'after', child: Text('Tag as after')),
                       if (item.beforeAfterTag != null)
-                        const PopupMenuItem(value: 'untag', child: Text('Remove tag')),
+                        const PopupMenuItem(
+                            value: 'untag', child: Text('Remove tag')),
                       const PopupMenuDivider(),
                       if (item.isLocalOnly)
-                        const PopupMenuItem(value: 'checklist:', child: Text('Unlink checklist item')),
+                        const PopupMenuItem(
+                            value: 'checklist:',
+                            child: Text('Unlink checklist item')),
                       for (final checklistItem in checklistItems)
                         PopupMenuItem(
                           value: 'checklist:${checklistItem.id}',
                           child: Text('Link: ${checklistItem.label}'),
                         ),
                       const PopupMenuDivider(),
-                      const PopupMenuItem(value: 'remove', child: Text('Remove')),
+                      const PopupMenuItem(
+                          value: 'remove', child: Text('Remove')),
                     ],
                   ),
                 ),
@@ -443,8 +594,12 @@ class _LocalVideoThumbnailState extends State<_LocalVideoThumbnail> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (bytes != null) Image.memory(bytes, fit: BoxFit.cover) else const ColoredBox(color: Colors.black45),
-        const Center(child: Icon(Icons.play_circle_outline, color: Colors.white)),
+        if (bytes != null)
+          Image.memory(bytes, fit: BoxFit.cover)
+        else
+          const ColoredBox(color: Colors.black45),
+        const Center(
+            child: Icon(Icons.play_circle_outline, color: Colors.white)),
       ],
     );
   }
@@ -492,7 +647,8 @@ class _MediaViewerScreenState extends State<_MediaViewerScreen> {
     final controller = _controller;
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+      appBar:
+          AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
       body: Center(
         child: item.isPhoto
             ? (item.networkUrl != null
@@ -531,9 +687,14 @@ class _MediaComparisonScreenState extends State<_MediaComparisonScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final beforeItems = widget.items.where((i) => i.beforeAfterTag == 'before' && i.isPhoto).toList();
-    final afterItems = widget.items.where((i) => i.beforeAfterTag == 'after' && i.isPhoto).toList();
-    final before = _before ?? (beforeItems.isNotEmpty ? beforeItems.first : null);
+    final beforeItems = widget.items
+        .where((i) => i.beforeAfterTag == 'before' && i.isPhoto)
+        .toList();
+    final afterItems = widget.items
+        .where((i) => i.beforeAfterTag == 'after' && i.isPhoto)
+        .toList();
+    final before =
+        _before ?? (beforeItems.isNotEmpty ? beforeItems.first : null);
     final after = _after ?? (afterItems.isNotEmpty ? afterItems.first : null);
 
     return Scaffold(
@@ -547,19 +708,22 @@ class _MediaComparisonScreenState extends State<_MediaComparisonScreen> {
               label: 'Before photo',
               value: before?.id,
               items: [
-                for (final item in beforeItems) DropdownMenuItem(value: item.id, child: Text(_label(item))),
+                for (final item in beforeItems)
+                  DropdownMenuItem(value: item.id, child: Text(_label(item))),
               ],
-              onChanged: (id) =>
-                  setState(() => _before = beforeItems.firstWhere((i) => i.id == id)),
+              onChanged: (id) => setState(
+                  () => _before = beforeItems.firstWhere((i) => i.id == id)),
             ),
             const SizedBox(height: DsSpacing.s3),
             AppSelect<String>(
               label: 'After photo',
               value: after?.id,
               items: [
-                for (final item in afterItems) DropdownMenuItem(value: item.id, child: Text(_label(item))),
+                for (final item in afterItems)
+                  DropdownMenuItem(value: item.id, child: Text(_label(item))),
               ],
-              onChanged: (id) => setState(() => _after = afterItems.firstWhere((i) => i.id == id)),
+              onChanged: (id) => setState(
+                  () => _after = afterItems.firstWhere((i) => i.id == id)),
             ),
             const SizedBox(height: DsSpacing.s4),
             if (before != null && after != null)
@@ -570,7 +734,8 @@ class _MediaComparisonScreenState extends State<_MediaComparisonScreen> {
                       onHorizontalDragUpdate: (details) {
                         setState(() {
                           _sliderFraction =
-                              (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
+                              (details.localPosition.dx / constraints.maxWidth)
+                                  .clamp(0.0, 1.0);
                         });
                       },
                       child: ClipRRect(
@@ -600,7 +765,8 @@ class _MediaComparisonScreenState extends State<_MediaComparisonScreen> {
               const Expanded(
                 child: EmptyState(
                   title: 'Nothing to compare yet',
-                  description: 'Tag at least one before photo and one after photo first.',
+                  description:
+                      'Tag at least one before photo and one after photo first.',
                 ),
               ),
           ],
@@ -620,8 +786,10 @@ class _LeftFractionClipper extends CustomClipper<Rect> {
   final double fraction;
 
   @override
-  Rect getClip(Size size) => Rect.fromLTWH(0, 0, size.width * fraction, size.height);
+  Rect getClip(Size size) =>
+      Rect.fromLTWH(0, 0, size.width * fraction, size.height);
 
   @override
-  bool shouldReclip(covariant _LeftFractionClipper oldClipper) => oldClipper.fraction != fraction;
+  bool shouldReclip(covariant _LeftFractionClipper oldClipper) =>
+      oldClipper.fraction != fraction;
 }

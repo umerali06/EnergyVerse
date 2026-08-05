@@ -1,6 +1,154 @@
 {
   "components": {
     "schemas": {
+      "AnnotationPointInput": {
+        "properties": {
+          "x": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "AnnotationPointInput",
+        "type": "object"
+      },
+      "AnnotationPointResponse": {
+        "properties": {
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "AnnotationPointResponse",
+        "type": "object"
+      },
+      "AnnotationResponse": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "damage_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "corrosion",
+                  "rust",
+                  "crack",
+                  "surface_damage",
+                  "paint_deterioration",
+                  "missing_bolt",
+                  "broken_component",
+                  "leak",
+                  "wear",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Damage Type"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "media_local_id": {
+            "title": "Media Local Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/AnnotationPointResponse"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "shape": {
+            "enum": [
+              "freehand",
+              "rectangle",
+              "circle",
+              "arrow",
+              "point"
+            ],
+            "title": "Shape",
+            "type": "string"
+          },
+          "source": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "ai"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "media_local_id",
+          "shape",
+          "points",
+          "color",
+          "created_by",
+          "created_at"
+        ],
+        "title": "AnnotationResponse",
+        "type": "object"
+      },
       "AreaDeleted": {
         "properties": {
           "deleted": {
@@ -1534,6 +1682,91 @@
         "title": "CompanyRegistrationResponse",
         "type": "object"
       },
+      "CreateAnnotationRequest": {
+        "properties": {
+          "color": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Color",
+            "type": "string"
+          },
+          "damage_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "corrosion",
+                  "rust",
+                  "crack",
+                  "surface_damage",
+                  "paint_deterioration",
+                  "missing_bolt",
+                  "broken_component",
+                  "leak",
+                  "wear",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Damage Type"
+          },
+          "id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "media_local_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Media Local Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/AnnotationPointInput"
+            },
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "shape": {
+            "enum": [
+              "freehand",
+              "rectangle",
+              "circle",
+              "arrow",
+              "point"
+            ],
+            "title": "Shape",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "media_local_id",
+          "shape",
+          "points",
+          "color"
+        ],
+        "title": "CreateAnnotationRequest",
+        "type": "object"
+      },
       "CreateAreaRequest": {
         "properties": {
           "code": {
@@ -2515,8 +2748,7 @@
           },
           "annotations": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/AnnotationResponse"
             },
             "title": "Annotations",
             "type": "array"
@@ -3452,6 +3684,75 @@
           "status"
         ],
         "title": "ServiceResponse",
+        "type": "object"
+      },
+      "UpdateAnnotationRequest": {
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "damage_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "corrosion",
+                  "rust",
+                  "crack",
+                  "surface_damage",
+                  "paint_deterioration",
+                  "missing_bolt",
+                  "broken_component",
+                  "leak",
+                  "wear",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Damage Type"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AnnotationPointInput"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          }
+        },
+        "title": "UpdateAnnotationRequest",
         "type": "object"
       },
       "UpdateAreaRequest": {
@@ -8836,6 +9137,315 @@
           }
         ],
         "summary": "Update Inspection",
+        "tags": [
+          "inspections"
+        ]
+      }
+    },
+    "/api/v1/inspections/{inspection_id}/annotations": {
+      "post": {
+        "description": "Idempotent upsert keyed by the client-generated `id` (mirrors\n`create_inspection`) -- annotations are vector metadata only, no image\nbytes pass through here.",
+        "operationId": "create_inspection_annotation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inspection_id",
+            "required": true,
+            "schema": {
+              "title": "Inspection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnnotationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request conflicts with current state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Inspection Annotation",
+        "tags": [
+          "inspections"
+        ]
+      }
+    },
+    "/api/v1/inspections/{inspection_id}/annotations/{annotation_id}": {
+      "delete": {
+        "description": "Idempotent on an already-deleted `annotation_id` -- the mobile outbox\nreplays this call at-least-once.",
+        "operationId": "delete_inspection_annotation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inspection_id",
+            "required": true,
+            "schema": {
+              "title": "Inspection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "annotation_id",
+            "required": true,
+            "schema": {
+              "title": "Annotation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Inspection Annotation",
+        "tags": [
+          "inspections"
+        ]
+      },
+      "patch": {
+        "operationId": "update_inspection_annotation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inspection_id",
+            "required": true,
+            "schema": {
+              "title": "Inspection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "annotation_id",
+            "required": true,
+            "schema": {
+              "title": "Annotation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAnnotationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Inspection Annotation",
         "tags": [
           "inspections"
         ]

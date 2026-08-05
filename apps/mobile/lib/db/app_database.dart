@@ -16,7 +16,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -27,6 +27,9 @@ class AppDatabase extends _$AppDatabase {
         // v3 (Phase 7.4): the separate MediaQueue table, plus a `media`
         // JSON-blob column on LocalInspections caching the server's synced
         // `inspection.media[]` for fully-offline gallery viewing.
+        // v4 (Phase 7.5): an `annotations` JSON-blob column on
+        // LocalInspections caching (and, for not-yet-synced shapes,
+        // optimistically holding) the inspection's damage annotations.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(localInspections, localInspections.assetCategory);
@@ -35,6 +38,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await m.createTable(mediaQueue);
             await m.addColumn(localInspections, localInspections.media);
+          }
+          if (from < 4) {
+            await m.addColumn(localInspections, localInspections.annotations);
           }
         },
       );

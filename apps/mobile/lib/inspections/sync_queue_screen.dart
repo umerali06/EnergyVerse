@@ -16,6 +16,9 @@ String _mutationLabel(OutboxMutationType type) => switch (type) {
       OutboxMutationType.attachMedia => 'Attach media',
       OutboxMutationType.editMedia => 'Edit media',
       OutboxMutationType.detachMedia => 'Detach media',
+      OutboxMutationType.createAnnotation => 'Add annotation',
+      OutboxMutationType.updateAnnotation => 'Edit annotation',
+      OutboxMutationType.deleteAnnotation => 'Delete annotation',
     };
 
 /// The pending-mutation queue: every outbox row with its mutation type,

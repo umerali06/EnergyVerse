@@ -319,6 +319,42 @@ class InspectionMedia(StrictModel):
     uploaded_at: datetime
 
 
+class AnnotationPoint(StrictModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class Annotation(StrictModel):
+    """A human- or AI-marked damage region drawn over an inspection photo
+    (spec 7.2/7.10). Vector-only, normalized (0-1) coordinates so it renders
+    correctly at any display size -- never bakes pixels into the image.
+    `source`/`confidence` exist now so Phase 7.10's AI-detected regions can
+    render on this same overlay model without a schema change."""
+
+    id: str
+    media_local_id: str
+    shape: Literal["freehand", "rectangle", "circle", "arrow", "point"]
+    points: list[AnnotationPoint] = Field(min_length=1)
+    color: str = Field(min_length=1, max_length=20)
+    damage_type: Literal[
+        "corrosion",
+        "rust",
+        "crack",
+        "surface_damage",
+        "paint_deterioration",
+        "missing_bolt",
+        "broken_component",
+        "leak",
+        "wear",
+        "other",
+    ] | None = None
+    note: str | None = Field(default=None, max_length=1000)
+    source: Literal["manual", "ai"] = "manual"
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    created_by: str
+    created_at: datetime
+
+
 class Inspection(TenantDoc):
     id: str
     asset_id: str
@@ -343,8 +379,8 @@ class Inspection(TenantDoc):
     revision: int = 1
     deleted_at: datetime | None = None
     media: list[InspectionMedia] = Field(default_factory=list)
+    annotations: list[Annotation] = Field(default_factory=list)
     # Reserved, always-empty until their own phases give these real shapes.
-    annotations: list[dict[str, Any]] = Field(default_factory=list)
     voice_notes: list[dict[str, Any]] = Field(default_factory=list)
     readings: dict[str, Any] = Field(default_factory=dict)
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)

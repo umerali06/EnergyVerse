@@ -17,6 +17,7 @@ import {
   useToast,
 } from "@/design-system";
 
+import { AnnotationOverlay, damageTypeLabel } from "./annotation-overlay";
 import { statusLabel, statusTone } from "./inspections-page";
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -44,6 +45,7 @@ export function InspectionDetailPage({
     inspection: InspectionDetail | null;
   }>({ status: "loading", inspection: null });
   const [template, setTemplate] = useState<ChecklistTemplateDetail | null>(null);
+  const [showAnnotations, setShowAnnotations] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -233,12 +235,24 @@ export function InspectionDetailPage({
                 )}
               </div>
 
-              <div>
-                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
-                  Media
-                  {(state.inspection.media ?? []).length > 0 &&
-                    ` (${state.inspection.media!.length})`}
-                </p>
+              <div data-testid="media-section">
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                    Media
+                    {(state.inspection.media ?? []).length > 0 &&
+                      ` (${state.inspection.media!.length})`}
+                  </p>
+                  {(state.inspection.annotations ?? []).length > 0 && (
+                    <button
+                      aria-pressed={showAnnotations}
+                      className="font-mono text-caption text-text-secondary underline-offset-2 hover:underline"
+                      onClick={() => setShowAnnotations((value) => !value)}
+                      type="button"
+                    >
+                      {showAnnotations ? "Hide annotations" : "Show annotations"}
+                    </button>
+                  )}
+                </div>
                 {(state.inspection.media ?? []).length === 0 ? (
                   <p className="mt-1 text-bodySmall text-text-muted">
                     No media has been captured yet.
@@ -248,6 +262,12 @@ export function InspectionDetailPage({
                     {state.inspection.media!.map((item) => {
                       const linkedItem = (state.inspection!.checklistItemsSnapshot ?? []).find(
                         (candidate) => candidate.id === item.checklistItemId,
+                      );
+                      const itemAnnotations = (state.inspection!.annotations ?? []).filter(
+                        (annotation) => annotation.mediaLocalId === item.localId,
+                      );
+                      const damageTypes = Array.from(
+                        new Set(itemAnnotations.map((a) => damageTypeLabel(a.damageType))),
                       );
                       return (
                         <li key={item.id}>
@@ -269,6 +289,9 @@ export function InspectionDetailPage({
                                 Video
                               </div>
                             )}
+                            {showAnnotations && item.kind === "photo" && (
+                              <AnnotationOverlay annotations={itemAnnotations} />
+                            )}
                             {item.beforeAfterTag && (
                               <span className="absolute left-1 top-1 rounded-sm border border-border bg-elevated px-1.5 py-0.5 font-mono text-caption capitalize">
                                 {item.beforeAfterTag}
@@ -285,6 +308,11 @@ export function InspectionDetailPage({
                           )}
                           {linkedItem && (
                             <p className="text-caption text-text-secondary">{linkedItem.label}</p>
+                          )}
+                          {damageTypes.length > 0 && (
+                            <p className="text-caption text-text-secondary">
+                              {damageTypes.join(", ")}
+                            </p>
                           )}
                         </li>
                       );

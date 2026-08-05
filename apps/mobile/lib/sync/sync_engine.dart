@@ -209,6 +209,29 @@ class SyncEngine extends ChangeNotifier {
       case OutboxMutationType.detachMedia:
         final wrapper = payload as Map<String, dynamic>;
         return _api.detachInspectionMedia(item.inspectionId, wrapper['media_id'] as String);
+      case OutboxMutationType.createAnnotation:
+        final request = standardSerializers.deserializeWith(
+          CreateAnnotationRequest.serializer,
+          payload as Map<String, dynamic>,
+        )!;
+        return _api.createInspectionAnnotation(item.inspectionId, request);
+      case OutboxMutationType.updateAnnotation:
+        final wrapper = payload as Map<String, dynamic>;
+        final request = standardSerializers.deserializeWith(
+          UpdateAnnotationRequest.serializer,
+          wrapper['request'] as Map<String, dynamic>,
+        )!;
+        return _api.updateInspectionAnnotation(
+          item.inspectionId,
+          wrapper['annotation_id'] as String,
+          request,
+        );
+      case OutboxMutationType.deleteAnnotation:
+        final wrapper = payload as Map<String, dynamic>;
+        return _api.deleteInspectionAnnotation(
+          item.inspectionId,
+          wrapper['annotation_id'] as String,
+        );
     }
   }
 
@@ -305,16 +328,20 @@ class SyncEngine extends ChangeNotifier {
           jsonDecode(item.row.payload) as Map<String, dynamic>,
         )!;
         return current.checklistTemplateId == request.checklistTemplateId;
-      // attachMedia/editMedia/detachMedia never carry `expected_revision`
-      // and the backend is idempotent-by-`local_id`/`media_id` for all
-      // three, so they can only ever fully succeed or fail outright --
-      // structurally, `_handleError` never routes a `revision_conflict`/
-      // `invalid_transition` code to this method for these mutation types.
-      // These cases exist only to satisfy Dart's exhaustive-switch check;
-      // don't "helpfully" replace `true` with real comparison logic.
+      // attachMedia/editMedia/detachMedia/*Annotation never carry
+      // `expected_revision` and the backend is idempotent-by-`local_id`/
+      // `media_id`/`annotation_id` for all of them, so they can only ever
+      // fully succeed or fail outright -- structurally, `_handleError`
+      // never routes a `revision_conflict`/`invalid_transition` code to
+      // this method for these mutation types. These cases exist only to
+      // satisfy Dart's exhaustive-switch check; don't "helpfully" replace
+      // `true` with real comparison logic.
       case OutboxMutationType.attachMedia:
       case OutboxMutationType.editMedia:
       case OutboxMutationType.detachMedia:
+      case OutboxMutationType.createAnnotation:
+      case OutboxMutationType.updateAnnotation:
+      case OutboxMutationType.deleteAnnotation:
         return true;
     }
   }
