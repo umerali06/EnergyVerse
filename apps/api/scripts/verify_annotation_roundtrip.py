@@ -16,12 +16,12 @@ from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.inspections import InspectionRepository
 from app.inspections.service import InspectionService
+from app.models.api import AnnotationPointInput as ApiPoint
 from app.models.api import (
     AttachInspectionMediaRequest,
     CreateAnnotationRequest,
     UpdateAnnotationRequest,
 )
-from app.models.api import AnnotationPointInput as ApiPoint
 from app.models.base import CompanyScope
 from app.storage.service import get_inspection_media_storage
 from scripts.seed import ACME_COMPANY_ID, ASSET_FEED_PUMP_ID, FIELD_INSPECTOR_UID
