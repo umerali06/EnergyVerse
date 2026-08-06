@@ -14,6 +14,7 @@ Name | Type | Description | Notes
 **gpsLng** | **num** |  | [optional]
 **inspectionType** | **String** |  | [optional]
 **notes** | **String** |  | [optional]
+**readings** | [**ReadingsInput**](ReadingsInput.md) |  | [optional]
 **title** | **String** |  | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

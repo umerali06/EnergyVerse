@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.models.base import AppendOnlyDoc, GlobalDoc, StrictModel, TenantDoc
 
@@ -373,6 +373,28 @@ class VoiceNote(StrictModel):
     uploaded_at: datetime
 
 
+class Readings(StrictModel):
+    """Manually entered inspector readings (spec section 9, Phase 7.7) --
+    MVP has no live IoT sensors. Units are fixed and documented rather than
+    a per-reading unit field (temperature in Celsius, pressure in bar, noise
+    in decibels), so every stored value is directly comparable across
+    inspections/companies with no conversion step; a company-level unit
+    display preference can layer on top later without a data migration."""
+
+    condition: Literal["Excellent", "Good", "Fair", "Poor", "Critical"]
+    temperature_c: float | None = Field(default=None, ge=-50, le=1000)
+    pressure_bar: float | None = Field(default=None, ge=0, le=1000)
+    noise_level_db: float | None = Field(default=None, ge=0, le=200)
+    vibration_observation: str | None = Field(default=None, max_length=500)
+    leak_observed: bool | None = None
+    operational_status: Literal["running", "stopped", "degraded"] | None = None
+    comments: str | None = Field(default=None, max_length=2000)
+    recommendations: str | None = Field(default=None, max_length=2000)
+    priority_level: Literal["low", "medium", "high", "critical"] | None = None
+    recorded_at: datetime | None = None
+    recorded_by: str | None = None
+
+
 class Inspection(TenantDoc):
     id: str
     asset_id: str
@@ -399,11 +421,22 @@ class Inspection(TenantDoc):
     media: list[InspectionMedia] = Field(default_factory=list)
     annotations: list[Annotation] = Field(default_factory=list)
     voice_notes: list["VoiceNote"] = Field(default_factory=list)
+    readings: Readings | None = None
     # Reserved, always-empty until their own phases give these real shapes.
-    readings: dict[str, Any] = Field(default_factory=dict)
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
     ai_analysis: dict[str, Any] | None = None
     signature: dict[str, Any] | None = None
+
+    @field_validator("readings", mode="before")
+    @classmethod
+    def _normalize_legacy_empty_readings(cls, value: object) -> object:
+        """Every inspection created before Phase 7.7 was written with the old
+        `readings: dict = {}` placeholder default, so an empty dict must still
+        load cleanly as "no readings yet" rather than fail `Readings`
+        validation (which requires `condition`)."""
+        if value == {}:
+            return None
+        return value
 
 
 class InspectionCreate(StrictModel):
@@ -430,6 +463,7 @@ class InspectionUpdate(StrictModel):
     gps_lat: float | None = None
     gps_lng: float | None = None
     checklist_responses: list[ChecklistResponse] | None = None
+    readings: Readings | None = None
 
 
 class AuditLog(AppendOnlyDoc):

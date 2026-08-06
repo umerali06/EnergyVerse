@@ -82,6 +82,8 @@ doc/PlatformStats.md
 doc/QrApi.md
 doc/QrScanResult.md
 doc/RbacDemoApi.md
+doc/ReadingsInput.md
+doc/ReadingsResponse.md
 doc/RoleDeleted.md
 doc/RoleDetail.md
 doc/RoleList.md
@@ -204,6 +206,8 @@ lib/src/model/platform_company_page.dart
 lib/src/model/platform_company_summary.dart
 lib/src/model/platform_stats.dart
 lib/src/model/qr_scan_result.dart
+lib/src/model/readings_input.dart
+lib/src/model/readings_response.dart
 lib/src/model/role_deleted.dart
 lib/src/model/role_detail.dart
 lib/src/model/role_list.dart
@@ -312,6 +316,8 @@ test/platform_stats_test.dart
 test/qr_api_test.dart
 test/qr_scan_result_test.dart
 test/rbac_demo_api_test.dart
+test/readings_input_test.dart
+test/readings_response_test.dart
 test/role_deleted_test.dart
 test/role_detail_test.dart
 test/role_list_test.dart

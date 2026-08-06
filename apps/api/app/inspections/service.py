@@ -41,11 +41,24 @@ from app.models.entities import (
     Inspection,
     InspectionCreate,
     InspectionMedia,
+    Readings,
     VoiceNote,
 )
 from app.storage.service import InspectionMediaStorage, get_inspection_media_storage
 
 TERMINAL_STATUSES = frozenset({"completed", "cancelled"})
+
+# Maps a completed inspection's manually-recorded condition (spec section 9,
+# Phase 7.7) onto the asset's 3-state `current_status` (4.1), which drives
+# the 4.4 dashboard's "Critical Assets" KPI. Derived on every completion from
+# the most recent completed inspection's condition, per the phase brief.
+READINGS_CONDITION_TO_ASSET_STATUS: dict[str, str] = {
+    "Excellent": "Healthy",
+    "Good": "Healthy",
+    "Fair": "Warning",
+    "Poor": "Warning",
+    "Critical": "Critical",
+}
 
 INSPECTION_MEDIA_RULES: dict[str, tuple[frozenset[str], int]] = {
     "photo": (frozenset({"image/jpeg", "image/png", "image/webp", "image/heic"}), 15 * 1024 * 1024),
@@ -149,7 +162,7 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
         voice_notes=[
             _voice_note_response(voice_note, storage) for voice_note in inspection.voice_notes
         ],
-        readings=inspection.readings,
+        readings=inspection.readings.model_dump() if inspection.readings is not None else None,
         ar_measurements=inspection.ar_measurements,
         ai_analysis=inspection.ai_analysis,
         signature=inspection.signature,
@@ -392,6 +405,12 @@ class InspectionService:
             provided["checklist_responses"] = self._merge_checklist_responses(
                 current.checklist_responses, stamped
             )
+        if request.readings is not None:
+            provided["readings"] = Readings(
+                **request.readings.model_dump(),
+                recorded_at=utc_now(),
+                recorded_by=actor_uid,
+            ).model_dump()
 
         try:
             updated = await self._inspections.update(
@@ -523,6 +542,15 @@ class InspectionService:
                 "invalid_transition",
                 f"Inspection cannot complete from status '{error.current.status}'",
             ) from error
+        if updated.readings is not None:
+            new_status = READINGS_CONDITION_TO_ASSET_STATUS[updated.readings.condition]
+            await self._assets.roll_up_status_from_inspection(
+                scope,
+                updated.asset_id,
+                new_status=new_status,
+                inspection_id=inspection_id,
+                actor_uid=actor_uid,
+            )
         return _to_detail(updated, self._storage)
 
     async def cancel_inspection(

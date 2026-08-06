@@ -213,6 +213,8 @@ Class | Method | HTTP request | Description
  - [PlatformCompanySummary](doc/PlatformCompanySummary.md)
  - [PlatformStats](doc/PlatformStats.md)
  - [QrScanResult](doc/QrScanResult.md)
+ - [ReadingsInput](doc/ReadingsInput.md)
+ - [ReadingsResponse](doc/ReadingsResponse.md)
  - [RoleDeleted](doc/RoleDeleted.md)
  - [RoleDetail](doc/RoleDetail.md)
  - [RoleList](doc/RoleList.md)

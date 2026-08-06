@@ -81,6 +81,8 @@ import 'package:fev_api_client/src/model/platform_company_page.dart';
 import 'package:fev_api_client/src/model/platform_company_summary.dart';
 import 'package:fev_api_client/src/model/platform_stats.dart';
 import 'package:fev_api_client/src/model/qr_scan_result.dart';
+import 'package:fev_api_client/src/model/readings_input.dart';
+import 'package:fev_api_client/src/model/readings_response.dart';
 import 'package:fev_api_client/src/model/role_deleted.dart';
 import 'package:fev_api_client/src/model/role_detail.dart';
 import 'package:fev_api_client/src/model/role_list.dart';
@@ -178,6 +180,8 @@ part 'serializers.g.dart';
   PlatformCompanySummary,
   PlatformStats,
   QrScanResult,
+  ReadingsInput,
+  ReadingsResponse,
   RoleDeleted,
   RoleDetail,
   RoleList,

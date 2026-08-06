@@ -22,6 +22,7 @@ InspectionDetail _detailFrom({
   String? checklistTemplateId,
   List<AnnotationResponse> annotations = const [],
   List<VoiceNoteResponse> voiceNotes = const [],
+  ReadingsResponse? readings,
 }) {
   final now = DateTime.utc(2026, 1, 1);
   return InspectionDetail(
@@ -38,11 +39,38 @@ InspectionDetail _detailFrom({
       ..revision = revision
       ..annotations.replace(annotations)
       ..voiceNotes.replace(voiceNotes)
+      ..readings = readings?.toBuilder()
       ..clientCreatedAt = now
       ..createdAt = now
       ..updatedAt = now,
   );
 }
+
+/// Mirrors the real backend's `_to_detail`: an `update` mutation's response
+/// always echoes the inspection's CURRENT full `readings` (server-stamped
+/// `recordedAt`/`recordedBy`), not just whatever this particular PATCH
+/// touched -- same full-row-overwrite trap as `_annotationFrom`/
+/// `_voiceNoteFrom` above, since readings rides this same `update` mutation
+/// rather than a dedicated one.
+ReadingsResponse _readingsResponseFrom(ReadingsInput input) => ReadingsResponse(
+      (b) => b
+        ..condition = ReadingsResponseConditionEnum.valueOf(input.condition.name)
+        ..temperatureC = input.temperatureC
+        ..pressureBar = input.pressureBar
+        ..noiseLevelDb = input.noiseLevelDb
+        ..vibrationObservation = input.vibrationObservation
+        ..leakObserved = input.leakObserved
+        ..operationalStatus = input.operationalStatus == null
+            ? null
+            : ReadingsResponseOperationalStatusEnum.valueOf(input.operationalStatus!.name)
+        ..comments = input.comments
+        ..recommendations = input.recommendations
+        ..priorityLevel = input.priorityLevel == null
+            ? null
+            : ReadingsResponsePriorityLevelEnum.valueOf(input.priorityLevel!.name)
+        ..recordedAt = DateTime.utc(2026, 1, 1)
+        ..recordedBy = 'user-1',
+    );
 
 /// Mirrors the real backend's `_to_detail`: a `create_annotation`/
 /// `update_annotation`/`delete_annotation` response always echoes the
@@ -1045,6 +1073,106 @@ void main() {
 
       expect(capturedAnnotationId, annotationId);
       expect(await db.select(db.outbox).get(), isEmpty);
+    });
+  });
+
+  group('readings sync (Phase 7.7)', () {
+    test(
+        'saving readings dispatches through the same update mutation and clears the outbox',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      UpdateInspectionRequest? captured;
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        updateInspection: (id, request) async {
+          captured = request;
+          return _detailFrom(
+            id: id,
+            revision: 2,
+            readings: request.readings == null
+                ? null
+                : _readingsResponseFrom(request.readings!),
+          );
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await repository.updateInspection(
+        id,
+        readings: ReadingsInput(
+          (b) => b
+            ..condition = ReadingsInputConditionEnum.critical
+            ..priorityLevel = ReadingsInputPriorityLevelEnum.critical,
+        ),
+      );
+
+      await engine.syncNow();
+
+      expect(captured?.readings?.condition, ReadingsInputConditionEnum.critical);
+      expect(await db.select(db.outbox).get(), isEmpty);
+      final record = await repository.getInspection(id);
+      expect(record!.readings?.condition, ReadingsResponseConditionEnum.critical);
+      // Server-stamped fields land locally only once synced.
+      expect(record.readings?.recordedBy, 'user-1');
+      expect(record.syncState, LocalSyncState.synced);
+    });
+
+    test(
+        'an unrelated update mutation still resends the current readings -- a fake '
+        'stub that echoes an empty readings would wipe the not-yet-synced value',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final requests = <UpdateInspectionRequest>[];
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        updateInspection: (id, request) async {
+          requests.add(request);
+          return _detailFrom(
+            id: id,
+            revision: requests.length + 1,
+            title: request.title,
+            readings: request.readings == null
+                ? null
+                : _readingsResponseFrom(request.readings!),
+          );
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await repository.updateInspection(
+        id,
+        readings:
+            ReadingsInput((b) => b..condition = ReadingsInputConditionEnum.good),
+      );
+      await engine.syncNow();
+
+      await repository.updateInspection(id, title: 'unrelated edit');
+      await engine.syncNow();
+
+      expect(requests.last.readings?.condition, ReadingsInputConditionEnum.good);
+      final record = await repository.getInspection(id);
+      expect(record!.readings?.condition, ReadingsResponseConditionEnum.good);
+      expect(record.title, 'unrelated edit');
     });
   });
 }

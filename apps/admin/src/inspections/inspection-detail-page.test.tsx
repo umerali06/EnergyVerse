@@ -76,7 +76,7 @@ function inspectionDetail(overrides: Partial<Record<string, unknown>> = {}) {
     media: [],
     annotations: [],
     voiceNotes: [],
-    readings: {},
+    readings: null,
     arMeasurements: [],
     aiAnalysis: null,
     signature: null,
@@ -150,6 +150,24 @@ function voiceNoteFixture(overrides: Partial<Record<string, unknown>> = {}) {
     checklistItemId: "vibration_normal",
     uploadedBy: "demo-acme-field_inspector",
     uploadedAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
+function readingsFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    condition: "Critical",
+    temperatureC: 95.5,
+    pressureBar: 6.2,
+    noiseLevelDb: 92,
+    vibrationObservation: "Excessive vibration near bearing",
+    leakObserved: true,
+    operationalStatus: "degraded",
+    comments: "Bearing failing",
+    recommendations: "Replace bearing immediately",
+    priorityLevel: "critical",
+    recordedAt: new Date("2026-01-02T00:00:00Z"),
+    recordedBy: "demo-acme-field_inspector",
     ...overrides,
   };
 }
@@ -364,5 +382,47 @@ describe("inspection detail page", () => {
 
     expect(screen.getByText("Video")).toBeInTheDocument();
     expect(screen.queryByAltText("clip.mp4")).not.toBeInTheDocument();
+  });
+
+  it("shows an honest empty state when no readings have been logged yet", async () => {
+    renderDetail();
+    await screen.findByText("Q3 Routine Inspection");
+    expect(screen.getByText("No manual status readings have been logged yet.")).toBeInTheDocument();
+  });
+
+  it("renders readings read-only with the condition, values and units, priority, and leak badge", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({ readings: readingsFixture() }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const readingsSection = screen.getByTestId("readings-section");
+    expect(within(readingsSection).getByText("Critical")).toBeInTheDocument();
+    expect(within(readingsSection).getByText("95.5 °C")).toBeInTheDocument();
+    expect(within(readingsSection).getByText("6.2 bar")).toBeInTheDocument();
+    expect(within(readingsSection).getByText("92 dB")).toBeInTheDocument();
+    expect(
+      within(readingsSection).getByText("Excessive vibration near bearing"),
+    ).toBeInTheDocument();
+    expect(within(readingsSection).getByText("Degraded")).toBeInTheDocument();
+    expect(within(readingsSection).getByText("Priority: Critical")).toBeInTheDocument();
+    expect(within(readingsSection).getByText("Leak observed")).toBeInTheDocument();
+    expect(within(readingsSection).getByText("Bearing failing")).toBeInTheDocument();
+    expect(within(readingsSection).getByText("Replace bearing immediately")).toBeInTheDocument();
+  });
+
+  it("omits the priority badge and leak badge when neither is set", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({
+        readings: readingsFixture({ priorityLevel: null, leakObserved: false }),
+      }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const readingsSection = screen.getByTestId("readings-section");
+    expect(within(readingsSection).queryByText(/Priority:/)).not.toBeInTheDocument();
+    expect(within(readingsSection).queryByText("Leak observed")).not.toBeInTheDocument();
   });
 });

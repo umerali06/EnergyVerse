@@ -14,11 +14,30 @@ import {
   MotionSection,
   Skeleton,
   StatusPill,
+  type StatusTone,
   useToast,
 } from "@/design-system";
 
 import { AnnotationOverlay, damageTypeLabel } from "./annotation-overlay";
 import { statusLabel, statusTone } from "./inspections-page";
+
+/** Mirrors the backend's `READINGS_CONDITION_TO_ASSET_STATUS` mapping (Phase
+ * 7.7) so the admin review surface previews the same asset-health impact a
+ * completed inspection's condition will cause. */
+function readingsConditionTone(condition: string): StatusTone {
+  switch (condition) {
+    case "Excellent":
+    case "Good":
+      return "healthy";
+    case "Fair":
+    case "Poor":
+      return "warning";
+    case "Critical":
+      return "critical";
+    default:
+      return "info";
+  }
+}
 
 function formatVoiceNoteDuration(durationMs: number): string {
   const totalSeconds = Math.round(durationMs / 1000);
@@ -364,6 +383,73 @@ export function InspectionDetailPage({
                       );
                     })}
                   </ul>
+                )}
+              </div>
+
+              <div data-testid="readings-section">
+                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                  Readings
+                </p>
+                {state.inspection.readings ? (
+                  <div className="mt-2 grid gap-3 rounded-md border border-border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill tone={readingsConditionTone(state.inspection.readings.condition)}>
+                        {statusLabel(state.inspection.readings.condition)}
+                      </StatusPill>
+                      {state.inspection.readings.priorityLevel && (
+                        <Badge>Priority: {statusLabel(state.inspection.readings.priorityLevel)}</Badge>
+                      )}
+                      {state.inspection.readings.leakObserved && <Badge>Leak observed</Badge>}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {state.inspection.readings.temperatureC != null && (
+                        <Field
+                          label="Temperature"
+                          value={`${state.inspection.readings.temperatureC} °C`}
+                        />
+                      )}
+                      {state.inspection.readings.pressureBar != null && (
+                        <Field label="Pressure" value={`${state.inspection.readings.pressureBar} bar`} />
+                      )}
+                      {state.inspection.readings.noiseLevelDb != null && (
+                        <Field
+                          label="Noise level"
+                          value={`${state.inspection.readings.noiseLevelDb} dB`}
+                        />
+                      )}
+                      {state.inspection.readings.vibrationObservation && (
+                        <Field
+                          label="Vibration"
+                          value={state.inspection.readings.vibrationObservation}
+                        />
+                      )}
+                      {state.inspection.readings.operationalStatus && (
+                        <Field
+                          label="Operational status"
+                          value={statusLabel(state.inspection.readings.operationalStatus)}
+                        />
+                      )}
+                      {state.inspection.readings.recordedAt && (
+                        <Field
+                          label="Recorded"
+                          value={formatCompanyDateTime(state.inspection.readings.recordedAt)}
+                        />
+                      )}
+                    </div>
+                    {state.inspection.readings.comments && (
+                      <Field label="Comments" value={state.inspection.readings.comments} />
+                    )}
+                    {state.inspection.readings.recommendations && (
+                      <Field
+                        label="Recommendations"
+                        value={state.inspection.readings.recommendations}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-bodySmall text-text-muted">
+                    No manual status readings have been logged yet.
+                  </p>
                 )}
               </div>
             </Card>

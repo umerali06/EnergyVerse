@@ -67,6 +67,8 @@ export * from './PlatformCompanyPage';
 export * from './PlatformCompanySummary';
 export * from './PlatformStats';
 export * from './QrScanResult';
+export * from './ReadingsInput';
+export * from './ReadingsResponse';
 export * from './RoleDeleted';
 export * from './RoleDetail';
 export * from './RoleList';

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -780,6 +781,146 @@ void main() {
       final resumedOutbox = await secondDb.select(secondDb.outbox).get();
       expect(resumedOutbox.map((r) => r.mutationType),
           contains('create_annotation'));
+    });
+  });
+
+  group('readings (Phase 7.7)', () {
+    test(
+        'updateInspection(readings:) writes the local blob and coalesces into the '
+        'existing update mutation, not a dedicated mutation type', () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+
+      await repository.updateInspection(
+        id,
+        readings: ReadingsInput(
+          (b) => b
+            ..condition = ReadingsInputConditionEnum.fair
+            ..temperatureC = 72.5
+            ..pressureBar = 4.1
+            ..noiseLevelDb = 88.0
+            ..vibrationObservation = 'Slight rattle'
+            ..leakObserved = false
+            ..operationalStatus = ReadingsInputOperationalStatusEnum.degraded
+            ..comments = 'Bearing noise increasing'
+            ..recommendations = 'Schedule bearing replacement'
+            ..priorityLevel = ReadingsInputPriorityLevelEnum.high,
+        ),
+      );
+
+      final record = await repository.getInspection(id);
+      final readings = record!.readings;
+      expect(readings, isNotNull);
+      expect(readings!.condition, ReadingsResponseConditionEnum.fair);
+      expect(readings.temperatureC, 72.5);
+      expect(readings.pressureBar, 4.1);
+      expect(readings.noiseLevelDb, 88.0);
+      expect(readings.vibrationObservation, 'Slight rattle');
+      expect(readings.leakObserved, false);
+      expect(readings.operationalStatus, ReadingsResponseOperationalStatusEnum.degraded);
+      expect(readings.comments, 'Bearing noise increasing');
+      expect(readings.recommendations, 'Schedule bearing replacement');
+      expect(readings.priorityLevel, ReadingsResponsePriorityLevelEnum.high);
+      // Never client-stamped locally -- the server always fills these in.
+      expect(readings.recordedAt, isNull);
+      expect(readings.recordedBy, isNull);
+
+      final outbox = await db.select(db.outbox).get();
+      expect(outbox.where((r) => r.mutationType == 'update'), hasLength(1));
+      expect(outbox.where((r) => r.mutationType.contains('reading')), isEmpty);
+    });
+
+    test('an unrelated field edit resends the previously-saved readings unchanged',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await repository.updateInspection(
+        id,
+        readings: ReadingsInput((b) => b..condition = ReadingsInputConditionEnum.good),
+      );
+
+      await repository.updateInspection(id, notes: 'unrelated autosave edit');
+
+      final row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
+      expect(row.notes, 'unrelated autosave edit');
+      final record = LocalInspectionRecord(row);
+      expect(record.readings?.condition, ReadingsResponseConditionEnum.good);
+
+      final outbox = await db.select(db.outbox).get();
+      final updateRow = outbox.singleWhere((r) => r.mutationType == 'update');
+      final request = standardSerializers.deserializeWith(
+        UpdateInspectionRequest.serializer,
+        jsonDecode(updateRow.payload) as Map<String, dynamic>,
+      )!;
+      expect(request.readings?.condition, ReadingsInputConditionEnum.good);
+    });
+
+    test('a fresh readings save fully replaces the previous one, not merges it',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await repository.updateInspection(
+        id,
+        readings: ReadingsInput(
+          (b) => b
+            ..condition = ReadingsInputConditionEnum.poor
+            ..comments = 'First pass',
+        ),
+      );
+
+      await repository.updateInspection(
+        id,
+        readings: ReadingsInput((b) => b..condition = ReadingsInputConditionEnum.good),
+      );
+
+      final record = await repository.getInspection(id);
+      expect(record!.readings!.condition, ReadingsResponseConditionEnum.good);
+      expect(record.readings!.comments, isNull);
+    });
+
+    test('readings recorded offline persist across an app restart', () async {
+      final dbFile = File(p.join(tempDir.path, 'readings_restart_test.sqlite'));
+
+      final firstDb = AppDatabase(NativeDatabase(dbFile));
+      final firstRepository =
+          LocalInspectionsRepository(db: firstDb, api: FakeSyncApi());
+      final id = await firstRepository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await firstRepository.updateInspection(
+        id,
+        readings: ReadingsInput(
+          (b) => b
+            ..condition = ReadingsInputConditionEnum.critical
+            ..priorityLevel = ReadingsInputPriorityLevelEnum.critical,
+        ),
+      );
+      // Simulate the app being killed with the readings still unsynced.
+      await firstDb.close();
+
+      final secondDb = AppDatabase(NativeDatabase(dbFile));
+      addTearDown(secondDb.close);
+      final secondRepository =
+          LocalInspectionsRepository(db: secondDb, api: FakeSyncApi());
+
+      final record = await secondRepository.getInspection(id);
+      expect(record!.readings?.condition, ReadingsResponseConditionEnum.critical);
+      expect(record.readings?.priorityLevel, ReadingsResponsePriorityLevelEnum.critical);
+      final resumedOutbox = await secondDb.select(secondDb.outbox).get();
+      expect(resumedOutbox.map((r) => r.mutationType), contains('update'));
     });
   });
 }

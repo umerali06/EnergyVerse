@@ -53,6 +53,16 @@ class LocalInspections extends Table {
   /// this cache is only ever refreshed from a synced server response, never
   /// written to optimistically the way [annotations] is.
   TextColumn get voiceNotes => text().withDefault(const Constant('[]'))();
+
+  /// The server's `InspectionDetail.readings` (Phase 7.7) -- manually
+  /// entered inspector readings (condition, temperature/pressure/noise,
+  /// vibration, leak, operational status, comments, recommendations,
+  /// priority). Unlike [media]/[voiceNotes]/[annotations] this is a single
+  /// nullable JSON object, not an array: one form, one editor, autosaved via
+  /// the same generic inspection-update/revision protocol the checklist
+  /// uses (an `update` outbox mutation), not a dedicated mutation type.
+  /// `null` means the readings step hasn't been filled in yet.
+  TextColumn get readings => text().nullable()();
   DateTimeColumn get startedAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
   RealColumn get gpsLat => real().nullable()();

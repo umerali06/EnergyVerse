@@ -5,6 +5,7 @@
 // ignore_for_file: unused_element
 import 'package:fev_api_client/src/model/checklist_response.dart';
 import 'package:built_collection/built_collection.dart';
+import 'package:fev_api_client/src/model/readings_input.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
@@ -19,6 +20,7 @@ part 'update_inspection_request.g.dart';
 /// * [gpsLng]
 /// * [inspectionType]
 /// * [notes]
+/// * [readings]
 /// * [title]
 @BuiltValue()
 abstract class UpdateInspectionRequest
@@ -41,6 +43,9 @@ abstract class UpdateInspectionRequest
 
   @BuiltValueField(wireName: r'notes')
   String? get notes;
+
+  @BuiltValueField(wireName: r'readings')
+  ReadingsInput? get readings;
 
   @BuiltValueField(wireName: r'title')
   String? get title;
@@ -117,6 +122,13 @@ class _$UpdateInspectionRequestSerializer
       yield serializers.serialize(
         object.notes,
         specifiedType: const FullType.nullable(String),
+      );
+    }
+    if (object.readings != null) {
+      yield r'readings';
+      yield serializers.serialize(
+        object.readings,
+        specifiedType: const FullType.nullable(ReadingsInput),
       );
     }
     if (object.title != null) {
@@ -200,6 +212,14 @@ class _$UpdateInspectionRequestSerializer
           ) as String?;
           if (valueDes == null) continue;
           result.notes = valueDes;
+          break;
+        case r'readings':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(ReadingsInput),
+          ) as ReadingsInput?;
+          if (valueDes == null) continue;
+          result.readings.replace(valueDes);
           break;
         case r'title':
           final valueDes = serializers.deserialize(

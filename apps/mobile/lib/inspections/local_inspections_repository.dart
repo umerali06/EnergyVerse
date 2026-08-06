@@ -186,6 +186,73 @@ String _encodeVoiceNotes(List<VoiceNoteResponse> voiceNotes) => jsonEncode(
           .toList(),
     );
 
+/// Readings (Phase 7.7) are a single nullable object, not an array -- cached
+/// locally in the server's `ReadingsResponse` shape (the superset of
+/// `ReadingsInput` that also carries `recordedAt`/`recordedBy`) whether the
+/// value came from a synced server response or an optimistic local edit
+/// (see [_readingsInputToLocalResponse]).
+ReadingsResponse? _decodeReadings(String? json) {
+  if (json == null) return null;
+  return standardSerializers.deserializeWith(
+    ReadingsResponse.serializer,
+    jsonDecode(json) as Map<String, dynamic>,
+  );
+}
+
+String? _encodeReadings(ReadingsResponse? readings) {
+  if (readings == null) return null;
+  return jsonEncode(
+    standardSerializers.serializeWith(ReadingsResponse.serializer, readings),
+  );
+}
+
+/// A freshly submitted [ReadingsInput] cached locally before its outbox
+/// mutation has synced -- `recordedAt`/`recordedBy` are left unset, same
+/// rationale as `ChecklistResponse.answeredAt`/`answeredBy`: the server
+/// always stamps them, so there's nothing honest to show until synced.
+ReadingsResponse _readingsInputToLocalResponse(ReadingsInput input) {
+  return ReadingsResponse((b) => b
+    ..condition = ReadingsResponseConditionEnum.valueOf(input.condition.name)
+    ..temperatureC = input.temperatureC
+    ..pressureBar = input.pressureBar
+    ..noiseLevelDb = input.noiseLevelDb
+    ..vibrationObservation = input.vibrationObservation
+    ..leakObserved = input.leakObserved
+    ..operationalStatus = input.operationalStatus == null
+        ? null
+        : ReadingsResponseOperationalStatusEnum.valueOf(
+            input.operationalStatus!.name)
+    ..comments = input.comments
+    ..recommendations = input.recommendations
+    ..priorityLevel = input.priorityLevel == null
+        ? null
+        : ReadingsResponsePriorityLevelEnum.valueOf(
+            input.priorityLevel!.name));
+}
+
+/// The inverse conversion, needed every time [LocalInspectionsRepository.
+/// updateInspection] resends the whole cached readings object (whether or
+/// not this particular call touched it) so an unrelated field edit never
+/// silently drops it -- mirrors how `title`/`notes` are always resent too.
+ReadingsInput _readingsResponseToInput(ReadingsResponse response) {
+  return ReadingsInput((b) => b
+    ..condition = ReadingsInputConditionEnum.valueOf(response.condition.name)
+    ..temperatureC = response.temperatureC
+    ..pressureBar = response.pressureBar
+    ..noiseLevelDb = response.noiseLevelDb
+    ..vibrationObservation = response.vibrationObservation
+    ..leakObserved = response.leakObserved
+    ..operationalStatus = response.operationalStatus == null
+        ? null
+        : ReadingsInputOperationalStatusEnum.valueOf(
+            response.operationalStatus!.name)
+    ..comments = response.comments
+    ..recommendations = response.recommendations
+    ..priorityLevel = response.priorityLevel == null
+        ? null
+        : ReadingsInputPriorityLevelEnum.valueOf(response.priorityLevel!.name));
+}
+
 String _encodeChecklistItems(List<ChecklistTemplateItem> items) => jsonEncode(
       items
           .map((item) => standardSerializers.serializeWith(
@@ -325,7 +392,8 @@ class LocalInspectionRecord {
         checklistResponses = _decodeChecklistResponses(row.checklistResponses),
         media = _decodeInspectionMedia(row.media),
         annotations = _decodeAnnotations(row.annotations),
-        voiceNotes = _decodeVoiceNotes(row.voiceNotes);
+        voiceNotes = _decodeVoiceNotes(row.voiceNotes),
+        readings = _decodeReadings(row.readings);
 
   final LocalInspection row;
   final List<ChecklistTemplateItem> checklistItemsSnapshot;
@@ -347,6 +415,12 @@ class LocalInspectionRecord {
   /// a voice note's bytes go through [MediaQueue]/`LocalMediaRepository`
   /// like a photo/video, not an optimistic local write.
   final List<VoiceNoteResponse> voiceNotes;
+
+  /// Manual status readings (Phase 7.7) -- `null` means the readings step
+  /// hasn't been filled in yet. Written optimistically at save time (see
+  /// [LocalInspectionsRepository.updateInspection]), same posture as
+  /// [annotations].
+  final ReadingsResponse? readings;
 
   String get id => row.id;
   String get assetId => row.assetId;
@@ -538,6 +612,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
                 _encodeAnnotations(detail.annotations?.toList() ?? const [])),
             voiceNotes: drift.Value(
                 _encodeVoiceNotes(detail.voiceNotes?.toList() ?? const [])),
+            readings: drift.Value(_encodeReadings(detail.readings)),
             startedAt: drift.Value(detail.startedAt),
             completedAt: drift.Value(detail.completedAt),
             gpsLat: drift.Value(detail.gpsLat?.toDouble()),
@@ -627,6 +702,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
     double? gpsLat,
     double? gpsLng,
     List<ChecklistResponse>? checklistResponses,
+    ReadingsInput? readings,
   }) async {
     await _db.transaction(() async {
       final current = await (_db.select(_db.localInspections)
@@ -641,6 +717,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
         _decodeChecklistResponses(current.checklistResponses),
         checklistResponses,
       ).map(_normalizeResponseValue).toList();
+      final mergedReadings = readings != null
+          ? _readingsInputToLocalResponse(readings)
+          : _decodeReadings(current.readings);
 
       await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
           .write(
@@ -652,6 +731,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
           gpsLng: drift.Value(mergedLng),
           checklistResponses:
               drift.Value(_encodeChecklistResponses(mergedResponses)),
+          readings: drift.Value(_encodeReadings(mergedReadings)),
           updatedAt: drift.Value(DateTime.now().toUtc()),
           syncState: const drift.Value('pending_sync'),
         ),
@@ -667,6 +747,9 @@ class LocalInspectionsRepository extends ChangeNotifier {
           ..gpsLat = mergedLat
           ..gpsLng = mergedLng
           ..checklistResponses.replace(mergedResponses)
+          ..readings = mergedReadings == null
+              ? null
+              : _readingsResponseToInput(mergedReadings).toBuilder()
           ..expectedRevision = current.baseRevision,
       );
       final payload = jsonEncode(

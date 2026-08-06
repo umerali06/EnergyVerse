@@ -117,7 +117,7 @@ void main() {
       // TODO
     });
 
-    // BuiltMap<String, JsonObject> readings
+    // ReadingsResponse readings
     test('to test the property `readings`', () async {
       // TODO
     });
