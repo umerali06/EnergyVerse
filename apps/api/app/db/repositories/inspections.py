@@ -3,6 +3,7 @@ from google.cloud.firestore_v1 import ArrayRemove, ArrayUnion, FieldFilter
 from app.db.repositories.base import FIRESTORE_OPERATION_TIMEOUT_SECONDS, TenantRepository
 from app.models.base import CompanyScope, tenant_creation_fields, utc_now
 from app.models.entities import (
+    Annotation,
     ChecklistTemplateItem,
     Inspection,
     InspectionCreate,
@@ -346,6 +347,96 @@ class InspectionRepository(TenantRepository[Inspection]):
             action="inspection.media_edited",
             target_id=inspection_id,
             metadata={"media": updated_media.model_dump(mode="json")},
+        )
+        return updated
+
+    async def append_annotation(
+        self, scope: CompanyScope, inspection_id: str, annotation: Annotation, actor_uid: str
+    ) -> Inspection:
+        """Mirrors `append_media`: no `expected_revision`/revision bump by
+        design -- annotation traffic is per-photo overlay metadata and must
+        never collide with the checklist-autosave revision protocol."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        await self._collection.document(inspection_id).update(
+            {"annotations": ArrayUnion([annotation.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.annotation_added",
+            target_id=inspection_id,
+            metadata={"annotation": annotation.model_dump(mode="json")},
+        )
+        return updated
+
+    async def update_annotation(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        annotation_id: str,
+        *,
+        changes: dict[str, object],
+        actor_uid: str,
+    ) -> Inspection:
+        """Idempotent-on-missing, same posture as `update_media`: if
+        `annotation_id` is no longer present, returns the current record
+        unchanged rather than raising."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        existing = next((a for a in current.annotations if a.id == annotation_id), None)
+        if existing is None:
+            return current
+
+        updated_annotation = Annotation.model_validate({**existing.model_dump(), **changes})
+        new_annotations = [
+            updated_annotation if a.id == annotation_id else a for a in current.annotations
+        ]
+        await self._collection.document(inspection_id).update(
+            {
+                "annotations": [a.model_dump() for a in new_annotations],
+                "updated_at": utc_now(),
+            },
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.annotation_edited",
+            target_id=inspection_id,
+            metadata={"annotation": updated_annotation.model_dump(mode="json")},
+        )
+        return updated
+
+    async def remove_annotation(
+        self, scope: CompanyScope, inspection_id: str, annotation: Annotation, actor_uid: str
+    ) -> Inspection:
+        """Idempotent: an already-removed `annotation` entry is a harmless
+        ArrayRemove no-op, since delete replays via the mobile outbox
+        at-least-once (mirrors `remove_media`)."""
+        await self._collection.document(inspection_id).update(
+            {"annotations": ArrayRemove([annotation.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        if updated is None:
+            raise LookupError("inspection not found in company scope")
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.annotation_removed",
+            target_id=inspection_id,
+            metadata={"annotation": annotation.model_dump(mode="json")},
         )
         return updated
 

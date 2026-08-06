@@ -145,7 +145,7 @@ class _$InspectionDetail extends InspectionDetail {
   @override
   final BuiltMap<String, JsonObject?>? aiAnalysis;
   @override
-  final BuiltList<BuiltMap<String, JsonObject?>>? annotations;
+  final BuiltList<AnnotationResponse>? annotations;
   @override
   final BuiltList<BuiltMap<String, JsonObject?>>? arMeasurements;
   @override
@@ -388,10 +388,10 @@ class InspectionDetailBuilder
   set aiAnalysis(MapBuilder<String, JsonObject?>? aiAnalysis) =>
       _$this._aiAnalysis = aiAnalysis;
 
-  ListBuilder<BuiltMap<String, JsonObject?>>? _annotations;
-  ListBuilder<BuiltMap<String, JsonObject?>> get annotations =>
-      _$this._annotations ??= new ListBuilder<BuiltMap<String, JsonObject?>>();
-  set annotations(ListBuilder<BuiltMap<String, JsonObject?>>? annotations) =>
+  ListBuilder<AnnotationResponse>? _annotations;
+  ListBuilder<AnnotationResponse> get annotations =>
+      _$this._annotations ??= new ListBuilder<AnnotationResponse>();
+  set annotations(ListBuilder<AnnotationResponse>? annotations) =>
       _$this._annotations = annotations;
 
   ListBuilder<BuiltMap<String, JsonObject?>>? _arMeasurements;

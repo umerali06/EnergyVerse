@@ -107,12 +107,15 @@ Class | Method | HTTP request | Description
 [*InspectionsApi*](doc/InspectionsApi.md) | [**cancelInspection**](doc/InspectionsApi.md#cancelinspection) | **POST** /api/v1/inspections/{inspection_id}/cancel | Cancel Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**completeInspection**](doc/InspectionsApi.md#completeinspection) | **POST** /api/v1/inspections/{inspection_id}/complete | Complete Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**createInspection**](doc/InspectionsApi.md#createinspection) | **POST** /api/v1/inspections | Create Inspection
+[*InspectionsApi*](doc/InspectionsApi.md) | [**createInspectionAnnotation**](doc/InspectionsApi.md#createinspectionannotation) | **POST** /api/v1/inspections/{inspection_id}/annotations | Create Inspection Annotation
 [*InspectionsApi*](doc/InspectionsApi.md) | [**deleteInspection**](doc/InspectionsApi.md#deleteinspection) | **DELETE** /api/v1/inspections/{inspection_id} | Delete Inspection
+[*InspectionsApi*](doc/InspectionsApi.md) | [**deleteInspectionAnnotation**](doc/InspectionsApi.md#deleteinspectionannotation) | **DELETE** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Delete Inspection Annotation
 [*InspectionsApi*](doc/InspectionsApi.md) | [**detachInspectionMedia**](doc/InspectionsApi.md#detachinspectionmedia) | **DELETE** /api/v1/inspections/{inspection_id}/media/{media_id} | Detach Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**getInspection**](doc/InspectionsApi.md#getinspection) | **GET** /api/v1/inspections/{inspection_id} | Get Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**listInspections**](doc/InspectionsApi.md#listinspections) | **GET** /api/v1/inspections | List Inspections
 [*InspectionsApi*](doc/InspectionsApi.md) | [**startInspection**](doc/InspectionsApi.md#startinspection) | **POST** /api/v1/inspections/{inspection_id}/start | Start Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspection**](doc/InspectionsApi.md#updateinspection) | **PATCH** /api/v1/inspections/{inspection_id} | Update Inspection
+[*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionAnnotation**](doc/InspectionsApi.md#updateinspectionannotation) | **PATCH** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Update Inspection Annotation
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionMedia**](doc/InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 [*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
 [*PlatformApi*](doc/PlatformApi.md) | [**getPlatformCompany**](doc/PlatformApi.md#getplatformcompany) | **GET** /api/v1/platform/companies/{company_id} | Get Platform Company
@@ -140,6 +143,9 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AnnotationPointInput](doc/AnnotationPointInput.md)
+ - [AnnotationPointResponse](doc/AnnotationPointResponse.md)
+ - [AnnotationResponse](doc/AnnotationResponse.md)
  - [AreaDeleted](doc/AreaDeleted.md)
  - [AreaDetail](doc/AreaDetail.md)
  - [AreaListPage](doc/AreaListPage.md)
@@ -169,6 +175,7 @@ Class | Method | HTTP request | Description
  - [CompanyProfile](doc/CompanyProfile.md)
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
+ - [CreateAnnotationRequest](doc/CreateAnnotationRequest.md)
  - [CreateAreaRequest](doc/CreateAreaRequest.md)
  - [CreateAssetRequest](doc/CreateAssetRequest.md)
  - [CreateChecklistTemplateRequest](doc/CreateChecklistTemplateRequest.md)
@@ -207,6 +214,7 @@ Class | Method | HTTP request | Description
  - [RoleList](doc/RoleList.md)
  - [RoleSummary](doc/RoleSummary.md)
  - [ServiceResponse](doc/ServiceResponse.md)
+ - [UpdateAnnotationRequest](doc/UpdateAnnotationRequest.md)
  - [UpdateAreaRequest](doc/UpdateAreaRequest.md)
  - [UpdateAssetRequest](doc/UpdateAssetRequest.md)
  - [UpdateChecklistTemplateRequest](doc/UpdateChecklistTemplateRequest.md)

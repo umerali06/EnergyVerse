@@ -1664,6 +1664,106 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   `UpdateInspectionMediaRequest`, `InspectionMediaResponse`, and the three
   new `InspectionsApi` operations, on both generated clients.
 
+### Phase 7.5 Damage Annotation (Draw on Inspection Photos)
+
+- **Annotation data model, designed for 7.10 reuse (D-054).** A new
+  `Annotation` entity (`apps/api/app/models/entities.py`) sits in
+  `Inspection.annotations[]` (top-level, not nested under `media[]` —
+  each annotation carries its own `media_local_id` so it's still queryable
+  per-photo by filtering, and the field already existed as an untyped
+  `list[dict]` placeholder since 7.1). Coordinates are **normalized (0–1)
+  relative to the photo's own rendered box**, never pixels, so a shape
+  drawn on one device's screen renders in the same place on any other.
+  One `points: list[{x, y}]` field covers all five shapes — `point` (1
+  point), `rectangle`/`circle`/`arrow` (2 points: corners/bounding-box/
+  tail-head), `freehand` (2+ points, a polyline) — rather than a shape-
+  specific schema, so a future AI-detected bounding box or polygon (7.10)
+  slots into the exact same field. `source` (`manual`/`ai`, default
+  `manual`) and `confidence` (nullable) exist now but are only ever
+  `manual`/`null` until 7.10 populates the other branch — the phase brief's
+  explicit ask to "design for reuse, only build manual now."
+- **Backend mutation protocol copies 7.4's media pattern exactly, not the
+  checklist-autosave revision protocol.** Three new routes on the existing
+  `inspections` router — `POST .../annotations` (create), `PATCH
+  .../annotations/{id}` (update), `DELETE .../annotations/{id}` (delete) —
+  gated by the existing `inspections.write`, all idempotent by the
+  client-generated annotation `id` and **deliberately carrying no
+  `expected_revision`**: annotation traffic (like media) must never
+  collide with 7.3's checklist-autosave revision bump. `InspectionRepository`
+  gained `append_annotation`/`update_annotation`/`remove_annotation`,
+  mirroring `append_media`/`update_media`/`remove_media`'s `ArrayUnion`/
+  `ArrayRemove`/full-array-rewrite shapes field-for-field. A create whose
+  `id` already exists is a no-op if the payload is byte-identical (mirrors
+  `attach_media`'s dedup) or a 409 `annotation_conflict` if not; an update/
+  delete on a missing `id` returns the record unchanged rather than
+  404ing, since the mobile outbox replays every mutation at-least-once.
+  `create_annotation` additionally 404s (`media_not_found`) if
+  `media_local_id` doesn't match any media item already on the inspection.
+- **Mobile: annotations ride the SAME record outbox as checklist/media
+  metadata, never `MediaQueue` — but unlike media, they're written to the
+  local cache optimistically.** `LocalInspections` gained an `annotations`
+  JSON-blob column (schema v3→v4, same convention as `media`) and three
+  new `OutboxMutationType` values (`create_annotation`/`update_annotation`/
+  `delete_annotation`). Media's `attach_media` deliberately does **not**
+  write into `LocalInspections.media` until the mutation syncs (the
+  gallery instead merges in not-yet-uploaded items from the separate
+  `MediaQueue` table for the "is this visible offline" story) — but an
+  annotation has no equivalent secondary queue, so `createAnnotation`/
+  `updateAnnotation`/`deleteAnnotation` write the local blob directly and
+  immediately, before the matching outbox row even attempts to send. This
+  is what makes "annotate a photo in airplane mode, see it rendered
+  instantly" true without inventing an `AnnotationQueue` table.
+- **A real gotcha surfaced while wiring `SyncEngine`, worth flagging for
+  any future phase that adds another small-array inspection field:**
+  every mutation's success handler (`applyMutationSuccess` →
+  `_upsertFromServer`) overwrites the **entire** local row from whatever
+  `InspectionDetail` the server returned for *that specific call* —
+  including `annotations[]`. This is safe in production only because the
+  real backend's `_to_detail()` always returns the inspection's full
+  current state (every annotation, not just the one just mutated); a test
+  fake that echoes back an empty `annotations: []` would silently wipe an
+  optimistically-written, not-yet-synced annotation the moment an
+  unrelated queued mutation (e.g. a checklist answer) drains first. Caught
+  by `sync_engine_test.dart`'s new annotation group; fixed by making the
+  fake stub build its response the same way the real service does
+  (`_annotationFrom(request)`), not by changing production code — the
+  design itself is correct, self-healing under the outbox's strict global
+  FIFO drain order (the annotation's own mutation always drains and
+  restores it within one pass).
+- **Annotation canvas** (`apps/mobile/lib/annotations/
+  annotation_canvas_screen.dart`, opened by tapping any photo tile in
+  `InspectionMediaSection`): a `CustomPaint` surface wrapped in an
+  `AspectRatio` sized to the image's own intrinsic dimensions (via an
+  `ImageStreamListener`), so the canvas box and the image's rendered box
+  are always identical and normalized coordinates never drift regardless
+  of screen size. Tools: freehand/rectangle/circle/arrow/point (drawing)
+  plus a select mode (tap to inspect/label, drag to move, delete); a
+  color palette drawn from `DsColors` tokens (never a hardcoded hex);
+  undo/redo as an in-session stack of this-screen's own created-then-
+  possibly-undone annotation ids (not a persisted history) — undo deletes
+  the most recent, redo re-creates it with a fresh id. Every draw/move/
+  delete calls straight through to the repository and re-renders from
+  its returned authoritative list; the canvas never hand-constructs an
+  `AnnotationResponse` itself. A broken/expired signed photo URL degrades
+  to a plain message instead of an uncaught `NetworkImage` exception
+  (same posture as the gallery's own `_networkImage` fallback).
+- **Overlay rendering, three surfaces, one toggle each:** the gallery grid
+  tile (a lightweight `AnnotationOverlayPainter`, an at-a-glance preview —
+  slightly misaligned for a non-square photo since the tile crops via
+  `BoxFit.cover` while the overlay stretches to the full tile box, an
+  accepted simplification since the canvas itself is the precise view),
+  the canvas's own live overlay, and a new **admin** read-only SVG overlay
+  (`apps/admin/src/inspections/annotation-overlay.tsx`, `viewBox="0 0 100
+  100"` + `preserveAspectRatio="none"` so 0–1 coordinates map straight onto
+  the tile box) in the existing `InspectionDetailPage` media grid, with a
+  per-shape `<title>` tooltip and a below-tile damage-type summary caption.
+  Each surface has its own show/hide toggle (mobile: an eye icon in the
+  MEDIA section header and the canvas app bar; admin: a text toggle next
+  to the Media label) — annotations are opt-out-visible by default.
+- **Contracts regenerated** for `AnnotationResponse`/`AnnotationPointResponse`/
+  `CreateAnnotationRequest`/`AnnotationPointInput`/`UpdateAnnotationRequest`
+  and the three new `InspectionsApi` operations, on both generated clients.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -1728,3 +1828,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.2 — offline persistence and sync engine | Adds the local-first engine every subsequent inspection phase builds on: a Drift (SQLite) `LocalInspections`+`Outbox` store behind a single `LocalInspectionsRepository` facade, and a `SyncEngine` that drains the outbox against the 7.1 API on connectivity/resume/periodic/manual triggers with revision-based conflict surfacing (a two-button "keep mine"/"use server's" resolution, no diff view). `InspectionsController`/`InspectionDetailScreen`/`QrScanResultScreen` no longer call `ApiContract` directly for inspections. See "Phase 7.2 Offline Persistence and Sync Engine" above for the full breakdown (this row was missing when the phase shipped; backfilled alongside 7.3 for an accurate record). | 2026-07-29 |
 | Phase 7.3 — inspection start flow and checklist filling | Turns 7.1's data model + 7.2's offline engine into the real field workflow. Mobile: `LocalInspectionsRepository` gains a `LocalChecklistTemplates` cache table (refreshed best-effort after sign-in) and `selectChecklistTemplateForCategory` (category match → most-recently-updated tie-break → `Generic` fallback → no-template if nothing's cached), so template auto-selection runs entirely offline; a new local-only `LocalInspections.assetCategory` column (schema v1→v2, this repository's first Drift migration) carries the asset's category into the local draft without a network fetch. `InspectionDetailScreen` (explicitly read-only since 7.2) now renders interactive per-item inputs (`boolean`/`numeric`/`text`/`select` — the model's real types, not the phase brief's illustrative `pass_fail`/`rating` naming) with autosave through `updateInspection`, a progress header, reserved disabled rows for the 7.4+ capture steps, and a Complete button gated on `missingRequiredItemIds`; on load, a `draft` inspection gets its template auto-assigned and transitions to `in_progress` in one place, covering both a fresh start and resuming a stale local draft. New "Start Inspection" entry point on the asset detail screen (previously QR-only); both entry points capture best-effort GPS via a new `geolocator` dependency (Android/iOS permission entries added), non-blocking if denied or unavailable. **Bug fix, not new design:** `updateInspection`'s checklist-response merge was a wholesale array replace, not an upsert by `item_id` — harmless under 7.2 (never exercised with a real partial update) but would have silently erased prior answers under 7.3's continuous per-item autosave; fixed on both the mobile repository and `InspectionService.update_inspection` (upsert-by-`item_id`, D-048). Also fixed in the same pass: `_upsertFromServer` was storing `status`/`inspectionType` as builtvalue's Dart-identifier enum name (`inProgress`) instead of the wire value (`in_progress`) that every local write path and this phase's new status-gated rendering compare against — invisible before now since `draft`/`completed`/`cancelled` happen to be identical either way. No route/schema changes, so **no contracts regeneration was needed**; no new audit action needed (the existing `update()`/`_write_audit` path already covers answer autosave). Admin's read-only checklist rendering (7.1) gains the assigned template's name/version and each item's type, plus an explicit "filled in the field — read-only here" note (D-045's mobile-only-filling decision made visible in the UI, not just the docs). | 2026-07-30 |
 | Phase 7.4 — camera capture (photos + videos), GPS/timestamp, and before/after | See "Phase 7.4 Camera Capture" above for the full breakdown. In short: a new `MediaQueue` table + `MediaUploadWorker`, entirely independent of 7.2's `Outbox`/`SyncEngine`, uploads media bytes directly from the mobile client to Firebase Storage (a deliberate departure from 4.3's server-mediated asset-media pattern, D-0xx) via a new `storage.rules` carve-out scoped by the caller's `company_id` claim; only a small metadata reference then rides the existing 7.2 outbox as a new `attach_media`/`edit_media`/`detach_media` mutation type, all three idempotent and carrying no `expected_revision` by design. New backend `InspectionMedia` entity and three routes (attach/update/detach) on the existing `inspections` router, gated by the existing `inspections.write`; the backend never touches media bytes, only verifying what the client already uploaded and issuing signed URLs. Mobile capture (`camera`/`video_player`/`video_thumbnail`/`firebase_storage`, new dependencies) mirrors 4.5's `QrScanScreen` injectable-builder testing seam; video is capped at 3 minutes/~1080p. Before/after is an independent per-item tag (not a linked pair). `InspectionMediaSection` (mobile) and a read-only grid in admin's existing `InspectionDetailPage` round out the gallery, with a live "N of M uploaded" count so a completed-while-media-pending inspection stays honest. Contracts regenerated for `AttachInspectionMediaRequest`/`UpdateInspectionMediaRequest`/`InspectionMediaResponse` and the three new `InspectionsApi` operations. | 2026-08-02 |
+| Phase 7.5 — damage annotation (draw on inspection photos) | See "Phase 7.5 Damage Annotation" above for the full breakdown. In short: `Inspection.annotations[]` (typed since 7.1's untyped placeholder) holds normalized (0–1) vector shapes keyed by `media_local_id`, one `points[]` field covering all five shapes so 7.10's AI-detected regions can render on the same overlay via the reserved `source`/`confidence` fields. Three new routes mirror 7.4 media's mutation protocol exactly (idempotent by id, no `expected_revision`, `ArrayUnion`/`ArrayRemove` repository methods). Mobile annotations ride the existing 7.2 outbox/record (three new `OutboxMutationType` values) but — unlike media — write to the local cache optimistically, since there's no secondary upload queue standing between "drawn" and "visible offline." New `AnnotationCanvasScreen` (draw/label/undo/redo/select/move/delete) opens from any photo tile in `InspectionMediaSection`; overlay rendering (toggleable) lands on the gallery tile, the canvas itself, and a new read-only SVG overlay in admin's existing `InspectionDetailPage`. Contracts regenerated for `AnnotationResponse`/`CreateAnnotationRequest`/`UpdateAnnotationRequest`/`AnnotationPointResponse`/`AnnotationPointInput` and the three new `InspectionsApi` operations. | 2026-08-05 |

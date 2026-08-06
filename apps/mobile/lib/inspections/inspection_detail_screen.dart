@@ -251,6 +251,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
               inspectionId: inspection.id,
               checklistItems: snapshotItems,
               serverMedia: inspection.media,
+              annotations: inspection.annotations,
               editable: editable,
             ),
             if (editable) ...[

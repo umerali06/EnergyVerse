@@ -17,7 +17,8 @@ const session = AuthSession(
   emailVerified: true,
 );
 
-CurrentUser identityFor(String roleKey, List<String> permissions) => CurrentUser(
+CurrentUser identityFor(String roleKey, List<String> permissions) =>
+    CurrentUser(
       (builder) => builder
         ..uid = 'demo-acme-field_inspector'
         ..email = 'field_inspector@acme.example.invalid'
@@ -50,6 +51,7 @@ InspectionListItem _inspectionItemFixture({
 InspectionDetail _inspectionDetailFixture({
   InspectionDetailStatusEnum status = InspectionDetailStatusEnum.inProgress,
   List<InspectionMediaResponse> media = const [],
+  List<AnnotationResponse> annotations = const [],
 }) {
   final now = DateTime.utc(2026, 1, 1);
   final startedAt = DateTime.utc(2026, 1, 2);
@@ -77,7 +79,8 @@ InspectionDetail _inspectionDetailFixture({
             ..required_ = true,
         ),
       )
-      ..media.addAll(media),
+      ..media.addAll(media)
+      ..annotations.addAll(annotations),
   );
 }
 
@@ -97,17 +100,41 @@ InspectionMediaResponse _mediaFixture({String id = 'media-1'}) {
   );
 }
 
+AnnotationResponse _annotationFixture({String mediaLocalId = 'local-1'}) {
+  return AnnotationResponse(
+    (b) => b
+      ..id = 'annotation-1'
+      ..mediaLocalId = mediaLocalId
+      ..shape = AnnotationResponseShapeEnum.rectangle
+      ..points.addAll([
+        AnnotationPointResponse((p) => p
+          ..x = 0.1
+          ..y = 0.1),
+        AnnotationPointResponse((p) => p
+          ..x = 0.4
+          ..y = 0.4),
+      ])
+      ..color = '#C1123F'
+      ..damageType = AnnotationResponseDamageTypeEnum.corrosion
+      ..note = 'Visible corrosion'
+      ..createdBy = 'demo-acme-field_inspector'
+      ..createdAt = DateTime.utc(2026, 1, 1),
+  );
+}
+
 class FakeApi implements ApiContract {
   FakeApi(
     this.identity, {
     this.status = InspectionDetailStatusEnum.inProgress,
     this.offline = false,
     this.media = const [],
+    this.annotations = const [],
   });
 
   final CurrentUser identity;
   final InspectionDetailStatusEnum status;
   final List<InspectionMediaResponse> media;
+  final List<AnnotationResponse> annotations;
 
   /// Simulates airplane mode: every inspections network call throws, so
   /// [LocalInspectionsRepository]'s best-effort refreshes are no-ops and
@@ -131,7 +158,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardSummary> getDashboardSummary({int window = 30}) => throw UnimplementedError();
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) =>
+      throw UnimplementedError();
 
   @override
   Future<DashboardActivityPage> getDashboardActivity({
@@ -142,11 +170,13 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) =>
       throw UnimplementedError();
 
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() => throw UnimplementedError();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
 
   @override
   Future<UserListPage> getUsers({
@@ -185,7 +215,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
 
   @override
@@ -206,7 +237,8 @@ class FakeApi implements ApiContract {
   Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      throw UnimplementedError();
 
   @override
   Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
@@ -222,7 +254,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
 
   @override
   Future<AreaListPage> getAreas({
@@ -246,7 +279,9 @@ class FakeApi implements ApiContract {
     String? cursor,
     int limit = 25,
   }) async {
-    if (offline) throw const ApiException(code: 'network_error', message: 'offline');
+    if (offline) {
+      throw const ApiException(code: 'network_error', message: 'offline');
+    }
     return InspectionListPage(
       (b) => b
         ..items.add(
@@ -259,8 +294,11 @@ class FakeApi implements ApiContract {
 
   @override
   Future<InspectionDetail> getInspection(String inspectionId) async {
-    if (offline) throw const ApiException(code: 'network_error', message: 'offline');
-    return _inspectionDetailFixture(status: status, media: media);
+    if (offline) {
+      throw const ApiException(code: 'network_error', message: 'offline');
+    }
+    return _inspectionDetailFixture(
+        status: status, media: media, annotations: annotations);
   }
 
   @override
@@ -275,13 +313,16 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> startInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> completeInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> cancelInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
@@ -306,7 +347,28 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> detachInspectionMedia(
+          String inspectionId, String mediaId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> createInspectionAnnotation(
+    String inspectionId,
+    CreateAnnotationRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionAnnotation(
+    String inspectionId,
+    String annotationId,
+    UpdateAnnotationRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> deleteInspectionAnnotation(
+          String inspectionId, String annotationId) =>
       throw UnimplementedError();
 
   @override
@@ -355,13 +417,18 @@ Future<void> disposeApp(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('a completed inspection renders its checklist read-only', (tester) async {
+  testWidgets('a completed inspection renders its checklist read-only',
+      (tester) async {
     final api = FakeApi(
       identityFor('field_inspector', const ['inspections.read']),
       status: InspectionDetailStatusEnum.completed,
     );
     await tester.pumpWidget(
-      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
     );
     await tester.pumpAndSettle();
 
@@ -384,9 +451,14 @@ void main() {
     'an in_progress inspection is interactive: answering the required item enables Complete',
     (tester) async {
       final db = AppDatabase(NativeDatabase.memory());
-      final api = FakeApi(identityFor('field_inspector', const ['inspections.read', 'inspections.write']));
+      final api = FakeApi(identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']));
       await tester.pumpWidget(
-        FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: db),
+        FevApp(
+            api: api,
+            authGateway: FakeGateway(),
+            initialRoute: AppRoutes.inspections,
+            database: db),
       );
       await tester.pumpAndSettle();
 
@@ -402,8 +474,10 @@ void main() {
       // above out of the built range -- read persisted state back from the
       // database instead of fighting the scroll position for the rest of
       // this test.
-      await tester.scrollUntilVisible(find.byKey(const Key('complete-inspection')), 200);
-      final completeButton = tester.widget<AppButton>(find.byKey(const Key('complete-inspection')));
+      await tester.scrollUntilVisible(
+          find.byKey(const Key('complete-inspection')), 200);
+      final completeButton = tester
+          .widget<AppButton>(find.byKey(const Key('complete-inspection')));
       expect(completeButton.onPressed, isNull);
 
       // The MEDIA section between the checklist and Complete button means
@@ -414,21 +488,25 @@ void main() {
       // since a far-off-screen item isn't built yet -- "No element"); the
       // follow-up `ensureVisible` then guarantees it's fully unobstructed
       // (not just barely intersecting the viewport edge) before tapping.
-      await tester.scrollUntilVisible(find.byKey(const Key('item-vibration_normal-pass')), -200);
-      await tester.ensureVisible(find.byKey(const Key('item-vibration_normal-pass')));
+      await tester.scrollUntilVisible(
+          find.byKey(const Key('item-vibration_normal-pass')), -200);
+      await tester
+          .ensureVisible(find.byKey(const Key('item-vibration_normal-pass')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('item-vibration_normal-pass')));
       await tester.pumpAndSettle();
 
-      final answeredRow =
-          await (db.select(db.localInspections)..where((t) => t.id.equals('inspection-1'))).getSingle();
+      final answeredRow = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals('inspection-1')))
+          .getSingle();
       final answered = LocalInspectionRecord(answeredRow);
       expect(answered.checklistResponses, hasLength(1));
       expect(checklistResponseValue(answered.checklistResponses.single), true);
 
-      await tester.scrollUntilVisible(find.byKey(const Key('complete-inspection')), 200);
-      final completeButtonAfter =
-          tester.widget<AppButton>(find.byKey(const Key('complete-inspection')));
+      await tester.scrollUntilVisible(
+          find.byKey(const Key('complete-inspection')), 200);
+      final completeButtonAfter = tester
+          .widget<AppButton>(find.byKey(const Key('complete-inspection')));
       expect(completeButtonAfter.onPressed, isNotNull);
 
       await tester.ensureVisible(find.byKey(const Key('complete-inspection')));
@@ -436,8 +514,9 @@ void main() {
       await tester.tap(find.byKey(const Key('complete-inspection')));
       await tester.pumpAndSettle();
 
-      final completedRow =
-          await (db.select(db.localInspections)..where((t) => t.id.equals('inspection-1'))).getSingle();
+      final completedRow = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals('inspection-1')))
+          .getSingle();
       expect(completedRow.status, 'completed');
       await disposeApp(tester);
     },
@@ -447,7 +526,10 @@ void main() {
     'opening a stale local draft auto-assigns the matching template and starts it, fully offline',
     (tester) async {
       final db = AppDatabase(NativeDatabase.memory());
-      final api = FakeApi(identityFor('field_inspector', const ['inspections.read', 'inspections.write']), offline: true);
+      final api = FakeApi(
+          identityFor('field_inspector',
+              const ['inspections.read', 'inspections.write']),
+          offline: true);
       final repository = LocalInspectionsRepository(db: db, api: api);
 
       await db.into(db.localChecklistTemplates).insert(
@@ -470,14 +552,19 @@ void main() {
       );
 
       await tester.pumpWidget(
-        FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: db),
+        FevApp(
+            api: api,
+            authGateway: FakeGateway(),
+            initialRoute: AppRoutes.inspections,
+            database: db),
       );
       await tester.pumpAndSettle();
 
       await tester.tap(find.textContaining('Untitled'));
       await tester.pumpAndSettle();
 
-      final row = await (db.select(db.localInspections)..where((t) => t.id.equals(inspectionId)))
+      final row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
           .getSingle();
       expect(row.status, 'in_progress');
       expect(row.checklistTemplateId, 'pumps-template');
@@ -486,10 +573,17 @@ void main() {
     },
   );
 
-  testWidgets('shows an honest empty state when the inspection has no media yet', (tester) async {
-    final api = FakeApi(identityFor('field_inspector', const ['inspections.read', 'inspections.write']));
+  testWidgets(
+      'shows an honest empty state when the inspection has no media yet',
+      (tester) async {
+    final api = FakeApi(identityFor(
+        'field_inspector', const ['inspections.read', 'inspections.write']));
     await tester.pumpWidget(
-      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
     );
     await tester.pumpAndSettle();
 
@@ -503,37 +597,48 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('renders a synced media item and the upload-progress count', (tester) async {
+  testWidgets('renders a synced media item and the upload-progress count',
+      (tester) async {
     final api = FakeApi(
-      identityFor('field_inspector', const ['inspections.read', 'inspections.write']),
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
       media: [_mediaFixture()],
     );
     await tester.pumpWidget(
-      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Q3 Routine Inspection'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.byKey(const Key('media-upload-progress')), 200);
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('media-upload-progress')), 200);
     expect(find.byKey(const Key('media-upload-progress')), findsOneWidget);
     expect(find.text('1 of 1 uploaded'), findsOneWidget);
     await disposeApp(tester);
   });
 
-  testWidgets('renders a locally-queued item with its upload-state badge, counted as pending', (
+  testWidgets(
+      'renders a locally-queued item with its upload-state badge, counted as pending',
+      (
     tester,
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
-    final api = FakeApi(identityFor('field_inspector', const ['inspections.read', 'inspections.write']));
+    final api = FakeApi(identityFor(
+        'field_inspector', const ['inspections.read', 'inspections.write']));
     await db.into(db.mediaQueue).insert(
           MediaQueueCompanion.insert(
             localId: 'local-queued-1',
             inspectionId: 'inspection-1',
             kind: 'photo',
             localFilePath: '/tmp/photo.jpg',
-            storagePath: 'companies/acme-energy/inspections/inspection-1/media/local-queued-1_photo.jpg',
+            storagePath:
+                'companies/acme-energy/inspections/inspection-1/media/local-queued-1_photo.jpg',
             filename: 'photo.jpg',
             contentType: 'image/jpeg',
             sizeBytes: 500,
@@ -543,7 +648,11 @@ void main() {
         );
 
     await tester.pumpWidget(
-      FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: db),
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: db),
     );
     await tester.pumpAndSettle();
 
@@ -553,6 +662,98 @@ void main() {
     await tester.scrollUntilVisible(find.text('Queued'), 200);
     expect(find.text('Queued'), findsOneWidget);
     expect(find.text('0 of 1 uploaded'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'does not show the annotation-overlay toggle when there are no annotations',
+      (
+    tester,
+  ) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      media: [_mediaFixture()],
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('MEDIA'), 200);
+    expect(find.byKey(const Key('toggle-annotation-overlay')), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'shows the annotation-overlay toggle and hides the overlay when tapped', (
+    tester,
+  ) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      media: [_mediaFixture()],
+      annotations: [_annotationFixture()],
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('toggle-annotation-overlay')), 200);
+    expect(find.byTooltip('Hide annotations'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('toggle-annotation-overlay')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Show annotations'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets('tapping a photo tile opens the annotation canvas',
+      (tester) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      media: [_mediaFixture()],
+      annotations: [_annotationFixture()],
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('media-tile-media-1')), 200);
+    await tester.tap(find.byKey(const Key('media-tile-media-1')));
+    // The canvas's own image never finishes resolving in a widget test (no
+    // real network access), so it settles into a permanent loading state --
+    // pump a bounded number of frames instead of `pumpAndSettle`.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Annotate photo'), findsOneWidget);
     await disposeApp(tester);
   });
 }

@@ -17,12 +17,14 @@ import * as runtime from '../runtime';
 import type {
   AssignChecklistTemplateRequest,
   AttachInspectionMediaRequest,
+  CreateAnnotationRequest,
   CreateInspectionRequest,
   ErrorEnvelope,
   HTTPValidationError,
   InspectionDeleted,
   InspectionDetail,
   InspectionListPage,
+  UpdateAnnotationRequest,
   UpdateInspectionMediaRequest,
   UpdateInspectionRequest,
 } from '../models/index';
@@ -31,6 +33,8 @@ import {
     AssignChecklistTemplateRequestToJSON,
     AttachInspectionMediaRequestFromJSON,
     AttachInspectionMediaRequestToJSON,
+    CreateAnnotationRequestFromJSON,
+    CreateAnnotationRequestToJSON,
     CreateInspectionRequestFromJSON,
     CreateInspectionRequestToJSON,
     ErrorEnvelopeFromJSON,
@@ -43,6 +47,8 @@ import {
     InspectionDetailToJSON,
     InspectionListPageFromJSON,
     InspectionListPageToJSON,
+    UpdateAnnotationRequestFromJSON,
+    UpdateAnnotationRequestToJSON,
     UpdateInspectionMediaRequestFromJSON,
     UpdateInspectionMediaRequestToJSON,
     UpdateInspectionRequestFromJSON,
@@ -71,8 +77,18 @@ export interface CreateInspectionOperationRequest {
     createInspectionRequest: CreateInspectionRequest;
 }
 
+export interface CreateInspectionAnnotationRequest {
+    inspectionId: string;
+    createAnnotationRequest: CreateAnnotationRequest;
+}
+
 export interface DeleteInspectionRequest {
     inspectionId: string;
+}
+
+export interface DeleteInspectionAnnotationRequest {
+    inspectionId: string;
+    annotationId: string;
 }
 
 export interface DetachInspectionMediaRequest {
@@ -102,6 +118,12 @@ export interface StartInspectionRequest {
 export interface UpdateInspectionOperationRequest {
     inspectionId: string;
     updateInspectionRequest: UpdateInspectionRequest;
+}
+
+export interface UpdateInspectionAnnotationRequest {
+    inspectionId: string;
+    annotationId: string;
+    updateAnnotationRequest: UpdateAnnotationRequest;
 }
 
 export interface UpdateInspectionMediaOperationRequest {
@@ -348,6 +370,59 @@ export class InspectionsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection`) -- annotations are vector metadata only, no image bytes pass through here.
+     * Create Inspection Annotation
+     */
+    async createInspectionAnnotationRaw(requestParameters: CreateInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling createInspectionAnnotation().'
+            );
+        }
+
+        if (requestParameters['createAnnotationRequest'] == null) {
+            throw new runtime.RequiredError(
+                'createAnnotationRequest',
+                'Required parameter "createAnnotationRequest" was null or undefined when calling createInspectionAnnotation().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/annotations`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateAnnotationRequestToJSON(requestParameters['createAnnotationRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection`) -- annotations are vector metadata only, no image bytes pass through here.
+     * Create Inspection Annotation
+     */
+    async createInspectionAnnotation(requestParameters: CreateInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.createInspectionAnnotationRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Delete Inspection
      */
     async deleteInspectionRaw(requestParameters: DeleteInspectionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDeleted>> {
@@ -385,6 +460,56 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async deleteInspection(requestParameters: DeleteInspectionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDeleted> {
         const response = await this.deleteInspectionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Idempotent on an already-deleted `annotation_id` -- the mobile outbox replays this call at-least-once.
+     * Delete Inspection Annotation
+     */
+    async deleteInspectionAnnotationRaw(requestParameters: DeleteInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling deleteInspectionAnnotation().'
+            );
+        }
+
+        if (requestParameters['annotationId'] == null) {
+            throw new runtime.RequiredError(
+                'annotationId',
+                'Required parameter "annotationId" was null or undefined when calling deleteInspectionAnnotation().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/annotations/{annotation_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"annotation_id"}}`, encodeURIComponent(String(requestParameters['annotationId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Idempotent on an already-deleted `annotation_id` -- the mobile outbox replays this call at-least-once.
+     * Delete Inspection Annotation
+     */
+    async deleteInspectionAnnotation(requestParameters: DeleteInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.deleteInspectionAnnotationRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -634,6 +759,64 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async updateInspection(requestParameters: UpdateInspectionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.updateInspectionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Inspection Annotation
+     */
+    async updateInspectionAnnotationRaw(requestParameters: UpdateInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling updateInspectionAnnotation().'
+            );
+        }
+
+        if (requestParameters['annotationId'] == null) {
+            throw new runtime.RequiredError(
+                'annotationId',
+                'Required parameter "annotationId" was null or undefined when calling updateInspectionAnnotation().'
+            );
+        }
+
+        if (requestParameters['updateAnnotationRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateAnnotationRequest',
+                'Required parameter "updateAnnotationRequest" was null or undefined when calling updateInspectionAnnotation().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/annotations/{annotation_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"annotation_id"}}`, encodeURIComponent(String(requestParameters['annotationId']))),
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateAnnotationRequestToJSON(requestParameters['updateAnnotationRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Update Inspection Annotation
+     */
+    async updateInspectionAnnotation(requestParameters: UpdateInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.updateInspectionAnnotationRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

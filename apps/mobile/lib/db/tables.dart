@@ -39,6 +39,13 @@ class LocalInspections extends Table {
   /// checklist-item link) renders fully offline; only the signed `url`
   /// itself needs connectivity to actually load an image/video.
   TextColumn get media => text().withDefault(const Constant('[]'))();
+
+  /// The server's `InspectionDetail.annotations[]` (Phase 7.5), same
+  /// JSON-blob convention -- unlike [media], a freshly drawn annotation is
+  /// written here optimistically (before its outbox mutation even attempts
+  /// to send), since it's small vector data with no separate queue/upload
+  /// step standing between "drawn" and "visible offline".
+  TextColumn get annotations => text().withDefault(const Constant('[]'))();
   DateTimeColumn get startedAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
   RealColumn get gpsLat => real().nullable()();
@@ -106,13 +113,18 @@ class Outbox extends Table {
   TextColumn get inspectionId => text()();
 
   /// `create | update | start | complete | cancel | assign_template |
-  /// attach_media | edit_media | detach_media`. The last three are Phase
-  /// 7.4's small metadata-reference mutations only -- the media BYTES never
-  /// flow through this outbox; they upload directly to Firebase Storage via
-  /// the separate [MediaQueue] table and `MediaUploadWorker`, independent of
-  /// `SyncEngine`, so heavy media traffic can never stall lightweight
-  /// inspection-record sync. (A prior `upload_media` reservation comment
-  /// here anticipated a single combined queue; this supersedes that design.)
+  /// attach_media | edit_media | detach_media | create_annotation |
+  /// update_annotation | delete_annotation`. `attach_media`/`edit_media`/
+  /// `detach_media` (Phase 7.4) are small metadata-reference mutations only
+  /// -- the media BYTES never flow through this outbox; they upload
+  /// directly to Firebase Storage via the separate [MediaQueue] table and
+  /// `MediaUploadWorker`, independent of `SyncEngine`, so heavy media
+  /// traffic can never stall lightweight inspection-record sync. (A prior
+  /// `upload_media` reservation comment here anticipated a single combined
+  /// queue; this supersedes that design.) The three `*_annotation` types
+  /// (Phase 7.5) are themselves small vector-metadata mutations -- unlike
+  /// media, annotations have no separate upload queue at all; they ride
+  /// this same outbox end-to-end.
   TextColumn get mutationType => text()();
 
   /// The built_value request object, serialized to JSON via the generated

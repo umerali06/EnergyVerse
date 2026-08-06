@@ -12,10 +12,12 @@ from app.inspections.service import (
 from app.models.api import (
     AssignChecklistTemplateRequest,
     AttachInspectionMediaRequest,
+    CreateAnnotationRequest,
     CreateInspectionRequest,
     InspectionDeleted,
     InspectionDetail,
     InspectionListPage,
+    UpdateAnnotationRequest,
     UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
     error_responses,
@@ -298,6 +300,76 @@ async def detach_inspection_media(
     scope = CompanyScope(company_id=current_user.company_id)
     try:
         return await service.detach_media(scope, inspection_id, media_id, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.post(
+    "/{inspection_id}/annotations",
+    response_model=InspectionDetail,
+    operation_id="create_inspection_annotation",
+    responses=error_responses(401, 403, 404, 409, 422, 500),
+)
+async def create_inspection_annotation(
+    inspection_id: str,
+    request: CreateAnnotationRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Idempotent upsert keyed by the client-generated `id` (mirrors
+    `create_inspection`) -- annotations are vector metadata only, no image
+    bytes pass through here."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.create_annotation(scope, inspection_id, request, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.patch(
+    "/{inspection_id}/annotations/{annotation_id}",
+    response_model=InspectionDetail,
+    operation_id="update_inspection_annotation",
+    responses=error_responses(401, 403, 404, 422, 500),
+)
+async def update_inspection_annotation(
+    inspection_id: str,
+    annotation_id: str,
+    request: UpdateAnnotationRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.update_annotation(
+            scope, inspection_id, annotation_id, request, current_user.uid
+        )
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.delete(
+    "/{inspection_id}/annotations/{annotation_id}",
+    response_model=InspectionDetail,
+    operation_id="delete_inspection_annotation",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def delete_inspection_annotation(
+    inspection_id: str,
+    annotation_id: str,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Idempotent on an already-deleted `annotation_id` -- the mobile outbox
+    replays this call at-least-once."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.delete_annotation(
+            scope, inspection_id, annotation_id, current_user.uid
+        )
     except InspectionServiceError as error:
         _raise_api_error(error)
         raise

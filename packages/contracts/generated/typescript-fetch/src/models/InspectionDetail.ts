@@ -27,6 +27,13 @@ import {
     ChecklistResponseToJSON,
     ChecklistResponseToJSONTyped,
 } from './ChecklistResponse';
+import type { AnnotationResponse } from './AnnotationResponse';
+import {
+    AnnotationResponseFromJSON,
+    AnnotationResponseFromJSONTyped,
+    AnnotationResponseToJSON,
+    AnnotationResponseToJSONTyped,
+} from './AnnotationResponse';
 import type { ChecklistTemplateItem } from './ChecklistTemplateItem';
 import {
     ChecklistTemplateItemFromJSON,
@@ -49,10 +56,10 @@ export interface InspectionDetail {
     aiAnalysis?: { [key: string]: any; } | null;
     /**
      *
-     * @type {Array<{ [key: string]: any; }>}
+     * @type {Array<AnnotationResponse>}
      * @memberof InspectionDetail
      */
-    annotations?: Array<{ [key: string]: any; }>;
+    annotations?: Array<AnnotationResponse>;
     /**
      *
      * @type {Array<{ [key: string]: any; }>}
@@ -274,7 +281,7 @@ export function InspectionDetailFromJSONTyped(json: any, ignoreDiscriminator: bo
     return {
 
         'aiAnalysis': json['ai_analysis'] == null ? undefined : json['ai_analysis'],
-        'annotations': json['annotations'] == null ? undefined : json['annotations'],
+        'annotations': json['annotations'] == null ? undefined : ((json['annotations'] as Array<any>).map(AnnotationResponseFromJSON)),
         'arMeasurements': json['ar_measurements'] == null ? undefined : json['ar_measurements'],
         'areaId': json['area_id'] == null ? undefined : json['area_id'],
         'assetId': json['asset_id'],
@@ -318,7 +325,7 @@ export function InspectionDetailToJSONTyped(value?: InspectionDetail | null, ign
     return {
 
         'ai_analysis': value['aiAnalysis'],
-        'annotations': value['annotations'],
+        'annotations': value['annotations'] == null ? undefined : ((value['annotations'] as Array<any>).map(AnnotationResponseToJSON)),
         'ar_measurements': value['arMeasurements'],
         'area_id': value['areaId'],
         'asset_id': value['assetId'],

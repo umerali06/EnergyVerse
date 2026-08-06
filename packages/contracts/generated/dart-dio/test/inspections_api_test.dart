@@ -45,10 +45,28 @@ void main() {
       // TODO
     });
 
+    // Create Inspection Annotation
+    //
+    // Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection`) -- annotations are vector metadata only, no image bytes pass through here.
+    //
+    //Future<InspectionDetail> createInspectionAnnotation(String inspectionId, CreateAnnotationRequest createAnnotationRequest) async
+    test('test createInspectionAnnotation', () async {
+      // TODO
+    });
+
     // Delete Inspection
     //
     //Future<InspectionDeleted> deleteInspection(String inspectionId) async
     test('test deleteInspection', () async {
+      // TODO
+    });
+
+    // Delete Inspection Annotation
+    //
+    // Idempotent on an already-deleted `annotation_id` -- the mobile outbox replays this call at-least-once.
+    //
+    //Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) async
+    test('test deleteInspectionAnnotation', () async {
       // TODO
     });
 
@@ -86,6 +104,13 @@ void main() {
     //
     //Future<InspectionDetail> updateInspection(String inspectionId, UpdateInspectionRequest updateInspectionRequest) async
     test('test updateInspection', () async {
+      // TODO
+    });
+
+    // Update Inspection Annotation
+    //
+    //Future<InspectionDetail> updateInspectionAnnotation(String inspectionId, String annotationId, UpdateAnnotationRequest updateAnnotationRequest) async
+    test('test updateInspectionAnnotation', () async {
       // TODO
     });
 
