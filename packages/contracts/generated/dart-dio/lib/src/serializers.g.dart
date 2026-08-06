@@ -100,6 +100,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(PlatformCompanySummary.serializer)
       ..add(PlatformStats.serializer)
       ..add(QrScanResult.serializer)
+      ..add(ReadingsInput.serializer)
+      ..add(ReadingsInputConditionEnum.serializer)
+      ..add(ReadingsInputOperationalStatusEnum.serializer)
+      ..add(ReadingsInputPriorityLevelEnum.serializer)
+      ..add(ReadingsResponse.serializer)
+      ..add(ReadingsResponseConditionEnum.serializer)
+      ..add(ReadingsResponseOperationalStatusEnum.serializer)
+      ..add(ReadingsResponsePriorityLevelEnum.serializer)
       ..add(RoleDeleted.serializer)
       ..add(RoleDetail.serializer)
       ..add(RoleList.serializer)
@@ -297,12 +305,6 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(InspectionMediaResponse)]),
           () => new ListBuilder<InspectionMediaResponse>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => new MapBuilder<String, JsonObject?>())
       ..addBuilderFactory(
           const FullType(BuiltMap, const [
             const FullType(String),

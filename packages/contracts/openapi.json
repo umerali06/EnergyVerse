@@ -2971,9 +2971,14 @@
             "title": "Origin"
           },
           "readings": {
-            "additionalProperties": true,
-            "title": "Readings",
-            "type": "object"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadingsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "revision": {
             "title": "Revision",
@@ -3593,6 +3598,299 @@
           "asset"
         ],
         "title": "QrScanResult",
+        "type": "object"
+      },
+      "ReadingsInput": {
+        "description": "Client-submitted readings (spec section 9, Phase 7.7). `recorded_at`/\n`recorded_by` are never accepted from the client -- the server always\nstamps them, mirroring how `answered_at`/`answered_by` are handled on\n`ChecklistResponse`.",
+        "properties": {
+          "comments": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
+          },
+          "condition": {
+            "enum": [
+              "Excellent",
+              "Good",
+              "Fair",
+              "Poor",
+              "Critical"
+            ],
+            "title": "Condition",
+            "type": "string"
+          },
+          "leak_observed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leak Observed"
+          },
+          "noise_level_db": {
+            "anyOf": [
+              {
+                "maximum": 200.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Noise Level Db"
+          },
+          "operational_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "running",
+                  "stopped",
+                  "degraded"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operational Status"
+          },
+          "pressure_bar": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Bar"
+          },
+          "priority_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority Level"
+          },
+          "recommendations": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendations"
+          },
+          "temperature_c": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": -50.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature C"
+          },
+          "vibration_observation": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vibration Observation"
+          }
+        },
+        "required": [
+          "condition"
+        ],
+        "title": "ReadingsInput",
+        "type": "object"
+      },
+      "ReadingsResponse": {
+        "properties": {
+          "comments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
+          },
+          "condition": {
+            "enum": [
+              "Excellent",
+              "Good",
+              "Fair",
+              "Poor",
+              "Critical"
+            ],
+            "title": "Condition",
+            "type": "string"
+          },
+          "leak_observed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leak Observed"
+          },
+          "noise_level_db": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Noise Level Db"
+          },
+          "operational_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "running",
+                  "stopped",
+                  "degraded"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operational Status"
+          },
+          "pressure_bar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Bar"
+          },
+          "priority_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority Level"
+          },
+          "recommendations": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendations"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "recorded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded By"
+          },
+          "temperature_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature C"
+          },
+          "vibration_observation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vibration Observation"
+          }
+        },
+        "required": [
+          "condition"
+        ],
+        "title": "ReadingsResponse",
         "type": "object"
       },
       "RoleDeleted": {
@@ -4410,6 +4708,16 @@
               }
             ],
             "title": "Notes"
+          },
+          "readings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadingsInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "title": {
             "anyOf": [

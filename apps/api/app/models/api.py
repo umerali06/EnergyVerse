@@ -520,6 +520,39 @@ class AnnotationResponse(BaseModel):
     created_at: datetime
 
 
+class ReadingsResponse(BaseModel):
+    condition: Literal["Excellent", "Good", "Fair", "Poor", "Critical"]
+    temperature_c: float | None = None
+    pressure_bar: float | None = None
+    noise_level_db: float | None = None
+    vibration_observation: str | None = None
+    leak_observed: bool | None = None
+    operational_status: Literal["running", "stopped", "degraded"] | None = None
+    comments: str | None = None
+    recommendations: str | None = None
+    priority_level: Literal["low", "medium", "high", "critical"] | None = None
+    recorded_at: datetime | None = None
+    recorded_by: str | None = None
+
+
+class ReadingsInput(BaseModel):
+    """Client-submitted readings (spec section 9, Phase 7.7). `recorded_at`/
+    `recorded_by` are never accepted from the client -- the server always
+    stamps them, mirroring how `answered_at`/`answered_by` are handled on
+    `ChecklistResponse`."""
+
+    condition: Literal["Excellent", "Good", "Fair", "Poor", "Critical"]
+    temperature_c: float | None = Field(default=None, ge=-50, le=1000)
+    pressure_bar: float | None = Field(default=None, ge=0, le=1000)
+    noise_level_db: float | None = Field(default=None, ge=0, le=200)
+    vibration_observation: str | None = Field(default=None, max_length=500)
+    leak_observed: bool | None = None
+    operational_status: Literal["running", "stopped", "degraded"] | None = None
+    comments: str | None = Field(default=None, max_length=2000)
+    recommendations: str | None = Field(default=None, max_length=2000)
+    priority_level: Literal["low", "medium", "high", "critical"] | None = None
+
+
 class InspectionListItem(BaseModel):
     id: str
     asset_id: str
@@ -555,7 +588,7 @@ class InspectionDetail(InspectionListItem):
     media: list[InspectionMediaResponse] = Field(default_factory=list)
     annotations: list[AnnotationResponse] = Field(default_factory=list)
     voice_notes: list[VoiceNoteResponse] = Field(default_factory=list)
-    readings: dict[str, Any] = Field(default_factory=dict)
+    readings: ReadingsResponse | None = None
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
     ai_analysis: dict[str, Any] | None = None
     signature: dict[str, Any] | None = None
@@ -581,6 +614,7 @@ class UpdateInspectionRequest(BaseModel):
     gps_lat: float | None = Field(default=None, ge=-90, le=90)
     gps_lng: float | None = Field(default=None, ge=-180, le=180)
     checklist_responses: list[ChecklistResponse] | None = None
+    readings: ReadingsInput | None = None
     expected_revision: int | None = None
 
 

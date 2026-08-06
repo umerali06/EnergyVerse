@@ -4,6 +4,7 @@
 
 // ignore_for_file: unused_element
 import 'package:fev_api_client/src/model/annotation_response.dart';
+import 'package:fev_api_client/src/model/readings_response.dart';
 import 'package:fev_api_client/src/model/checklist_response.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:fev_api_client/src/model/inspection_media_response.dart';
@@ -119,7 +120,7 @@ abstract class InspectionDetail
   String? get origin;
 
   @BuiltValueField(wireName: r'readings')
-  BuiltMap<String, JsonObject?>? get readings;
+  ReadingsResponse? get readings;
 
   @BuiltValueField(wireName: r'revision')
   int get revision;
@@ -319,8 +320,7 @@ class _$InspectionDetailSerializer
       yield r'readings';
       yield serializers.serialize(
         object.readings,
-        specifiedType: const FullType(
-            BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        specifiedType: const FullType.nullable(ReadingsResponse),
       );
     }
     yield r'revision';
@@ -567,9 +567,9 @@ class _$InspectionDetailSerializer
         case r'readings':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(
-                BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>;
+            specifiedType: const FullType.nullable(ReadingsResponse),
+          ) as ReadingsResponse?;
+          if (valueDes == null) continue;
           result.readings.replace(valueDes);
           break;
         case r'revision':

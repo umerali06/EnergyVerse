@@ -94,6 +94,8 @@ export 'package:fev_api_client/src/model/platform_company_page.dart';
 export 'package:fev_api_client/src/model/platform_company_summary.dart';
 export 'package:fev_api_client/src/model/platform_stats.dart';
 export 'package:fev_api_client/src/model/qr_scan_result.dart';
+export 'package:fev_api_client/src/model/readings_input.dart';
+export 'package:fev_api_client/src/model/readings_response.dart';
 export 'package:fev_api_client/src/model/role_deleted.dart';
 export 'package:fev_api_client/src/model/role_detail.dart';
 export 'package:fev_api_client/src/model/role_list.dart';

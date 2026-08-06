@@ -187,7 +187,7 @@ class _$InspectionDetail extends InspectionDetail {
   @override
   final String? origin;
   @override
-  final BuiltMap<String, JsonObject?>? readings;
+  final ReadingsResponse? readings;
   @override
   final int revision;
   @override
@@ -491,10 +491,10 @@ class InspectionDetailBuilder
   String? get origin => _$this._origin;
   set origin(String? origin) => _$this._origin = origin;
 
-  MapBuilder<String, JsonObject?>? _readings;
-  MapBuilder<String, JsonObject?> get readings =>
-      _$this._readings ??= new MapBuilder<String, JsonObject?>();
-  set readings(MapBuilder<String, JsonObject?>? readings) =>
+  ReadingsResponseBuilder? _readings;
+  ReadingsResponseBuilder get readings =>
+      _$this._readings ??= new ReadingsResponseBuilder();
+  set readings(ReadingsResponseBuilder? readings) =>
       _$this._readings = readings;
 
   int? _revision;

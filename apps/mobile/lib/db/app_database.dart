@@ -16,7 +16,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -34,6 +34,9 @@ class AppDatabase extends _$AppDatabase {
         // reuse the same media queue/worker, kind == 'audio') and a
         // `voiceNotes` JSON-blob column on LocalInspections caching the
         // server's synced `inspection.voiceNotes[]`.
+        // v6 (Phase 7.7): a nullable `readings` JSON-blob column on
+        // LocalInspections caching (and, for not-yet-synced edits,
+        // optimistically holding) the inspection's manual status readings.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(localInspections, localInspections.assetCategory);
@@ -49,6 +52,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             await m.addColumn(mediaQueue, mediaQueue.durationMs);
             await m.addColumn(localInspections, localInspections.voiceNotes);
+          }
+          if (from < 6) {
+            await m.addColumn(localInspections, localInspections.readings);
           }
         },
       );

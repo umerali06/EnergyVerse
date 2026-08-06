@@ -37,6 +37,11 @@ void main() {
       // TODO
     });
 
+    // ReadingsInput readings
+    test('to test the property `readings`', () async {
+      // TODO
+    });
+
     // String title
     test('to test the property `title`', () async {
       // TODO

@@ -752,7 +752,14 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   temperature/pressure/noise/vibration/leak manual readings are a
   time-series, deliberately NOT built in 4.1 and NOT embedded on the asset
   record — they belong to a future `asset_status_logs` collection. `assets`
-  carries only the simple 3-state rollup.
+  carries only the simple 3-state rollup. **Resolved in Phase 7.7:** the
+  manual-status log ended up living on the *inspection* record
+  (`Inspection.readings`, spec section 9), not a separate
+  `asset_status_logs` collection — the phase brief redirected it there
+  since readings are logged as part of an inspection, not on their own
+  timeline. `assets.current_status` still carries only the simple 3-state
+  rollup, now derived from `readings.condition` on inspection completion;
+  see "Phase 7.7 Manual Status Readings" below.
 - **Category is an extensible catalog, not a fixed schema enum.**
   `app/assets/constants.py`'s `ASSET_CATEGORIES` tuple (the ten spec
   categories plus `Other`) is checked in the service layer
@@ -1876,6 +1883,105 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   `UpdateVoiceNoteRequest` and the three new `InspectionsApi` operations, on
   both generated clients.
 
+### Phase 7.7 Manual Status Readings (Resolves the Deferred §9 Manual-Status Log)
+
+- **New `Readings` entity replaces the untyped placeholder, single nullable
+  object rather than an array.** `Inspection.readings` (`apps/api/app/
+  models/entities.py`) was `dict[str, Any] = {}` reserved since 7.1; it's
+  now `Readings | None = None` — `condition` (`Excellent`/`Good`/`Fair`/
+  `Poor`/`Critical`, the only required field), `temperature_c`/
+  `pressure_bar`/`noise_level_db` (all `float | None`),
+  `vibration_observation` (free text), `leak_observed` (`bool | None`),
+  `operational_status` (`running`/`stopped`/`degraded`, D-058),
+  `comments`/`recommendations` (free text), `priority_level` (`low`/
+  `medium`/`high`/`critical`), and server-stamped `recorded_at`/
+  `recorded_by`. Unlike `annotations[]`/`voice_notes[]`/`media[]`, this is
+  one object, not an array of independent records — a field inspector fills
+  in one readings form per inspection, not several — so it's modeled and
+  mutated that way rather than forcing an array shape onto single-object
+  data. A `field_validator(mode="before")` normalizes the legacy `{}`
+  placeholder to `None` on load, so every inspection created before this
+  phase keeps deserializing cleanly.
+- **Mutation protocol deliberately rides the EXISTING generic update/
+  revision path, not the 7.4/7.5/7.6 append-idempotent-by-id pattern
+  (D-059).** `UpdateInspectionRequest`/`InspectionUpdate` gained a
+  `readings: ReadingsInput | None` field alongside the pre-existing
+  `checklist_responses`; `InspectionService.update_inspection` stamps
+  `recorded_at`/`recorded_by` server-side (mirroring how
+  `answered_at`/`answered_by` are stamped on `ChecklistResponse`) and lets
+  `InspectionRepository.update`'s existing whole-field-replace-by-key merge
+  handle persistence — no new repository method, no new `expected_revision`
+  bypass, no new `OutboxMutationType`. This is the opposite mutation shape
+  from media/voice-notes/annotations (which all avoid the revision
+  protocol on purpose, per D-051/D-055/D-057, because they're
+  independent-record arrays mutated out of band) — readings is a single
+  form-like object edited from one screen, the same shape as
+  `checklist_responses`/`title`/`notes`, so it correctly rides the same
+  protocol those already use rather than inventing a fourth pattern.
+- **Asset health rollup on completion only (the phase's core connection).**
+  `InspectionService.complete_inspection`, after the lifecycle transition
+  succeeds, maps `readings.condition` through
+  `READINGS_CONDITION_TO_ASSET_STATUS` (`Excellent`/`Good` → `Healthy`,
+  `Fair`/`Poor` → `Warning`, `Critical` → `Critical`) and calls a new
+  `AssetRepository.roll_up_status_from_inspection`, which mirrors
+  `backfill_qr_code`'s narrow single-field-update-plus-explicit-audit
+  shape rather than the generic `AssetRepository.update()` — a distinct
+  `asset.status_rolled_up` audit action (metadata: `from`/`to`/
+  `inspection_id`) keeps this automatic derivation traceable separately
+  from a human editing the asset directly through 4.2/4.3. Runs only when
+  `updated.readings is not None` (an inspection can complete with no
+  readings at all — readings are optional, not a completion gate) and
+  only on the `complete` transition itself, never on a draft/in-progress
+  PATCH, so mid-inspection edits can never flip the asset's displayed
+  health. `AssetRepository.count(scope, current_status="Critical")` (4.4's
+  existing live Firestore `count()` aggregation, no cache/materialized
+  rollup) picks up the change on its very next read — proven end to end
+  against the real Firebase project in
+  `apps/api/scripts/verify_readings_rollup.py`.
+- **Fixed documented units, no per-reading unit field (D-058).**
+  Temperature is always Celsius, pressure always bar, noise always
+  decibels — field names are unit-suffixed (`temperature_c`,
+  `pressure_bar`, `noise_level_db`) so the unit is unambiguous from the
+  identifier itself, both on the wire and in code, with no conversion step
+  and no unit picker in either client's form. A company-level display-unit
+  preference (e.g. Fahrenheit) can layer on top later without a data
+  migration, since the stored value/unit never changes — only a future
+  display-time conversion would.
+- **Mobile: one form, one editor, autosaved like the 7.3 checklist, not
+  queued like 7.4/7.6 media.** `InspectionReadingsSection`
+  (`apps/mobile/lib/inspections/inspection_readings_section.dart`)
+  replaces the 7.3 "Readings — Coming soon" reserved row: condition select
+  (prominent `StatusPill`, colored by the same 3-state health severity the
+  asset itself will show), numeric fields with unit-labeled inputs and
+  numeric keypads, a leak yes/no button pair (mirrors the checklist's
+  boolean Pass/Fail idiom — no `Switch`/`Checkbox` precedent exists
+  elsewhere in this app), operational-status/priority selects, and
+  comments/recommendations text areas. Autosave calls the existing
+  `LocalInspectionsRepository.updateInspection(..., readings:)` — a new
+  optional parameter, not a new method — debounced for text fields,
+  immediate for selects/buttons; nothing is persisted until `condition` is
+  chosen, mirroring the backend's own required-field validation. A new
+  nullable `readings` JSON-blob column on `LocalInspections` (schema
+  v5→v6) caches the value in the server's `ReadingsResponse` shape whether
+  it came from a synced response or an optimistic local edit (conversion
+  helpers `_readingsInputToLocalResponse`/`_readingsResponseToInput`
+  translate between the built_value `ReadingsInput`/`ReadingsResponse`
+  enum types, which don't unify despite sharing wire values). Every
+  `updateInspection` call resends the whole current readings object
+  (decoded from the local cache when this particular call didn't touch
+  it) exactly like it already does for `title`/`notes`/
+  `checklist_responses`, so an unrelated field edit never drops a
+  not-yet-synced readings edit.
+- **Admin: read-only readings review** in the existing
+  `InspectionDetailPage`, a new section below Voice notes showing the
+  condition prominently via the same `StatusPill`/tone mapping the
+  inspections list already uses for lifecycle status, every populated
+  value with its unit, a leak-observed badge, and priority — matching the
+  established read-only-review pattern from 7.4/7.5/7.6's own sections.
+- **Contracts regenerated** for the new `ReadingsInput`/`ReadingsResponse`
+  models and the updated `InspectionDetail`/`UpdateInspectionRequest`, on
+  both generated clients.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -1941,3 +2047,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.3 — inspection start flow and checklist filling | Turns 7.1's data model + 7.2's offline engine into the real field workflow. Mobile: `LocalInspectionsRepository` gains a `LocalChecklistTemplates` cache table (refreshed best-effort after sign-in) and `selectChecklistTemplateForCategory` (category match → most-recently-updated tie-break → `Generic` fallback → no-template if nothing's cached), so template auto-selection runs entirely offline; a new local-only `LocalInspections.assetCategory` column (schema v1→v2, this repository's first Drift migration) carries the asset's category into the local draft without a network fetch. `InspectionDetailScreen` (explicitly read-only since 7.2) now renders interactive per-item inputs (`boolean`/`numeric`/`text`/`select` — the model's real types, not the phase brief's illustrative `pass_fail`/`rating` naming) with autosave through `updateInspection`, a progress header, reserved disabled rows for the 7.4+ capture steps, and a Complete button gated on `missingRequiredItemIds`; on load, a `draft` inspection gets its template auto-assigned and transitions to `in_progress` in one place, covering both a fresh start and resuming a stale local draft. New "Start Inspection" entry point on the asset detail screen (previously QR-only); both entry points capture best-effort GPS via a new `geolocator` dependency (Android/iOS permission entries added), non-blocking if denied or unavailable. **Bug fix, not new design:** `updateInspection`'s checklist-response merge was a wholesale array replace, not an upsert by `item_id` — harmless under 7.2 (never exercised with a real partial update) but would have silently erased prior answers under 7.3's continuous per-item autosave; fixed on both the mobile repository and `InspectionService.update_inspection` (upsert-by-`item_id`, D-048). Also fixed in the same pass: `_upsertFromServer` was storing `status`/`inspectionType` as builtvalue's Dart-identifier enum name (`inProgress`) instead of the wire value (`in_progress`) that every local write path and this phase's new status-gated rendering compare against — invisible before now since `draft`/`completed`/`cancelled` happen to be identical either way. No route/schema changes, so **no contracts regeneration was needed**; no new audit action needed (the existing `update()`/`_write_audit` path already covers answer autosave). Admin's read-only checklist rendering (7.1) gains the assigned template's name/version and each item's type, plus an explicit "filled in the field — read-only here" note (D-045's mobile-only-filling decision made visible in the UI, not just the docs). | 2026-07-30 |
 | Phase 7.4 — camera capture (photos + videos), GPS/timestamp, and before/after | See "Phase 7.4 Camera Capture" above for the full breakdown. In short: a new `MediaQueue` table + `MediaUploadWorker`, entirely independent of 7.2's `Outbox`/`SyncEngine`, uploads media bytes directly from the mobile client to Firebase Storage (a deliberate departure from 4.3's server-mediated asset-media pattern, D-0xx) via a new `storage.rules` carve-out scoped by the caller's `company_id` claim; only a small metadata reference then rides the existing 7.2 outbox as a new `attach_media`/`edit_media`/`detach_media` mutation type, all three idempotent and carrying no `expected_revision` by design. New backend `InspectionMedia` entity and three routes (attach/update/detach) on the existing `inspections` router, gated by the existing `inspections.write`; the backend never touches media bytes, only verifying what the client already uploaded and issuing signed URLs. Mobile capture (`camera`/`video_player`/`video_thumbnail`/`firebase_storage`, new dependencies) mirrors 4.5's `QrScanScreen` injectable-builder testing seam; video is capped at 3 minutes/~1080p. Before/after is an independent per-item tag (not a linked pair). `InspectionMediaSection` (mobile) and a read-only grid in admin's existing `InspectionDetailPage` round out the gallery, with a live "N of M uploaded" count so a completed-while-media-pending inspection stays honest. Contracts regenerated for `AttachInspectionMediaRequest`/`UpdateInspectionMediaRequest`/`InspectionMediaResponse` and the three new `InspectionsApi` operations. | 2026-08-02 |
 | Phase 7.5 — damage annotation (draw on inspection photos) | See "Phase 7.5 Damage Annotation" above for the full breakdown. In short: `Inspection.annotations[]` (typed since 7.1's untyped placeholder) holds normalized (0–1) vector shapes keyed by `media_local_id`, one `points[]` field covering all five shapes so 7.10's AI-detected regions can render on the same overlay via the reserved `source`/`confidence` fields. Three new routes mirror 7.4 media's mutation protocol exactly (idempotent by id, no `expected_revision`, `ArrayUnion`/`ArrayRemove` repository methods). Mobile annotations ride the existing 7.2 outbox/record (three new `OutboxMutationType` values) but — unlike media — write to the local cache optimistically, since there's no secondary upload queue standing between "drawn" and "visible offline." New `AnnotationCanvasScreen` (draw/label/undo/redo/select/move/delete) opens from any photo tile in `InspectionMediaSection`; overlay rendering (toggleable) lands on the gallery tile, the canvas itself, and a new read-only SVG overlay in admin's existing `InspectionDetailPage`. Contracts regenerated for `AnnotationResponse`/`CreateAnnotationRequest`/`UpdateAnnotationRequest`/`AnnotationPointResponse`/`AnnotationPointInput` and the three new `InspectionsApi` operations. | 2026-08-05 |
+| Phase 7.7 — manual status readings (resolves the deferred §9 manual-status log) | See "Phase 7.7 Manual Status Readings" above for the full breakdown. In short: `Inspection.readings` (typed since 7.1's untyped `dict` placeholder) is a single nullable `Readings` object, not an array — deliberately rides the existing generic `update_inspection`/revision-aware PATCH the 7.3 checklist already uses (D-059), never the 7.4/7.5/7.6 append-idempotent-by-id/no-revision pattern, since it's one form with one editor rather than independent records. Fixed documented units (Celsius/bar/decibels, D-058) via unit-suffixed field names, no per-reading unit picker. On `complete_inspection` only, `READINGS_CONDITION_TO_ASSET_STATUS` maps the condition onto the asset's 4.1 `current_status` through a new `AssetRepository.roll_up_status_from_inspection` (own `asset.status_rolled_up` audit action), which the existing 4.4 dashboard `count()` query picks up on its next read with zero caching — verified end to end against the real Firebase project. Mobile's `InspectionReadingsSection` autosaves through a new `updateInspection(..., readings:)` parameter (not a new outbox mutation type), backed by a new nullable `LocalInspections.readings` column (schema v5→v6). Admin gains a read-only readings review section. Contracts regenerated for `ReadingsInput`/`ReadingsResponse` and the updated `InspectionDetail`/`UpdateInspectionRequest`. | 2026-08-06 |

@@ -53,6 +53,7 @@ InspectionDetail _inspectionDetailFixture({
   List<InspectionMediaResponse> media = const [],
   List<AnnotationResponse> annotations = const [],
   List<VoiceNoteResponse> voiceNotes = const [],
+  ReadingsResponse? readings,
 }) {
   final now = DateTime.utc(2026, 1, 1);
   final startedAt = DateTime.utc(2026, 1, 2);
@@ -82,7 +83,26 @@ InspectionDetail _inspectionDetailFixture({
       )
       ..media.addAll(media)
       ..annotations.addAll(annotations)
-      ..voiceNotes.addAll(voiceNotes),
+      ..voiceNotes.addAll(voiceNotes)
+      ..readings = readings?.toBuilder(),
+  );
+}
+
+ReadingsResponse _readingsFixture() {
+  return ReadingsResponse(
+    (b) => b
+      ..condition = ReadingsResponseConditionEnum.critical
+      ..temperatureC = 95.5
+      ..pressureBar = 6.2
+      ..noiseLevelDb = 92.0
+      ..vibrationObservation = 'Excessive vibration near bearing'
+      ..leakObserved = true
+      ..operationalStatus = ReadingsResponseOperationalStatusEnum.degraded
+      ..comments = 'Bearing failing'
+      ..recommendations = 'Replace bearing immediately'
+      ..priorityLevel = ReadingsResponsePriorityLevelEnum.critical
+      ..recordedAt = DateTime.utc(2026, 1, 2)
+      ..recordedBy = 'demo-acme-field_inspector',
   );
 }
 
@@ -147,6 +167,7 @@ class FakeApi implements ApiContract {
     this.media = const [],
     this.annotations = const [],
     this.voiceNotes = const [],
+    this.readings,
   });
 
   final CurrentUser identity;
@@ -154,6 +175,7 @@ class FakeApi implements ApiContract {
   final List<InspectionMediaResponse> media;
   final List<AnnotationResponse> annotations;
   final List<VoiceNoteResponse> voiceNotes;
+  final ReadingsResponse? readings;
 
   /// Simulates airplane mode: every inspections network call throws, so
   /// [LocalInspectionsRepository]'s best-effort refreshes are no-ops and
@@ -320,7 +342,8 @@ class FakeApi implements ApiContract {
         status: status,
         media: media,
         annotations: annotations,
-        voiceNotes: voiceNotes);
+        voiceNotes: voiceNotes,
+        readings: readings);
   }
 
   @override
@@ -464,6 +487,7 @@ void main() {
     final api = FakeApi(
       identityFor('field_inspector', const ['inspections.read']),
       status: InspectionDetailStatusEnum.completed,
+      readings: _readingsFixture(),
     );
     await tester.pumpWidget(
       FevApp(
@@ -486,6 +510,17 @@ void main() {
     // A completed inspection is locked -- no Pass/Fail inputs or Complete button.
     expect(find.text('Pass'), findsNothing);
     expect(find.text('Complete Inspection'), findsNothing);
+
+    // Readings (Phase 7.7) render read-only, further down the ListView.
+    await tester.scrollUntilVisible(find.text('READINGS'), 200);
+    // Condition shown prominently via the StatusPill, with each value's unit visible.
+    expect(find.text('CRITICAL'), findsWidgets);
+    expect(find.text('95.5 °C'), findsOneWidget);
+    expect(find.text('6.2 bar'), findsOneWidget);
+    expect(find.text('92.0 dB'), findsOneWidget);
+    expect(find.text('Bearing failing'), findsOneWidget);
+    // Read-only means no editable readings inputs either.
+    expect(find.byKey(const Key('readings-condition')), findsNothing);
     await disposeApp(tester);
   });
 
@@ -515,9 +550,17 @@ void main() {
       // reach the Complete button can drop the (already-asserted) header
       // above out of the built range -- read persisted state back from the
       // database instead of fighting the scroll position for the rest of
-      // this test.
+      // this test. The page's own outer ListView is passed explicitly as
+      // `scrollable` since the 7.7 readings section's several `AppTextField`s
+      // each contribute their own internal (horizontally-scrolling)
+      // `Scrollable`, so the default `find.byType(Scrollable)` this helper
+      // would otherwise use is no longer unique on this screen.
+      final pageScrollable = find
+          .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+          .first;
       await tester.scrollUntilVisible(
-          find.byKey(const Key('complete-inspection')), 200);
+          find.byKey(const Key('complete-inspection')), 200,
+          scrollable: pageScrollable);
       final completeButton = tester
           .widget<AppButton>(find.byKey(const Key('complete-inspection')));
       expect(completeButton.onPressed, isNull);
@@ -531,7 +574,8 @@ void main() {
       // follow-up `ensureVisible` then guarantees it's fully unobstructed
       // (not just barely intersecting the viewport edge) before tapping.
       await tester.scrollUntilVisible(
-          find.byKey(const Key('item-vibration_normal-pass')), -200);
+          find.byKey(const Key('item-vibration_normal-pass')), -200,
+          scrollable: pageScrollable);
       await tester
           .ensureVisible(find.byKey(const Key('item-vibration_normal-pass')));
       await tester.pumpAndSettle();
@@ -546,7 +590,8 @@ void main() {
       expect(checklistResponseValue(answered.checklistResponses.single), true);
 
       await tester.scrollUntilVisible(
-          find.byKey(const Key('complete-inspection')), 200);
+          find.byKey(const Key('complete-inspection')), 200,
+          scrollable: pageScrollable);
       final completeButtonAfter = tester
           .widget<AppButton>(find.byKey(const Key('complete-inspection')));
       expect(completeButtonAfter.onPressed, isNotNull);
@@ -560,6 +605,78 @@ void main() {
             ..where((t) => t.id.equals('inspection-1')))
           .getSingle();
       expect(completedRow.status, 'completed');
+      await disposeApp(tester);
+    },
+  );
+
+  testWidgets(
+    'readings (Phase 7.7): units are shown, nothing autosaves until a condition '
+    'is chosen, and a later field builds on the saved condition',
+    (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final api = FakeApi(identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']));
+      await tester.pumpWidget(
+        FevApp(
+            api: api,
+            authGateway: FakeGateway(),
+            initialRoute: AppRoutes.inspections,
+            database: db),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Q3 Routine Inspection'));
+      await tester.pumpAndSettle();
+
+      final pageScrollable = find
+          .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+          .first;
+      await tester.scrollUntilVisible(
+          find.byKey(const Key('readings-condition')), 200,
+          scrollable: pageScrollable);
+      await tester.ensureVisible(find.byKey(const Key('readings-condition')));
+      await tester.pumpAndSettle();
+
+      // Units are visible on the field labels themselves (fixed documented
+      // units, D-0xx: Celsius/bar/decibels -- no unit picker).
+      expect(find.text('Temperature (°C)'), findsOneWidget);
+      expect(find.text('Pressure (bar)'), findsOneWidget);
+      expect(find.text('Noise level (dB)'), findsOneWidget);
+
+      // Nothing is persisted yet -- condition, the only required field,
+      // hasn't been chosen.
+      var row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals('inspection-1')))
+          .getSingle();
+      expect(row.readings, isNull);
+
+      await tester.tap(find.byKey(const Key('readings-condition')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Critical').last);
+      await tester.pumpAndSettle();
+
+      row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals('inspection-1')))
+          .getSingle();
+      expect(LocalInspectionRecord(row).readings?.condition,
+          ReadingsResponseConditionEnum.critical);
+
+      // The temperature field sits right after condition in the same card --
+      // still reachable without a far re-scroll that could tear down the
+      // section's state and lose the not-yet-flushed edit below.
+      await tester.ensureVisible(find.byKey(const Key('readings-temperature')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('readings-temperature')), '80');
+      await tester.pump(const Duration(milliseconds: 600));
+
+      row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals('inspection-1')))
+          .getSingle();
+      final record = LocalInspectionRecord(row);
+      // The whole readings object is resent on every save, so the earlier
+      // condition survives alongside the newly typed temperature.
+      expect(record.readings?.condition, ReadingsResponseConditionEnum.critical);
+      expect(record.readings?.temperatureC, 80);
       await disposeApp(tester);
     },
   );

@@ -90,6 +90,8 @@ class _$UpdateInspectionRequest extends UpdateInspectionRequest {
   @override
   final String? notes;
   @override
+  final ReadingsInput? readings;
+  @override
   final String? title;
 
   factory _$UpdateInspectionRequest(
@@ -103,6 +105,7 @@ class _$UpdateInspectionRequest extends UpdateInspectionRequest {
       this.gpsLng,
       this.inspectionType,
       this.notes,
+      this.readings,
       this.title})
       : super._();
 
@@ -125,6 +128,7 @@ class _$UpdateInspectionRequest extends UpdateInspectionRequest {
         gpsLng == other.gpsLng &&
         inspectionType == other.inspectionType &&
         notes == other.notes &&
+        readings == other.readings &&
         title == other.title;
   }
 
@@ -137,6 +141,7 @@ class _$UpdateInspectionRequest extends UpdateInspectionRequest {
     _$hash = $jc(_$hash, gpsLng.hashCode);
     _$hash = $jc(_$hash, inspectionType.hashCode);
     _$hash = $jc(_$hash, notes.hashCode);
+    _$hash = $jc(_$hash, readings.hashCode);
     _$hash = $jc(_$hash, title.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
@@ -151,6 +156,7 @@ class _$UpdateInspectionRequest extends UpdateInspectionRequest {
           ..add('gpsLng', gpsLng)
           ..add('inspectionType', inspectionType)
           ..add('notes', notes)
+          ..add('readings', readings)
           ..add('title', title))
         .toString();
   }
@@ -191,6 +197,11 @@ class UpdateInspectionRequestBuilder
   String? get notes => _$this._notes;
   set notes(String? notes) => _$this._notes = notes;
 
+  ReadingsInputBuilder? _readings;
+  ReadingsInputBuilder get readings =>
+      _$this._readings ??= new ReadingsInputBuilder();
+  set readings(ReadingsInputBuilder? readings) => _$this._readings = readings;
+
   String? _title;
   String? get title => _$this._title;
   set title(String? title) => _$this._title = title;
@@ -208,6 +219,7 @@ class UpdateInspectionRequestBuilder
       _gpsLng = $v.gpsLng;
       _inspectionType = $v.inspectionType;
       _notes = $v.notes;
+      _readings = $v.readings?.toBuilder();
       _title = $v.title;
       _$v = null;
     }
@@ -239,12 +251,16 @@ class UpdateInspectionRequestBuilder
               gpsLng: gpsLng,
               inspectionType: inspectionType,
               notes: notes,
+              readings: _readings?.build(),
               title: title);
     } catch (_) {
       late String _$failedField;
       try {
         _$failedField = 'checklistResponses';
         _checklistResponses?.build();
+
+        _$failedField = 'readings';
+        _readings?.build();
       } catch (e) {
         throw new BuiltValueNestedFieldError(
             r'UpdateInspectionRequest', _$failedField, e.toString());

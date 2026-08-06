@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { ReadingsInput } from './ReadingsInput';
+import {
+    ReadingsInputFromJSON,
+    ReadingsInputFromJSONTyped,
+    ReadingsInputToJSON,
+    ReadingsInputToJSONTyped,
+} from './ReadingsInput';
 import type { ChecklistResponse } from './ChecklistResponse';
 import {
     ChecklistResponseFromJSON,
@@ -65,6 +72,12 @@ export interface UpdateInspectionRequest {
     notes?: string | null;
     /**
      *
+     * @type {ReadingsInput}
+     * @memberof UpdateInspectionRequest
+     */
+    readings?: ReadingsInput | null;
+    /**
+     *
      * @type {string}
      * @memberof UpdateInspectionRequest
      */
@@ -106,6 +119,7 @@ export function UpdateInspectionRequestFromJSONTyped(json: any, ignoreDiscrimina
         'gpsLng': json['gps_lng'] == null ? undefined : json['gps_lng'],
         'inspectionType': json['inspection_type'] == null ? undefined : json['inspection_type'],
         'notes': json['notes'] == null ? undefined : json['notes'],
+        'readings': json['readings'] == null ? undefined : ReadingsInputFromJSON(json['readings']),
         'title': json['title'] == null ? undefined : json['title'],
     };
 }
@@ -127,6 +141,7 @@ export function UpdateInspectionRequestToJSONTyped(value?: UpdateInspectionReque
         'gps_lng': value['gpsLng'],
         'inspection_type': value['inspectionType'],
         'notes': value['notes'],
+        'readings': ReadingsInputToJSON(value['readings']),
         'title': value['title'],
     };
 }

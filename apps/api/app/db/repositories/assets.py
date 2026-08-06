@@ -84,6 +84,45 @@ class AssetRepository(TenantRepository[Asset]):
         )
         return updated
 
+    async def roll_up_status_from_inspection(
+        self,
+        scope: CompanyScope,
+        asset_id: str,
+        *,
+        new_status: str,
+        inspection_id: str,
+        actor_uid: str,
+    ) -> Asset:
+        """Derives `current_status` from a just-completed inspection's manually
+        recorded condition (spec section 9, Phase 7.7) -- drives the 4.4
+        dashboard's "Critical Assets" KPI. A distinct audit action from the
+        generic `asset.updated` (mirrors `backfill_qr_code`) so this automatic
+        rollup is traceable separately from a human editing the asset directly."""
+        current = await self.get(scope, asset_id)
+        if current is None or current.deleted_at is not None:
+            raise LookupError("asset not found in company scope")
+        if current.current_status == new_status:
+            return current
+        await self._collection.document(asset_id).update(
+            {"current_status": new_status, "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, asset_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="asset.status_rolled_up",
+            target_id=asset_id,
+            metadata={
+                "from": current.current_status,
+                "to": new_status,
+                "inspection_id": inspection_id,
+            },
+        )
+        return updated
+
     async def record_scan(self, scope: CompanyScope, asset_id: str, actor_uid: str) -> None:
         await self._write_audit(
             scope,

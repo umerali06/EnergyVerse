@@ -30,7 +30,7 @@ Name | Type | Description | Notes
 **media** | [**BuiltList&lt;InspectionMediaResponse&gt;**](InspectionMediaResponse.md) |  | [optional]
 **notes** | **String** |  | [optional]
 **origin** | **String** |  | [optional]
-**readings** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional]
+**readings** | [**ReadingsResponse**](ReadingsResponse.md) |  | [optional]
 **revision** | **int** |  |
 **signature** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional]
 **startedAt** | [**DateTime**](DateTime.md) |  | [optional]

@@ -34,6 +34,13 @@ import {
     ChecklistResponseToJSON,
     ChecklistResponseToJSONTyped,
 } from './ChecklistResponse';
+import type { ReadingsResponse } from './ReadingsResponse';
+import {
+    ReadingsResponseFromJSON,
+    ReadingsResponseFromJSONTyped,
+    ReadingsResponseToJSON,
+    ReadingsResponseToJSONTyped,
+} from './ReadingsResponse';
 import type { AnnotationResponse } from './AnnotationResponse';
 import {
     AnnotationResponseFromJSON,
@@ -189,10 +196,10 @@ export interface InspectionDetail {
     origin?: string | null;
     /**
      *
-     * @type {{ [key: string]: any; }}
+     * @type {ReadingsResponse}
      * @memberof InspectionDetail
      */
-    readings?: { [key: string]: any; };
+    readings?: ReadingsResponse | null;
     /**
      *
      * @type {number}
@@ -309,7 +316,7 @@ export function InspectionDetailFromJSONTyped(json: any, ignoreDiscriminator: bo
         'media': json['media'] == null ? undefined : ((json['media'] as Array<any>).map(InspectionMediaResponseFromJSON)),
         'notes': json['notes'] == null ? undefined : json['notes'],
         'origin': json['origin'] == null ? undefined : json['origin'],
-        'readings': json['readings'] == null ? undefined : json['readings'],
+        'readings': json['readings'] == null ? undefined : ReadingsResponseFromJSON(json['readings']),
         'revision': json['revision'],
         'signature': json['signature'] == null ? undefined : json['signature'],
         'startedAt': json['started_at'] == null ? undefined : (new Date(json['started_at'])),
@@ -353,7 +360,7 @@ export function InspectionDetailToJSONTyped(value?: InspectionDetail | null, ign
         'media': value['media'] == null ? undefined : ((value['media'] as Array<any>).map(InspectionMediaResponseToJSON)),
         'notes': value['notes'],
         'origin': value['origin'],
-        'readings': value['readings'],
+        'readings': ReadingsResponseToJSON(value['readings']),
         'revision': value['revision'],
         'signature': value['signature'],
         'started_at': value['startedAt'] == null ? undefined : ((value['startedAt'] as any).toISOString()),

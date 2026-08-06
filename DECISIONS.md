@@ -61,6 +61,8 @@
 | D-055 | Annotation mutation protocol mirrors 7.4 media, not checklist-autosave revision | **Three new `inspections` routes (create/update/delete annotation), idempotent by client-generated annotation `id`, deliberately carrying no `expected_revision` — annotation traffic must never collide with 7.3's checklist-autosave revision bump, same rationale as D-051's media decision. Mobile rides the existing 7.2 record outbox (three new `OutboxMutationType` values), never a separate queue, but writes to the local cache optimistically (unlike media) since there's no secondary upload step between "drawn" and "visible offline."** | **RESOLVED — LOCKED** | 2026-08-05 |
 | D-056 | Voice-note recording caps: 10 minutes, AAC/M4A, pulsing level meter | **`kMaxVoiceNoteDuration` = 10 minutes (mirrors D-052's video-cap rationale: long enough for a detailed narrated walkthrough, short enough that a forgotten recording doesn't produce an outsized upload over field connectivity), encoded as AAC in an M4A container (`AudioEncoder.aacLc` — compact for a given recording length, hardware-encoded on both iOS/Android, ~9.6MB worst case at the cap). The live recording indicator is a single pulsing level meter reacting to input amplitude, not a scrolling waveform history — chosen for the same gloves-on-field-friendly reason the brief called for "simple": one glanceable indicator, no additional UI surface to build/test beyond it.** | **RESOLVED — LOCKED** | 2026-08-06 |
 | D-057 | Voice notes reuse the 7.4 media pipeline end to end, under their own Storage namespace | **A voice note's bytes go through the exact same `MediaQueue`/`MediaUploadWorker` a photo/video does (`kind == 'audio'`, a new nullable `durationMs` column) rather than a new queue/worker — the drain loop, backoff, progress tracking, and cancel-on-remove are 100% shared code; only the storage subfolder (`voice/` vs `media/`, via a new `voice_object_path()`/`inspectionVoiceNoteStoragePath()` pair mirroring the existing `object_path()`) and the outbox mutation type (`attach_voice_note`/`edit_voice_note`/`detach_voice_note` vs `attach_media`/`edit_media`/`detach_media`) differ. Backend mutation protocol mirrors D-051/D-055 exactly: idempotent by `local_id`/`voice_note_id`, no `expected_revision`. `Inspection.voice_notes[]` (7.1's untyped placeholder) becomes a real `VoiceNote` entity, still its own top-level array, not nested under `media[]`.** | **RESOLVED — LOCKED** | 2026-08-06 |
+| D-058 | Manual status readings: fixed documented units, no per-reading unit field | **`Readings.temperature_c`/`pressure_bar`/`noise_level_db` are always Celsius/bar/decibels — unit-suffixed field names, not a per-reading unit selector — so the unit is unambiguous from the identifier itself in code and on the wire. `operational_status` is `running`\|`stopped`\|`degraded`, matching the phase brief's own example exactly.** | **RESOLVED — LOCKED** | 2026-08-06 |
+| D-059 | Readings mutation protocol rides the existing checklist-autosave revision path, not the 7.4/7.5/7.6 append pattern | **`Inspection.readings` is a single nullable `Readings` object (not an array of independent records), so it's mutated through the pre-existing `update_inspection`/`expected_revision`-aware PATCH the 7.3 checklist already uses — a new `readings` field on `UpdateInspectionRequest`, no new repository method, no new `OutboxMutationType`, no `expected_revision` bypass. This is the opposite of D-051/D-055/D-057's shared rationale (media/annotations/voice-notes are independent-record arrays that must never collide with the checklist-autosave revision bump); readings is form-like single-object data, the same shape as `title`/`notes`/`checklist_responses`, so it correctly reuses that exact protocol. On `complete_inspection` only, the condition maps onto the asset's 4.1 `current_status` via a new `AssetRepository.roll_up_status_from_inspection` (own `asset.status_rolled_up` audit action, distinct from the generic `asset.updated`), which the existing 4.4 dashboard `count()` aggregation reflects with no caching.** | **RESOLVED — LOCKED** | 2026-08-06 |
 
 ## Decision Details
 
@@ -1415,6 +1417,82 @@
   phase's own tests caught (see the Phase 7.6 architecture section) after
   the gallery was found rendering queued audio rows as broken tiles.
 
+### D-058 — Manual Status Readings: Fixed Documented Units, No Per-Reading Unit Field
+
+- **Decision owner:** Product owner (asked directly at phase start; the
+  brief flagged units strategy and `operational_status`'s enum values as
+  points to confirm rather than assume).
+- **Decision:** Temperature, pressure, and noise readings always store in
+  Celsius, bar, and decibels respectively — no per-reading unit field, no
+  unit picker in either client. Field names are unit-suffixed
+  (`temperature_c`, `pressure_bar`, `noise_level_db`) so the unit reads
+  directly off the identifier in code, on the wire, and in Firestore, with
+  no conversion step anywhere in this phase. `operational_status` takes
+  the phase brief's own example values verbatim: `running`\|`stopped`\|
+  `degraded`.
+- **Alternatives considered:** A per-reading unit selector (e.g. °C or °F,
+  psi or bar), rejected as the non-default option — it would add a unit
+  field + validation to each of the three numeric readings and complicate
+  any future cross-inspection comparison/charting, which would first have
+  to normalize mixed units before aggregating.
+- **Consequences:** A company-level display-unit preference (e.g.
+  Fahrenheit for a US-based field team) can be layered on top later purely
+  as a display-time conversion, since the stored value and unit never
+  change — no data migration would be needed. Any future phase adding a
+  new numeric reading type should keep the same unit-suffixed-field-name
+  convention rather than introducing a per-value unit field.
+
+### D-059 — Readings Mutation Protocol Mirrors Checklist Autosave, Not the 7.4/7.5/7.6 Append Pattern
+
+- **Decision owner:** Engineering, driven by the readings data shape
+  itself — a single object per inspection, not an array of independent
+  records.
+- **Decision:** `Inspection.readings` is `Readings | None`, replacing the
+  7.1-era untyped `dict` placeholder. `UpdateInspectionRequest`/
+  `InspectionUpdate` gain a `readings: ReadingsInput | None` field
+  alongside the pre-existing `checklist_responses`; the server stamps
+  `recorded_at`/`recorded_by` (mirroring `ChecklistResponse.answered_at`/
+  `answered_by`) and the existing `InspectionRepository.update`'s
+  whole-field-replace-by-key merge persists it — no new repository method,
+  no new `OutboxMutationType` on the mobile outbox, and `expected_revision`
+  applies exactly as it already does to every other field on this same
+  PATCH. This is a deliberate departure from D-051 (media)/D-055
+  (annotations)/D-057 (voice notes), all three of which avoid the
+  revision protocol on purpose because they're independent-record arrays
+  mutated out of band from checklist autosave — readings has no such
+  concern, since it's one form with one editor, the same shape as
+  `title`/`notes`/`checklist_responses` which already ride this exact
+  path.
+- **Asset health rollup (the phase's core connection):** On
+  `complete_inspection` only (never on a draft/in-progress PATCH, so
+  mid-inspection edits can't flip the asset's displayed health),
+  `READINGS_CONDITION_TO_ASSET_STATUS` maps the condition
+  (`Excellent`/`Good` → `Healthy`, `Fair`/`Poor` → `Warning`, `Critical` →
+  `Critical`) onto the asset's 4.1 `current_status` via a new
+  `AssetRepository.roll_up_status_from_inspection` — mirrors
+  `backfill_qr_code`'s narrow-update-plus-explicit-audit shape with its
+  own `asset.status_rolled_up` action (metadata: `from`/`to`/
+  `inspection_id`), distinct from the generic `asset.updated` audit a
+  human edit through 4.2/4.3 would produce. No new caching/materialization
+  is introduced — 4.4's existing `AssetRepository.count()` live Firestore
+  aggregation (D-039) reflects the change on its very next read, proven
+  end to end against the real Firebase project.
+- **Alternatives considered:** Mirroring the 7.4/7.5/7.6 append/idempotent-
+  by-id pattern (a dedicated `save_readings` mutation type bypassing
+  `expected_revision`), rejected as unnecessary complexity for data that
+  has exactly one writer and no independent-record identity to dedupe by.
+  A manual (inspector-set) asset-health override instead of the derived
+  mapping was also considered per the phase brief's own prompt, but the
+  derived mapping was kept as specified since no product need for a
+  manual override surfaced.
+- **Consequences:** Any future single-object (not array) inspection field
+  should extend `UpdateInspectionRequest` the same way rather than
+  inventing a new mutation type; any future phase that needs to derive an
+  asset-level rollup from an inspection outcome should extend
+  `AssetRepository` with its own narrowly-named method + distinct audit
+  action, following `roll_up_status_from_inspection`'s shape, rather than
+  routing through the generic `update_asset`.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1766,3 +1844,42 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   drift check; real-creds round-trip verified end to end against the live
   Firebase project, including an actual HTTP fetch of the signed URL
   confirming it serves back the exact uploaded bytes.
+- **2026-08-06 — Phase 7.7 (manual status readings, resolves the deferred
+  §9 manual-status log):** Added D-058 and D-059. Fixed documented units
+  (Celsius/bar/decibels, unit-suffixed field names, no per-reading unit
+  picker) and `operational_status`'s `running`\|`stopped`\|`degraded`
+  values were confirmed with the product owner up front rather than
+  assumed, per the phase brief's own explicit flag. `Inspection.readings`
+  (typed since 7.1's untyped `dict` placeholder) is a single nullable
+  object, deliberately riding the *existing* checklist-autosave revision
+  path (`update_inspection`, a new `readings` field on
+  `UpdateInspectionRequest`) rather than the D-051/D-055/D-057
+  append-idempotent-by-id/no-revision pattern those three all share — the
+  first inspection sub-resource this phase set didn't need that pattern,
+  since it's one form with one editor rather than an array of independent
+  records. On `complete_inspection` only, the condition rolls up onto the
+  asset's 4.1 `current_status` through a new
+  `AssetRepository.roll_up_status_from_inspection` (own
+  `asset.status_rolled_up` audit action), which the existing 4.4 dashboard
+  `count()` aggregation reflects with zero caching — verified end to end
+  against the real Firebase project (a Critical inspection moved the
+  Critical-Assets count by exactly 1, then a Healthy-mapped inspection
+  restored both the asset's status and the count). Backend (317 tests, up
+  from 303 — 14 new: server-stamped `recorded_at`/`recorded_by`, condition
+  required, whole-object replace, locked-once-completed, survives an
+  unrelated PATCH, all 5 condition→status mappings parametrized, no
+  rollup without readings, draft edits don't roll up, the rollup is
+  audited, and the dashboard KPI cross-check), mobile (221 tests, up from
+  214 — a new `readings (Phase 7.7)` group in
+  `local_inspections_repository_test.dart` covering the local-cache/outbox
+  contract including an app-restart persistence case, a matching group in
+  `sync_engine_test.dart` proving the fake-echo-full-state trap D-051's
+  gotcha already warned about also applies here, and a new interactive
+  widget test alongside an extended read-only-rendering assertion in
+  `inspection_detail_screen_test.dart`), and admin (205 passed + 6
+  credential-only skips, up from 202 — 3 new for the read-only readings
+  section: empty state, full populated render with units/priority/leak
+  badge, and priority/leak badges correctly omitted when unset) all green;
+  `flutter analyze`/ruff/mypy/ESLint clean; `next build` clean; contracts
+  regenerated (2 new models, `InspectionDetail`/`UpdateInspectionRequest`
+  updated) with a clean drift check.

@@ -1,22 +1,27 @@
 import asyncio
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.assets.service import AssetManagementService, get_asset_management_service
 from app.audit.service import AuditService
 from app.auth.dependencies import get_current_user
+from app.db.repositories.areas import AreaRepository
 from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
+from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.inspections import InspectionRepository
 from app.inspections.service import InspectionService, get_inspection_service
 from app.main import app
+from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
 from app.rbac.dependencies import get_access_denial_audit
-from app.storage.service import InspectionMediaStorage
+from app.storage.service import AssetMediaStorage, InspectionMediaStorage
 from scripts.seed import (
     ACME_COMPANY_ID,
     ASSET_FEED_PUMP_ID,
@@ -1183,3 +1188,201 @@ def test_annotation_survives_inspection_sync_round_trip(wiring: dict[str, Any]) 
     )
     assert response.status_code == 200
     assert response.json()["annotations"] == [annotation_before]
+
+
+# --- manual status readings + asset health rollup (Phase 7.7) ----------------
+
+
+def _put_readings(
+    identity: CurrentUser, inspection_id: str, **overrides: Any
+) -> Any:
+    payload: dict[str, Any] = {"condition": "Good"}
+    payload.update(overrides)
+    return _request(
+        identity, "PATCH", f"/api/v1/inspections/{inspection_id}", json={"readings": payload}
+    )
+
+
+def _asset_status(wiring: dict[str, Any], asset_id: str = ASSET_FEED_PUMP_ID) -> str:
+    repo = AssetRepository(wiring["client"], AuditService(AuditLogRepository(wiring["client"])))
+    asset = asyncio.run(repo.get(CompanyScope(company_id=ACME_COMPANY_ID), asset_id))
+    assert asset is not None
+    return asset.current_status
+
+
+def test_readings_persist_with_server_stamped_recorded_fields(
+    wiring: dict[str, Any],
+) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _put_readings(
+        _identity(),
+        created["id"],
+        condition="Fair",
+        temperature_c=72.5,
+        pressure_bar=4.1,
+        noise_level_db=88.0,
+        vibration_observation="Slight rattle near the coupling",
+        leak_observed=False,
+        operational_status="degraded",
+        comments="Bearing noise increasing",
+        recommendations="Schedule bearing replacement",
+        priority_level="high",
+        recorded_at="2020-01-01T00:00:00Z",
+        recorded_by="someone-else",
+    )
+    assert response.status_code == 200
+    readings = response.json()["readings"]
+    assert readings["condition"] == "Fair"
+    assert readings["temperature_c"] == 72.5
+    assert readings["pressure_bar"] == 4.1
+    assert readings["noise_level_db"] == 88.0
+    assert readings["vibration_observation"] == "Slight rattle near the coupling"
+    assert readings["leak_observed"] is False
+    assert readings["operational_status"] == "degraded"
+    assert readings["priority_level"] == "high"
+    # recorded_at/recorded_by are never client-controlled -- server stamps them.
+    assert readings["recorded_by"] == "test-user"
+    assert readings["recorded_at"] != "2020-01-01T00:00:00Z"
+
+
+def test_readings_condition_is_required(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}",
+        json={"readings": {"temperature_c": 70}},
+    )
+    assert response.status_code == 422
+
+
+def test_readings_update_replaces_whole_object(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    _put_readings(_identity(), created["id"], condition="Poor", comments="First pass")
+    second = _put_readings(_identity(), created["id"], condition="Good")
+    readings = second.json()["readings"]
+    assert readings["condition"] == "Good"
+    assert readings["comments"] is None
+
+
+def test_readings_locked_once_completed(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    complete = _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+    assert complete.status_code == 200
+
+    response = _put_readings(_identity(), created["id"], condition="Poor")
+    assert response.status_code == 409
+    assert response.json()["error"] == "inspection_locked"
+
+
+def test_readings_survive_unrelated_inspection_patch(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    saved = _put_readings(_identity(), created["id"], condition="Excellent").json()
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}",
+        json={"notes": "unrelated autosave edit"},
+    )
+    assert response.status_code == 200
+    assert response.json()["readings"] == saved["readings"]
+
+
+@pytest.mark.parametrize(
+    ("condition", "expected_status"),
+    [
+        ("Excellent", "Healthy"),
+        ("Good", "Healthy"),
+        ("Fair", "Warning"),
+        ("Poor", "Warning"),
+        ("Critical", "Critical"),
+    ],
+)
+def test_complete_inspection_rolls_up_asset_health(
+    wiring: dict[str, Any], condition: str, expected_status: str
+) -> None:
+    created = _create_inspection(_identity()).json()
+    _put_readings(_identity(), created["id"], condition=condition)
+
+    response = _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+    assert response.status_code == 200
+    assert _asset_status(wiring) == expected_status
+
+
+def test_complete_inspection_without_readings_leaves_asset_status_untouched(
+    wiring: dict[str, Any],
+) -> None:
+    assert _asset_status(wiring) == "Healthy"
+    created = _create_inspection(_identity()).json()
+
+    response = _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+    assert response.status_code == 200
+    assert _asset_status(wiring) == "Healthy"
+
+
+def test_draft_readings_edit_does_not_change_asset_status(wiring: dict[str, Any]) -> None:
+    assert _asset_status(wiring) == "Healthy"
+    created = _create_inspection(_identity()).json()
+
+    response = _put_readings(_identity(), created["id"], condition="Critical")
+    assert response.status_code == 200
+    assert _asset_status(wiring) == "Healthy"
+
+
+def test_asset_status_rollup_is_audited(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    _put_readings(_identity(), created["id"], condition="Critical")
+    _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+
+    logs = asyncio.run(
+        AuditLogRepository(wiring["client"]).list_since(
+            CompanyScope(company_id=ACME_COMPANY_ID),
+            datetime(2020, 1, 1, tzinfo=UTC),
+        )
+    )
+    matching = [
+        entry
+        for entry in logs
+        if entry.action == "asset.status_rolled_up" and entry.target_id == ASSET_FEED_PUMP_ID
+    ]
+    assert len(matching) == 1
+    assert matching[0].metadata == {
+        "from": "Healthy",
+        "to": "Critical",
+        "inspection_id": created["id"],
+    }
+
+
+def test_completed_critical_inspection_moves_dashboard_critical_assets_kpi(
+    wiring: dict[str, Any],
+) -> None:
+    """Cross-checks the 7.7 rollup against the real 4.4 dashboard KPI query."""
+    client = wiring["client"]
+    audit = AuditService(AuditLogRepository(client))
+    asset_service = AssetManagementService(
+        assets=AssetRepository(client, audit),
+        facilities=FacilityRepository(client, audit),
+        areas=AreaRepository(client, audit),
+        inspections=InspectionRepository(client, audit),
+        storage=AssetMediaStorage(FakeBucket()),
+    )
+    app.dependency_overrides[get_asset_management_service] = lambda: asset_service
+    viewer = _identity(
+        permissions=frozenset({"inspections.read", "inspections.write", "assets.read"})
+    )
+    try:
+        before = _request(viewer, "GET", "/api/v1/dashboard/assets-summary").json()
+
+        created = _create_inspection(_identity()).json()
+        _put_readings(_identity(), created["id"], condition="Critical")
+        complete = _request(
+            _identity(), "POST", f"/api/v1/inspections/{created['id']}/complete"
+        )
+        assert complete.status_code == 200
+
+        after = _request(viewer, "GET", "/api/v1/dashboard/assets-summary").json()
+        assert after["critical"] == before["critical"] + 1
+        assert after["healthy"] == before["healthy"] - 1
+    finally:
+        app.dependency_overrides.pop(get_asset_management_service, None)
