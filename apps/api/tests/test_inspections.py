@@ -1368,12 +1368,11 @@ def test_completed_critical_inspection_moves_dashboard_critical_assets_kpi(
         storage=AssetMediaStorage(FakeBucket()),
     )
     app.dependency_overrides[get_asset_management_service] = lambda: asset_service
+    viewer = _identity(
+        permissions=frozenset({"inspections.read", "inspections.write", "assets.read"})
+    )
     try:
-        before = _request(
-            _identity(permissions=frozenset({"inspections.read", "inspections.write", "assets.read"})),
-            "GET",
-            "/api/v1/dashboard/assets-summary",
-        ).json()
+        before = _request(viewer, "GET", "/api/v1/dashboard/assets-summary").json()
 
         created = _create_inspection(_identity()).json()
         _put_readings(_identity(), created["id"], condition="Critical")
@@ -1382,11 +1381,7 @@ def test_completed_critical_inspection_moves_dashboard_critical_assets_kpi(
         )
         assert complete.status_code == 200
 
-        after = _request(
-            _identity(permissions=frozenset({"inspections.read", "inspections.write", "assets.read"})),
-            "GET",
-            "/api/v1/dashboard/assets-summary",
-        ).json()
+        after = _request(viewer, "GET", "/api/v1/dashboard/assets-summary").json()
         assert after["critical"] == before["critical"] + 1
         assert after["healthy"] == before["healthy"] - 1
     finally:
