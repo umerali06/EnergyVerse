@@ -201,7 +201,7 @@ class _$InspectionDetail extends InspectionDetail {
   @override
   final DateTime updatedAt;
   @override
-  final BuiltList<BuiltMap<String, JsonObject?>>? voiceNotes;
+  final BuiltList<VoiceNoteResponse>? voiceNotes;
 
   factory _$InspectionDetail(
           [void Function(InspectionDetailBuilder)? updates]) =>
@@ -523,10 +523,10 @@ class InspectionDetailBuilder
   DateTime? get updatedAt => _$this._updatedAt;
   set updatedAt(DateTime? updatedAt) => _$this._updatedAt = updatedAt;
 
-  ListBuilder<BuiltMap<String, JsonObject?>>? _voiceNotes;
-  ListBuilder<BuiltMap<String, JsonObject?>> get voiceNotes =>
-      _$this._voiceNotes ??= new ListBuilder<BuiltMap<String, JsonObject?>>();
-  set voiceNotes(ListBuilder<BuiltMap<String, JsonObject?>>? voiceNotes) =>
+  ListBuilder<VoiceNoteResponse>? _voiceNotes;
+  ListBuilder<VoiceNoteResponse> get voiceNotes =>
+      _$this._voiceNotes ??= new ListBuilder<VoiceNoteResponse>();
+  set voiceNotes(ListBuilder<VoiceNoteResponse>? voiceNotes) =>
       _$this._voiceNotes = voiceNotes;
 
   InspectionDetailBuilder() {

@@ -8,6 +8,7 @@ from app.models.entities import (
     Inspection,
     InspectionCreate,
     InspectionMedia,
+    VoiceNote,
 )
 
 # Matches the D-019/3.4/4.1 in-memory read-cap convention -- the Firestore
@@ -347,6 +348,102 @@ class InspectionRepository(TenantRepository[Inspection]):
             action="inspection.media_edited",
             target_id=inspection_id,
             metadata={"media": updated_media.model_dump(mode="json")},
+        )
+        return updated
+
+    async def append_voice_note(
+        self, scope: CompanyScope, inspection_id: str, voice_note: VoiceNote, actor_uid: str
+    ) -> Inspection:
+        """Mirrors `append_media`: no `expected_revision`/revision bump by
+        design (Phase 7.6) -- voice-note traffic reuses the same media
+        upload queue/worker and must never collide with the checklist-
+        autosave revision protocol."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        await self._collection.document(inspection_id).update(
+            {"voice_notes": ArrayUnion([voice_note.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.voice_note_attached",
+            target_id=inspection_id,
+            metadata={"voice_note": voice_note.model_dump(mode="json")},
+        )
+        return updated
+
+    async def remove_voice_note(
+        self, scope: CompanyScope, inspection_id: str, voice_note: VoiceNote, actor_uid: str
+    ) -> Inspection:
+        """Idempotent: an already-removed `voice_note` entry is a harmless
+        ArrayRemove no-op, mirroring `remove_media`'s at-least-once posture."""
+        await self._collection.document(inspection_id).update(
+            {"voice_notes": ArrayRemove([voice_note.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        if updated is None:
+            raise LookupError("inspection not found in company scope")
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.voice_note_detached",
+            target_id=inspection_id,
+            metadata={"voice_note": voice_note.model_dump(mode="json")},
+        )
+        return updated
+
+    async def update_voice_note(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        voice_note_id: str,
+        *,
+        checklist_item_id: str | None,
+        actor_uid: str,
+    ) -> Inspection:
+        """Idempotent-on-missing (same at-least-once posture as attach/
+        detach): if `voice_note_id` is no longer present, returns the
+        current record unchanged rather than raising. No revision
+        involvement, same as `append_voice_note`/`remove_voice_note`."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        existing = next((v for v in current.voice_notes if v.id == voice_note_id), None)
+        if existing is None:
+            return current
+
+        new_checklist_item_id = (
+            checklist_item_id if checklist_item_id is not None else existing.checklist_item_id
+        )
+        updated_voice_note = existing.model_copy(
+            update={"checklist_item_id": new_checklist_item_id}
+        )
+        new_voice_notes = [
+            updated_voice_note if v.id == voice_note_id else v for v in current.voice_notes
+        ]
+        await self._collection.document(inspection_id).update(
+            {
+                "voice_notes": [v.model_dump() for v in new_voice_notes],
+                "updated_at": utc_now(),
+            },
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.voice_note_edited",
+            target_id=inspection_id,
+            metadata={"voice_note": updated_voice_note.model_dump(mode="json")},
         )
         return updated
 

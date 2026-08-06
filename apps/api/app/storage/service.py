@@ -154,6 +154,18 @@ class InspectionMediaStorage:
             f"{local_id}_{safe_name}"
         )
 
+    @staticmethod
+    def voice_object_path(company_id: str, inspection_id: str, local_id: str, filename: str) -> str:
+        """Same convention as `object_path` but under a `voice/` subfolder
+        (Phase 7.6) -- voice notes are a distinct array (`voice_notes[]`) on
+        the inspection, not `media[]`, so they get their own namespace even
+        though bytes flow through the exact same direct-upload design."""
+        safe_name = Path(filename).name.replace(" ", "_")
+        return (
+            f"companies/{company_id}/inspections/{inspection_id}/voice/"
+            f"{local_id}_{safe_name}"
+        )
+
     def verify_uploaded(self, path: str) -> tuple[bool, int | None, str | None]:
         blob = self._get_bucket().blob(path)
         if not blob.exists():

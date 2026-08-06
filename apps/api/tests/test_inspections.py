@@ -741,6 +741,226 @@ def test_detach_inspection_media_replay_is_idempotent(wiring: dict[str, Any]) ->
     assert second.json()["media"] == []
 
 
+# --- voice notes (Phase 7.6) -------------------------------------------------
+
+
+def _voice_path(company_id: str, inspection_id: str, local_id: str, filename: str) -> str:
+    return f"companies/{company_id}/inspections/{inspection_id}/voice/{local_id}_{filename}"
+
+
+def _attach_voice_note(
+    identity: CurrentUser,
+    inspection_id: str,
+    *,
+    local_id: str,
+    filename: str = "note.m4a",
+    content_type: str = "audio/mp4",
+    size: int = 100,
+    duration_ms: int = 5000,
+    **overrides: Any,
+) -> Any:
+    payload: dict[str, Any] = {
+        "local_id": local_id,
+        "filename": filename,
+        "content_type": content_type,
+        "size": size,
+        "duration_ms": duration_ms,
+    }
+    payload.update(overrides)
+    return _request(
+        identity, "POST", f"/api/v1/inspections/{inspection_id}/voice-notes", json=payload
+    )
+
+
+def test_attach_inspection_voice_note_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.m4a"),
+        b"real-audio-bytes",
+        "audio/mp4",
+    )
+    response = _attach_voice_note(_identity(), created["id"], local_id=local_id)
+    assert response.status_code == 200
+    voice_notes = response.json()["voice_notes"]
+    assert len(voice_notes) == 1
+    assert voice_notes[0]["local_id"] == local_id
+    assert voice_notes[0]["filename"] == "note.m4a"
+    assert voice_notes[0]["url"].startswith("https://fake-storage.invalid/")
+    assert voice_notes[0]["size"] == len(b"real-audio-bytes")
+    assert voice_notes[0]["duration_ms"] == 5000
+    assert voice_notes[0]["checklist_item_id"] is None
+    # attach never bumps revision -- must never collide with checklist autosave.
+    assert response.json()["revision"] == created["revision"]
+
+
+def test_attach_inspection_voice_note_idempotent_replay(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.m4a"),
+        b"x" * 100,
+        "audio/mp4",
+    )
+    first = _attach_voice_note(_identity(), created["id"], local_id=local_id)
+    assert first.status_code == 200
+    second = _attach_voice_note(_identity(), created["id"], local_id=local_id)
+    assert second.status_code == 200
+    assert len(second.json()["voice_notes"]) == 1
+
+
+def test_attach_inspection_voice_note_conflicting_replay_returns_409(
+    wiring: dict[str, Any]
+) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.m4a"),
+        b"bytes",
+        "audio/mp4",
+    )
+    first = _attach_voice_note(_identity(), created["id"], local_id=local_id)
+    assert first.status_code == 200
+    conflicting = _attach_voice_note(
+        _identity(), created["id"], local_id=local_id, filename="different.m4a"
+    )
+    assert conflicting.status_code == 409
+    assert conflicting.json()["error"] == "voice_note_reference_conflict"
+
+
+def test_attach_inspection_voice_note_requires_uploaded_blob(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _attach_voice_note(_identity(), created["id"], local_id=str(uuid.uuid4()))
+    assert response.status_code == 422
+    assert response.json()["error"] == "voice_note_not_uploaded"
+
+
+def test_attach_inspection_voice_note_rejects_wrong_content_type(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.wav"),
+        b"bytes",
+        "audio/wav",
+    )
+    response = _attach_voice_note(
+        _identity(), created["id"], local_id=local_id, filename="note.wav"
+    )
+    assert response.status_code == 422
+    assert response.json()["error"] == "voice_note_content_type_invalid"
+
+
+def test_attach_inspection_voice_note_rejects_oversized_blob(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "huge.m4a"),
+        b"x" * (21 * 1024 * 1024),
+        "audio/mp4",
+    )
+    response = _attach_voice_note(
+        _identity(), created["id"], local_id=local_id, filename="huge.m4a"
+    )
+    assert response.status_code == 413
+    assert response.json()["error"] == "voice_note_too_large"
+
+
+def test_attach_inspection_voice_note_rejects_too_long_duration(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.m4a"),
+        b"bytes",
+        "audio/mp4",
+    )
+    response = _attach_voice_note(
+        _identity(), created["id"], local_id=local_id, duration_ms=10 * 60 * 1000 + 1
+    )
+    assert response.status_code == 422
+    assert response.json()["error"] == "voice_note_too_long"
+
+
+def test_attach_inspection_voice_note_cross_tenant_returns_404(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _attach_voice_note(
+        _identity(company_id=BETA_COMPANY_ID), created["id"], local_id=str(uuid.uuid4())
+    )
+    assert response.status_code == 404
+    assert response.json()["error"] == "inspection_not_found"
+
+
+def test_update_inspection_voice_note_sets_checklist_link(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.m4a"),
+        b"bytes",
+        "audio/mp4",
+    )
+    attached = _attach_voice_note(_identity(), created["id"], local_id=local_id).json()
+    voice_note_id = attached["voice_notes"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/voice-notes/{voice_note_id}",
+        json={"checklist_item_id": "vibration_normal"},
+    )
+    assert response.status_code == 200
+    assert response.json()["voice_notes"][0]["checklist_item_id"] == "vibration_normal"
+
+
+def test_update_inspection_voice_note_is_idempotent_on_missing(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/voice-notes/does-not-exist",
+        json={"checklist_item_id": "vibration_normal"},
+    )
+    assert response.status_code == 200
+    assert response.json()["voice_notes"] == []
+
+
+def test_detach_inspection_voice_note_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    path = _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.m4a")
+    wiring["bucket"].seed(path, b"bytes", "audio/mp4")
+    attached = _attach_voice_note(_identity(), created["id"], local_id=local_id).json()
+    voice_note_id = attached["voice_notes"][0]["id"]
+
+    response = _request(
+        _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/voice-notes/{voice_note_id}"
+    )
+    assert response.status_code == 200
+    assert response.json()["voice_notes"] == []
+    # The backend never deletes Storage bytes on detach (direct-upload design).
+    assert path in wiring["bucket"].objects
+
+
+def test_detach_inspection_voice_note_replay_is_idempotent(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _voice_path(ACME_COMPANY_ID, created["id"], local_id, "note.m4a"),
+        b"bytes",
+        "audio/mp4",
+    )
+    attached = _attach_voice_note(_identity(), created["id"], local_id=local_id).json()
+    voice_note_id = attached["voice_notes"][0]["id"]
+
+    first = _request(
+        _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/voice-notes/{voice_note_id}"
+    )
+    assert first.status_code == 200
+    second = _request(
+        _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/voice-notes/{voice_note_id}"
+    )
+    assert second.status_code == 200
+    assert second.json()["voice_notes"] == []
+
+
 # --- annotations (Phase 7.5) -------------------------------------------------
 
 

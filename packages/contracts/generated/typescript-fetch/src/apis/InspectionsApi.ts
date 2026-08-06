@@ -17,6 +17,7 @@ import * as runtime from '../runtime';
 import type {
   AssignChecklistTemplateRequest,
   AttachInspectionMediaRequest,
+  AttachVoiceNoteRequest,
   CreateAnnotationRequest,
   CreateInspectionRequest,
   ErrorEnvelope,
@@ -27,12 +28,15 @@ import type {
   UpdateAnnotationRequest,
   UpdateInspectionMediaRequest,
   UpdateInspectionRequest,
+  UpdateVoiceNoteRequest,
 } from '../models/index';
 import {
     AssignChecklistTemplateRequestFromJSON,
     AssignChecklistTemplateRequestToJSON,
     AttachInspectionMediaRequestFromJSON,
     AttachInspectionMediaRequestToJSON,
+    AttachVoiceNoteRequestFromJSON,
+    AttachVoiceNoteRequestToJSON,
     CreateAnnotationRequestFromJSON,
     CreateAnnotationRequestToJSON,
     CreateInspectionRequestFromJSON,
@@ -53,6 +57,8 @@ import {
     UpdateInspectionMediaRequestToJSON,
     UpdateInspectionRequestFromJSON,
     UpdateInspectionRequestToJSON,
+    UpdateVoiceNoteRequestFromJSON,
+    UpdateVoiceNoteRequestToJSON,
 } from '../models/index';
 
 export interface AssignInspectionChecklistTemplateRequest {
@@ -63,6 +69,11 @@ export interface AssignInspectionChecklistTemplateRequest {
 export interface AttachInspectionMediaOperationRequest {
     inspectionId: string;
     attachInspectionMediaRequest: AttachInspectionMediaRequest;
+}
+
+export interface AttachInspectionVoiceNoteRequest {
+    inspectionId: string;
+    attachVoiceNoteRequest: AttachVoiceNoteRequest;
 }
 
 export interface CancelInspectionRequest {
@@ -94,6 +105,11 @@ export interface DeleteInspectionAnnotationRequest {
 export interface DetachInspectionMediaRequest {
     inspectionId: string;
     mediaId: string;
+}
+
+export interface DetachInspectionVoiceNoteRequest {
+    inspectionId: string;
+    voiceNoteId: string;
 }
 
 export interface GetInspectionRequest {
@@ -130,6 +146,12 @@ export interface UpdateInspectionMediaOperationRequest {
     inspectionId: string;
     mediaId: string;
     updateInspectionMediaRequest: UpdateInspectionMediaRequest;
+}
+
+export interface UpdateInspectionVoiceNoteRequest {
+    inspectionId: string;
+    voiceNoteId: string;
+    updateVoiceNoteRequest: UpdateVoiceNoteRequest;
 }
 
 /**
@@ -238,6 +260,59 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async attachInspectionMedia(requestParameters: AttachInspectionMediaOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.attachInspectionMediaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Registers a reference to a voice-note recording the mobile client already uploaded directly to Firebase Storage via the same 7.4 media queue/worker (Phase 7.6) -- no bytes pass through here.
+     * Attach Inspection Voice Note
+     */
+    async attachInspectionVoiceNoteRaw(requestParameters: AttachInspectionVoiceNoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling attachInspectionVoiceNote().'
+            );
+        }
+
+        if (requestParameters['attachVoiceNoteRequest'] == null) {
+            throw new runtime.RequiredError(
+                'attachVoiceNoteRequest',
+                'Required parameter "attachVoiceNoteRequest" was null or undefined when calling attachInspectionVoiceNote().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/voice-notes`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: AttachVoiceNoteRequestToJSON(requestParameters['attachVoiceNoteRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Registers a reference to a voice-note recording the mobile client already uploaded directly to Firebase Storage via the same 7.4 media queue/worker (Phase 7.6) -- no bytes pass through here.
+     * Attach Inspection Voice Note
+     */
+    async attachInspectionVoiceNote(requestParameters: AttachInspectionVoiceNoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.attachInspectionVoiceNoteRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -564,6 +639,56 @@ export class InspectionsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Idempotent on an already-detached `voice_note_id` -- the mobile outbox replays this call at-least-once.
+     * Detach Inspection Voice Note
+     */
+    async detachInspectionVoiceNoteRaw(requestParameters: DetachInspectionVoiceNoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling detachInspectionVoiceNote().'
+            );
+        }
+
+        if (requestParameters['voiceNoteId'] == null) {
+            throw new runtime.RequiredError(
+                'voiceNoteId',
+                'Required parameter "voiceNoteId" was null or undefined when calling detachInspectionVoiceNote().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"voice_note_id"}}`, encodeURIComponent(String(requestParameters['voiceNoteId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Idempotent on an already-detached `voice_note_id` -- the mobile outbox replays this call at-least-once.
+     * Detach Inspection Voice Note
+     */
+    async detachInspectionVoiceNote(requestParameters: DetachInspectionVoiceNoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.detachInspectionVoiceNoteRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Get Inspection
      */
     async getInspectionRaw(requestParameters: GetInspectionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
@@ -875,6 +1000,64 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async updateInspectionMedia(requestParameters: UpdateInspectionMediaOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.updateInspectionMediaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Inspection Voice Note
+     */
+    async updateInspectionVoiceNoteRaw(requestParameters: UpdateInspectionVoiceNoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling updateInspectionVoiceNote().'
+            );
+        }
+
+        if (requestParameters['voiceNoteId'] == null) {
+            throw new runtime.RequiredError(
+                'voiceNoteId',
+                'Required parameter "voiceNoteId" was null or undefined when calling updateInspectionVoiceNote().'
+            );
+        }
+
+        if (requestParameters['updateVoiceNoteRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateVoiceNoteRequest',
+                'Required parameter "updateVoiceNoteRequest" was null or undefined when calling updateInspectionVoiceNote().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"voice_note_id"}}`, encodeURIComponent(String(requestParameters['voiceNoteId']))),
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateVoiceNoteRequestToJSON(requestParameters['updateVoiceNoteRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Update Inspection Voice Note
+     */
+    async updateInspectionVoiceNote(requestParameters: UpdateInspectionVoiceNoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.updateInspectionVoiceNoteRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

@@ -12,6 +12,7 @@ from app.inspections.service import (
 from app.models.api import (
     AssignChecklistTemplateRequest,
     AttachInspectionMediaRequest,
+    AttachVoiceNoteRequest,
     CreateAnnotationRequest,
     CreateInspectionRequest,
     InspectionDeleted,
@@ -20,6 +21,7 @@ from app.models.api import (
     UpdateAnnotationRequest,
     UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
+    UpdateVoiceNoteRequest,
     error_responses,
 )
 from app.models.base import CompanyScope
@@ -300,6 +302,76 @@ async def detach_inspection_media(
     scope = CompanyScope(company_id=current_user.company_id)
     try:
         return await service.detach_media(scope, inspection_id, media_id, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.post(
+    "/{inspection_id}/voice-notes",
+    response_model=InspectionDetail,
+    operation_id="attach_inspection_voice_note",
+    responses=error_responses(401, 403, 404, 409, 413, 422, 500),
+)
+async def attach_inspection_voice_note(
+    inspection_id: str,
+    request: AttachVoiceNoteRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Registers a reference to a voice-note recording the mobile client
+    already uploaded directly to Firebase Storage via the same 7.4 media
+    queue/worker (Phase 7.6) -- no bytes pass through here."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.attach_voice_note(scope, inspection_id, request, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.patch(
+    "/{inspection_id}/voice-notes/{voice_note_id}",
+    response_model=InspectionDetail,
+    operation_id="update_inspection_voice_note",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def update_inspection_voice_note(
+    inspection_id: str,
+    voice_note_id: str,
+    request: UpdateVoiceNoteRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.update_voice_note(
+            scope, inspection_id, voice_note_id, request, current_user.uid
+        )
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.delete(
+    "/{inspection_id}/voice-notes/{voice_note_id}",
+    response_model=InspectionDetail,
+    operation_id="detach_inspection_voice_note",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def detach_inspection_voice_note(
+    inspection_id: str,
+    voice_note_id: str,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Idempotent on an already-detached `voice_note_id` -- the mobile
+    outbox replays this call at-least-once."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.detach_voice_note(
+            scope, inspection_id, voice_note_id, current_user.uid
+        )
     except InspectionServiceError as error:
         _raise_api_error(error)
         raise

@@ -34,6 +34,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(AttachInspectionMediaRequest.serializer)
       ..add(AttachInspectionMediaRequestBeforeAfterTagEnum.serializer)
       ..add(AttachInspectionMediaRequestKindEnum.serializer)
+      ..add(AttachVoiceNoteRequest.serializer)
       ..add(AuditLogEntry.serializer)
       ..add(AuditLogFacets.serializer)
       ..add(AuditLogPage.serializer)
@@ -127,12 +128,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(UpdateUserRequest.serializer)
       ..add(UpdateUserStatusRequest.serializer)
       ..add(UpdateUserStatusRequestStatusEnum.serializer)
+      ..add(UpdateVoiceNoteRequest.serializer)
       ..add(UserDetail.serializer)
       ..add(UserListItem.serializer)
       ..add(UserListPage.serializer)
       ..add(ValidationError.serializer)
       ..add(ValidationErrorLocInner.serializer)
       ..add(Value.serializer)
+      ..add(VoiceNoteResponse.serializer)
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(AnnotationPointInput)]),
@@ -307,13 +310,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
           ]),
           () => new MapBuilder<String, JsonObject?>())
       ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
+          const FullType(BuiltList, const [const FullType(VoiceNoteResponse)]),
+          () => new ListBuilder<VoiceNoteResponse>())
       ..addBuilderFactory(
           const FullType(BuiltSet, const [const FullType(String)]),
           () => new SetBuilder<String>()))

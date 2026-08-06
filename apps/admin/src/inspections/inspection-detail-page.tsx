@@ -20,6 +20,15 @@ import {
 import { AnnotationOverlay, damageTypeLabel } from "./annotation-overlay";
 import { statusLabel, statusTone } from "./inspections-page";
 
+function formatVoiceNoteDuration(durationMs: number): string {
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -313,6 +322,43 @@ export function InspectionDetailPage({
                             <p className="text-caption text-text-secondary">
                               {damageTypes.join(", ")}
                             </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <div data-testid="voice-notes-section">
+                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                  Voice notes
+                  {(state.inspection.voiceNotes ?? []).length > 0 &&
+                    ` (${state.inspection.voiceNotes!.length})`}
+                </p>
+                {(state.inspection.voiceNotes ?? []).length === 0 ? (
+                  <p className="mt-1 text-bodySmall text-text-muted">
+                    No voice notes have been recorded yet.
+                  </p>
+                ) : (
+                  <ul className="mt-2 grid gap-3">
+                    {state.inspection.voiceNotes!.map((note) => {
+                      const linkedItem = (
+                        state.inspection!.checklistItemsSnapshot ?? []
+                      ).find((candidate) => candidate.id === note.checklistItemId);
+                      return (
+                        <li
+                          className="flex flex-wrap items-center gap-3 rounded-md border border-border p-3"
+                          key={note.id}
+                        >
+                          <audio className="h-8" controls preload="none" src={note.url} />
+                          <span className="font-mono text-caption text-text-muted">
+                            {formatVoiceNoteDuration(note.durationMs)}
+                          </span>
+                          {linkedItem && (
+                            <span className="text-caption text-text-secondary">
+                              {linkedItem.label}
+                            </span>
                           )}
                         </li>
                       );

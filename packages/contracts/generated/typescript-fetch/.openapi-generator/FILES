@@ -40,6 +40,7 @@ src/models/AssetMediaResponse.ts
 src/models/AssetQrLabel.ts
 src/models/AssignChecklistTemplateRequest.ts
 src/models/AttachInspectionMediaRequest.ts
+src/models/AttachVoiceNoteRequest.ts
 src/models/AuditLogEntry.ts
 src/models/AuditLogFacets.ts
 src/models/AuditLogPage.ts
@@ -105,12 +106,14 @@ src/models/UpdatePlatformCompanyRequest.ts
 src/models/UpdateRoleRequest.ts
 src/models/UpdateUserRequest.ts
 src/models/UpdateUserStatusRequest.ts
+src/models/UpdateVoiceNoteRequest.ts
 src/models/UserDetail.ts
 src/models/UserListItem.ts
 src/models/UserListPage.ts
 src/models/ValidationError.ts
 src/models/ValidationErrorLocInner.ts
 src/models/Value.ts
+src/models/VoiceNoteResponse.ts
 src/models/index.ts
 src/runtime.ts
 tsconfig.esm.json

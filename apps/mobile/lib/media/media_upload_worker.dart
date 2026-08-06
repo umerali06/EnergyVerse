@@ -197,8 +197,26 @@ class MediaUploadWorker extends ChangeNotifier {
 
   /// Registers the small metadata reference onto the *inspection* outbox
   /// (Phase 7.2's existing machinery) now that the bytes are up -- this is
-  /// the "small reference, not the bytes" sync path.
+  /// the "small reference, not the bytes" sync path. A voice note (Phase
+  /// 7.6, `kind == 'audio'`) registers onto `inspection.voiceNotes[]`
+  /// instead of `media[]` -- same queue/worker, different reference shape.
   Future<void> _registerReference(MediaQueueRecord item) async {
+    if (item.kind == 'audio') {
+      final request = AttachVoiceNoteRequest(
+        (b) => b
+          ..localId = item.localId
+          ..filename = item.filename
+          ..contentType = item.contentType
+          ..size = item.sizeBytes
+          ..durationMs = item.durationMs ?? 0
+          ..checklistItemId = item.checklistItemId,
+      );
+      await _inspectionsRepository.enqueueAttachVoiceNote(
+        inspectionId: item.inspectionId,
+        request: request,
+      );
+      return;
+    }
     final request = AttachInspectionMediaRequest(
       (b) => b
         ..localId = item.localId

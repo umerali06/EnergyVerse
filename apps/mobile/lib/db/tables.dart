@@ -46,6 +46,13 @@ class LocalInspections extends Table {
   /// to send), since it's small vector data with no separate queue/upload
   /// step standing between "drawn" and "visible offline".
   TextColumn get annotations => text().withDefault(const Constant('[]'))();
+
+  /// The server's `InspectionDetail.voiceNotes[]` (Phase 7.6), same
+  /// JSON-blob convention as [media] -- a voice note's bytes go through the
+  /// same [MediaQueue]/`MediaUploadWorker` upload path as a photo/video, so
+  /// this cache is only ever refreshed from a synced server response, never
+  /// written to optimistically the way [annotations] is.
+  TextColumn get voiceNotes => text().withDefault(const Constant('[]'))();
   DateTimeColumn get startedAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
   RealColumn get gpsLat => real().nullable()();
@@ -151,12 +158,13 @@ class Outbox extends Table {
 /// `inspection.media[]`.
 class MediaQueue extends Table {
   /// Client-generated UUID; also the Storage object path's uuid segment
-  /// (`companies/{cid}/inspections/{iid}/media/{localId}_{filename}`) and
-  /// the idempotency key the backend's attach endpoint dedupes on.
+  /// (`companies/{cid}/inspections/{iid}/media/{localId}_{filename}`, or
+  /// `.../voice/{localId}_{filename}` for `kind == 'audio'`) and the
+  /// idempotency key the backend's attach endpoint dedupes on.
   TextColumn get localId => text()();
   TextColumn get inspectionId => text()();
   TextColumn get checklistItemId => text().nullable()();
-  TextColumn get kind => text()(); // 'photo' | 'video'
+  TextColumn get kind => text()(); // 'photo' | 'video' | 'audio'
   TextColumn get localFilePath => text()();
 
   /// Computed at capture time via a Dart port of the backend's
@@ -170,6 +178,11 @@ class MediaQueue extends Table {
   RealColumn get gpsLng => real().nullable()();
   DateTimeColumn get capturedAt => dateTime()();
   TextColumn get beforeAfterTag => text().nullable()(); // 'before' | 'after' | null
+
+  /// Recording length in milliseconds -- only ever set for `kind ==
+  /// 'audio'` (Phase 7.6); null for a photo/video row, which have no
+  /// duration of their own to track here.
+  IntColumn get durationMs => integer().nullable()();
 
   /// `queued | uploading | uploaded | referenced | failed`.
   TextColumn get uploadState =>

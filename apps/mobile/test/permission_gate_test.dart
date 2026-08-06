@@ -206,6 +206,25 @@ class _IdentityApi implements ApiContract {
       throw UnimplementedError();
 
   @override
+  Future<InspectionDetail> attachInspectionVoiceNote(
+    String inspectionId,
+    AttachVoiceNoteRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionVoiceNote(
+    String inspectionId,
+    String voiceNoteId,
+    UpdateVoiceNoteRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) =>
+      throw UnimplementedError();
+
+  @override
   Future<InspectionDetail> createInspectionAnnotation(
     String inspectionId,
     CreateAnnotationRequest request,

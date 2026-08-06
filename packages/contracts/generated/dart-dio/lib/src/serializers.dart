@@ -33,6 +33,7 @@ import 'package:fev_api_client/src/model/asset_media_response.dart';
 import 'package:fev_api_client/src/model/asset_qr_label.dart';
 import 'package:fev_api_client/src/model/assign_checklist_template_request.dart';
 import 'package:fev_api_client/src/model/attach_inspection_media_request.dart';
+import 'package:fev_api_client/src/model/attach_voice_note_request.dart';
 import 'package:fev_api_client/src/model/audit_log_entry.dart';
 import 'package:fev_api_client/src/model/audit_log_facets.dart';
 import 'package:fev_api_client/src/model/audit_log_page.dart';
@@ -98,12 +99,14 @@ import 'package:fev_api_client/src/model/update_platform_company_request.dart';
 import 'package:fev_api_client/src/model/update_role_request.dart';
 import 'package:fev_api_client/src/model/update_user_request.dart';
 import 'package:fev_api_client/src/model/update_user_status_request.dart';
+import 'package:fev_api_client/src/model/update_voice_note_request.dart';
 import 'package:fev_api_client/src/model/user_detail.dart';
 import 'package:fev_api_client/src/model/user_list_item.dart';
 import 'package:fev_api_client/src/model/user_list_page.dart';
 import 'package:fev_api_client/src/model/validation_error.dart';
 import 'package:fev_api_client/src/model/validation_error_loc_inner.dart';
 import 'package:fev_api_client/src/model/value.dart';
+import 'package:fev_api_client/src/model/voice_note_response.dart';
 
 part 'serializers.g.dart';
 
@@ -127,6 +130,7 @@ part 'serializers.g.dart';
   AssetQrLabel,
   AssignChecklistTemplateRequest,
   AttachInspectionMediaRequest,
+  AttachVoiceNoteRequest,
   AuditLogEntry,
   AuditLogFacets,
   AuditLogPage,
@@ -192,12 +196,14 @@ part 'serializers.g.dart';
   UpdateRoleRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,
+  UpdateVoiceNoteRequest,
   UserDetail,
   UserListItem,
   UserListPage,
   ValidationError,
   ValidationErrorLocInner,
   Value,
+  VoiceNoteResponse,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(

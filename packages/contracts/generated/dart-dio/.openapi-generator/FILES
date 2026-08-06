@@ -23,6 +23,7 @@ doc/AssetQrLabel.md
 doc/AssetsApi.md
 doc/AssignChecklistTemplateRequest.md
 doc/AttachInspectionMediaRequest.md
+doc/AttachVoiceNoteRequest.md
 doc/AuditApi.md
 doc/AuditLogEntry.md
 doc/AuditLogFacets.md
@@ -101,6 +102,7 @@ doc/UpdatePlatformCompanyRequest.md
 doc/UpdateRoleRequest.md
 doc/UpdateUserRequest.md
 doc/UpdateUserStatusRequest.md
+doc/UpdateVoiceNoteRequest.md
 doc/UserDetail.md
 doc/UserListItem.md
 doc/UserListPage.md
@@ -108,6 +110,7 @@ doc/UsersApi.md
 doc/ValidationError.md
 doc/ValidationErrorLocInner.md
 doc/Value.md
+doc/VoiceNoteResponse.md
 lib/fev_api_client.dart
 lib/src/api.dart
 lib/src/api/areas_api.dart
@@ -152,6 +155,7 @@ lib/src/model/asset_media_response.dart
 lib/src/model/asset_qr_label.dart
 lib/src/model/assign_checklist_template_request.dart
 lib/src/model/attach_inspection_media_request.dart
+lib/src/model/attach_voice_note_request.dart
 lib/src/model/audit_log_entry.dart
 lib/src/model/audit_log_facets.dart
 lib/src/model/audit_log_page.dart
@@ -218,12 +222,14 @@ lib/src/model/update_platform_company_request.dart
 lib/src/model/update_role_request.dart
 lib/src/model/update_user_request.dart
 lib/src/model/update_user_status_request.dart
+lib/src/model/update_voice_note_request.dart
 lib/src/model/user_detail.dart
 lib/src/model/user_list_item.dart
 lib/src/model/user_list_page.dart
 lib/src/model/validation_error.dart
 lib/src/model/validation_error_loc_inner.dart
 lib/src/model/value.dart
+lib/src/model/voice_note_response.dart
 lib/src/serializers.dart
 pubspec.yaml
 test/annotation_point_input_test.dart
@@ -247,6 +253,7 @@ test/asset_qr_label_test.dart
 test/assets_api_test.dart
 test/assign_checklist_template_request_test.dart
 test/attach_inspection_media_request_test.dart
+test/attach_voice_note_request_test.dart
 test/audit_api_test.dart
 test/audit_log_entry_test.dart
 test/audit_log_facets_test.dart
@@ -325,6 +332,7 @@ test/update_platform_company_request_test.dart
 test/update_role_request_test.dart
 test/update_user_request_test.dart
 test/update_user_status_request_test.dart
+test/update_voice_note_request_test.dart
 test/user_detail_test.dart
 test/user_list_item_test.dart
 test/user_list_page_test.dart
@@ -332,3 +340,4 @@ test/users_api_test.dart
 test/validation_error_loc_inner_test.dart
 test/validation_error_test.dart
 test/value_test.dart
+test/voice_note_response_test.dart

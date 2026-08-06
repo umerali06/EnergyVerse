@@ -138,6 +138,22 @@ function annotationFixture(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function voiceNoteFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "voice-1",
+    localId: "voice-local-1",
+    url: "https://storage.example.invalid/voice-1.m4a",
+    filename: "note.m4a",
+    contentType: "audio/mp4",
+    size: 5000,
+    durationMs: 42000,
+    checklistItemId: "vibration_normal",
+    uploadedBy: "demo-acme-field_inspector",
+    uploadedAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
 function checklistTemplateDetail(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: "template-1",
@@ -258,6 +274,27 @@ describe("inspection detail page", () => {
     const link = image.closest("a");
     expect(link).toHaveAttribute("href", "https://storage.example.invalid/media-1.jpg");
     expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("shows an honest empty state when no voice notes have been recorded yet", async () => {
+    renderDetail();
+    await screen.findByText("Q3 Routine Inspection");
+    expect(screen.getByText("No voice notes have been recorded yet.")).toBeInTheDocument();
+  });
+
+  it("renders a voice note with playback, duration, and its linked checklist item", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({ voiceNotes: [voiceNoteFixture()] }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const voiceSection = screen.getByTestId("voice-notes-section");
+    expect(within(voiceSection).getByText("00:42")).toBeInTheDocument();
+    expect(within(voiceSection).getByText("Vibration normal")).toBeInTheDocument();
+    const audio = voiceSection.querySelector("audio");
+    expect(audio).toHaveAttribute("src", "https://storage.example.invalid/voice-1.m4a");
+    expect(audio).toHaveAttribute("controls");
   });
 
   it("does not show the annotation toggle when a photo has no annotations", async () => {

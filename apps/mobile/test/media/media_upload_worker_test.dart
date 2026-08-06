@@ -71,6 +71,46 @@ void main() {
     expect(payload['local_id'], localId);
   });
 
+  test(
+      'a voice note upload (Phase 7.6) reuses this same worker/queue and enqueues '
+      'attach_voice_note with duration_ms', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final api = FakeSyncApi();
+    final inspectionsRepository = LocalInspectionsRepository(db: db, api: api);
+    final mediaRepository = LocalMediaRepository(db: db);
+    final uploader = FakeMediaUploader();
+    final worker = buildWorker(
+      mediaRepository: mediaRepository,
+      inspectionsRepository: inspectionsRepository,
+      uploader: uploader,
+    );
+    addTearDown(worker.dispose);
+
+    final localId = await mediaRepository.enqueueCapture(
+      companyId: 'acme-energy',
+      inspectionId: 'insp-1',
+      kind: 'audio',
+      localFilePath: '/tmp/note.m4a',
+      filename: 'note.m4a',
+      contentType: 'audio/mp4',
+      sizeBytes: 5000,
+      capturedAt: DateTime.utc(2026, 1, 1),
+      durationMs: 42000,
+    );
+
+    await worker.syncNow();
+
+    expect(uploader.uploadedPaths, hasLength(1));
+    final outbox = await db.select(db.outbox).get();
+    expect(outbox, hasLength(1));
+    expect(outbox.single.mutationType, 'attach_voice_note');
+    expect(outbox.single.inspectionId, 'insp-1');
+    final payload = jsonDecode(outbox.single.payload) as Map<String, dynamic>;
+    expect(payload['local_id'], localId);
+    expect(payload['duration_ms'], 42000);
+  });
+
   test('progress events update MediaQueue.uploadedBytes before completion', () async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);

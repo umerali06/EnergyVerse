@@ -355,6 +355,24 @@ class Annotation(StrictModel):
     created_at: datetime
 
 
+class VoiceNote(StrictModel):
+    """A recorded audio note attached to an inspection, optionally linked to
+    a checklist item (spec 7.2 "voice recording", Phase 7.6). Bytes upload
+    directly to Storage via the same 7.4 media queue/worker; this only
+    stores the reference, mirroring `InspectionMedia`."""
+
+    id: str
+    local_id: str
+    path: str
+    filename: str
+    content_type: str
+    size: int
+    duration_ms: int
+    checklist_item_id: str | None = None
+    uploaded_by: str
+    uploaded_at: datetime
+
+
 class Inspection(TenantDoc):
     id: str
     asset_id: str
@@ -380,8 +398,8 @@ class Inspection(TenantDoc):
     deleted_at: datetime | None = None
     media: list[InspectionMedia] = Field(default_factory=list)
     annotations: list[Annotation] = Field(default_factory=list)
+    voice_notes: list["VoiceNote"] = Field(default_factory=list)
     # Reserved, always-empty until their own phases give these real shapes.
-    voice_notes: list[dict[str, Any]] = Field(default_factory=list)
     readings: dict[str, Any] = Field(default_factory=dict)
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
     ai_analysis: dict[str, Any] | None = None

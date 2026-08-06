@@ -474,6 +474,19 @@ class InspectionMediaResponse(BaseModel):
     uploaded_at: datetime
 
 
+class VoiceNoteResponse(BaseModel):
+    id: str
+    local_id: str
+    url: str
+    filename: str
+    content_type: str
+    size: int
+    duration_ms: int
+    checklist_item_id: str | None = None
+    uploaded_by: str
+    uploaded_at: datetime
+
+
 class AnnotationPointResponse(BaseModel):
     x: float
     y: float
@@ -541,7 +554,7 @@ class InspectionDetail(InspectionListItem):
     origin: str | None = None
     media: list[InspectionMediaResponse] = Field(default_factory=list)
     annotations: list[AnnotationResponse] = Field(default_factory=list)
-    voice_notes: list[dict[str, Any]] = Field(default_factory=list)
+    voice_notes: list[VoiceNoteResponse] = Field(default_factory=list)
     readings: dict[str, Any] = Field(default_factory=dict)
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
     ai_analysis: dict[str, Any] | None = None
@@ -597,6 +610,19 @@ class UpdateInspectionMediaRequest(BaseModel):
 class InspectionMediaDetached(BaseModel):
     id: str
     detached: bool = True
+
+
+class AttachVoiceNoteRequest(BaseModel):
+    local_id: str = Field(min_length=1, max_length=200)
+    filename: str = Field(min_length=1, max_length=300)
+    content_type: str = Field(min_length=1, max_length=120)
+    size: int = Field(gt=0)
+    duration_ms: int = Field(gt=0)
+    checklist_item_id: str | None = Field(default=None, max_length=200)
+
+
+class UpdateVoiceNoteRequest(BaseModel):
+    checklist_item_id: str | None = Field(default=None, max_length=200)
 
 
 class AnnotationPointInput(BaseModel):
