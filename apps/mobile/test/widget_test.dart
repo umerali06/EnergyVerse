@@ -184,7 +184,11 @@ class _UnusedApi implements ApiContract {
   Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> completeInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> completeInspection(
+    String inspectionId,
+    CompleteInspectionRequest request,
+  ) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();

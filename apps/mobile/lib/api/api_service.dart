@@ -131,7 +131,10 @@ abstract interface class ApiContract {
     UpdateInspectionRequest request,
   );
   Future<InspectionDetail> startInspection(String inspectionId);
-  Future<InspectionDetail> completeInspection(String inspectionId);
+  Future<InspectionDetail> completeInspection(
+    String inspectionId,
+    CompleteInspectionRequest request,
+  );
   Future<InspectionDetail> cancelInspection(String inspectionId);
   Future<InspectionDetail> assignChecklistTemplate(
     String inspectionId,
@@ -911,10 +914,15 @@ class ApiService implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> completeInspection(String inspectionId) async {
+  Future<InspectionDetail> completeInspection(
+    String inspectionId,
+    CompleteInspectionRequest request,
+  ) async {
     try {
-      final response =
-          await _client.getInspectionsApi().completeInspection(inspectionId: inspectionId);
+      final response = await _client.getInspectionsApi().completeInspection(
+            inspectionId: inspectionId,
+            completeInspectionRequest: request,
+          );
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);

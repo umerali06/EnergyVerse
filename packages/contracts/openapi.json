@@ -1735,6 +1735,29 @@
         "title": "CompanyRegistrationResponse",
         "type": "object"
       },
+      "CompleteInspectionRequest": {
+        "description": "Signature capture is the final step of completion (spec 7.2 \"digital\nsignature\", Phase 7.8) -- there is no separate sign-then-complete\nendpoint. `expected_revision` is required, unlike the optional field on\n`UpdateInspectionRequest`/`AssignChecklistTemplateRequest`: the whole\npoint of binding a signature to a revision is to reject a stale view\noutright (409 `revision_conflict`) and force a refresh + re-sign, never\nsilently complete against out-of-date checklist/readings data. `strokes`\nis a list of stroke objects (each with its own `points`), not a raw\n`list[list[...]]` -- see `Signature.strokes`'s docstring for why.",
+        "properties": {
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "strokes": {
+            "items": {
+              "$ref": "#/components/schemas/SignatureStrokeInput"
+            },
+            "minItems": 1,
+            "title": "Strokes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "strokes",
+          "expected_revision"
+        ],
+        "title": "CompleteInspectionRequest",
+        "type": "object"
+      },
       "CreateAnnotationRequest": {
         "properties": {
           "color": {
@@ -2987,14 +3010,12 @@
           "signature": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/SignatureResponse"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Signature"
+            ]
           },
           "started_at": {
             "anyOf": [
@@ -4034,6 +4055,121 @@
           "status"
         ],
         "title": "ServiceResponse",
+        "type": "object"
+      },
+      "SignaturePointInput": {
+        "properties": {
+          "x": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "SignaturePointInput",
+        "type": "object"
+      },
+      "SignaturePointResponse": {
+        "properties": {
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "SignaturePointResponse",
+        "type": "object"
+      },
+      "SignatureResponse": {
+        "properties": {
+          "inspection_revision": {
+            "title": "Inspection Revision",
+            "type": "integer"
+          },
+          "signed_at": {
+            "format": "date-time",
+            "title": "Signed At",
+            "type": "string"
+          },
+          "signer_name": {
+            "title": "Signer Name",
+            "type": "string"
+          },
+          "signer_role": {
+            "title": "Signer Role",
+            "type": "string"
+          },
+          "signer_uid": {
+            "title": "Signer Uid",
+            "type": "string"
+          },
+          "strokes": {
+            "items": {
+              "$ref": "#/components/schemas/SignatureStrokeResponse"
+            },
+            "title": "Strokes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "strokes",
+          "signer_uid",
+          "signer_name",
+          "signer_role",
+          "signed_at",
+          "inspection_revision"
+        ],
+        "title": "SignatureResponse",
+        "type": "object"
+      },
+      "SignatureStrokeInput": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/SignaturePointInput"
+            },
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "title": "SignatureStrokeInput",
+        "type": "object"
+      },
+      "SignatureStrokeResponse": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/SignaturePointResponse"
+            },
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "title": "SignatureStrokeResponse",
         "type": "object"
       },
       "UpdateAnnotationRequest": {
@@ -10100,6 +10236,7 @@
     },
     "/api/v1/inspections/{inspection_id}/complete": {
       "post": {
+        "description": "Signature capture is the final step of completion (Phase 7.8) --\nsigner identity (`current_user.uid`/`role_key`) always comes from the\nverified token, never from the request body.",
         "operationId": "complete_inspection",
         "parameters": [
           {
@@ -10112,6 +10249,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteInspectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {

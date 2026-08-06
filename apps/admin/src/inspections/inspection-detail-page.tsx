@@ -20,6 +20,7 @@ import {
 
 import { AnnotationOverlay, damageTypeLabel } from "./annotation-overlay";
 import { statusLabel, statusTone } from "./inspections-page";
+import { SignaturePreview } from "./signature-preview";
 
 /** Mirrors the backend's `READINGS_CONDITION_TO_ASSET_STATUS` mapping (Phase
  * 7.7) so the admin review surface previews the same asset-health impact a
@@ -449,6 +450,43 @@ export function InspectionDetailPage({
                 ) : (
                   <p className="mt-1 text-bodySmall text-text-muted">
                     No manual status readings have been logged yet.
+                  </p>
+                )}
+              </div>
+
+              <div data-testid="signature-section">
+                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                  Signature
+                </p>
+                {state.inspection.signature ? (
+                  <div className="mt-2 grid gap-3 rounded-md border border-border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill tone="healthy">Signed</StatusPill>
+                      <StatusPill
+                        tone={
+                          state.inspection.signature.inspectionRevision === state.inspection.revision
+                            ? "info"
+                            : "warning"
+                        }
+                      >
+                        {state.inspection.signature.inspectionRevision === state.inspection.revision
+                          ? `Valid at revision ${state.inspection.signature.inspectionRevision}`
+                          : `Superseded (signed revision ${state.inspection.signature.inspectionRevision}, now at ${state.inspection.revision})`}
+                      </StatusPill>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <Field label="Signer" value={state.inspection.signature.signerName} />
+                      <Field label="Role" value={statusLabel(state.inspection.signature.signerRole)} />
+                      <Field
+                        label="Signed at"
+                        value={formatCompanyDateTime(state.inspection.signature.signedAt)}
+                      />
+                    </div>
+                    <SignaturePreview strokes={state.inspection.signature.strokes} />
+                  </div>
+                ) : (
+                  <p className="mt-1 text-bodySmall text-text-muted">
+                    This inspection has not been signed off yet.
                   </p>
                 )}
               </div>

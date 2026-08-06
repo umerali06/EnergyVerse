@@ -54,6 +54,7 @@ src/models/ChecklistTemplateListPage.ts
 src/models/CompanyProfile.ts
 src/models/CompanyRegistrationRequest.ts
 src/models/CompanyRegistrationResponse.ts
+src/models/CompleteInspectionRequest.ts
 src/models/CreateAnnotationRequest.ts
 src/models/CreateAreaRequest.ts
 src/models/CreateAssetRequest.ts
@@ -95,6 +96,11 @@ src/models/RoleDetail.ts
 src/models/RoleList.ts
 src/models/RoleSummary.ts
 src/models/ServiceResponse.ts
+src/models/SignaturePointInput.ts
+src/models/SignaturePointResponse.ts
+src/models/SignatureResponse.ts
+src/models/SignatureStrokeInput.ts
+src/models/SignatureStrokeResponse.ts
 src/models/UpdateAnnotationRequest.ts
 src/models/UpdateAreaRequest.ts
 src/models/UpdateAssetRequest.ts

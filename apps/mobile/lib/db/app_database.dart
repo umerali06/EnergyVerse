@@ -16,7 +16,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -37,6 +37,10 @@ class AppDatabase extends _$AppDatabase {
         // v6 (Phase 7.7): a nullable `readings` JSON-blob column on
         // LocalInspections caching (and, for not-yet-synced edits,
         // optimistically holding) the inspection's manual status readings.
+        // v7 (Phase 7.8): a nullable `signature` JSON-blob column on
+        // LocalInspections caching the server-confirmed digital signature,
+        // plus a nullable `pendingSignatureStrokes` column holding the
+        // just-drawn strokes until that signature syncs.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(localInspections, localInspections.assetCategory);
@@ -55,6 +59,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 6) {
             await m.addColumn(localInspections, localInspections.readings);
+          }
+          if (from < 7) {
+            await m.addColumn(localInspections, localInspections.signature);
+            await m.addColumn(
+                localInspections, localInspections.pendingSignatureStrokes);
           }
         },
       );

@@ -8,6 +8,10 @@ typedef UpdateInspectionFn = Future<InspectionDetail> Function(
   UpdateInspectionRequest request,
 );
 typedef LifecycleFn = Future<InspectionDetail> Function(String id);
+typedef CompleteInspectionFn = Future<InspectionDetail> Function(
+  String id,
+  CompleteInspectionRequest request,
+);
 typedef AssignTemplateFn = Future<InspectionDetail> Function(
   String id,
   AssignChecklistTemplateRequest request,
@@ -66,7 +70,7 @@ class FakeSyncApi implements ApiContract {
     CreateInspectionFn? createInspection,
     UpdateInspectionFn? updateInspection,
     LifecycleFn? startInspection,
-    LifecycleFn? completeInspection,
+    CompleteInspectionFn? completeInspection,
     LifecycleFn? cancelInspection,
     AssignTemplateFn? assignChecklistTemplate,
     GetChecklistTemplatesFn? getChecklistTemplates,
@@ -103,7 +107,7 @@ class FakeSyncApi implements ApiContract {
   final CreateInspectionFn? _createInspection;
   final UpdateInspectionFn? _updateInspection;
   final LifecycleFn? _startInspection;
-  final LifecycleFn? _completeInspection;
+  final CompleteInspectionFn? _completeInspection;
   final LifecycleFn? _cancelInspection;
   final AssignTemplateFn? _assignChecklistTemplate;
   final GetChecklistTemplatesFn? _getChecklistTemplates;
@@ -153,11 +157,14 @@ class FakeSyncApi implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> completeInspection(String inspectionId) {
+  Future<InspectionDetail> completeInspection(
+    String inspectionId,
+    CompleteInspectionRequest request,
+  ) {
     calls.add('completeInspection:$inspectionId');
     final handler = _completeInspection;
     if (handler == null) throw UnimplementedError();
-    return handler(inspectionId);
+    return handler(inspectionId, request);
   }
 
   @override

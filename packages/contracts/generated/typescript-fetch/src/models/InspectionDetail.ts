@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { SignatureResponse } from './SignatureResponse';
+import {
+    SignatureResponseFromJSON,
+    SignatureResponseFromJSONTyped,
+    SignatureResponseToJSON,
+    SignatureResponseToJSONTyped,
+} from './SignatureResponse';
 import type { VoiceNoteResponse } from './VoiceNoteResponse';
 import {
     VoiceNoteResponseFromJSON,
@@ -208,10 +215,10 @@ export interface InspectionDetail {
     revision: number;
     /**
      *
-     * @type {{ [key: string]: any; }}
+     * @type {SignatureResponse}
      * @memberof InspectionDetail
      */
-    signature?: { [key: string]: any; } | null;
+    signature?: SignatureResponse | null;
     /**
      *
      * @type {Date}
@@ -318,7 +325,7 @@ export function InspectionDetailFromJSONTyped(json: any, ignoreDiscriminator: bo
         'origin': json['origin'] == null ? undefined : json['origin'],
         'readings': json['readings'] == null ? undefined : ReadingsResponseFromJSON(json['readings']),
         'revision': json['revision'],
-        'signature': json['signature'] == null ? undefined : json['signature'],
+        'signature': json['signature'] == null ? undefined : SignatureResponseFromJSON(json['signature']),
         'startedAt': json['started_at'] == null ? undefined : (new Date(json['started_at'])),
         'status': json['status'],
         'title': json['title'] == null ? undefined : json['title'],
@@ -362,7 +369,7 @@ export function InspectionDetailToJSONTyped(value?: InspectionDetail | null, ign
         'origin': value['origin'],
         'readings': ReadingsResponseToJSON(value['readings']),
         'revision': value['revision'],
-        'signature': value['signature'],
+        'signature': SignatureResponseToJSON(value['signature']),
         'started_at': value['startedAt'] == null ? undefined : ((value['startedAt'] as any).toISOString()),
         'status': value['status'],
         'title': value['title'],

@@ -204,9 +204,11 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **completeInspection**
-> InspectionDetail completeInspection(inspectionId)
+> InspectionDetail completeInspection(inspectionId, completeInspectionRequest)
 
 Complete Inspection
+
+Signature capture is the final step of completion (Phase 7.8) -- signer identity (`current_user.uid`/`role_key`) always comes from the verified token, never from the request body.
 
 ### Example
 ```dart
@@ -214,9 +216,10 @@ import 'package:fev_api_client/api.dart';
 
 final api = FevApiClient().getInspectionsApi();
 final String inspectionId = inspectionId_example; // String |
+final CompleteInspectionRequest completeInspectionRequest = ; // CompleteInspectionRequest |
 
 try {
-    final response = api.completeInspection(inspectionId);
+    final response = api.completeInspection(inspectionId, completeInspectionRequest);
     print(response);
 } catch on DioException (e) {
     print('Exception when calling InspectionsApi->completeInspection: $e\n');
@@ -228,6 +231,7 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **inspectionId** | **String**|  |
+ **completeInspectionRequest** | [**CompleteInspectionRequest**](CompleteInspectionRequest.md)|  |
 
 ### Return type
 
@@ -239,7 +243,7 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

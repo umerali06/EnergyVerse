@@ -172,6 +172,25 @@ function readingsFixture(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function signatureFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    strokes: [
+      {
+        points: [
+          { x: 0.1, y: 0.2 },
+          { x: 0.8, y: 0.6 },
+        ],
+      },
+    ],
+    signerUid: "demo-acme-field_inspector",
+    signerName: "Alex Field Inspector",
+    signerRole: "field_inspector",
+    signedAt: new Date("2026-01-03T00:00:00Z"),
+    inspectionRevision: 2,
+    ...overrides,
+  };
+}
+
 function checklistTemplateDetail(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: "template-1",
@@ -424,5 +443,43 @@ describe("inspection detail page", () => {
     const readingsSection = screen.getByTestId("readings-section");
     expect(within(readingsSection).queryByText(/Priority:/)).not.toBeInTheDocument();
     expect(within(readingsSection).queryByText("Leak observed")).not.toBeInTheDocument();
+  });
+
+  it("shows an honest empty state when the inspection has not been signed off yet", async () => {
+    renderDetail();
+    await screen.findByText("Q3 Routine Inspection");
+    expect(screen.getByText("This inspection has not been signed off yet.")).toBeInTheDocument();
+  });
+
+  it("renders the signer identity, timestamp, valid-at-revision status, and stroke preview", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({ status: "completed", signature: signatureFixture() }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const signatureSection = screen.getByTestId("signature-section");
+    expect(within(signatureSection).getByText("Alex Field Inspector")).toBeInTheDocument();
+    expect(within(signatureSection).getByText("Field inspector")).toBeInTheDocument();
+    expect(within(signatureSection).getByText("Signed")).toBeInTheDocument();
+    expect(within(signatureSection).getByText("Valid at revision 2")).toBeInTheDocument();
+    expect(within(signatureSection).getByRole("img", { name: "Signature" })).toBeInTheDocument();
+  });
+
+  it("flags a signature as superseded once the inspection's revision has moved past it", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({
+        status: "completed",
+        revision: 3,
+        signature: signatureFixture({ inspectionRevision: 2 }),
+      }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const signatureSection = screen.getByTestId("signature-section");
+    expect(
+      within(signatureSection).getByText("Superseded (signed revision 2, now at 3)"),
+    ).toBeInTheDocument();
   });
 });

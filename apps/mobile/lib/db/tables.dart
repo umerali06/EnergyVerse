@@ -63,6 +63,21 @@ class LocalInspections extends Table {
   /// uses (an `update` outbox mutation), not a dedicated mutation type.
   /// `null` means the readings step hasn't been filled in yet.
   TextColumn get readings => text().nullable()();
+
+  /// The server's confirmed `InspectionDetail.signature` (Phase 7.8) --
+  /// `SignatureResponse` JSON, `null` until the inspector has signed and
+  /// that signature has synced. Written only from a server response (see
+  /// [LocalInspectionsRepository._upsertFromServer]), never optimistically,
+  /// since the signer identity/timestamp are server-derived and there's
+  /// nothing honest to echo locally before sync confirms them.
+  TextColumn get signature => text().nullable()();
+
+  /// The strokes just drawn on-device, cached so the drawing itself (not
+  /// the server-verified identity) is visible immediately after signing
+  /// offline and survives an app restart before the `complete` outbox
+  /// mutation syncs. Cleared the moment [signature] is populated from a
+  /// synced server response, or if a conflict forces a re-sign.
+  TextColumn get pendingSignatureStrokes => text().nullable()();
   DateTimeColumn get startedAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
   RealColumn get gpsLat => real().nullable()();

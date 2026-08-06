@@ -253,6 +253,51 @@ ReadingsInput _readingsResponseToInput(ReadingsResponse response) {
         : ReadingsInputPriorityLevelEnum.valueOf(response.priorityLevel!.name));
 }
 
+/// The server-confirmed digital signature (Phase 7.8) -- a single nullable
+/// object, same posture as [_decodeReadings]/[_encodeReadings]. Unlike
+/// readings, this is only ever written from a synced server response (see
+/// [LocalInspectionsRepository._upsertFromServer]): signer identity/
+/// timestamp are server-derived, so there's no honest optimistic value to
+/// echo here before sync confirms it -- see [_decodeSignatureStrokes] for
+/// what's shown in the meantime.
+SignatureResponse? _decodeSignature(String? json) {
+  if (json == null) return null;
+  return standardSerializers.deserializeWith(
+    SignatureResponse.serializer,
+    jsonDecode(json) as Map<String, dynamic>,
+  );
+}
+
+String? _encodeSignature(SignatureResponse? signature) {
+  if (signature == null) return null;
+  return jsonEncode(
+    standardSerializers.serializeWith(SignatureResponse.serializer, signature),
+  );
+}
+
+/// The just-drawn strokes, cached locally the moment the inspector signs
+/// (see [LocalInspectionsRepository.completeInspection]) so the drawing
+/// itself is visible immediately -- before the `complete` outbox mutation
+/// syncs and before [_decodeSignature] has anything to show.
+List<SignatureStrokeInput>? _decodeSignatureStrokes(String? json) {
+  if (json == null) return null;
+  final decoded = jsonDecode(json) as List<dynamic>;
+  return decoded
+      .map((stroke) => standardSerializers.deserializeWith(
+            SignatureStrokeInput.serializer,
+            stroke as Map<String, dynamic>,
+          )!)
+      .toList();
+}
+
+String _encodeSignatureStrokes(List<SignatureStrokeInput> strokes) =>
+    jsonEncode(
+      strokes
+          .map((stroke) => standardSerializers.serializeWith(
+              SignatureStrokeInput.serializer, stroke))
+          .toList(),
+    );
+
 String _encodeChecklistItems(List<ChecklistTemplateItem> items) => jsonEncode(
       items
           .map((item) => standardSerializers.serializeWith(
@@ -393,7 +438,10 @@ class LocalInspectionRecord {
         media = _decodeInspectionMedia(row.media),
         annotations = _decodeAnnotations(row.annotations),
         voiceNotes = _decodeVoiceNotes(row.voiceNotes),
-        readings = _decodeReadings(row.readings);
+        readings = _decodeReadings(row.readings),
+        signature = _decodeSignature(row.signature),
+        pendingSignatureStrokes =
+            _decodeSignatureStrokes(row.pendingSignatureStrokes);
 
   final LocalInspection row;
   final List<ChecklistTemplateItem> checklistItemsSnapshot;
@@ -421,6 +469,16 @@ class LocalInspectionRecord {
   /// [LocalInspectionsRepository.updateInspection]), same posture as
   /// [annotations].
   final ReadingsResponse? readings;
+
+  /// The server-confirmed digital signature (Phase 7.8) -- `null` until the
+  /// inspector has signed and that signature has synced. See
+  /// [pendingSignatureStrokes] for what to show in the meantime.
+  final SignatureResponse? signature;
+
+  /// The strokes drawn on-device for a signature that hasn't synced yet
+  /// (survives an app restart). `null` once [signature] is populated, or if
+  /// no signature has been drawn at all.
+  final List<SignatureStrokeInput>? pendingSignatureStrokes;
 
   String get id => row.id;
   String get assetId => row.assetId;
@@ -613,6 +671,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
             voiceNotes: drift.Value(
                 _encodeVoiceNotes(detail.voiceNotes?.toList() ?? const [])),
             readings: drift.Value(_encodeReadings(detail.readings)),
+            signature: drift.Value(_encodeSignature(detail.signature)),
+            pendingSignatureStrokes: const drift.Value(null),
             startedAt: drift.Value(detail.startedAt),
             completedAt: drift.Value(detail.completedAt),
             gpsLat: drift.Value(detail.gpsLat?.toDouble()),
@@ -798,7 +858,19 @@ class LocalInspectionsRepository extends ChangeNotifier {
     });
   }
 
-  Future<void> completeInspection(String id) async {
+  /// Signature capture is the final step of completion (Phase 7.8) -- there
+  /// is no separate sign-then-complete method. [strokes] is bound to
+  /// [LocalInspection.baseRevision] (falling back to [LocalInspection.
+  /// revision] for a `local_only` draft that has never reached the server)
+  /// exactly like [updateInspection]'s `expectedRevision`: if the server has
+  /// since moved past that revision, the sync engine's existing
+  /// `revision_conflict` handling (`SyncEngine._handleConflictOrInvalidTransition`)
+  /// rejects it and surfaces the standard conflict sheet -- the offline
+  /// pre-completion race the phase brief calls "edited after signing".
+  Future<void> completeInspection(
+    String id, {
+    required List<SignatureStrokeInput> strokes,
+  }) async {
     await _db.transaction(() async {
       final current = await (_db.select(_db.localInspections)
             ..where((t) => t.id.equals(id)))
@@ -809,6 +881,7 @@ class LocalInspectionsRepository extends ChangeNotifier {
       if (missing.isNotEmpty) throw ChecklistIncompleteError(missing);
 
       final now = DateTime.now().toUtc();
+      final expectedRevision = current.baseRevision ?? current.revision;
       await (_db.update(_db.localInspections)..where((t) => t.id.equals(id)))
           .write(
         LocalInspectionsCompanion(
@@ -816,10 +889,22 @@ class LocalInspectionsRepository extends ChangeNotifier {
           completedAt: drift.Value(now),
           updatedAt: drift.Value(now),
           syncState: const drift.Value('pending_sync'),
+          pendingSignatureStrokes: drift.Value(_encodeSignatureStrokes(strokes)),
         ),
       );
+      final request = CompleteInspectionRequest(
+        (b) => b
+          ..expectedRevision = expectedRevision
+          ..strokes.replace(strokes),
+      );
       await _enqueue(
-          inspectionId: id, type: OutboxMutationType.complete, payload: '{}');
+        inspectionId: id,
+        type: OutboxMutationType.complete,
+        payload: jsonEncode(
+          standardSerializers.serializeWith(
+              CompleteInspectionRequest.serializer, request),
+        ),
+      );
     });
   }
 
@@ -1451,6 +1536,18 @@ class LocalInspectionsRepository extends ChangeNotifier {
             ..where((t) => t.id.equals(inspectionId)))
           .write(
         LocalInspectionsCompanion(
+          // A conflict means every optimistic local write for this
+          // inspection is suspect -- including a `complete`'s optimistic
+          // status flip, which never actually landed server-side if this
+          // conflict came from a stale-revision signature (Phase 7.8). Sync
+          // status/timestamps from the fresh snapshot now rather than leave
+          // a false "completed" showing: the inspector then sees the real
+          // (e.g. `in_progress`) status and re-signs via the normal
+          // Complete button, which is the whole re-sign flow.
+          status: drift.Value(dartEnumNameToWire(serverSnapshot.status.name)),
+          startedAt: drift.Value(serverSnapshot.startedAt),
+          completedAt: drift.Value(serverSnapshot.completedAt),
+          pendingSignatureStrokes: const drift.Value(null),
           syncState: const drift.Value('conflict'),
           errorMessage: const drift.Value(null),
           conflictServerSnapshot: drift.Value(

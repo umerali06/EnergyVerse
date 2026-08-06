@@ -15,10 +15,11 @@ from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.inspections import InspectionRepository
+from app.db.repositories.users import UserRepository
 from app.inspections.service import InspectionService, get_inspection_service
 from app.main import app
 from app.models.base import CompanyScope
-from app.models.entities import CurrentUser
+from app.models.entities import CurrentUser, UserCreate
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
 from app.rbac.dependencies import get_access_denial_audit
 from app.storage.service import AssetMediaStorage, InspectionMediaStorage
@@ -43,13 +44,30 @@ def wiring() -> dict[str, Any]:
 
     audit = AuditService(AuditLogRepository(client))
     bucket = FakeBucket()
+    users = UserRepository(client, audit)
     service = InspectionService(
         inspections=InspectionRepository(client, audit),
         assets=AssetRepository(client, audit),
         checklist_templates=ChecklistTemplateRepository(client, audit),
+        users=users,
         storage=InspectionMediaStorage(bucket),
     )
-
+    # `complete_inspection` (Phase 7.8) looks up the signer's display_name
+    # server-side -- every identity `_identity()` builds must have a backing
+    # User doc, mirroring how `get_current_user` guarantees this in production.
+    asyncio.run(
+        users.create(
+            CompanyScope(company_id=ACME_COMPANY_ID),
+            UserCreate(
+                id="test-user",
+                email="test-user@example.invalid",
+                display_name="Test Inspector",
+                role_id="test-role",
+                status="active",
+            ),
+            "seed-script",
+        )
+    )
     app.dependency_overrides[get_inspection_service] = lambda: service
     app.dependency_overrides[get_access_denial_audit] = lambda: audit
     yield {"client": client, "bucket": bucket}
@@ -91,6 +109,29 @@ def _create_inspection(identity: CurrentUser, **overrides: Any) -> Any:
     }
     payload.update(overrides)
     return _request(identity, "POST", "/api/v1/inspections", json=payload)
+
+
+_DEFAULT_SIGNATURE_STROKES = [
+    {"points": [{"x": 0.1, "y": 0.2}, {"x": 0.8, "y": 0.6}, {"x": 0.4, "y": 0.9}]}
+]
+
+
+def _complete_inspection(
+    identity: CurrentUser,
+    inspection_id: str,
+    *,
+    expected_revision: int,
+    strokes: list[list[dict[str, float]]] | None = None,
+    **extra: Any,
+) -> Any:
+    payload: dict[str, Any] = {
+        "strokes": strokes if strokes is not None else _DEFAULT_SIGNATURE_STROKES,
+        "expected_revision": expected_revision,
+    }
+    payload.update(extra)
+    return _request(
+        identity, "POST", f"/api/v1/inspections/{inspection_id}/complete", json=payload
+    )
 
 
 # --- tenant isolation and RBAC ------------------------------------------------
@@ -227,9 +268,7 @@ def test_update_inspection_rejects_stale_expected_revision(wiring: dict[str, Any
 
 def test_update_inspection_locked_once_completed(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
-    complete = _request(
-        _identity(), "POST", f"/api/v1/inspections/{created['id']}/complete"
-    )
+    complete = _complete_inspection(_identity(), created["id"], expected_revision=1)
     assert complete.status_code == 200
 
     response = _request(
@@ -441,7 +480,7 @@ def test_full_lifecycle_start_complete(wiring: dict[str, Any]) -> None:
     assert started.json()["status"] == "in_progress"
     assert started.json()["started_at"] is not None
 
-    incomplete = _request(_identity(), "POST", f"/api/v1/inspections/{inspection_id}/complete")
+    incomplete = _complete_inspection(_identity(), inspection_id, expected_revision=3)
     assert incomplete.status_code == 422
     assert incomplete.json()["error"] == "checklist_incomplete"
     missing = set(incomplete.json()["details"]["missing_item_ids"])
@@ -459,17 +498,19 @@ def test_full_lifecycle_start_complete(wiring: dict[str, Any]) -> None:
             ]
         },
     )
-    completed = _request(_identity(), "POST", f"/api/v1/inspections/{inspection_id}/complete")
+    completed = _complete_inspection(_identity(), inspection_id, expected_revision=4)
     assert completed.status_code == 200
     assert completed.json()["status"] == "completed"
     assert completed.json()["completed_at"] is not None
+    signature = completed.json()["signature"]
+    assert signature["signer_uid"] == "test-user"
+    assert signature["signer_name"] == "Test Inspector"
+    assert signature["inspection_revision"] == completed.json()["revision"] == 5
 
 
 def test_complete_without_any_template_succeeds(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
-    response = _request(
-        _identity(), "POST", f"/api/v1/inspections/{created['id']}/complete"
-    )
+    response = _complete_inspection(_identity(), created["id"], expected_revision=1)
     assert response.status_code == 200
     assert response.json()["status"] == "completed"
 
@@ -487,7 +528,7 @@ def test_start_twice_returns_invalid_transition(wiring: dict[str, Any]) -> None:
 def test_cancel_after_completed_returns_invalid_transition(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
     inspection_id = created["id"]
-    _request(_identity(), "POST", f"/api/v1/inspections/{inspection_id}/complete")
+    _complete_inspection(_identity(), inspection_id, expected_revision=1)
     response = _request(_identity(), "POST", f"/api/v1/inspections/{inspection_id}/cancel")
     assert response.status_code == 409
     assert response.json()["error"] == "invalid_transition"
@@ -500,6 +541,123 @@ def test_cancel_from_draft_succeeds(wiring: dict[str, Any]) -> None:
     )
     assert response.status_code == 200
     assert response.json()["status"] == "cancelled"
+
+
+# --- digital signature (Phase 7.8) ----------------------------------------------
+
+
+def test_complete_persists_signature_strokes_and_role(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    strokes = [
+        {"points": [{"x": 0.05, "y": 0.1}, {"x": 0.5, "y": 0.5}, {"x": 0.95, "y": 0.9}]}
+    ]
+    response = _complete_inspection(
+        _identity(), created["id"], expected_revision=1, strokes=strokes
+    )
+    assert response.status_code == 200
+    signature = response.json()["signature"]
+    assert signature["strokes"] == strokes
+    assert signature["signer_role"] == "custom"
+    assert signature["signed_at"] is not None
+
+
+def test_complete_requires_strokes(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/inspections/{created['id']}/complete",
+        json={"expected_revision": 1},
+    )
+    assert response.status_code == 422
+
+
+def test_complete_requires_expected_revision(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/inspections/{created['id']}/complete",
+        json={"strokes": _DEFAULT_SIGNATURE_STROKES},
+    )
+    assert response.status_code == 422
+
+
+def test_complete_rejects_stale_expected_revision(wiring: dict[str, Any]) -> None:
+    """The pre-completion offline race (D-0xx): a signature drawn against a
+    revision the server has since moved past is rejected outright, forcing
+    the client to refresh and re-sign -- never silently completed against a
+    stale view."""
+    created = _create_inspection(_identity()).json()
+    _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}",
+        json={"notes": "an edit that lands before the signature syncs"},
+    )
+    response = _complete_inspection(_identity(), created["id"], expected_revision=1)
+    assert response.status_code == 409
+    assert response.json()["error"] == "revision_conflict"
+    assert response.json()["details"]["current_revision"] == 2
+
+
+def test_complete_signer_identity_is_server_derived_not_client_supplied(
+    wiring: dict[str, Any],
+) -> None:
+    """A spoofed client-supplied signer must be ignored -- identity always
+    comes from the authenticated `CurrentUser`, never the request body."""
+    created = _create_inspection(_identity()).json()
+    response = _complete_inspection(
+        _identity(),
+        created["id"],
+        expected_revision=1,
+        signer_uid="attacker-uid",
+        signer_name="Not The Real Signer",
+        signer_role="super_admin",
+    )
+    assert response.status_code == 200
+    signature = response.json()["signature"]
+    assert signature["signer_uid"] == "test-user"
+    assert signature["signer_name"] == "Test Inspector"
+    assert signature["signer_role"] == "custom"
+
+
+def test_complete_binds_signature_to_final_inspection_revision(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}",
+        json={"notes": "one edit before signing"},
+    )
+    response = _complete_inspection(_identity(), created["id"], expected_revision=2)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["signature"]["inspection_revision"] == body["revision"] == 3
+
+
+def test_complete_without_signature_is_rejected(wiring: dict[str, Any]) -> None:
+    """There is no way to complete an inspection without signing -- signature
+    capture is the mandatory final step of completion (spec 7.2), not an
+    optional add-on."""
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/inspections/{created['id']}/complete",
+        json={},
+    )
+    assert response.status_code == 422
+
+
+def test_completed_inspection_signature_survives_get(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    _complete_inspection(_identity(), created["id"], expected_revision=1)
+    fetched = _request(
+        _identity(), "GET", f"/api/v1/inspections/{created['id']}"
+    ).json()
+    assert fetched["signature"]["signer_uid"] == "test-user"
+    assert fetched["signature"]["inspection_revision"] == 2
 
 
 # --- soft delete ---------------------------------------------------------------
@@ -1267,7 +1425,7 @@ def test_readings_update_replaces_whole_object(wiring: dict[str, Any]) -> None:
 
 def test_readings_locked_once_completed(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
-    complete = _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+    complete = _complete_inspection(_identity(), created["id"], expected_revision=1)
     assert complete.status_code == 200
 
     response = _put_readings(_identity(), created["id"], condition="Poor")
@@ -1305,7 +1463,7 @@ def test_complete_inspection_rolls_up_asset_health(
     created = _create_inspection(_identity()).json()
     _put_readings(_identity(), created["id"], condition=condition)
 
-    response = _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+    response = _complete_inspection(_identity(), created["id"], expected_revision=2)
     assert response.status_code == 200
     assert _asset_status(wiring) == expected_status
 
@@ -1316,7 +1474,7 @@ def test_complete_inspection_without_readings_leaves_asset_status_untouched(
     assert _asset_status(wiring) == "Healthy"
     created = _create_inspection(_identity()).json()
 
-    response = _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+    response = _complete_inspection(_identity(), created["id"], expected_revision=1)
     assert response.status_code == 200
     assert _asset_status(wiring) == "Healthy"
 
@@ -1333,7 +1491,7 @@ def test_draft_readings_edit_does_not_change_asset_status(wiring: dict[str, Any]
 def test_asset_status_rollup_is_audited(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
     _put_readings(_identity(), created["id"], condition="Critical")
-    _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/complete")
+    _complete_inspection(_identity(), created["id"], expected_revision=2)
 
     logs = asyncio.run(
         AuditLogRepository(wiring["client"]).list_since(
@@ -1376,9 +1534,7 @@ def test_completed_critical_inspection_moves_dashboard_critical_assets_kpi(
 
         created = _create_inspection(_identity()).json()
         _put_readings(_identity(), created["id"], condition="Critical")
-        complete = _request(
-            _identity(), "POST", f"/api/v1/inspections/{created['id']}/complete"
-        )
+        complete = _complete_inspection(_identity(), created["id"], expected_revision=2)
         assert complete.status_code == 200
 
         after = _request(viewer, "GET", "/api/v1/dashboard/assets-summary").json()

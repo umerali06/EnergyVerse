@@ -14,6 +14,17 @@ import 'package:path/path.dart' as p;
 
 import '../support/fake_sync_api.dart';
 
+List<SignatureStrokeInput> _testStrokes() => [
+      SignatureStrokeInput((b) => b.points.addAll([
+            SignaturePointInput((p) => p
+              ..x = 0.1
+              ..y = 0.2),
+            SignaturePointInput((p) => p
+              ..x = 0.8
+              ..y = 0.6),
+          ])),
+    ];
+
 InspectionDetail _detailFrom({
   required String id,
   required int revision,
@@ -23,6 +34,7 @@ InspectionDetail _detailFrom({
   List<AnnotationResponse> annotations = const [],
   List<VoiceNoteResponse> voiceNotes = const [],
   ReadingsResponse? readings,
+  SignatureResponse? signature,
 }) {
   final now = DateTime.utc(2026, 1, 1);
   return InspectionDetail(
@@ -40,11 +52,36 @@ InspectionDetail _detailFrom({
       ..annotations.replace(annotations)
       ..voiceNotes.replace(voiceNotes)
       ..readings = readings?.toBuilder()
+      ..signature = signature?.toBuilder()
       ..clientCreatedAt = now
       ..createdAt = now
       ..updatedAt = now,
   );
 }
+
+/// Mirrors the real backend's `_to_detail`/`complete_inspection`: the
+/// signature response carries the server-derived signer identity and the
+/// revision the completed inspection ends up at (current + 1), never the
+/// client-supplied strokes' shape alone.
+SignatureResponse _signatureResponseFrom(
+  CompleteInspectionRequest request, {
+  required int inspectionRevision,
+}) =>
+    SignatureResponse(
+      (b) => b
+        ..strokes.replace(request.strokes.map((stroke) => SignatureStrokeResponse(
+              (sb) => sb.points.addAll(stroke.points.map((p) => SignaturePointResponse(
+                    (pb) => pb
+                      ..x = p.x
+                      ..y = p.y,
+                  ))),
+            )))
+        ..signerUid = 'user-1'
+        ..signerName = 'Test Inspector'
+        ..signerRole = 'field_inspector'
+        ..signedAt = DateTime.utc(2026, 1, 1)
+        ..inspectionRevision = inspectionRevision,
+    );
 
 /// Mirrors the real backend's `_to_detail`: an `update` mutation's response
 /// always echoes the inspection's CURRENT full `readings` (server-stamped
@@ -242,9 +279,14 @@ void main() {
         dispatched.add('update');
         return _detailFrom(id: id, revision: 3);
       },
-      completeInspection: (id) async {
+      completeInspection: (id, request) async {
         dispatched.add('complete');
-        return _detailFrom(id: id, revision: 4, status: 'completed');
+        return _detailFrom(
+          id: id,
+          revision: 4,
+          status: 'completed',
+          signature: _signatureResponseFrom(request, inspectionRevision: 4),
+        );
       },
     );
     final repository = LocalInspectionsRepository(db: db, api: api);
@@ -262,7 +304,7 @@ void main() {
       version: 1,
       items: const [],
     );
-    await repository.completeInspection(id);
+    await repository.completeInspection(id, strokes: _testStrokes());
 
     await engine.syncNow();
 
@@ -272,6 +314,8 @@ void main() {
         .getSingle();
     expect(row.syncState, 'synced');
     expect(row.status, 'completed');
+    expect(row.signature, isNotNull);
+    expect(row.pendingSignatureStrokes, isNull);
   });
 
   test(
@@ -693,8 +737,12 @@ void main() {
       final api = FakeSyncApi(
         createInspection: (request) async =>
             _detailFrom(id: request.id, revision: 1),
-        completeInspection: (id) async =>
-            _detailFrom(id: id, revision: 2, status: 'completed'),
+        completeInspection: (id, request) async => _detailFrom(
+          id: id,
+          revision: 2,
+          status: 'completed',
+          signature: _signatureResponseFrom(request, inspectionRevision: 2),
+        ),
       );
       final repository = LocalInspectionsRepository(db: db, api: api);
       final mediaRepository = LocalMediaRepository(db: db);
@@ -725,7 +773,7 @@ void main() {
         sizeBytes: 1000,
         capturedAt: DateTime.utc(2026, 1, 1),
       );
-      await repository.completeInspection(id);
+      await repository.completeInspection(id, strokes: _testStrokes());
 
       await engine.syncNow();
 
@@ -884,8 +932,12 @@ void main() {
       final api = FakeSyncApi(
         createInspection: (request) async =>
             _detailFrom(id: request.id, revision: 1),
-        completeInspection: (id) async =>
-            _detailFrom(id: id, revision: 2, status: 'completed'),
+        completeInspection: (id, request) async => _detailFrom(
+          id: id,
+          revision: 2,
+          status: 'completed',
+          signature: _signatureResponseFrom(request, inspectionRevision: 2),
+        ),
       );
       final repository = LocalInspectionsRepository(db: db, api: api);
       final mediaRepository = LocalMediaRepository(db: db);
@@ -917,7 +969,7 @@ void main() {
         capturedAt: DateTime.utc(2026, 1, 1),
         durationMs: 15000,
       );
-      await repository.completeInspection(id);
+      await repository.completeInspection(id, strokes: _testStrokes());
 
       await engine.syncNow();
 

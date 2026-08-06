@@ -41,6 +41,7 @@ doc/CompanyApi.md
 doc/CompanyProfile.md
 doc/CompanyRegistrationRequest.md
 doc/CompanyRegistrationResponse.md
+doc/CompleteInspectionRequest.md
 doc/CreateAnnotationRequest.md
 doc/CreateAreaRequest.md
 doc/CreateAssetRequest.md
@@ -90,6 +91,11 @@ doc/RoleList.md
 doc/RoleSummary.md
 doc/RolesApi.md
 doc/ServiceResponse.md
+doc/SignaturePointInput.md
+doc/SignaturePointResponse.md
+doc/SignatureResponse.md
+doc/SignatureStrokeInput.md
+doc/SignatureStrokeResponse.md
 doc/SystemApi.md
 doc/UpdateAnnotationRequest.md
 doc/UpdateAreaRequest.md
@@ -171,6 +177,7 @@ lib/src/model/checklist_template_list_page.dart
 lib/src/model/company_profile.dart
 lib/src/model/company_registration_request.dart
 lib/src/model/company_registration_response.dart
+lib/src/model/complete_inspection_request.dart
 lib/src/model/create_annotation_request.dart
 lib/src/model/create_area_request.dart
 lib/src/model/create_asset_request.dart
@@ -213,6 +220,11 @@ lib/src/model/role_detail.dart
 lib/src/model/role_list.dart
 lib/src/model/role_summary.dart
 lib/src/model/service_response.dart
+lib/src/model/signature_point_input.dart
+lib/src/model/signature_point_response.dart
+lib/src/model/signature_response.dart
+lib/src/model/signature_stroke_input.dart
+lib/src/model/signature_stroke_response.dart
 lib/src/model/update_annotation_request.dart
 lib/src/model/update_area_request.dart
 lib/src/model/update_asset_request.dart
@@ -275,6 +287,7 @@ test/company_api_test.dart
 test/company_profile_test.dart
 test/company_registration_request_test.dart
 test/company_registration_response_test.dart
+test/complete_inspection_request_test.dart
 test/create_annotation_request_test.dart
 test/create_area_request_test.dart
 test/create_asset_request_test.dart
@@ -324,6 +337,11 @@ test/role_list_test.dart
 test/role_summary_test.dart
 test/roles_api_test.dart
 test/service_response_test.dart
+test/signature_point_input_test.dart
+test/signature_point_response_test.dart
+test/signature_response_test.dart
+test/signature_stroke_input_test.dart
+test/signature_stroke_response_test.dart
 test/system_api_test.dart
 test/update_annotation_request_test.dart
 test/update_area_request_test.dart

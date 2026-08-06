@@ -32,6 +32,7 @@ import {
   type ChecklistTemplateDetail,
   type ChecklistTemplateListPage,
   type CompanyProfile,
+  type CompleteInspectionRequest,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
   type CreateAssetRequest,
@@ -542,9 +543,16 @@ export class FevApiClient {
     );
   }
 
-  completeInspection(inspectionId: string, signal?: AbortSignal): Promise<InspectionDetail> {
+  completeInspection(
+    inspectionId: string,
+    request: CompleteInspectionRequest,
+    signal?: AbortSignal,
+  ): Promise<InspectionDetail> {
     return this.execute(() =>
-      this.inspections.completeInspection({ inspectionId }, signal ? { signal } : undefined),
+      this.inspections.completeInspection(
+        { inspectionId, completeInspectionRequest: request },
+        signal ? { signal } : undefined,
+      ),
     );
   }
 
