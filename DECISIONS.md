@@ -59,6 +59,8 @@
 | D-053 | Before/after model: independent tags, not linked pairs | **`InspectionMedia.before_after_tag` is a plain optional `before`/`after` value on each item, not a `pair_id` linking two specific items. Simpler to maintain (removing one photo never orphans a pair reference) and the comparison view lets the inspector pick any tagged before + any tagged after photo, not just one designated pair — a hand-rolled drag-to-reveal slider, no third-party comparison package.** | **RESOLVED — LOCKED** | 2026-08-02 |
 | D-054 | Damage annotation data model: normalized vector, one `points[]` shape for all five tools, AI-reusable | **`Inspection.annotations[]` (top-level, not nested under `media[]`), each carrying `media_local_id` + `shape` + normalized (0-1) `points[]` + `color`/`damage_type`/`note` + `source` (`manual`\|`ai`, default `manual`) + nullable `confidence`. One `points[]` field covers point/rectangle/circle/arrow/freehand instead of a shape-specific schema, so Phase 7.10's AI-detected regions render on the exact same overlay model without a schema change.** | **RESOLVED — LOCKED** | 2026-08-05 |
 | D-055 | Annotation mutation protocol mirrors 7.4 media, not checklist-autosave revision | **Three new `inspections` routes (create/update/delete annotation), idempotent by client-generated annotation `id`, deliberately carrying no `expected_revision` — annotation traffic must never collide with 7.3's checklist-autosave revision bump, same rationale as D-051's media decision. Mobile rides the existing 7.2 record outbox (three new `OutboxMutationType` values), never a separate queue, but writes to the local cache optimistically (unlike media) since there's no secondary upload step between "drawn" and "visible offline."** | **RESOLVED — LOCKED** | 2026-08-05 |
+| D-056 | Voice-note recording caps: 10 minutes, AAC/M4A, pulsing level meter | **`kMaxVoiceNoteDuration` = 10 minutes (mirrors D-052's video-cap rationale: long enough for a detailed narrated walkthrough, short enough that a forgotten recording doesn't produce an outsized upload over field connectivity), encoded as AAC in an M4A container (`AudioEncoder.aacLc` — compact for a given recording length, hardware-encoded on both iOS/Android, ~9.6MB worst case at the cap). The live recording indicator is a single pulsing level meter reacting to input amplitude, not a scrolling waveform history — chosen for the same gloves-on-field-friendly reason the brief called for "simple": one glanceable indicator, no additional UI surface to build/test beyond it.** | **RESOLVED — LOCKED** | 2026-08-06 |
+| D-057 | Voice notes reuse the 7.4 media pipeline end to end, under their own Storage namespace | **A voice note's bytes go through the exact same `MediaQueue`/`MediaUploadWorker` a photo/video does (`kind == 'audio'`, a new nullable `durationMs` column) rather than a new queue/worker — the drain loop, backoff, progress tracking, and cancel-on-remove are 100% shared code; only the storage subfolder (`voice/` vs `media/`, via a new `voice_object_path()`/`inspectionVoiceNoteStoragePath()` pair mirroring the existing `object_path()`) and the outbox mutation type (`attach_voice_note`/`edit_voice_note`/`detach_voice_note` vs `attach_media`/`edit_media`/`detach_media`) differ. Backend mutation protocol mirrors D-051/D-055 exactly: idempotent by `local_id`/`voice_note_id`, no `expected_revision`. `Inspection.voice_notes[]` (7.1's untyped placeholder) becomes a real `VoiceNote` entity, still its own top-level array, not nested under `media[]`.** | **RESOLVED — LOCKED** | 2026-08-06 |
 
 ## Decision Details
 
@@ -1357,6 +1359,62 @@
   have last-write-wins semantics with no conflict surfaced, unlike a
   concurrent checklist edit.
 
+### D-056 — Voice-Note Recording Caps: 10 Minutes, AAC/M4A, Pulsing Level Meter
+
+- **Decision owner:** Product owner, confirmed explicitly when this phase's
+  brief flagged audio format/length caps and waveform depth as genuine
+  ambiguities not to assume.
+- **Decision:** A single voice-note recording is capped at 10 minutes,
+  encoded as AAC in an M4A container, auto-stopping at the cap the same way
+  7.4's video recording auto-stops at its own 3-minute cap. The live
+  recording indicator is a single pulsing level meter (a circle that grows/
+  brightens with input amplitude) rather than a scrolling waveform-history
+  view.
+- **Consequences:** A worst-case recording is ~9.6MB (10 minutes at a
+  generous 128kbps AAC bitrate), comfortably under the server's 20MB
+  `INSPECTION_VOICE_NOTE_MAX_SIZE_BYTES` ceiling with headroom for encoder
+  variance — an inspector never hits the size cap before the duration cap
+  does. The level-meter choice trades a more polished voice-memo-app look
+  for less new UI surface to build and widget-test; if a future phase needs
+  a richer visualization (e.g. a transcription-time waveform scrubber),
+  it's a new component, not a rework of this one, since nothing about the
+  recording pipeline itself depends on how the live meter is rendered.
+
+### D-057 — Voice Notes Reuse the 7.4 Media Pipeline End to End, Under Their Own Storage Namespace
+
+- **Decision owner:** Engineering, per the phase brief's explicit instruction
+  to reuse 7.1's `voice_notes[]` container, 7.2's offline engine, and 7.4's
+  media upload worker/queue rather than building parallel infrastructure.
+- **Decision:** `MediaQueue`/`MediaUploadWorker` (Phase 7.4) gain a third
+  `kind` value, `'audio'`, plus a nullable `durationMs` column — no new
+  Drift table, no new worker class. `LocalMediaRepository.enqueueCapture`
+  and `MediaUploadWorker._registerReference` each add one `kind`-based
+  branch; every other line of the drain loop, backoff formula, progress
+  stream, and cancel-on-remove logic is unmodified, shared code. On the
+  backend, `attach_voice_note`/`update_voice_note`/`detach_voice_note`
+  mirror `attach_media`/`update_media`/`detach_media` field-for-field
+  (idempotent by `local_id`/`voice_note_id`, no `expected_revision`, same
+  rationale as D-051/D-055), and `InspectionMediaStorage` gains a sibling
+  `voice_object_path()` alongside `object_path()` so voice bytes land under
+  `.../inspections/{id}/voice/` rather than `.../media/` — a distinct
+  namespace even though the direct-upload mechanics are identical.
+  `Inspection.voice_notes[]` (untyped since 7.1) becomes a typed `VoiceNote`
+  entity, staying a top-level array rather than nesting under `media[]`,
+  matching D-054's `annotations[]` precedent for a phase-specific sub-
+  resource of an inspection.
+- **Consequences:** Zero new offline-sync infrastructure to maintain or
+  test independently — every bug class the 7.4 media tests already cover
+  (backoff, retry, cancel-in-flight, restart persistence, progress
+  tracking) is structurally guaranteed to apply to voice notes too, proven
+  by one new worker test asserting an audio item drains through the exact
+  same `syncNow()` path and registers `attach_voice_note` instead of
+  `attach_media`. The cost: any future change to `MediaQueue`'s shared
+  columns/worker logic now has three kinds to reason about, not two, and a
+  consumer of the shared stream (`InspectionMediaSection`'s photo/video
+  gallery) must actively filter out kinds it doesn't own — a real gap this
+  phase's own tests caught (see the Phase 7.6 architecture section) after
+  the gallery was found rendering queued audio rows as broken tiles.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1677,3 +1735,34 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   build` + bundle-budget clean; contracts regenerated (5 new models, 3
   new operations) with a clean drift check; real-creds round-trip
   verified end to end against the live Firebase project.
+- **2026-08-06 — Phase 7.6 (voice notes — record + attach to
+  inspection):** Added D-056 and D-057. Recording caps at 10 minutes of
+  AAC/M4A with a pulsing level meter, not a scrolling waveform (D-056,
+  resolved with the product owner after the phase brief flagged both as
+  genuine ambiguities). Voice notes reuse the 7.4 `MediaQueue`/
+  `MediaUploadWorker` end to end — a new `kind: 'audio'` value plus a
+  `durationMs` column, no new queue or worker class — under their own
+  Storage namespace (`voice/`, via a new `voice_object_path()`/
+  `inspectionVoiceNoteStoragePath()` pair) and their own outbox mutation
+  types (`attach_voice_note`/`edit_voice_note`/`detach_voice_note`),
+  mirroring D-051/D-055's media/annotation mutation-protocol precedent
+  (D-057). `Inspection.voice_notes[]` (the 7.1-era untyped placeholder) is
+  now a real `VoiceNote` model. One real bug this phase's own tests caught
+  before merge (not a production incident, since it never shipped): the
+  7.4 photo/video gallery read the shared `MediaQueue` stream without
+  filtering out `kind == 'audio'`, so a queued voice recording would have
+  rendered as a broken tile in the wrong grid — fixed by filtering both
+  sections to their own kind. Backend (303 tests, up from 291 — 12 new for
+  attach/update/detach voice note: content-type/size/duration validation,
+  idempotency, cross-tenant, revision-isolation from checklist autosave),
+  mobile (214 tests, up from 193 — a new `voice_recording_screen_test.dart`
+  plus new audio cases across `local_media_repository_test.dart`/
+  `media_upload_worker_test.dart`/`sync_engine_test.dart`/
+  `inspection_detail_screen_test.dart`), and admin (202 passed + 6
+  credential-only skips, up from 200 — 2 new for the read-only voice-notes
+  section: empty state, playback/duration/checklist-link rendering) all
+  green; `flutter analyze`/ruff/mypy/ESLint clean; `next build` clean;
+  contracts regenerated (3 new models, 3 new operations) with a clean
+  drift check; real-creds round-trip verified end to end against the live
+  Firebase project, including an actual HTTP fetch of the signed URL
+  confirming it serves back the exact uploaded bytes.

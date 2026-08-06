@@ -147,6 +147,16 @@ abstract interface class ApiContract {
     UpdateInspectionMediaRequest request,
   );
   Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId);
+  Future<InspectionDetail> attachInspectionVoiceNote(
+    String inspectionId,
+    AttachVoiceNoteRequest request,
+  );
+  Future<InspectionDetail> updateInspectionVoiceNote(
+    String inspectionId,
+    String voiceNoteId,
+    UpdateVoiceNoteRequest request,
+  );
+  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId);
   Future<InspectionDetail> createInspectionAnnotation(
     String inspectionId,
     CreateAnnotationRequest request,
@@ -978,6 +988,55 @@ class ApiService implements ApiContract {
       final response = await _client
           .getInspectionsApi()
           .detachInspectionMedia(inspectionId: inspectionId, mediaId: mediaId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> attachInspectionVoiceNote(
+    String inspectionId,
+    AttachVoiceNoteRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().attachInspectionVoiceNote(
+            inspectionId: inspectionId,
+            attachVoiceNoteRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> updateInspectionVoiceNote(
+    String inspectionId,
+    String voiceNoteId,
+    UpdateVoiceNoteRequest request,
+  ) async {
+    try {
+      final response = await _client.getInspectionsApi().updateInspectionVoiceNote(
+            inspectionId: inspectionId,
+            voiceNoteId: voiceNoteId,
+            updateVoiceNoteRequest: request,
+          );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> detachInspectionVoiceNote(
+    String inspectionId,
+    String voiceNoteId,
+  ) async {
+    try {
+      final response = await _client
+          .getInspectionsApi()
+          .detachInspectionVoiceNote(inspectionId: inspectionId, voiceNoteId: voiceNoteId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);

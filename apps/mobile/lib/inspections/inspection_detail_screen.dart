@@ -8,6 +8,7 @@ import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
 import '../media/inspection_media_gallery.dart';
+import '../media/inspection_voice_notes_section.dart';
 import '../sync/sync_engine.dart';
 import 'inspections_screen.dart' show inspectionStatusFor, inspectionStatusLabel, syncStateBadge;
 import 'local_inspections_repository.dart';
@@ -254,6 +255,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
               annotations: inspection.annotations,
               editable: editable,
             ),
+            const SizedBox(height: DsSpacing.s5),
+            InspectionVoiceNotesSection(
+              key: ValueKey('voice-${inspection.id}'),
+              inspectionId: inspection.id,
+              checklistItems: snapshotItems,
+              serverVoiceNotes: inspection.voiceNotes,
+              editable: editable,
+            ),
             if (editable) ...[
               const SizedBox(height: DsSpacing.s5),
               Text(
@@ -261,7 +270,6 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                 style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1),
               ),
               const SizedBox(height: DsSpacing.s2),
-              const _ReservedCaptureRow(label: 'Voice notes', icon: Icons.mic_none_outlined),
               const _ReservedCaptureRow(label: 'Readings', icon: Icons.speed_outlined),
               const _ReservedCaptureRow(label: 'Signature', icon: Icons.draw_outlined),
               const SizedBox(height: DsSpacing.s5),

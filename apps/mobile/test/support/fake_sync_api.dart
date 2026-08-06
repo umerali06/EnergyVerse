@@ -28,6 +28,19 @@ typedef UpdateMediaFn = Future<InspectionDetail> Function(
   UpdateInspectionMediaRequest request,
 );
 typedef DetachMediaFn = Future<InspectionDetail> Function(String inspectionId, String mediaId);
+typedef AttachVoiceNoteFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  AttachVoiceNoteRequest request,
+);
+typedef UpdateVoiceNoteFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  String voiceNoteId,
+  UpdateVoiceNoteRequest request,
+);
+typedef DetachVoiceNoteFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  String voiceNoteId,
+);
 typedef CreateAnnotationFn = Future<InspectionDetail> Function(
   String inspectionId,
   CreateAnnotationRequest request,
@@ -61,6 +74,9 @@ class FakeSyncApi implements ApiContract {
     AttachMediaFn? attachInspectionMedia,
     UpdateMediaFn? updateInspectionMedia,
     DetachMediaFn? detachInspectionMedia,
+    AttachVoiceNoteFn? attachInspectionVoiceNote,
+    UpdateVoiceNoteFn? updateInspectionVoiceNote,
+    DetachVoiceNoteFn? detachInspectionVoiceNote,
     CreateAnnotationFn? createInspectionAnnotation,
     UpdateAnnotationFn? updateInspectionAnnotation,
     DeleteAnnotationFn? deleteInspectionAnnotation,
@@ -76,6 +92,9 @@ class FakeSyncApi implements ApiContract {
         _attachInspectionMedia = attachInspectionMedia,
         _updateInspectionMedia = updateInspectionMedia,
         _detachInspectionMedia = detachInspectionMedia,
+        _attachInspectionVoiceNote = attachInspectionVoiceNote,
+        _updateInspectionVoiceNote = updateInspectionVoiceNote,
+        _detachInspectionVoiceNote = detachInspectionVoiceNote,
         _createInspectionAnnotation = createInspectionAnnotation,
         _updateInspectionAnnotation = updateInspectionAnnotation,
         _deleteInspectionAnnotation = deleteInspectionAnnotation;
@@ -92,6 +111,9 @@ class FakeSyncApi implements ApiContract {
   final AttachMediaFn? _attachInspectionMedia;
   final UpdateMediaFn? _updateInspectionMedia;
   final DetachMediaFn? _detachInspectionMedia;
+  final AttachVoiceNoteFn? _attachInspectionVoiceNote;
+  final UpdateVoiceNoteFn? _updateInspectionVoiceNote;
+  final DetachVoiceNoteFn? _detachInspectionVoiceNote;
   final CreateAnnotationFn? _createInspectionAnnotation;
   final UpdateAnnotationFn? _updateInspectionAnnotation;
   final DeleteAnnotationFn? _deleteInspectionAnnotation;
@@ -186,6 +208,37 @@ class FakeSyncApi implements ApiContract {
     final handler = _detachInspectionMedia;
     if (handler == null) throw UnimplementedError();
     return handler(inspectionId, mediaId);
+  }
+
+  @override
+  Future<InspectionDetail> attachInspectionVoiceNote(
+    String inspectionId,
+    AttachVoiceNoteRequest request,
+  ) {
+    calls.add('attachInspectionVoiceNote:$inspectionId');
+    final handler = _attachInspectionVoiceNote;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, request);
+  }
+
+  @override
+  Future<InspectionDetail> updateInspectionVoiceNote(
+    String inspectionId,
+    String voiceNoteId,
+    UpdateVoiceNoteRequest request,
+  ) {
+    calls.add('updateInspectionVoiceNote:$inspectionId:$voiceNoteId');
+    final handler = _updateInspectionVoiceNote;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, voiceNoteId, request);
+  }
+
+  @override
+  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) {
+    calls.add('detachInspectionVoiceNote:$inspectionId:$voiceNoteId');
+    final handler = _detachInspectionVoiceNote;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, voiceNoteId);
   }
 
   @override

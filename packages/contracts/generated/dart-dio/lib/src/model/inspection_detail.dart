@@ -8,6 +8,7 @@ import 'package:fev_api_client/src/model/checklist_response.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:fev_api_client/src/model/inspection_media_response.dart';
 import 'package:fev_api_client/src/model/checklist_template_item.dart';
+import 'package:fev_api_client/src/model/voice_note_response.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -140,7 +141,7 @@ abstract class InspectionDetail
   DateTime get updatedAt;
 
   @BuiltValueField(wireName: r'voice_notes')
-  BuiltList<BuiltMap<String, JsonObject?>>? get voiceNotes;
+  BuiltList<VoiceNoteResponse>? get voiceNotes;
 
   InspectionDetail._();
 
@@ -363,9 +364,7 @@ class _$InspectionDetailSerializer
       yield r'voice_notes';
       yield serializers.serialize(
         object.voiceNotes,
-        specifiedType: const FullType(BuiltList, [
-          FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])
-        ]),
+        specifiedType: const FullType(BuiltList, [FullType(VoiceNoteResponse)]),
       );
     }
   }
@@ -622,11 +621,9 @@ class _$InspectionDetailSerializer
         case r'voice_notes':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [
-              FullType(
-                  BuiltMap, [FullType(String), FullType.nullable(JsonObject)])
-            ]),
-          ) as BuiltList<BuiltMap<String, JsonObject?>>;
+            specifiedType:
+                const FullType(BuiltList, [FullType(VoiceNoteResponse)]),
+          ) as BuiltList<VoiceNoteResponse>;
           result.voiceNotes.replace(valueDes);
           break;
         default:

@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { VoiceNoteResponse } from './VoiceNoteResponse';
+import {
+    VoiceNoteResponseFromJSON,
+    VoiceNoteResponseFromJSONTyped,
+    VoiceNoteResponseToJSON,
+    VoiceNoteResponseToJSONTyped,
+} from './VoiceNoteResponse';
 import type { InspectionMediaResponse } from './InspectionMediaResponse';
 import {
     InspectionMediaResponseFromJSON,
@@ -224,10 +231,10 @@ export interface InspectionDetail {
     updatedAt: Date;
     /**
      *
-     * @type {Array<{ [key: string]: any; }>}
+     * @type {Array<VoiceNoteResponse>}
      * @memberof InspectionDetail
      */
-    voiceNotes?: Array<{ [key: string]: any; }>;
+    voiceNotes?: Array<VoiceNoteResponse>;
 }
 
 
@@ -309,7 +316,7 @@ export function InspectionDetailFromJSONTyped(json: any, ignoreDiscriminator: bo
         'status': json['status'],
         'title': json['title'] == null ? undefined : json['title'],
         'updatedAt': (new Date(json['updated_at'])),
-        'voiceNotes': json['voice_notes'] == null ? undefined : json['voice_notes'],
+        'voiceNotes': json['voice_notes'] == null ? undefined : ((json['voice_notes'] as Array<any>).map(VoiceNoteResponseFromJSON)),
     };
 }
 
@@ -353,6 +360,6 @@ export function InspectionDetailToJSONTyped(value?: InspectionDetail | null, ign
         'status': value['status'],
         'title': value['title'],
         'updated_at': ((value['updatedAt']).toISOString()),
-        'voice_notes': value['voiceNotes'],
+        'voice_notes': value['voiceNotes'] == null ? undefined : ((value['voiceNotes'] as Array<any>).map(VoiceNoteResponseToJSON)),
     };
 }

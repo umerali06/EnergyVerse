@@ -45,6 +45,9 @@ enum OutboxMutationType {
   attachMedia('attach_media'),
   editMedia('edit_media'),
   detachMedia('detach_media'),
+  attachVoiceNote('attach_voice_note'),
+  editVoiceNote('edit_voice_note'),
+  detachVoiceNote('detach_voice_note'),
   createAnnotation('create_annotation'),
   updateAnnotation('update_annotation'),
   deleteAnnotation('delete_annotation');
@@ -161,6 +164,25 @@ String _encodeAnnotations(List<AnnotationResponse> annotations) => jsonEncode(
       annotations
           .map((item) => standardSerializers.serializeWith(
               AnnotationResponse.serializer, item))
+          .toList(),
+    );
+
+List<VoiceNoteResponse> _decodeVoiceNotes(String json) {
+  final list = jsonDecode(json) as List<dynamic>;
+  return list
+      .map(
+        (item) => standardSerializers.deserializeWith(
+          VoiceNoteResponse.serializer,
+          item as Map<String, dynamic>,
+        )!,
+      )
+      .toList();
+}
+
+String _encodeVoiceNotes(List<VoiceNoteResponse> voiceNotes) => jsonEncode(
+      voiceNotes
+          .map((item) => standardSerializers.serializeWith(
+              VoiceNoteResponse.serializer, item))
           .toList(),
     );
 
@@ -302,7 +324,8 @@ class LocalInspectionRecord {
             _decodeChecklistItems(row.checklistItemsSnapshot),
         checklistResponses = _decodeChecklistResponses(row.checklistResponses),
         media = _decodeInspectionMedia(row.media),
-        annotations = _decodeAnnotations(row.annotations);
+        annotations = _decodeAnnotations(row.annotations),
+        voiceNotes = _decodeVoiceNotes(row.voiceNotes);
 
   final LocalInspection row;
   final List<ChecklistTemplateItem> checklistItemsSnapshot;
@@ -318,6 +341,12 @@ class LocalInspectionRecord {
   /// al.), so it already reflects not-yet-synced local edits, not just the
   /// last server response.
   final List<AnnotationResponse> annotations;
+
+  /// The server-synced voice-note references (Phase 7.6) -- same caching
+  /// posture as [media]: refreshed only from a synced server response, since
+  /// a voice note's bytes go through [MediaQueue]/`LocalMediaRepository`
+  /// like a photo/video, not an optimistic local write.
+  final List<VoiceNoteResponse> voiceNotes;
 
   String get id => row.id;
   String get assetId => row.assetId;
@@ -507,6 +536,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
                 _encodeInspectionMedia(detail.media?.toList() ?? const [])),
             annotations: drift.Value(
                 _encodeAnnotations(detail.annotations?.toList() ?? const [])),
+            voiceNotes: drift.Value(
+                _encodeVoiceNotes(detail.voiceNotes?.toList() ?? const [])),
             startedAt: drift.Value(detail.startedAt),
             completedAt: drift.Value(detail.completedAt),
             gpsLat: drift.Value(detail.gpsLat?.toDouble()),
@@ -804,6 +835,49 @@ class LocalInspectionsRepository extends ChangeNotifier {
         inspectionId: inspectionId,
         type: OutboxMutationType.detachMedia,
         payload: jsonEncode({'media_id': mediaId}),
+      );
+
+  // ------------------------------------------------------- voice notes (7.6)
+
+  /// Mirrors [enqueueAttachMedia] -- registers the small metadata reference
+  /// once [MediaUploadWorker] has already uploaded the recording's bytes
+  /// directly to Storage.
+  Future<void> enqueueAttachVoiceNote({
+    required String inspectionId,
+    required AttachVoiceNoteRequest request,
+  }) =>
+      _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.attachVoiceNote,
+        payload: jsonEncode(
+          standardSerializers.serializeWith(
+              AttachVoiceNoteRequest.serializer, request),
+        ),
+      );
+
+  Future<void> enqueueEditVoiceNote({
+    required String inspectionId,
+    required String voiceNoteId,
+    required UpdateVoiceNoteRequest request,
+  }) =>
+      _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.editVoiceNote,
+        payload: jsonEncode({
+          'voice_note_id': voiceNoteId,
+          'request': standardSerializers.serializeWith(
+              UpdateVoiceNoteRequest.serializer, request),
+        }),
+      );
+
+  Future<void> enqueueDetachVoiceNote({
+    required String inspectionId,
+    required String voiceNoteId,
+  }) =>
+      _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.detachVoiceNote,
+        payload: jsonEncode({'voice_note_id': voiceNoteId}),
       );
 
   // -------------------------------------------------------- annotations (7.5)

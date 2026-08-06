@@ -48,6 +48,9 @@ class MediaQueueRecord {
   double? get gpsLng => row.gpsLng;
   DateTime get capturedAt => row.capturedAt;
   String? get beforeAfterTag => row.beforeAfterTag;
+
+  /// Only ever set for `kind == 'audio'` (Phase 7.6).
+  int? get durationMs => row.durationMs;
   MediaUploadState get uploadState => MediaUploadState.fromWire(row.uploadState);
   int get uploadedBytes => row.uploadedBytes;
   int get attempts => row.attempts;
@@ -68,6 +71,22 @@ String inspectionMediaStoragePath({
 }) {
   final safeName = p.basename(filename).replaceAll(' ', '_');
   return 'companies/$companyId/inspections/$inspectionId/media/${localId}_$safeName';
+}
+
+/// Same convention as [inspectionMediaStoragePath] but under a `voice/`
+/// subfolder (Phase 7.6) -- mirrors `InspectionMediaStorage.
+/// voice_object_path()` on the backend field-for-field. Voice notes still
+/// queue through the exact same [MediaQueue] table/[MediaUploadWorker] as a
+/// photo/video; only the storage namespace and the outbox mutation type
+/// they end up registering differ.
+String inspectionVoiceNoteStoragePath({
+  required String companyId,
+  required String inspectionId,
+  required String localId,
+  required String filename,
+}) {
+  final safeName = p.basename(filename).replaceAll(' ', '_');
+  return 'companies/$companyId/inspections/$inspectionId/voice/${localId}_$safeName';
 }
 
 /// The pending-media-upload facade over the local Drift [MediaQueue] table
@@ -133,14 +152,22 @@ class LocalMediaRepository extends ChangeNotifier {
     required DateTime capturedAt,
     String? checklistItemId,
     String? beforeAfterTag,
+    int? durationMs,
   }) async {
     final localId = _uuid.v4();
-    final storagePath = inspectionMediaStoragePath(
-      companyId: companyId,
-      inspectionId: inspectionId,
-      localId: localId,
-      filename: filename,
-    );
+    final storagePath = kind == 'audio'
+        ? inspectionVoiceNoteStoragePath(
+            companyId: companyId,
+            inspectionId: inspectionId,
+            localId: localId,
+            filename: filename,
+          )
+        : inspectionMediaStoragePath(
+            companyId: companyId,
+            inspectionId: inspectionId,
+            localId: localId,
+            filename: filename,
+          );
     await _db.into(_db.mediaQueue).insert(
           MediaQueueCompanion.insert(
             localId: localId,
@@ -156,6 +183,7 @@ class LocalMediaRepository extends ChangeNotifier {
             gpsLng: drift.Value(gpsLng),
             capturedAt: capturedAt,
             beforeAfterTag: drift.Value(beforeAfterTag),
+            durationMs: drift.Value(durationMs),
             createdAt: DateTime.now().toUtc(),
           ),
         );

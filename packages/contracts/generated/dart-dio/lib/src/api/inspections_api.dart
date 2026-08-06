@@ -11,6 +11,7 @@ import 'package:dio/dio.dart';
 import 'package:fev_api_client/src/api_util.dart';
 import 'package:fev_api_client/src/model/assign_checklist_template_request.dart';
 import 'package:fev_api_client/src/model/attach_inspection_media_request.dart';
+import 'package:fev_api_client/src/model/attach_voice_note_request.dart';
 import 'package:fev_api_client/src/model/create_annotation_request.dart';
 import 'package:fev_api_client/src/model/create_inspection_request.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
@@ -21,6 +22,7 @@ import 'package:fev_api_client/src/model/inspection_list_page.dart';
 import 'package:fev_api_client/src/model/update_annotation_request.dart';
 import 'package:fev_api_client/src/model/update_inspection_media_request.dart';
 import 'package:fev_api_client/src/model/update_inspection_request.dart';
+import 'package:fev_api_client/src/model/update_voice_note_request.dart';
 
 class InspectionsApi {
   final Dio _dio;
@@ -192,6 +194,113 @@ class InspectionsApi {
       const _type = FullType(AttachInspectionMediaRequest);
       _bodyData = _serializers.serialize(attachInspectionMediaRequest,
           specifiedType: _type);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Attach Inspection Voice Note
+  /// Registers a reference to a voice-note recording the mobile client already uploaded directly to Firebase Storage via the same 7.4 media queue/worker (Phase 7.6) -- no bytes pass through here.
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [attachVoiceNoteRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> attachInspectionVoiceNote({
+    required String inspectionId,
+    required AttachVoiceNoteRequest attachVoiceNoteRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/inspections/{inspection_id}/voice-notes'.replaceAll(
+        '{' r'inspection_id' '}',
+        encodeQueryParameter(_serializers, inspectionId, const FullType(String))
+            .toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(AttachVoiceNoteRequest);
+      _bodyData =
+          _serializers.serialize(attachVoiceNoteRequest, specifiedType: _type);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _options.compose(
@@ -897,6 +1006,101 @@ class InspectionsApi {
     );
   }
 
+  /// Detach Inspection Voice Note
+  /// Idempotent on an already-detached &#x60;voice_note_id&#x60; -- the mobile outbox replays this call at-least-once.
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [voiceNoteId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> detachInspectionVoiceNote({
+    required String inspectionId,
+    required String voiceNoteId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path =
+        r'/api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id}'
+            .replaceAll(
+                '{' r'inspection_id' '}',
+                encodeQueryParameter(
+                        _serializers, inspectionId, const FullType(String))
+                    .toString())
+            .replaceAll(
+                '{' r'voice_note_id' '}',
+                encodeQueryParameter(
+                        _serializers, voiceNoteId, const FullType(String))
+                    .toString());
+    final _options = Options(
+      method: r'DELETE',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
   /// Get Inspection
   ///
   ///
@@ -1470,6 +1674,123 @@ class InspectionsApi {
       const _type = FullType(UpdateInspectionMediaRequest);
       _bodyData = _serializers.serialize(updateInspectionMediaRequest,
           specifiedType: _type);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Update Inspection Voice Note
+  ///
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [voiceNoteId]
+  /// * [updateVoiceNoteRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> updateInspectionVoiceNote({
+    required String inspectionId,
+    required String voiceNoteId,
+    required UpdateVoiceNoteRequest updateVoiceNoteRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path =
+        r'/api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id}'
+            .replaceAll(
+                '{' r'inspection_id' '}',
+                encodeQueryParameter(
+                        _serializers, inspectionId, const FullType(String))
+                    .toString())
+            .replaceAll(
+                '{' r'voice_note_id' '}',
+                encodeQueryParameter(
+                        _serializers, voiceNoteId, const FullType(String))
+                    .toString());
+    final _options = Options(
+      method: r'PATCH',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(UpdateVoiceNoteRequest);
+      _bodyData =
+          _serializers.serialize(updateVoiceNoteRequest, specifiedType: _type);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _options.compose(

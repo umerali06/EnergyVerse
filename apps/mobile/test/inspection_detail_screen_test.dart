@@ -52,6 +52,7 @@ InspectionDetail _inspectionDetailFixture({
   InspectionDetailStatusEnum status = InspectionDetailStatusEnum.inProgress,
   List<InspectionMediaResponse> media = const [],
   List<AnnotationResponse> annotations = const [],
+  List<VoiceNoteResponse> voiceNotes = const [],
 }) {
   final now = DateTime.utc(2026, 1, 1);
   final startedAt = DateTime.utc(2026, 1, 2);
@@ -80,7 +81,8 @@ InspectionDetail _inspectionDetailFixture({
         ),
       )
       ..media.addAll(media)
-      ..annotations.addAll(annotations),
+      ..annotations.addAll(annotations)
+      ..voiceNotes.addAll(voiceNotes),
   );
 }
 
@@ -95,6 +97,21 @@ InspectionMediaResponse _mediaFixture({String id = 'media-1'}) {
       ..contentType = 'image/jpeg'
       ..size = 1000
       ..capturedAt = DateTime.utc(2026, 1, 1)
+      ..uploadedBy = 'demo-acme-field_inspector'
+      ..uploadedAt = DateTime.utc(2026, 1, 1),
+  );
+}
+
+VoiceNoteResponse _voiceNoteFixture({String id = 'voice-1'}) {
+  return VoiceNoteResponse(
+    (b) => b
+      ..id = id
+      ..localId = 'voice-local-1'
+      ..url = 'https://storage.example.invalid/$id.m4a'
+      ..filename = 'note.m4a'
+      ..contentType = 'audio/mp4'
+      ..size = 5000
+      ..durationMs = 42000
       ..uploadedBy = 'demo-acme-field_inspector'
       ..uploadedAt = DateTime.utc(2026, 1, 1),
   );
@@ -129,12 +146,14 @@ class FakeApi implements ApiContract {
     this.offline = false,
     this.media = const [],
     this.annotations = const [],
+    this.voiceNotes = const [],
   });
 
   final CurrentUser identity;
   final InspectionDetailStatusEnum status;
   final List<InspectionMediaResponse> media;
   final List<AnnotationResponse> annotations;
+  final List<VoiceNoteResponse> voiceNotes;
 
   /// Simulates airplane mode: every inspections network call throws, so
   /// [LocalInspectionsRepository]'s best-effort refreshes are no-ops and
@@ -298,7 +317,10 @@ class FakeApi implements ApiContract {
       throw const ApiException(code: 'network_error', message: 'offline');
     }
     return _inspectionDetailFixture(
-        status: status, media: media, annotations: annotations);
+        status: status,
+        media: media,
+        annotations: annotations,
+        voiceNotes: voiceNotes);
   }
 
   @override
@@ -349,6 +371,26 @@ class FakeApi implements ApiContract {
   @override
   Future<InspectionDetail> detachInspectionMedia(
           String inspectionId, String mediaId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> attachInspectionVoiceNote(
+    String inspectionId,
+    AttachVoiceNoteRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionVoiceNote(
+    String inspectionId,
+    String voiceNoteId,
+    UpdateVoiceNoteRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> detachInspectionVoiceNote(
+          String inspectionId, String voiceNoteId) =>
       throw UnimplementedError();
 
   @override
@@ -662,6 +704,99 @@ void main() {
     await tester.scrollUntilVisible(find.text('Queued'), 200);
     expect(find.text('Queued'), findsOneWidget);
     expect(find.text('0 of 1 uploaded'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'shows an honest empty state when the inspection has no voice notes yet',
+      (tester) async {
+    final api = FakeApi(identityFor(
+        'field_inspector', const ['inspections.read', 'inspections.write']));
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('VOICE NOTES'), 200);
+    expect(find.text('VOICE NOTES'), findsOneWidget);
+    expect(find.text('No voice notes yet'), findsOneWidget);
+    expect(find.byKey(const Key('voice-upload-progress')), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets('renders a synced voice note item and the upload-progress count',
+      (tester) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      voiceNotes: [_voiceNoteFixture()],
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('voice-upload-progress')), 200);
+    expect(find.byKey(const Key('voice-upload-progress')), findsOneWidget);
+    expect(find.text('1 of 1 uploaded'), findsOneWidget);
+    expect(find.text('00:42'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'renders a locally-queued voice note with its upload-state badge, counted as pending',
+      (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final api = FakeApi(identityFor(
+        'field_inspector', const ['inspections.read', 'inspections.write']));
+    await db.into(db.mediaQueue).insert(
+          MediaQueueCompanion.insert(
+            localId: 'local-queued-voice-1',
+            inspectionId: 'inspection-1',
+            kind: 'audio',
+            localFilePath: '/tmp/note.m4a',
+            storagePath:
+                'companies/acme-energy/inspections/inspection-1/voice/local-queued-voice-1_note.m4a',
+            filename: 'note.m4a',
+            contentType: 'audio/mp4',
+            sizeBytes: 500,
+            capturedAt: DateTime.utc(2026, 1, 1),
+            durationMs: const drift.Value(15000),
+            createdAt: DateTime.utc(2026, 1, 1),
+          ),
+        );
+
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: db),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('VOICE NOTES'), 200);
+    expect(find.text('Queued'), findsOneWidget);
+    expect(find.text('0 of 1 uploaded'), findsOneWidget);
+    expect(find.text('00:15'), findsOneWidget);
     await disposeApp(tester);
   });
 

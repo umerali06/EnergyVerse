@@ -1764,6 +1764,118 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   `CreateAnnotationRequest`/`AnnotationPointInput`/`UpdateAnnotationRequest`
   and the three new `InspectionsApi` operations, on both generated clients.
 
+### Phase 7.6 Voice Notes (Record + Attach to Inspection)
+
+- **New `VoiceNote` entity, same direct-upload design as 7.4 media, its own
+  Storage namespace.** `Inspection.voice_notes[]` (`apps/api/app/models/
+  entities.py`) replaces the untyped `list[dict]` placeholder reserved since
+  7.1 with a real `VoiceNote` (`id`/`local_id`/`path`/`filename`/
+  `content_type`/`size`/`duration_ms`/`checklist_item_id`/`uploaded_by`/
+  `uploaded_at`) — no GPS, no `kind`, no before/after tag, since none of
+  those apply to an audio recording. `InspectionMediaStorage` gained a
+  sibling `voice_object_path()` (`companies/{cid}/inspections/{iid}/voice/
+  {local_id}_{filename}`) alongside the existing `object_path()` — a
+  distinct subfolder from `media/`, even though both are the exact same
+  server-mediated verify-after-client-upload pattern (the mobile client
+  uploads bytes directly to Storage; the backend only verifies and
+  registers a reference, never touching audio bytes itself).
+- **Backend mutation protocol copies 7.4/7.5's established shape exactly
+  (D-057).** Three new routes on the existing `inspections` router — `POST
+  .../voice-notes` (attach), `PATCH .../voice-notes/{id}` (link/relink to a
+  checklist item), `DELETE .../voice-notes/{id}` (detach) — gated by the
+  existing `inspections.write`, idempotent by `local_id`/`voice_note_id`,
+  and deliberately carrying no `expected_revision` for the same reason
+  media/annotation traffic doesn't: it must never collide with 7.3's
+  checklist-autosave revision bump. `INSPECTION_VOICE_NOTE_ALLOWED_TYPES`
+  (`audio/mp4`/`audio/m4a`/`audio/x-m4a`/`audio/aac` — the content-type
+  strings different recorder plugins/OSes report for AAC-in-M4A),
+  `INSPECTION_VOICE_NOTE_MAX_SIZE_BYTES` (20MB), and
+  `INSPECTION_VOICE_NOTE_MAX_DURATION_MS` (10 minutes) mirror
+  `INSPECTION_MEDIA_RULES`'s per-kind validation, enforced server-side in
+  `attach_voice_note` in addition to the mobile client's own pre-upload cap.
+  `InspectionRepository` gained `append_voice_note`/`update_voice_note`/
+  `remove_voice_note`, mirroring `append_media`/`update_media`/
+  `remove_media`'s `ArrayUnion`/`ArrayRemove`/full-array-rewrite shapes
+  field-for-field.
+- **Mobile: voice notes reuse the exact 7.4 `MediaQueue`/
+  `MediaUploadWorker` — no new queue or worker (D-057).** `MediaQueue.kind`
+  gains a third value, `'audio'` (alongside `'photo'`/`'video'`), plus a
+  new nullable `durationMs` column (schema v4→v5) set only for audio rows.
+  `LocalMediaRepository.enqueueCapture` now branches on `kind` to compute
+  either the existing `inspectionMediaStoragePath()` or a new
+  `inspectionVoiceNoteStoragePath()` (the Dart mirror of the backend's
+  `voice_object_path()`). `MediaUploadWorker._registerReference` branches
+  the same way: an `audio` row builds an `AttachVoiceNoteRequest` (with
+  `duration_ms`) and calls a new `enqueueAttachVoiceNote` instead of
+  `enqueueAttachMedia` — everything upstream of that one branch (the drain
+  loop, backoff, progress tracking, cancel-on-remove) is 100% shared,
+  untouched code. Three new `OutboxMutationType` values
+  (`attach_voice_note`/`edit_voice_note`/`detach_voice_note`) ride the
+  *existing* 7.2 record outbox for their small metadata reference, exactly
+  like media's own three mutation types; `LocalInspections` gained a
+  `voiceNotes` JSON-blob column (same v4→v5 migration), cached only from a
+  synced server response (never written optimistically — a voice note has
+  the same "bytes upload first, then a small reference syncs" shape as
+  media, unlike an annotation).
+- **A real bug this phase's own tests caught: the 7.4 photo/video gallery
+  was reading the shared `MediaQueue` table without filtering out `kind ==
+  'audio'`.** `InspectionMediaSection`'s `watchMediaForInspection` stream
+  covers every `MediaQueue` row regardless of kind — before this phase that
+  was safe because only `'photo'`/`'video'` rows ever existed; a queued
+  voice recording would otherwise render as a broken tile in the photo/
+  video grid (and, as a `GridView` even with one item, introduced a second
+  on-screen `Scrollable` that broke a widget test's `scrollUntilVisible`
+  call ambiguously). Fixed by filtering `queued` to `row.kind != 'audio'`
+  in the gallery and `row.kind == 'audio'` in the new voice-notes section —
+  the two sections now partition the one shared queue cleanly by kind.
+- **Recording screen** (`apps/mobile/lib/media/voice_recording_screen.dart`)
+  mirrors `MediaCaptureScreen`'s injectable-builder seam
+  (`recorderBuilder`, defaulting to a real `record`-plugin view) so widget
+  tests never mount the real plugin; live recording is verified on a
+  physical device. A `record`/`AudioRecorder` records AAC/M4A
+  (`AudioEncoder.aacLc`) to a temp file, auto-stopping at
+  `kMaxVoiceNoteDuration` (10 minutes, D-056) the same way
+  `MediaCaptureScreen`'s video recording auto-stops at its own cap; a
+  pulsing level meter (`_LevelMeter`, D-056) reacts to
+  `onAmplitudeChanged`'s live dBFS reading, normalized to 0–1 via
+  `normalizeVoiceAmplitude` (a -45dB..0dB window tuned as a glanceable
+  meter, not a measurement instrument) and reduced-motion-aware via the
+  shared `motionDuration()` helper. After stopping, `audioplayers` previews
+  the recording in place (play/pause/re-record/save) before the result
+  ever reaches the media queue — mirroring the same "preview before commit"
+  shape the camera screen doesn't need (a photo/video is already committed
+  the instant the shutter/stop button is pressed) but a voice note
+  benefits from, since re-recording a bad take is common in the field. A
+  denied microphone permission (RECORD_AUDIO/NSMicrophoneUsageDescription
+  were already declared for 7.4's video-with-audio capture) surfaces as a
+  graceful message via the same injected `onError` seam, never a crash.
+- **Voice notes section**
+  (`apps/mobile/lib/media/inspection_voice_notes_section.dart`), inserted
+  into the inspection detail screen right after the MEDIA section and
+  replacing its own "Voice notes — Coming soon" reserved row: a list (not a
+  grid, since duration/checklist-link/upload-state read better as rows than
+  square tiles) unifying synced `VoiceNoteResponse`s and not-yet-synced
+  `MediaQueue` rows behind one `_VoiceItem` shape (mirrors `_GalleryItem`),
+  with per-item play/pause (a single shared `AudioPlayer`, one item playing
+  at a time), duration, an "N of M uploaded" progress count, a checklist-
+  item link menu (same "can only re-link, never clear back to unlinked on
+  an already-synced item" limitation `UpdateInspectionMediaRequest`
+  already has, for the same reason: `UpdateVoiceNoteRequest`'s
+  `checklist_item_id` treats `null` as "leave unchanged"), and remove
+  (routes through `removeBeforeSync`/`enqueueDetachVoiceNote` depending on
+  sync state, exactly like the media section's own remove).
+- **Admin: read-only voice-notes review** in the existing
+  `InspectionDetailPage`, a new section below Media listing each voice
+  note's native `<audio controls>` element (a signed URL, playable
+  directly), formatted duration, and its linked checklist item's label —
+  no waveform/scrubber beyond what the browser's native audio element
+  already provides, matching the phase brief's "list voice notes with
+  playback, duration, and which checklist item" scope (the full inspection
+  review surface with any richer audio UI is 7.11's job).
+- **Contracts regenerated** for `VoiceNoteResponse`/`AttachVoiceNoteRequest`/
+  `UpdateVoiceNoteRequest` and the three new `InspectionsApi` operations, on
+  both generated clients.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis

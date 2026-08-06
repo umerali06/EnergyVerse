@@ -22,6 +22,15 @@ void main() {
       // TODO
     });
 
+    // Attach Inspection Voice Note
+    //
+    // Registers a reference to a voice-note recording the mobile client already uploaded directly to Firebase Storage via the same 7.4 media queue/worker (Phase 7.6) -- no bytes pass through here.
+    //
+    //Future<InspectionDetail> attachInspectionVoiceNote(String inspectionId, AttachVoiceNoteRequest attachVoiceNoteRequest) async
+    test('test attachInspectionVoiceNote', () async {
+      // TODO
+    });
+
     // Cancel Inspection
     //
     //Future<InspectionDetail> cancelInspection(String inspectionId) async
@@ -79,6 +88,15 @@ void main() {
       // TODO
     });
 
+    // Detach Inspection Voice Note
+    //
+    // Idempotent on an already-detached `voice_note_id` -- the mobile outbox replays this call at-least-once.
+    //
+    //Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) async
+    test('test detachInspectionVoiceNote', () async {
+      // TODO
+    });
+
     // Get Inspection
     //
     //Future<InspectionDetail> getInspection(String inspectionId) async
@@ -118,6 +136,13 @@ void main() {
     //
     //Future<InspectionDetail> updateInspectionMedia(String inspectionId, String mediaId, UpdateInspectionMediaRequest updateInspectionMediaRequest) async
     test('test updateInspectionMedia', () async {
+      // TODO
+    });
+
+    // Update Inspection Voice Note
+    //
+    //Future<InspectionDetail> updateInspectionVoiceNote(String inspectionId, String voiceNoteId, UpdateVoiceNoteRequest updateVoiceNoteRequest) async
+    test('test updateInspectionVoiceNote', () async {
       // TODO
     });
   });

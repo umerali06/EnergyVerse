@@ -21,6 +21,7 @@ InspectionDetail _detailFrom({
   String status = 'inProgress',
   String? checklistTemplateId,
   List<AnnotationResponse> annotations = const [],
+  List<VoiceNoteResponse> voiceNotes = const [],
 }) {
   final now = DateTime.utc(2026, 1, 1);
   return InspectionDetail(
@@ -36,6 +37,7 @@ InspectionDetail _detailFrom({
       ..checklistTemplateId = checklistTemplateId
       ..revision = revision
       ..annotations.replace(annotations)
+      ..voiceNotes.replace(voiceNotes)
       ..clientCreatedAt = now
       ..createdAt = now
       ..updatedAt = now,
@@ -66,6 +68,27 @@ AnnotationResponse _annotationFrom(CreateAnnotationRequest request) =>
         ..note = request.note
         ..createdBy = 'user-1'
         ..createdAt = DateTime.utc(2026, 1, 1),
+    );
+
+/// Mirrors the real backend's `_to_detail`: an `attach_voice_note`/
+/// `update_voice_note` response always echoes the inspection's CURRENT full
+/// `voice_notes[]`, not just the one mutation -- a fake stub that returns an
+/// empty list would silently wipe an optimistically-uploaded voice note from
+/// the local cache on the very next `applyMutationSuccess` (the same
+/// full-row-overwrite trap `_annotationFrom` above guards against).
+VoiceNoteResponse _voiceNoteFrom(AttachVoiceNoteRequest request) =>
+    VoiceNoteResponse(
+      (b) => b
+        ..id = 'voice-${request.localId}'
+        ..localId = request.localId
+        ..url = 'https://fake-storage.invalid/${request.localId}'
+        ..filename = request.filename
+        ..contentType = request.contentType
+        ..size = request.size
+        ..durationMs = request.durationMs
+        ..checklistItemId = request.checklistItemId
+        ..uploadedBy = 'user-1'
+        ..uploadedAt = DateTime.utc(2026, 1, 1),
     );
 
 /// Never fires on its own -- tests drive the engine via `syncNow()`, so the
@@ -686,6 +709,198 @@ void main() {
       // The media item never touched the inspection outbox and is still
       // sitting locally queued -- "media pending" state stays honest even
       // though the inspection record itself has fully synced.
+      expect(await mediaRepository.pendingCountForInspection(id), 1);
+    });
+  });
+
+  group('voice note reference sync (Phase 7.6)', () {
+    test(
+        'attach-voice-note replays and clears the now-redundant MediaQueue row via markReferenced',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        attachInspectionVoiceNote: (id, request) async =>
+            _detailFrom(id: id, revision: 1, voiceNotes: [_voiceNoteFrom(request)]),
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final mediaRepository = LocalMediaRepository(db: db);
+      final engine = SyncEngine(
+        repository: repository,
+        api: api,
+        mediaRepository: mediaRepository,
+        connectivityStreamFactory: () =>
+            const Stream<List<ConnectivityResult>>.empty(),
+        checkConnectivity: () async => [ConnectivityResult.wifi],
+        periodicInterval: const Duration(days: 1),
+      );
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+
+      final localId = await mediaRepository.enqueueCapture(
+        companyId: 'acme-energy',
+        inspectionId: id,
+        kind: 'audio',
+        localFilePath: '/tmp/note.m4a',
+        filename: 'note.m4a',
+        contentType: 'audio/mp4',
+        sizeBytes: 100,
+        capturedAt: DateTime.utc(2026, 1, 1),
+        durationMs: 42000,
+      );
+      await repository.enqueueAttachVoiceNote(
+        inspectionId: id,
+        request: AttachVoiceNoteRequest(
+          (b) => b
+            ..localId = localId
+            ..filename = 'note.m4a'
+            ..contentType = 'audio/mp4'
+            ..size = 100
+            ..durationMs = 42000,
+        ),
+      );
+
+      await engine.syncNow();
+
+      expect(api.calls, contains('attachInspectionVoiceNote:$id'));
+      expect(await db.select(db.mediaQueue).get(), isEmpty);
+      expect(await db.select(db.outbox).get(), isEmpty);
+      final row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
+      expect(row.voiceNotes, contains('"duration_ms":42000'));
+    });
+
+    test('edit-voice-note dispatches the voice_note_id + request wrapper payload',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      String? capturedVoiceNoteId;
+      UpdateVoiceNoteRequest? capturedRequest;
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        updateInspectionVoiceNote: (id, voiceNoteId, request) async {
+          capturedVoiceNoteId = voiceNoteId;
+          capturedRequest = request;
+          return _detailFrom(id: id, revision: 1);
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await repository.enqueueEditVoiceNote(
+        inspectionId: id,
+        voiceNoteId: 'voice-1',
+        request: UpdateVoiceNoteRequest((b) => b..checklistItemId = 'vibration_normal'),
+      );
+
+      await engine.syncNow();
+
+      expect(capturedVoiceNoteId, 'voice-1');
+      expect(capturedRequest?.checklistItemId, 'vibration_normal');
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+
+    test('detach-voice-note dispatches just the voice_note_id, no request body',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      String? capturedVoiceNoteId;
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        detachInspectionVoiceNote: (id, voiceNoteId) async {
+          capturedVoiceNoteId = voiceNoteId;
+          return _detailFrom(id: id, revision: 1);
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await repository.enqueueDetachVoiceNote(inspectionId: id, voiceNoteId: 'voice-2');
+
+      await engine.syncNow();
+
+      expect(capturedVoiceNoteId, 'voice-2');
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+
+    test(
+        'an inspection can be completed while a sibling voice note is still uploading',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        completeInspection: (id) async =>
+            _detailFrom(id: id, revision: 2, status: 'completed'),
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final mediaRepository = LocalMediaRepository(db: db);
+      final engine = SyncEngine(
+        repository: repository,
+        api: api,
+        mediaRepository: mediaRepository,
+        connectivityStreamFactory: () =>
+            const Stream<List<ConnectivityResult>>.empty(),
+        checkConnectivity: () async => [ConnectivityResult.wifi],
+        periodicInterval: const Duration(days: 1),
+      );
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await mediaRepository.enqueueCapture(
+        companyId: 'acme-energy',
+        inspectionId: id,
+        kind: 'audio',
+        localFilePath: '/tmp/note.m4a',
+        filename: 'note.m4a',
+        contentType: 'audio/mp4',
+        sizeBytes: 1000,
+        capturedAt: DateTime.utc(2026, 1, 1),
+        durationMs: 15000,
+      );
+      await repository.completeInspection(id);
+
+      await engine.syncNow();
+
+      final row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals(id)))
+          .getSingle();
+      expect(row.status, 'completed');
+      expect(row.syncState, 'synced');
+      // The voice note never touched the inspection outbox and is still
+      // sitting locally queued -- "voice note pending" state stays honest
+      // even though the inspection record itself has fully synced.
       expect(await mediaRepository.pendingCountForInspection(id), 1);
     });
   });

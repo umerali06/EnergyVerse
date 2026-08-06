@@ -30,6 +30,69 @@ void main() {
     expect(path, 'companies/acme-energy/inspections/insp-1/media/local-1_my_photo.jpg');
   });
 
+  test('inspectionVoiceNoteStoragePath mirrors the backend voice_object_path() formula', () {
+    final path = inspectionVoiceNoteStoragePath(
+      companyId: 'acme-energy',
+      inspectionId: 'insp-1',
+      localId: 'local-1',
+      filename: 'note.m4a',
+    );
+    expect(path, 'companies/acme-energy/inspections/insp-1/voice/local-1_note.m4a');
+  });
+
+  test('enqueueCapture with kind "audio" stores durationMs and the voice/ storage path',
+      () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = LocalMediaRepository(db: db);
+
+    final localId = await repository.enqueueCapture(
+      companyId: 'acme-energy',
+      inspectionId: 'insp-1',
+      kind: 'audio',
+      localFilePath: '/tmp/note.m4a',
+      filename: 'note.m4a',
+      contentType: 'audio/mp4',
+      sizeBytes: 5000,
+      capturedAt: DateTime.utc(2026, 8, 1, 10),
+      durationMs: 42000,
+    );
+
+    final row = await (db.select(db.mediaQueue)..where((t) => t.localId.equals(localId))).getSingle();
+    expect(row.kind, 'audio');
+    expect(row.durationMs, 42000);
+    expect(row.storagePath, 'companies/acme-energy/inspections/insp-1/voice/${localId}_note.m4a');
+    expect(await db.select(db.outbox).get(), isEmpty);
+  });
+
+  test('a queued voice recording persists across an app restart', () async {
+    final dbFile = File(p.join(tempDir.path, 'voice_restart_test.sqlite'));
+
+    var db = AppDatabase(NativeDatabase(dbFile));
+    var repository = LocalMediaRepository(db: db);
+    final localId = await repository.enqueueCapture(
+      companyId: 'acme-energy',
+      inspectionId: 'insp-1',
+      kind: 'audio',
+      localFilePath: '/tmp/note.m4a',
+      filename: 'note.m4a',
+      contentType: 'audio/mp4',
+      sizeBytes: 5000,
+      capturedAt: DateTime.utc(2026, 1, 1),
+      durationMs: 9000,
+    );
+    // Simulate the app being killed (e.g. offline in airplane mode) with
+    // the recording still queued.
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(dbFile));
+    addTearDown(db.close);
+    repository = LocalMediaRepository(db: db);
+    final rows = await repository.dueForUpload(now: DateTime.utc(2026, 1, 1, 1));
+    expect(rows.map((r) => r.localId), [localId]);
+    expect(rows.single.durationMs, 9000);
+  });
+
   test('enqueueCapture inserts a queued row in MediaQueue, not Outbox', () async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);

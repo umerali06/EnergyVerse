@@ -299,7 +299,10 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
     return StreamBuilder<List<MediaQueueRecord>>(
       stream: mediaRepository.watchMediaForInspection(widget.inspectionId),
       builder: (context, snapshot) {
-        final queued = snapshot.data ?? const [];
+        // `MediaQueue` is shared with voice notes (Phase 7.6, `kind ==
+        // 'audio'`) -- this gallery only ever renders photo/video tiles.
+        final queued =
+            (snapshot.data ?? const []).where((row) => row.kind != 'audio').toList();
         final items = <_GalleryItem>[
           ...widget.serverMedia.map(_GalleryItem.synced),
           ...queued.map(_GalleryItem.queued),

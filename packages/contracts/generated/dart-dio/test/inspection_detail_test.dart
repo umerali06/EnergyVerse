@@ -152,7 +152,7 @@ void main() {
       // TODO
     });
 
-    // BuiltList<BuiltMap<String, JsonObject>> voiceNotes
+    // BuiltList<VoiceNoteResponse> voiceNotes
     test('to test the property `voiceNotes`', () async {
       // TODO
     });

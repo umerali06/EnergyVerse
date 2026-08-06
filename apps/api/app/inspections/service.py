@@ -16,6 +16,7 @@ from app.db.repositories.inspections import (
 from app.models.api import (
     AssignChecklistTemplateRequest,
     AttachInspectionMediaRequest,
+    AttachVoiceNoteRequest,
     CreateAnnotationRequest,
     CreateInspectionRequest,
     InspectionDetail,
@@ -25,6 +26,8 @@ from app.models.api import (
     UpdateAnnotationRequest,
     UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
+    UpdateVoiceNoteRequest,
+    VoiceNoteResponse,
 )
 from app.models.api import (
     ChecklistResponse as ApiChecklistResponse,
@@ -38,6 +41,7 @@ from app.models.entities import (
     Inspection,
     InspectionCreate,
     InspectionMedia,
+    VoiceNote,
 )
 from app.storage.service import InspectionMediaStorage, get_inspection_media_storage
 
@@ -47,6 +51,18 @@ INSPECTION_MEDIA_RULES: dict[str, tuple[frozenset[str], int]] = {
     "photo": (frozenset({"image/jpeg", "image/png", "image/webp", "image/heic"}), 15 * 1024 * 1024),
     "video": (frozenset({"video/mp4", "video/quicktime"}), 500 * 1024 * 1024),
 }
+
+# Voice notes are recorded client-side as AAC/M4A (D-0xx, Phase 7.6) --
+# compact enough for field connectivity while staying near-universal on both
+# iOS and Android. `audio/mp4`/`audio/x-m4a` cover the content-type strings
+# different recorder plugins/OSes report for the same AAC-in-M4A-container
+# format. 20MB comfortably covers 10 minutes of AAC even at a generous
+# encoder bitrate (10 min at 128kbps ~= 9.6MB).
+INSPECTION_VOICE_NOTE_ALLOWED_TYPES = frozenset(
+    {"audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac"}
+)
+INSPECTION_VOICE_NOTE_MAX_SIZE_BYTES = 20 * 1024 * 1024
+INSPECTION_VOICE_NOTE_MAX_DURATION_MS = 10 * 60 * 1000
 
 
 class InspectionServiceError(Exception):
@@ -103,6 +119,15 @@ def _media_response(
     )
 
 
+def _voice_note_response(
+    voice_note: VoiceNote, storage: InspectionMediaStorage
+) -> VoiceNoteResponse:
+    return VoiceNoteResponse(
+        **voice_note.model_dump(exclude={"path"}),
+        url=storage.signed_url_for(voice_note.path),
+    )
+
+
 def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> InspectionDetail:
     return InspectionDetail(
         **_to_list_item(inspection).model_dump(),
@@ -121,7 +146,9 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
         origin=inspection.origin,
         media=[_media_response(media, storage) for media in inspection.media],
         annotations=[annotation.model_dump() for annotation in inspection.annotations],
-        voice_notes=inspection.voice_notes,
+        voice_notes=[
+            _voice_note_response(voice_note, storage) for voice_note in inspection.voice_notes
+        ],
         readings=inspection.readings,
         ar_measurements=inspection.ar_measurements,
         ai_analysis=inspection.ai_analysis,
@@ -634,6 +661,125 @@ class InspectionService:
         if media is None:
             return _to_detail(current, self._storage)
         updated = await self._inspections.remove_media(scope, inspection_id, media, actor_uid)
+        return _to_detail(updated, self._storage)
+
+    async def attach_voice_note(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        request: AttachVoiceNoteRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        """Registers a reference to a voice-note recording the mobile client
+        already uploaded directly to Storage via the same 7.4 media queue/
+        worker (Phase 7.6) -- this never receives bytes. Mirrors
+        `attach_media` field-for-field, minus `kind`/GPS/before-after-tag
+        (voice notes have none of those) plus `duration_ms`."""
+        current = await self._active_inspection(scope, inspection_id)
+
+        existing = next(
+            (v for v in current.voice_notes if v.local_id == request.local_id), None
+        )
+        if existing is not None:
+            if (
+                existing.filename == request.filename
+                and existing.content_type == request.content_type
+                and existing.size == request.size
+                and existing.duration_ms == request.duration_ms
+            ):
+                return _to_detail(current, self._storage)
+            raise InspectionServiceError(
+                409,
+                "voice_note_reference_conflict",
+                "A different voice note reference already exists for this local_id",
+                {"local_id": request.local_id},
+            )
+
+        expected_path = self._storage.voice_object_path(
+            scope.company_id, inspection_id, request.local_id, request.filename
+        )
+        exists, storage_size, storage_content_type = self._storage.verify_uploaded(expected_path)
+        if not exists:
+            raise InspectionServiceError(
+                422,
+                "voice_note_not_uploaded",
+                "Upload the file to Storage before registering it",
+                {"path": expected_path},
+            )
+
+        if storage_content_type not in INSPECTION_VOICE_NOTE_ALLOWED_TYPES:
+            raise InspectionServiceError(
+                422,
+                "voice_note_content_type_invalid",
+                "Uploaded content type is not allowed for voice notes",
+                {"content_type": storage_content_type},
+            )
+        if storage_size is not None and storage_size > INSPECTION_VOICE_NOTE_MAX_SIZE_BYTES:
+            raise InspectionServiceError(
+                413,
+                "voice_note_too_large",
+                "Uploaded file exceeds the allowed size for voice notes",
+                {"size": storage_size, "max_size": INSPECTION_VOICE_NOTE_MAX_SIZE_BYTES},
+            )
+        if request.duration_ms > INSPECTION_VOICE_NOTE_MAX_DURATION_MS:
+            raise InspectionServiceError(
+                422,
+                "voice_note_too_long",
+                "Voice note exceeds the maximum allowed duration",
+                {
+                    "duration_ms": request.duration_ms,
+                    "max_duration_ms": INSPECTION_VOICE_NOTE_MAX_DURATION_MS,
+                },
+            )
+
+        voice_note = VoiceNote(
+            id=f"voice_{uuid4().hex}",
+            local_id=request.local_id,
+            path=expected_path,
+            filename=request.filename,
+            content_type=storage_content_type or request.content_type,
+            size=storage_size if storage_size is not None else request.size,
+            duration_ms=request.duration_ms,
+            checklist_item_id=request.checklist_item_id,
+            uploaded_by=actor_uid,
+            uploaded_at=utc_now(),
+        )
+        updated = await self._inspections.append_voice_note(
+            scope, inspection_id, voice_note, actor_uid
+        )
+        return _to_detail(updated, self._storage)
+
+    async def update_voice_note(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        voice_note_id: str,
+        request: UpdateVoiceNoteRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        await self._active_inspection(scope, inspection_id)
+        updated = await self._inspections.update_voice_note(
+            scope,
+            inspection_id,
+            voice_note_id,
+            checklist_item_id=request.checklist_item_id,
+            actor_uid=actor_uid,
+        )
+        return _to_detail(updated, self._storage)
+
+    async def detach_voice_note(
+        self, scope: CompanyScope, inspection_id: str, voice_note_id: str, actor_uid: str
+    ) -> InspectionDetail:
+        """Idempotent on an already-detached `voice_note_id` -- the mobile
+        outbox replays this call at-least-once, mirrors `detach_media`.
+        Never deletes the Storage object, same direct-upload rationale."""
+        current = await self._active_inspection(scope, inspection_id)
+        voice_note = next((v for v in current.voice_notes if v.id == voice_note_id), None)
+        if voice_note is None:
+            return _to_detail(current, self._storage)
+        updated = await self._inspections.remove_voice_note(
+            scope, inspection_id, voice_note, actor_uid
+        )
         return _to_detail(updated, self._storage)
 
     async def create_annotation(

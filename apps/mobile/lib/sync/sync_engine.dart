@@ -209,6 +209,29 @@ class SyncEngine extends ChangeNotifier {
       case OutboxMutationType.detachMedia:
         final wrapper = payload as Map<String, dynamic>;
         return _api.detachInspectionMedia(item.inspectionId, wrapper['media_id'] as String);
+      case OutboxMutationType.attachVoiceNote:
+        final request = standardSerializers.deserializeWith(
+          AttachVoiceNoteRequest.serializer,
+          payload as Map<String, dynamic>,
+        )!;
+        return _api.attachInspectionVoiceNote(item.inspectionId, request);
+      case OutboxMutationType.editVoiceNote:
+        final wrapper = payload as Map<String, dynamic>;
+        final request = standardSerializers.deserializeWith(
+          UpdateVoiceNoteRequest.serializer,
+          wrapper['request'] as Map<String, dynamic>,
+        )!;
+        return _api.updateInspectionVoiceNote(
+          item.inspectionId,
+          wrapper['voice_note_id'] as String,
+          request,
+        );
+      case OutboxMutationType.detachVoiceNote:
+        final wrapper = payload as Map<String, dynamic>;
+        return _api.detachInspectionVoiceNote(
+          item.inspectionId,
+          wrapper['voice_note_id'] as String,
+        );
       case OutboxMutationType.createAnnotation:
         final request = standardSerializers.deserializeWith(
           CreateAnnotationRequest.serializer,
@@ -235,20 +258,31 @@ class SyncEngine extends ChangeNotifier {
     }
   }
 
-  /// After a mutation round-trips successfully, `attachMedia` has one extra
-  /// step: the local `MediaQueue` row (kept around only for its own
-  /// upload-progress UI) is now fully redundant, since `inspection.media[]`
-  /// -- just refreshed by `applyMutationSuccess` above -- is the durable
-  /// source of truth going forward. `editMedia`/`detachMedia` never leave a
-  /// `MediaQueue` row behind in the first place (they only ever target
-  /// already-referenced media), so there's nothing to clean up for them.
+  /// After a mutation round-trips successfully, `attachMedia`/
+  /// `attachVoiceNote` have one extra step: the local `MediaQueue` row (kept
+  /// around only for its own upload-progress UI) is now fully redundant,
+  /// since `inspection.media[]`/`voiceNotes[]` -- just refreshed by
+  /// `applyMutationSuccess` above -- is the durable source of truth going
+  /// forward. `editMedia`/`detachMedia`/`editVoiceNote`/`detachVoiceNote`
+  /// never leave a `MediaQueue` row behind in the first place (they only
+  /// ever target already-referenced items), so there's nothing to clean up
+  /// for them.
   Future<void> _onMutationApplied(OutboxItemRecord item) async {
-    if (item.mutationType != OutboxMutationType.attachMedia) return;
-    final request = standardSerializers.deserializeWith(
-      AttachInspectionMediaRequest.serializer,
-      jsonDecode(item.row.payload) as Map<String, dynamic>,
-    )!;
-    await _mediaRepository?.markReferenced(request.localId);
+    if (item.mutationType == OutboxMutationType.attachMedia) {
+      final request = standardSerializers.deserializeWith(
+        AttachInspectionMediaRequest.serializer,
+        jsonDecode(item.row.payload) as Map<String, dynamic>,
+      )!;
+      await _mediaRepository?.markReferenced(request.localId);
+      return;
+    }
+    if (item.mutationType == OutboxMutationType.attachVoiceNote) {
+      final request = standardSerializers.deserializeWith(
+        AttachVoiceNoteRequest.serializer,
+        jsonDecode(item.row.payload) as Map<String, dynamic>,
+      )!;
+      await _mediaRepository?.markReferenced(request.localId);
+    }
   }
 
   Future<bool> _handleError(OutboxItemRecord item, ApiException error) async {
@@ -328,17 +362,20 @@ class SyncEngine extends ChangeNotifier {
           jsonDecode(item.row.payload) as Map<String, dynamic>,
         )!;
         return current.checklistTemplateId == request.checklistTemplateId;
-      // attachMedia/editMedia/detachMedia/*Annotation never carry
+      // attachMedia/editMedia/detachMedia/*VoiceNote/*Annotation never carry
       // `expected_revision` and the backend is idempotent-by-`local_id`/
-      // `media_id`/`annotation_id` for all of them, so they can only ever
-      // fully succeed or fail outright -- structurally, `_handleError`
-      // never routes a `revision_conflict`/`invalid_transition` code to
-      // this method for these mutation types. These cases exist only to
-      // satisfy Dart's exhaustive-switch check; don't "helpfully" replace
-      // `true` with real comparison logic.
+      // `media_id`/`voice_note_id`/`annotation_id` for all of them, so they
+      // can only ever fully succeed or fail outright -- structurally,
+      // `_handleError` never routes a `revision_conflict`/
+      // `invalid_transition` code to this method for these mutation types.
+      // These cases exist only to satisfy Dart's exhaustive-switch check;
+      // don't "helpfully" replace `true` with real comparison logic.
       case OutboxMutationType.attachMedia:
       case OutboxMutationType.editMedia:
       case OutboxMutationType.detachMedia:
+      case OutboxMutationType.attachVoiceNote:
+      case OutboxMutationType.editVoiceNote:
+      case OutboxMutationType.detachVoiceNote:
       case OutboxMutationType.createAnnotation:
       case OutboxMutationType.updateAnnotation:
       case OutboxMutationType.deleteAnnotation:
