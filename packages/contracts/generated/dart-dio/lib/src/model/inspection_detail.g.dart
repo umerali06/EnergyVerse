@@ -191,7 +191,7 @@ class _$InspectionDetail extends InspectionDetail {
   @override
   final int revision;
   @override
-  final BuiltMap<String, JsonObject?>? signature;
+  final SignatureResponse? signature;
   @override
   final DateTime? startedAt;
   @override
@@ -501,10 +501,10 @@ class InspectionDetailBuilder
   int? get revision => _$this._revision;
   set revision(int? revision) => _$this._revision = revision;
 
-  MapBuilder<String, JsonObject?>? _signature;
-  MapBuilder<String, JsonObject?> get signature =>
-      _$this._signature ??= new MapBuilder<String, JsonObject?>();
-  set signature(MapBuilder<String, JsonObject?>? signature) =>
+  SignatureResponseBuilder? _signature;
+  SignatureResponseBuilder get signature =>
+      _$this._signature ??= new SignatureResponseBuilder();
+  set signature(SignatureResponseBuilder? signature) =>
       _$this._signature = signature;
 
   DateTime? _startedAt;

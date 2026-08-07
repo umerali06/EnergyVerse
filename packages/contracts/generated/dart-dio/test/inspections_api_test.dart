@@ -40,7 +40,9 @@ void main() {
 
     // Complete Inspection
     //
-    //Future<InspectionDetail> completeInspection(String inspectionId) async
+    // Signature capture is the final step of completion (Phase 7.8) -- signer identity (`current_user.uid`/`role_key`) always comes from the verified token, never from the request body.
+    //
+    //Future<InspectionDetail> completeInspection(String inspectionId, CompleteInspectionRequest completeInspectionRequest) async
     test('test completeInspection', () async {
       // TODO
     });

@@ -19,6 +19,7 @@ from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.inspections import InspectionRepository
+from app.db.repositories.users import UserRepository
 from app.inspections.service import InspectionService
 from app.models.api import (
     AttachVoiceNoteRequest,
@@ -40,6 +41,7 @@ async def main() -> None:
         inspections=InspectionRepository(client, audit),
         assets=AssetRepository(client, audit),
         checklist_templates=ChecklistTemplateRepository(client, audit),
+        users=UserRepository(client, audit),
         storage=storage,
     )
     scope = CompanyScope(company_id=ACME_COMPANY_ID)

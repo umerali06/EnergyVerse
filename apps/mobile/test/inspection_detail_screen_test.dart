@@ -54,6 +54,7 @@ InspectionDetail _inspectionDetailFixture({
   List<AnnotationResponse> annotations = const [],
   List<VoiceNoteResponse> voiceNotes = const [],
   ReadingsResponse? readings,
+  SignatureResponse? signature,
 }) {
   final now = DateTime.utc(2026, 1, 1);
   final startedAt = DateTime.utc(2026, 1, 2);
@@ -84,7 +85,31 @@ InspectionDetail _inspectionDetailFixture({
       ..media.addAll(media)
       ..annotations.addAll(annotations)
       ..voiceNotes.addAll(voiceNotes)
-      ..readings = readings?.toBuilder(),
+      ..readings = readings?.toBuilder()
+      ..signature = signature?.toBuilder(),
+  );
+}
+
+SignatureResponse _signatureFixture() {
+  return SignatureResponse(
+    (b) => b
+      ..strokes.add(
+        SignatureStrokeResponse(
+          (sb) => sb.points.addAll([
+            SignaturePointResponse((p) => p
+              ..x = 0.1
+              ..y = 0.2),
+            SignaturePointResponse((p) => p
+              ..x = 0.8
+              ..y = 0.6),
+          ]),
+        ),
+      )
+      ..signerUid = 'demo-acme-field_inspector'
+      ..signerName = 'Alex Field Inspector'
+      ..signerRole = 'field_inspector'
+      ..signedAt = DateTime.utc(2026, 1, 3)
+      ..inspectionRevision = 2,
   );
 }
 
@@ -168,6 +193,7 @@ class FakeApi implements ApiContract {
     this.annotations = const [],
     this.voiceNotes = const [],
     this.readings,
+    this.signature,
   });
 
   final CurrentUser identity;
@@ -176,6 +202,7 @@ class FakeApi implements ApiContract {
   final List<AnnotationResponse> annotations;
   final List<VoiceNoteResponse> voiceNotes;
   final ReadingsResponse? readings;
+  final SignatureResponse? signature;
 
   /// Simulates airplane mode: every inspections network call throws, so
   /// [LocalInspectionsRepository]'s best-effort refreshes are no-ops and
@@ -343,7 +370,8 @@ class FakeApi implements ApiContract {
         media: media,
         annotations: annotations,
         voiceNotes: voiceNotes,
-        readings: readings);
+        readings: readings,
+        signature: signature);
   }
 
   @override
@@ -362,7 +390,10 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> completeInspection(String inspectionId) =>
+  Future<InspectionDetail> completeInspection(
+    String inspectionId,
+    CompleteInspectionRequest request,
+  ) =>
       throw UnimplementedError();
 
   @override
@@ -488,6 +519,7 @@ void main() {
       identityFor('field_inspector', const ['inspections.read']),
       status: InspectionDetailStatusEnum.completed,
       readings: _readingsFixture(),
+      signature: _signatureFixture(),
     );
     await tester.pumpWidget(
       FevApp(
@@ -521,6 +553,14 @@ void main() {
     expect(find.text('Bearing failing'), findsOneWidget);
     // Read-only means no editable readings inputs either.
     expect(find.byKey(const Key('readings-condition')), findsNothing);
+
+    // Digital signature (Phase 7.8): signer identity + timestamp render
+    // read-only, never as editable fields.
+    await tester.scrollUntilVisible(find.text('SIGNATURE'), 200);
+    expect(find.textContaining('Alex Field Inspector'), findsOneWidget);
+    expect(find.textContaining('field_inspector'), findsWidgets);
+    expect(find.byKey(const Key('signature-preview-canvas')), findsOneWidget);
+    expect(find.byKey(const Key('signature-pad-gesture')), findsNothing);
     await disposeApp(tester);
   });
 
@@ -601,10 +641,103 @@ void main() {
       await tester.tap(find.byKey(const Key('complete-inspection')));
       await tester.pumpAndSettle();
 
+      // Signature capture (Phase 7.8) is the mandatory final step: "Sign &
+      // Complete" stays disabled until something's drawn.
+      expect(find.byKey(const Key('signature-pad-canvas')), findsOneWidget);
+      final confirmBeforeDrawing = tester
+          .widget<AppButton>(find.byKey(const Key('signature-confirm')));
+      expect(confirmBeforeDrawing.onPressed, isNull);
+
+      await tester.drag(
+        find.byKey(const Key('signature-pad-gesture')),
+        const Offset(60, 40),
+      );
+      await tester.pumpAndSettle();
+      final confirmAfterDrawing = tester
+          .widget<AppButton>(find.byKey(const Key('signature-confirm')));
+      expect(confirmAfterDrawing.onPressed, isNotNull);
+
+      await tester.tap(find.byKey(const Key('signature-confirm')));
+      await tester.pumpAndSettle();
+
       final completedRow = await (db.select(db.localInspections)
             ..where((t) => t.id.equals('inspection-1')))
           .getSingle();
       expect(completedRow.status, 'completed');
+      expect(completedRow.pendingSignatureStrokes, isNotNull);
+      await disposeApp(tester);
+    },
+  );
+
+  testWidgets(
+    'signature pad: Clear resets the drawing and disables Sign & Complete again; '
+    'dismissing the sheet without signing leaves the inspection untouched',
+    (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final api = FakeApi(identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']));
+      await tester.pumpWidget(
+        FevApp(
+            api: api,
+            authGateway: FakeGateway(),
+            initialRoute: AppRoutes.inspections,
+            database: db),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Q3 Routine Inspection'));
+      await tester.pumpAndSettle();
+
+      final pageScrollable = find
+          .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+          .first;
+      await tester.scrollUntilVisible(
+          find.byKey(const Key('item-vibration_normal-pass')), 200,
+          scrollable: pageScrollable);
+      await tester
+          .ensureVisible(find.byKey(const Key('item-vibration_normal-pass')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('item-vibration_normal-pass')));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+          find.byKey(const Key('complete-inspection')), 200,
+          scrollable: pageScrollable);
+      await tester.ensureVisible(find.byKey(const Key('complete-inspection')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('complete-inspection')));
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byKey(const Key('signature-pad-gesture')),
+        const Offset(60, 40),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<AppButton>(find.byKey(const Key('signature-confirm')))
+            .onPressed,
+        isNotNull,
+      );
+
+      await tester.tap(find.byKey(const Key('signature-clear')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<AppButton>(find.byKey(const Key('signature-confirm')))
+            .onPressed,
+        isNull,
+      );
+
+      // Dismiss the sheet (tap the scrim) instead of signing.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+
+      final row = await (db.select(db.localInspections)
+            ..where((t) => t.id.equals('inspection-1')))
+          .getSingle();
+      expect(row.status, isNot('completed'));
+      expect(row.pendingSignatureStrokes, isNull);
       await disposeApp(tester);
     },
   );

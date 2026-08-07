@@ -12,6 +12,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/fake_sync_api.dart';
 
+List<SignatureStrokeInput> _testStrokes() => [
+      SignatureStrokeInput((b) => b.points.addAll([
+            SignaturePointInput((p) => p
+              ..x = 0.1
+              ..y = 0.2),
+            SignaturePointInput((p) => p
+              ..x = 0.8
+              ..y = 0.6),
+          ])),
+    ];
+
 InspectionDetail _serverDetailFixture({
   String id = 'insp-1',
   int revision = 3,
@@ -152,7 +163,7 @@ void main() {
     );
 
     await expectLater(
-      repository.completeInspection(id),
+      repository.completeInspection(id, strokes: _testStrokes()),
       throwsA(isA<ChecklistIncompleteError>()),
     );
 
@@ -162,6 +173,7 @@ void main() {
           ..where((t) => t.id.equals(id)))
         .getSingle();
     expect(row.status, isNot('completed'));
+    expect(row.pendingSignatureStrokes, isNull);
   });
 
   test('completeInspection succeeds once the required item is answered',
@@ -201,14 +213,46 @@ void main() {
       ],
     );
 
-    await repository.completeInspection(id);
+    await repository.completeInspection(id, strokes: _testStrokes());
 
     final row = await (db.select(db.localInspections)
           ..where((t) => t.id.equals(id)))
         .getSingle();
     expect(row.status, 'completed');
+    expect(row.syncState, 'pending_sync');
+    // The signature itself isn't known to be server-confirmed yet, but the
+    // drawn strokes are visible immediately (survives an app restart too --
+    // see the `pendingSignatureStrokes` column doc).
+    expect(row.signature, isNull);
+    expect(row.pendingSignatureStrokes, isNotNull);
     final outbox = await db.select(db.outbox).get();
-    expect(outbox.where((r) => r.mutationType == 'complete'), hasLength(1));
+    final completeRows =
+        outbox.where((r) => r.mutationType == 'complete').toList();
+    expect(completeRows, hasLength(1));
+    final request = standardSerializers.deserializeWith(
+      CompleteInspectionRequest.serializer,
+      jsonDecode(completeRows.single.payload) as Map<String, dynamic>,
+    )!;
+    expect(request.expectedRevision, 0);
+    expect(request.strokes, hasLength(1));
+  });
+
+  test(
+      'completeInspection strokes and status survive being re-read from a fresh repository instance (app-restart persistence)',
+      () async {
+    final id = await repository.createDraft(
+      assetId: 'asset-1',
+      inspectorId: 'user-1',
+      inspectionType: 'ad_hoc',
+    );
+    await repository.completeInspection(id, strokes: _testStrokes());
+
+    final restarted = LocalInspectionsRepository(db: db, api: FakeSyncApi());
+    final row = await restarted.watchInspection(id).first;
+    expect(row, isNotNull);
+    expect(row!.status, 'completed');
+    expect(row.pendingSignatureStrokes, isNotNull);
+    expect(row.pendingSignatureStrokes!.single.points.first.x, 0.1);
   });
 
   test(
@@ -255,6 +299,38 @@ void main() {
     expect(row.revision, 5);
     final outbox = await db.select(db.outbox).get();
     expect(outbox, isEmpty);
+  });
+
+  test(
+      'markConflict on a stale complete-with-signature reverts the optimistic '
+      "'completed' status so the inspector re-signs (Phase 7.8 re-sign flow)",
+      () async {
+    final id = await repository.createDraft(
+      assetId: 'asset-1',
+      inspectorId: 'user-1',
+      inspectionType: 'ad_hoc',
+    );
+    await repository.completeInspection(id, strokes: _testStrokes());
+    var row = await (db.select(db.localInspections)
+          ..where((t) => t.id.equals(id)))
+        .getSingle();
+    expect(row.status, 'completed');
+    expect(row.pendingSignatureStrokes, isNotNull);
+
+    // The server rejected the stale signature (revision moved since the
+    // strokes were drawn) -- the sync engine re-fetches the authoritative
+    // state, which never actually completed, and reports it here.
+    final server = _serverDetailFixture(id: id, revision: 2);
+    await repository.markConflict(inspectionId: id, serverSnapshot: server);
+
+    row = await (db.select(db.localInspections)
+          ..where((t) => t.id.equals(id)))
+        .getSingle();
+    expect(row.status, 'in_progress');
+    expect(row.completedAt, isNull);
+    expect(row.pendingSignatureStrokes, isNull);
+    expect(row.syncState, 'conflict');
+    // Once the inspector reviews and taps Complete again, that's the re-sign.
   });
 
   test(

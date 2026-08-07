@@ -1982,6 +1982,99 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   models and the updated `InspectionDetail`/`UpdateInspectionRequest`, on
   both generated clients.
 
+### Phase 7.8 Digital Signature (Inspector Sign-Off)
+
+- **New `Signature`/`SignatureStroke` entities replace the untyped
+  placeholder.** `Inspection.signature` (`apps/api/app/models/entities.py`)
+  was `dict[str, Any] | None = None` reserved since 7.1; it's now
+  `Signature | None = None` — `strokes` (`list[SignatureStroke]`, each a
+  `points: list[AnnotationPoint]`, min length 1), server-derived
+  `signer_uid`/`signer_name`/`signer_role`, `signed_at`, and
+  `inspection_revision`. **Strokes are a list of stroke *objects*, not a
+  raw `list[list[AnnotationPoint]]`** — a doubly-nested list needs a
+  builder factory the pinned Dart openapi-generator doesn't reliably emit
+  (`ListBuilder<BuiltList<X>>` for the inner level was missing at runtime,
+  a real bug hit and fixed during this phase); a named `SignatureStroke`
+  with one level of nesting sidesteps the generator gap entirely and
+  leaves room for future per-stroke metadata (color, width).
+- **Vector, not raster (mirrors D-054's annotation precedent).** The
+  signature pad's drawn strokes are normalized (0–1) points, identical in
+  shape to `Annotation.points` — no Storage upload, no signed-URL round
+  trip, renders correctly at any canvas size. This was a genuine
+  either/or decision at phase start (raster via the 7.4 media pipeline
+  was the other option); vector won on payload size and precedent.
+- **Signing is the mandatory final step of completion, not a separate
+  endpoint.** `POST /inspections/{id}/complete` now requires a body
+  (`CompleteInspectionRequest`: `strokes` + `expected_revision`) — there
+  is no way to complete an inspection without signing, and no separate
+  sign-then-complete call. `InspectionService.complete_inspection` checks
+  `expected_revision` against the live revision BEFORE the
+  checklist-incomplete check (so a stale-revision attempt gets
+  `revision_conflict`, not a confusing `checklist_incomplete`), looks up
+  the signer's `display_name` via a new `UserRepository` dependency on
+  `InspectionService` (identity is always server-derived from
+  `current_user.uid`/`role_key` — any client-supplied signer field in the
+  request body is simply ignored, `CompleteInspectionRequest` has no such
+  field at all), and stamps `signature.inspection_revision` as the
+  inspection's revision AFTER the lifecycle transition (`current.revision
+  + 1`) — exactly the completed inspection's own final revision.
+- **Revision-binding + the "edited after signing" question, resolved
+  narrowly (D-0xx).** A completed inspection is immutable
+  (`update_inspection`/`assign_checklist_template` both 409 on
+  `TERMINAL_STATUSES`, unchanged since 7.1) — so a *persisted* signature
+  can never actually go stale after the fact; there is no reopen/re-edit
+  capability, and none was added. "Edited after signing" instead means
+  the offline PRE-completion race: the signature pad captures strokes
+  bound to the revision it saw; if the sign+complete call reaches the
+  server after that revision moved (e.g. a queued offline edit synced
+  first), the existing `revision_conflict` 409 machinery rejects it
+  outright, forcing a refresh + re-sign — no new backend capability
+  needed, this reuses the same protocol `update_inspection` already has.
+- **Mobile: signature pad opens as a modal at "Complete Inspection", not
+  inline on the form.** New `SignaturePad`/`SignaturePadController`
+  (`apps/mobile/lib/inspections/signature_pad.dart`) — a `CustomPaint`
+  freehand canvas, no tool palette (unlike 7.5's annotation canvas, since
+  a signature is always one color/one gesture), normalized at draw time
+  identically to 7.5's own `_clampNormalized`. Tapping "Complete
+  Inspection" opens `_SignatureCaptureSheet` (shows the authenticated
+  user's email — never editable — since `CurrentUser` has no
+  `display_name` field and fetching one solely for this optimistic
+  local echo wasn't worth a new lookup); "Sign & Complete" stays disabled
+  until something's drawn. `LocalInspectionsRepository.completeInspection`
+  gained a required `strokes` parameter, computes `expectedRevision` from
+  `baseRevision` exactly like `updateInspection` already does, and writes
+  a new local-only `pendingSignatureStrokes` column optimistically (the
+  raw drawing, visible immediately and across an app restart) — kept
+  separate from the new `signature` column (only ever written from a
+  synced server response, since signer identity/timestamp are
+  server-derived and there's nothing honest to echo locally before sync
+  confirms them). Schema v6→v7 adds both columns.
+- **`markConflict` correctness fix, general not signature-specific.** Any
+  outbox conflict now re-syncs `status`/`startedAt`/`completedAt` from
+  the fresh server snapshot (previously left untouched) and clears
+  `pendingSignatureStrokes` — needed because a stale `complete` mutation's
+  optimistic `status: 'completed'` flip must revert to the server's true
+  status once the conflict is detected, or the local UI would show a
+  false "completed" state that never actually landed. This is what makes
+  the existing generic conflict sheet ("keep mine"/"use server's") double
+  as the re-sign flow: after either resolution, status is genuinely back
+  to `in_progress`, and the inspector taps Complete again to re-sign.
+- **Admin: read-only signature review** in the existing
+  `InspectionDetailPage`, a new section showing signer name/role/
+  timestamp, a "Valid at revision N" / "Superseded (signed revision X,
+  now at Y)" indicator (computed client-side by comparing
+  `signature.inspectionRevision` to the live `revision` — always "Valid"
+  today given the no-reopen decision above, but the indicator is real
+  logic, not a hardcoded label, so it's correct if that decision is ever
+  revisited), and a new `SignaturePreview` SVG component (mirrors
+  `AnnotationOverlay`'s normalized-`viewBox` convention) rendering the
+  stroke data directly rather than an `<img>`.
+- **Contracts regenerated** for `Signature`/`SignatureStroke` request and
+  response models (`SignaturePointInput`/`SignaturePointResponse`/
+  `SignatureStrokeInput`/`SignatureStrokeResponse`/`SignatureResponse`/
+  `CompleteInspectionRequest`) and the updated `InspectionDetail`, on both
+  generated clients.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -2048,3 +2141,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.4 — camera capture (photos + videos), GPS/timestamp, and before/after | See "Phase 7.4 Camera Capture" above for the full breakdown. In short: a new `MediaQueue` table + `MediaUploadWorker`, entirely independent of 7.2's `Outbox`/`SyncEngine`, uploads media bytes directly from the mobile client to Firebase Storage (a deliberate departure from 4.3's server-mediated asset-media pattern, D-0xx) via a new `storage.rules` carve-out scoped by the caller's `company_id` claim; only a small metadata reference then rides the existing 7.2 outbox as a new `attach_media`/`edit_media`/`detach_media` mutation type, all three idempotent and carrying no `expected_revision` by design. New backend `InspectionMedia` entity and three routes (attach/update/detach) on the existing `inspections` router, gated by the existing `inspections.write`; the backend never touches media bytes, only verifying what the client already uploaded and issuing signed URLs. Mobile capture (`camera`/`video_player`/`video_thumbnail`/`firebase_storage`, new dependencies) mirrors 4.5's `QrScanScreen` injectable-builder testing seam; video is capped at 3 minutes/~1080p. Before/after is an independent per-item tag (not a linked pair). `InspectionMediaSection` (mobile) and a read-only grid in admin's existing `InspectionDetailPage` round out the gallery, with a live "N of M uploaded" count so a completed-while-media-pending inspection stays honest. Contracts regenerated for `AttachInspectionMediaRequest`/`UpdateInspectionMediaRequest`/`InspectionMediaResponse` and the three new `InspectionsApi` operations. | 2026-08-02 |
 | Phase 7.5 — damage annotation (draw on inspection photos) | See "Phase 7.5 Damage Annotation" above for the full breakdown. In short: `Inspection.annotations[]` (typed since 7.1's untyped placeholder) holds normalized (0–1) vector shapes keyed by `media_local_id`, one `points[]` field covering all five shapes so 7.10's AI-detected regions can render on the same overlay via the reserved `source`/`confidence` fields. Three new routes mirror 7.4 media's mutation protocol exactly (idempotent by id, no `expected_revision`, `ArrayUnion`/`ArrayRemove` repository methods). Mobile annotations ride the existing 7.2 outbox/record (three new `OutboxMutationType` values) but — unlike media — write to the local cache optimistically, since there's no secondary upload queue standing between "drawn" and "visible offline." New `AnnotationCanvasScreen` (draw/label/undo/redo/select/move/delete) opens from any photo tile in `InspectionMediaSection`; overlay rendering (toggleable) lands on the gallery tile, the canvas itself, and a new read-only SVG overlay in admin's existing `InspectionDetailPage`. Contracts regenerated for `AnnotationResponse`/`CreateAnnotationRequest`/`UpdateAnnotationRequest`/`AnnotationPointResponse`/`AnnotationPointInput` and the three new `InspectionsApi` operations. | 2026-08-05 |
 | Phase 7.7 — manual status readings (resolves the deferred §9 manual-status log) | See "Phase 7.7 Manual Status Readings" above for the full breakdown. In short: `Inspection.readings` (typed since 7.1's untyped `dict` placeholder) is a single nullable `Readings` object, not an array — deliberately rides the existing generic `update_inspection`/revision-aware PATCH the 7.3 checklist already uses (D-059), never the 7.4/7.5/7.6 append-idempotent-by-id/no-revision pattern, since it's one form with one editor rather than independent records. Fixed documented units (Celsius/bar/decibels, D-058) via unit-suffixed field names, no per-reading unit picker. On `complete_inspection` only, `READINGS_CONDITION_TO_ASSET_STATUS` maps the condition onto the asset's 4.1 `current_status` through a new `AssetRepository.roll_up_status_from_inspection` (own `asset.status_rolled_up` audit action), which the existing 4.4 dashboard `count()` query picks up on its next read with zero caching — verified end to end against the real Firebase project. Mobile's `InspectionReadingsSection` autosaves through a new `updateInspection(..., readings:)` parameter (not a new outbox mutation type), backed by a new nullable `LocalInspections.readings` column (schema v5→v6). Admin gains a read-only readings review section. Contracts regenerated for `ReadingsInput`/`ReadingsResponse` and the updated `InspectionDetail`/`UpdateInspectionRequest`. | 2026-08-06 |
+| Phase 7.8 — digital signature (inspector sign-off) | See "Phase 7.8 Digital Signature" above for the full breakdown. In short: `Inspection.signature` (typed since 7.1's untyped placeholder) is a single nullable `Signature` object holding a list of `SignatureStroke` objects (each `points: list[AnnotationPoint]`) — a named-stroke shape chosen specifically to avoid a real doubly-nested-list builder-factory gap in the pinned Dart generator. Signing is now the mandatory final step of `POST /inspections/{id}/complete` (a new required `CompleteInspectionRequest` body: `strokes` + `expected_revision`) — there is no separate sign-then-complete call and no way to complete unsigned. Signer identity is always server-derived (`InspectionService` gained a `UserRepository` dependency for the `display_name` lookup); a stale `expected_revision` is rejected with the existing `revision_conflict` 409 before the checklist-completeness check runs, which is also the entire "re-sign" mechanism — no reopen/re-edit capability was added, since a completed inspection stays immutable. Mobile gained `SignaturePad`/`SignaturePadController` and a `_SignatureCaptureSheet` modal opened from "Complete Inspection"; `LocalInspectionsRepository.completeInspection` now requires `strokes`, and `LocalInspections` gained `signature`/`pendingSignatureStrokes` columns (schema v6→v7). `markConflict` was fixed to re-sync `status`/`startedAt`/`completedAt` from the server on any conflict, so a stale `complete` attempt's optimistic status flip reverts correctly. Admin gains a read-only signature review section (signer/role/timestamp, valid-vs-superseded indicator, SVG stroke preview). Contracts regenerated for `Signature`/`SignatureStroke` request/response models and the updated `InspectionDetail`. | 2026-08-06 |

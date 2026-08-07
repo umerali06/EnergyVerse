@@ -184,7 +184,11 @@ class SyncEngine extends ChangeNotifier {
       case OutboxMutationType.start:
         return _api.startInspection(item.inspectionId);
       case OutboxMutationType.complete:
-        return _api.completeInspection(item.inspectionId);
+        final request = standardSerializers.deserializeWith(
+          CompleteInspectionRequest.serializer,
+          payload as Map<String, dynamic>,
+        )!;
+        return _api.completeInspection(item.inspectionId, request);
       case OutboxMutationType.cancel:
         return _api.cancelInspection(item.inspectionId);
       case OutboxMutationType.assignTemplate:

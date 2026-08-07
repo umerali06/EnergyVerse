@@ -17,11 +17,19 @@ from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.inspections import InspectionRepository
+from app.db.repositories.users import UserRepository
 from app.inspections.service import InspectionService
-from app.models.api import CreateInspectionRequest, ReadingsInput, UpdateInspectionRequest
+from app.models.api import (
+    CompleteInspectionRequest,
+    CreateInspectionRequest,
+    ReadingsInput,
+    UpdateInspectionRequest,
+)
 from app.models.base import CompanyScope
 from app.storage.service import get_inspection_media_storage
 from scripts.seed import ACME_COMPANY_ID, ASSET_FEED_PUMP_ID, FIELD_INSPECTOR_UID
+
+_SIGNATURE_STROKES = [{"points": [{"x": 0.1, "y": 0.2}, {"x": 0.8, "y": 0.6}]}]
 
 # Condition that maps back onto each starting asset status (spec section 9 ->
 # 4.1 rollup mapping), used to restore the real asset to whatever status it
@@ -43,13 +51,21 @@ async def _complete_with_condition(
         ),
         actor_uid,
     )
-    await service.update_inspection(
+    updated = await service.update_inspection(
         scope,
         inspection_id,
         UpdateInspectionRequest(readings=ReadingsInput(condition=condition)),
         actor_uid,
     )
-    await service.complete_inspection(scope, inspection_id, actor_uid)
+    await service.complete_inspection(
+        scope,
+        inspection_id,
+        CompleteInspectionRequest(
+            strokes=_SIGNATURE_STROKES, expected_revision=updated.revision
+        ),
+        actor_uid,
+        "field_inspector",
+    )
     return inspection_id
 
 
@@ -61,6 +77,7 @@ async def main() -> None:
         inspections=InspectionRepository(client, audit),
         assets=assets,
         checklist_templates=ChecklistTemplateRepository(client, audit),
+        users=UserRepository(client, audit),
         storage=get_inspection_media_storage(),
     )
     scope = CompanyScope(company_id=ACME_COMPANY_ID)

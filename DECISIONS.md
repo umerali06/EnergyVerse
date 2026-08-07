@@ -63,6 +63,8 @@
 | D-057 | Voice notes reuse the 7.4 media pipeline end to end, under their own Storage namespace | **A voice note's bytes go through the exact same `MediaQueue`/`MediaUploadWorker` a photo/video does (`kind == 'audio'`, a new nullable `durationMs` column) rather than a new queue/worker — the drain loop, backoff, progress tracking, and cancel-on-remove are 100% shared code; only the storage subfolder (`voice/` vs `media/`, via a new `voice_object_path()`/`inspectionVoiceNoteStoragePath()` pair mirroring the existing `object_path()`) and the outbox mutation type (`attach_voice_note`/`edit_voice_note`/`detach_voice_note` vs `attach_media`/`edit_media`/`detach_media`) differ. Backend mutation protocol mirrors D-051/D-055 exactly: idempotent by `local_id`/`voice_note_id`, no `expected_revision`. `Inspection.voice_notes[]` (7.1's untyped placeholder) becomes a real `VoiceNote` entity, still its own top-level array, not nested under `media[]`.** | **RESOLVED — LOCKED** | 2026-08-06 |
 | D-058 | Manual status readings: fixed documented units, no per-reading unit field | **`Readings.temperature_c`/`pressure_bar`/`noise_level_db` are always Celsius/bar/decibels — unit-suffixed field names, not a per-reading unit selector — so the unit is unambiguous from the identifier itself in code and on the wire. `operational_status` is `running`\|`stopped`\|`degraded`, matching the phase brief's own example exactly.** | **RESOLVED — LOCKED** | 2026-08-06 |
 | D-059 | Readings mutation protocol rides the existing checklist-autosave revision path, not the 7.4/7.5/7.6 append pattern | **`Inspection.readings` is a single nullable `Readings` object (not an array of independent records), so it's mutated through the pre-existing `update_inspection`/`expected_revision`-aware PATCH the 7.3 checklist already uses — a new `readings` field on `UpdateInspectionRequest`, no new repository method, no new `OutboxMutationType`, no `expected_revision` bypass. This is the opposite of D-051/D-055/D-057's shared rationale (media/annotations/voice-notes are independent-record arrays that must never collide with the checklist-autosave revision bump); readings is form-like single-object data, the same shape as `title`/`notes`/`checklist_responses`, so it correctly reuses that exact protocol. On `complete_inspection` only, the condition maps onto the asset's 4.1 `current_status` via a new `AssetRepository.roll_up_status_from_inspection` (own `asset.status_rolled_up` audit action, distinct from the generic `asset.updated`), which the existing 4.4 dashboard `count()` aggregation reflects with no caching.** | **RESOLVED — LOCKED** | 2026-08-06 |
+| D-060 | Digital signature integrity: vector storage, server-derived identity, revision-binding | **`Signature.strokes` is normalized (0-1) vector data (`list[SignatureStroke]`, each `{points: list[AnnotationPoint]}` — a named single-level-nesting wrapper, not a raw `list[list[...]]`, to avoid a real Dart-generator builder-factory gap hit mid-phase), never a raster image. Signer identity/timestamp are always server-derived (`current_user` + a `UserRepository` lookup for `display_name`) — `CompleteInspectionRequest` has no signer field at all. `signature.inspection_revision` is stamped as the inspection's own post-completion revision, guaranteed to match the request's `expected_revision`.** | **RESOLVED — LOCKED** | 2026-08-06 |
+| D-061 | Completion requires signature: atomic, no reopen | **`POST /inspections/{id}/complete` now requires a body (`strokes` + `expected_revision`) — signing is the mandatory final step, no separate sign-then-complete call, no way to complete unsigned. A completed inspection stays fully immutable (no reopen/re-edit capability added); "edited after signing" is realized narrowly as the pre-completion offline race, rejected via the existing `revision_conflict` 409 (checked before the checklist-completeness check) and resolved by the existing `SyncEngine` conflict sheet, fixed this phase to correctly revert a stale `complete` mutation's optimistic status flip.** | **RESOLVED — LOCKED** | 2026-08-06 |
 
 ## Decision Details
 
@@ -1493,6 +1495,92 @@
   action, following `roll_up_status_from_inspection`'s shape, rather than
   routing through the generic `update_asset`.
 
+### D-060 — Digital Signature Integrity: Vector Storage, Server-Derived Identity, Revision-Binding
+
+- **Decision owner:** Product owner (asked directly at phase start; the
+  brief flagged storage format and completion-gating as points to confirm
+  rather than assume), with one engineering-driven addition (the
+  stroke-object shape) discovered mid-implementation.
+- **Decision:** `Signature.strokes` is vector data — normalized (0–1)
+  points, identical in shape to `Annotation.points` (D-054) — not a
+  raster image; no Storage upload or signed-URL round trip. Signer
+  identity (`signer_uid`/`signer_name`/`signer_role`) and `signed_at` are
+  always derived server-side from the authenticated caller
+  (`current_user.uid`/`role_key` plus a `UserRepository.get()` lookup for
+  `display_name`); `CompleteInspectionRequest` has no signer field at all,
+  so a client cannot supply one even by accident. `signature.
+  inspection_revision` is stamped as the inspection's OWN revision after
+  the completion write (`current.revision + 1`), which
+  `complete_inspection` guarantees matches the request's
+  `expected_revision` before proceeding — so the persisted signature is
+  always bound to exactly the revision it attests to.
+- **Stroke shape correction (mid-phase):** `strokes` is
+  `list[SignatureStroke]` (each `{points: list[AnnotationPoint]}`), not a
+  raw `list[list[AnnotationPoint]]` as first implemented. The doubly-
+  nested list shape hit a real bug: the pinned Dart openapi-generator
+  emits a builder factory for the outer `ListBuilder<BuiltList<X>>` but
+  not the inner single-level `BuiltList<X>` construction built_value's
+  serializer also needs, throwing `StateError: No builder factory for
+  BuiltList<SignaturePointInput>` at runtime the first time a mobile
+  widget test actually serialized a `CompleteInspectionRequest`. A named
+  stroke object sidesteps the generator gap entirely (single level of
+  list-of-object nesting, the same shape `Annotation.points` already
+  proves works) and leaves room for future per-stroke metadata (color,
+  width) without another schema change.
+- **Alternatives considered:** Raster image via the 7.4 media pipeline
+  (upload to Storage under an inspection-scoped path, register a
+  reference like a photo), rejected as the non-default option — heavier
+  (upload round trip, Storage path, signed URL) for what's ultimately a
+  small line drawing, with no AI/report-rendering need for pixel data
+  specifically.
+- **Consequences:** Any future phase rendering the signature (e.g. a
+  generated PDF report) draws the vector strokes directly rather than
+  fetching an image. Any future doubly-nested-list field in the OpenAPI
+  schema should default to a named single-level-nesting wrapper object
+  (this pattern) rather than `list[list[X]]`, to avoid re-hitting the
+  same generator gap.
+
+### D-061 — Completion Requires Signature: Atomic, No Reopen
+
+- **Decision owner:** Product owner (asked directly — the brief's own
+  default was confirmed rather than assumed) for the completion-gating
+  question; engineering for the reopen-scope question once it surfaced.
+- **Decision:** Signing is the mandatory final step of completion — `POST
+  /inspections/{id}/complete` now requires a body (`strokes` +
+  `expected_revision`); there is no separate sign-then-complete endpoint
+  and no way to complete an inspection unsigned. A completed inspection
+  remains fully immutable (`update_inspection`/`assign_checklist_template`
+  still 409 on `TERMINAL_STATUSES`, unchanged since 7.1) — no reopen/
+  re-edit capability was added for this phase. "Edited after signing"
+  (the phase brief's own invalidation-flow language) is realized narrowly
+  as the pre-completion offline race: a signature drawn against a
+  revision the server has since moved past is rejected via the existing
+  `revision_conflict` 409 (checked BEFORE the checklist-completeness
+  check, so a stale attempt never reaches that far), forcing a refresh +
+  re-sign. `SyncEngine`'s existing conflict machinery
+  (`markConflict`/the generic "keep mine"/"use server's" sheet) already
+  covers this once fixed to re-sync `status`/`completedAt` from the
+  server snapshot on any conflict (a genuine bug this phase's work
+  surfaced and fixed: without it, a stale `complete` mutation's
+  optimistic local `status: 'completed'` flip would never revert, leaving
+  the UI showing a false "completed" state that never landed server-side).
+- **Alternatives considered:** A dedicated reopen (`completed` →
+  `in_progress`) transition, so a signed-and-completed inspection could
+  genuinely be edited and re-signed afterward — explicitly rejected as
+  out of this phase's scope: it would be new lifecycle scope beyond
+  "capture a signature," with its own unresolved questions (who can
+  reopen, whether the 7.7 asset-status rollup gets undone), and no prior
+  phase (7.1–7.7) has ever allowed editing a completed inspection.
+  Deferred to a future phase if the product ever needs it.
+- **Consequences:** A signature, once persisted, can be trusted as
+  permanently valid for the inspection it's attached to (no supersede
+  state to display) — admin review's "valid at revision N" indicator is
+  therefore always "valid" today, though the check itself is real logic,
+  not a hardcoded label, so it activates correctly if reopen is ever
+  added later. Any future phase that wants to allow editing a completed
+  inspection must design the reopen/re-sign flow explicitly rather than
+  assuming this phase already built it.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1883,3 +1971,34 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   `flutter analyze`/ruff/mypy/ESLint clean; `next build` clean; contracts
   regenerated (2 new models, `InspectionDetail`/`UpdateInspectionRequest`
   updated) with a clean drift check.
+- **2026-08-06 — Phase 7.8:** Added and locked D-060 and D-061. Signing is
+  now the mandatory final step of `complete_inspection` — signer identity
+  is always server-derived, and the persisted signature is bound to
+  exactly the revision the inspection completed at. A completed
+  inspection stays fully immutable; the "edited after signing" case from
+  the phase brief is realized narrowly as the pre-completion offline
+  revision-conflict race, reusing the existing `revision_conflict` 409
+  and `SyncEngine` conflict machinery rather than adding a reopen
+  capability. A real generator-compatibility bug was found and fixed
+  mid-phase: `Signature.strokes`/`CompleteInspectionRequest.strokes`
+  switched from a raw `list[list[AnnotationPoint]]` to a named
+  `SignatureStroke{points: [...]}` wrapper after the doubly-nested list
+  shape threw a missing-builder-factory `StateError` at Dart runtime — see
+  D-060 for the detail and the general lesson for future schema design.
+  Backend (328 tests, 8 new — server-derived signer identity ignoring a
+  spoofed client value, revision-binding, the revision check running
+  before the checklist-completeness check, and no way to complete
+  unsigned), mobile (224 tests, up from 221 — 3 new covering offline
+  sign→sync/restart-persistence and the signature-pad Clear/dismiss
+  interaction, plus extended assertions on existing completion and
+  read-only-render tests), and admin (214 tests, up from 211 — 3 new for
+  the read-only signature section: unsigned empty state, full signed
+  render, and the superseded-once-revision-moves indicator) all green;
+  `flutter analyze`/ruff/mypy/ESLint clean; contracts regenerated (6 new
+  models) with a clean drift check. Real-creds proof
+  (`verify_signature_completion.py`) against the live Firebase project:
+  signed a real inspection and confirmed the persisted signer name/role
+  matched the real seeded account exactly (ignoring a deliberately
+  spoofed signer in the same request), then reproduced the stale-revision
+  race end to end and confirmed both the 409 rejection and a subsequent
+  successful re-sign.

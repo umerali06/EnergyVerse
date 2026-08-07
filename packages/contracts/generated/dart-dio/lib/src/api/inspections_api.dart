@@ -12,6 +12,7 @@ import 'package:fev_api_client/src/api_util.dart';
 import 'package:fev_api_client/src/model/assign_checklist_template_request.dart';
 import 'package:fev_api_client/src/model/attach_inspection_media_request.dart';
 import 'package:fev_api_client/src/model/attach_voice_note_request.dart';
+import 'package:fev_api_client/src/model/complete_inspection_request.dart';
 import 'package:fev_api_client/src/model/create_annotation_request.dart';
 import 'package:fev_api_client/src/model/create_inspection_request.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
@@ -440,10 +441,11 @@ class InspectionsApi {
   }
 
   /// Complete Inspection
-  ///
+  /// Signature capture is the final step of completion (Phase 7.8) -- signer identity (&#x60;current_user.uid&#x60;/&#x60;role_key&#x60;) always comes from the verified token, never from the request body.
   ///
   /// Parameters:
   /// * [inspectionId]
+  /// * [completeInspectionRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -455,6 +457,7 @@ class InspectionsApi {
   /// Throws [DioException] if API call or serialization fails
   Future<Response<InspectionDetail>> completeInspection({
     required String inspectionId,
+    required CompleteInspectionRequest completeInspectionRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -481,11 +484,31 @@ class InspectionsApi {
         ],
         ...?extra,
       },
+      contentType: 'application/json',
       validateStatus: validateStatus,
     );
 
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(CompleteInspectionRequest);
+      _bodyData = _serializers.serialize(completeInspectionRequest,
+          specifiedType: _type);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
     final _response = await _dio.request<Object>(
       _path,
+      data: _bodyData,
       options: _options,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,

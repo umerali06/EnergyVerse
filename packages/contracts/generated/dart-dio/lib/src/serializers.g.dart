@@ -50,6 +50,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(CompanyProfile.serializer)
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
+      ..add(CompleteInspectionRequest.serializer)
       ..add(CreateAnnotationRequest.serializer)
       ..add(CreateAnnotationRequestDamageTypeEnum.serializer)
       ..add(CreateAnnotationRequestShapeEnum.serializer)
@@ -115,6 +116,11 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ServiceResponse.serializer)
       ..add(ServiceResponseServiceEnum.serializer)
       ..add(ServiceResponseStatusEnum.serializer)
+      ..add(SignaturePointInput.serializer)
+      ..add(SignaturePointResponse.serializer)
+      ..add(SignatureResponse.serializer)
+      ..add(SignatureStrokeInput.serializer)
+      ..add(SignatureStrokeResponse.serializer)
       ..add(UpdateAnnotationRequest.serializer)
       ..add(UpdateAnnotationRequestDamageTypeEnum.serializer)
       ..add(UpdateAreaRequest.serializer)
@@ -232,6 +238,22 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(RoleSummary)]),
           () => new ListBuilder<RoleSummary>())
       ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(SignaturePointInput)]),
+          () => new ListBuilder<SignaturePointInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(SignaturePointResponse)]),
+          () => new ListBuilder<SignaturePointResponse>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(SignatureStrokeInput)]),
+          () => new ListBuilder<SignatureStrokeInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(SignatureStrokeResponse)]),
+          () => new ListBuilder<SignatureStrokeResponse>())
+      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
       ..addBuilderFactory(
@@ -305,12 +327,6 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(InspectionMediaResponse)]),
           () => new ListBuilder<InspectionMediaResponse>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => new MapBuilder<String, JsonObject?>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(VoiceNoteResponse)]),
           () => new ListBuilder<VoiceNoteResponse>())

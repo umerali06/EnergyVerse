@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:flutter/material.dart';
 
+import '../auth/auth_controller.dart';
 import '../dashboard/format.dart';
 import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
@@ -13,6 +14,13 @@ import '../sync/sync_engine.dart';
 import 'inspection_readings_section.dart';
 import 'inspections_screen.dart' show inspectionStatusFor, inspectionStatusLabel, syncStateBadge;
 import 'local_inspections_repository.dart';
+import 'signature_pad.dart';
+
+List<Offset> _responseStrokeToOffsets(SignatureStrokeResponse stroke) =>
+    stroke.points.map((p) => Offset(p.x.toDouble(), p.y.toDouble())).toList();
+
+List<Offset> _inputStrokeToOffsets(SignatureStrokeInput stroke) =>
+    stroke.points.map((p) => Offset(p.x.toDouble(), p.y.toDouble())).toList();
 
 /// Offline-first inspection detail (pushed route) -- reads from the local
 /// cache reactively, kicks a best-effort background network refresh, and
@@ -110,10 +118,24 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
     );
   }
 
+  /// Signature capture is the final step of completion (Phase 7.8): tapping
+  /// "Complete Inspection" opens the signature pad first, and only a
+  /// confirmed signature actually completes the inspection -- there's no
+  /// way to complete without signing.
   Future<void> _completeInspection() async {
+    final controller = SignaturePadController();
+    final confirmed = await showAppModal<bool>(
+      context,
+      title: 'Sign to complete',
+      child: _SignatureCaptureSheet(controller: controller),
+    );
+    final strokes = controller.toInput();
+    controller.dispose();
+    if (confirmed != true || !mounted) return;
+
     final repository = SyncProvider.repositoryOf(context);
     try {
-      await repository.completeInspection(widget.inspectionId);
+      await repository.completeInspection(widget.inspectionId, strokes: strokes);
     } on ChecklistIncompleteError {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -271,14 +293,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
               readings: inspection.readings,
               editable: editable,
             ),
-            if (editable) ...[
+            if (inspection.signature != null ||
+                inspection.pendingSignatureStrokes != null) ...[
               const SizedBox(height: DsSpacing.s5),
-              Text(
-                'COMING SOON',
-                style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1),
-              ),
+              Text('SIGNATURE', style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
               const SizedBox(height: DsSpacing.s2),
-              const _ReservedCaptureRow(label: 'Signature', icon: Icons.draw_outlined),
+              _SignatureSummary(inspection: inspection),
+            ],
+            if (editable) ...[
               const SizedBox(height: DsSpacing.s5),
               AppButton(
                 key: const Key('complete-inspection'),
@@ -485,29 +507,113 @@ class _ChecklistSectionState extends State<_ChecklistSection> {
   }
 }
 
-class _ReservedCaptureRow extends StatelessWidget {
-  const _ReservedCaptureRow({required this.label, required this.icon});
+/// Read-only summary shown once the inspector has signed (Phase 7.8):
+/// signer identity + timestamp from a synced [SignatureResponse], or a
+/// "syncing" placeholder over the raw strokes while still offline/pending.
+class _SignatureSummary extends StatelessWidget {
+  const _SignatureSummary({required this.inspection});
 
-  final String label;
-  final IconData icon;
+  final LocalInspectionRecord inspection;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: DsSpacing.s2),
-      child: AppCard(
-        child: Row(
+    final signature = inspection.signature;
+    if (signature != null) {
+      return AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: context.semantic.textMuted),
-            const SizedBox(width: DsSpacing.s3),
-            Expanded(child: Text(label, style: TextStyle(color: context.semantic.textMuted))),
-            Text(
-              'Coming soon',
-              style: TextStyle(color: context.semantic.textMuted, fontSize: DsTypography.sizeCaption),
+            _InfoRow(label: 'Signed by', value: '${signature.signerName} (${signature.signerRole})'),
+            _InfoRow(label: 'Signed at', value: formatCompanyDateTime(signature.signedAt)),
+            const SizedBox(height: DsSpacing.s3),
+            SignaturePreview(
+              strokes: signature.strokes.map(_responseStrokeToOffsets).toList(),
             ),
           ],
         ),
-      ),
+      );
+    }
+    final pending = inspection.pendingSignatureStrokes;
+    if (pending == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Signed — syncing…', style: TextStyle(color: context.semantic.textMuted)),
+        const SizedBox(height: DsSpacing.s2),
+        SignaturePreview(strokes: pending.map(_inputStrokeToOffsets).toList()),
+      ],
+    );
+  }
+}
+
+/// The signature capture modal opened by "Complete Inspection" (Phase 7.8).
+/// Signer identity/timestamp are never editable here -- they're recorded
+/// server-side from the authenticated caller once this syncs; this sheet
+/// only collects the drawn strokes.
+class _SignatureCaptureSheet extends StatefulWidget {
+  const _SignatureCaptureSheet({required this.controller});
+
+  final SignaturePadController controller;
+
+  @override
+  State<_SignatureCaptureSheet> createState() => _SignatureCaptureSheetState();
+}
+
+class _SignatureCaptureSheetState extends State<_SignatureCaptureSheet> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = AuthProvider.of(context).currentUser;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          currentUser == null
+              ? 'Signing as you — timestamp recorded automatically.'
+              : 'Signing as ${currentUser.email} — timestamp recorded automatically.',
+          style: TextStyle(color: context.semantic.textMuted),
+        ),
+        const SizedBox(height: DsSpacing.s4),
+        SignaturePad(controller: widget.controller),
+        const SizedBox(height: DsSpacing.s3),
+        Row(
+          children: [
+            Expanded(
+              child: AppButton(
+                key: const Key('signature-clear'),
+                label: 'Clear',
+                variant: AppButtonVariant.ghost,
+                onPressed: widget.controller.isEmpty
+                    ? null
+                    : widget.controller.clear,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: DsSpacing.s4),
+        AppButton(
+          key: const Key('signature-confirm'),
+          label: 'Sign & Complete',
+          icon: Icons.check_circle_outline,
+          onPressed: widget.controller.isEmpty
+              ? null
+              : () => Navigator.of(context).pop(true),
+        ),
+      ],
     );
   }
 }

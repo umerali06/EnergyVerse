@@ -18,6 +18,7 @@ import type {
   AssignChecklistTemplateRequest,
   AttachInspectionMediaRequest,
   AttachVoiceNoteRequest,
+  CompleteInspectionRequest,
   CreateAnnotationRequest,
   CreateInspectionRequest,
   ErrorEnvelope,
@@ -37,6 +38,8 @@ import {
     AttachInspectionMediaRequestToJSON,
     AttachVoiceNoteRequestFromJSON,
     AttachVoiceNoteRequestToJSON,
+    CompleteInspectionRequestFromJSON,
+    CompleteInspectionRequestToJSON,
     CreateAnnotationRequestFromJSON,
     CreateAnnotationRequestToJSON,
     CreateInspectionRequestFromJSON,
@@ -80,8 +83,9 @@ export interface CancelInspectionRequest {
     inspectionId: string;
 }
 
-export interface CompleteInspectionRequest {
+export interface CompleteInspectionOperationRequest {
     inspectionId: string;
+    completeInspectionRequest: CompleteInspectionRequest;
 }
 
 export interface CreateInspectionOperationRequest {
@@ -358,9 +362,10 @@ export class InspectionsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Signature capture is the final step of completion (Phase 7.8) -- signer identity (`current_user.uid`/`role_key`) always comes from the verified token, never from the request body.
      * Complete Inspection
      */
-    async completeInspectionRaw(requestParameters: CompleteInspectionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+    async completeInspectionRaw(requestParameters: CompleteInspectionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
         if (requestParameters['inspectionId'] == null) {
             throw new runtime.RequiredError(
                 'inspectionId',
@@ -368,9 +373,18 @@ export class InspectionsApi extends runtime.BaseAPI {
             );
         }
 
+        if (requestParameters['completeInspectionRequest'] == null) {
+            throw new runtime.RequiredError(
+                'completeInspectionRequest',
+                'Required parameter "completeInspectionRequest" was null or undefined when calling completeInspection().'
+            );
+        }
+
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
 
         if (this.configuration && this.configuration.accessToken) {
             const token = this.configuration.accessToken;
@@ -385,15 +399,17 @@ export class InspectionsApi extends runtime.BaseAPI {
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
+            body: CompleteInspectionRequestToJSON(requestParameters['completeInspectionRequest']),
         }, initOverrides);
 
         return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
     }
 
     /**
+     * Signature capture is the final step of completion (Phase 7.8) -- signer identity (`current_user.uid`/`role_key`) always comes from the verified token, never from the request body.
      * Complete Inspection
      */
-    async completeInspection(requestParameters: CompleteInspectionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+    async completeInspection(requestParameters: CompleteInspectionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.completeInspectionRaw(requestParameters, initOverrides);
         return await response.value();
     }

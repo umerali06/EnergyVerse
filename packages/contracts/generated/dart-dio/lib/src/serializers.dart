@@ -47,6 +47,7 @@ import 'package:fev_api_client/src/model/checklist_template_list_page.dart';
 import 'package:fev_api_client/src/model/company_profile.dart';
 import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
+import 'package:fev_api_client/src/model/complete_inspection_request.dart';
 import 'package:fev_api_client/src/model/create_annotation_request.dart';
 import 'package:fev_api_client/src/model/create_area_request.dart';
 import 'package:fev_api_client/src/model/create_asset_request.dart';
@@ -88,6 +89,11 @@ import 'package:fev_api_client/src/model/role_detail.dart';
 import 'package:fev_api_client/src/model/role_list.dart';
 import 'package:fev_api_client/src/model/role_summary.dart';
 import 'package:fev_api_client/src/model/service_response.dart';
+import 'package:fev_api_client/src/model/signature_point_input.dart';
+import 'package:fev_api_client/src/model/signature_point_response.dart';
+import 'package:fev_api_client/src/model/signature_response.dart';
+import 'package:fev_api_client/src/model/signature_stroke_input.dart';
+import 'package:fev_api_client/src/model/signature_stroke_response.dart';
 import 'package:fev_api_client/src/model/update_annotation_request.dart';
 import 'package:fev_api_client/src/model/update_area_request.dart';
 import 'package:fev_api_client/src/model/update_asset_request.dart';
@@ -146,6 +152,7 @@ part 'serializers.g.dart';
   CompanyProfile,
   CompanyRegistrationRequest,
   CompanyRegistrationResponse,
+  CompleteInspectionRequest,
   CreateAnnotationRequest,
   CreateAreaRequest,
   CreateAssetRequest,
@@ -187,6 +194,11 @@ part 'serializers.g.dart';
   RoleList,
   RoleSummary,
   ServiceResponse,
+  SignaturePointInput,
+  SignaturePointResponse,
+  SignatureResponse,
+  SignatureStrokeInput,
+  SignatureStrokeResponse,
   UpdateAnnotationRequest,
   UpdateAreaRequest,
   UpdateAssetRequest,

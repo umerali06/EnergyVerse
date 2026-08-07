@@ -127,7 +127,7 @@ void main() {
       // TODO
     });
 
-    // BuiltMap<String, JsonObject> signature
+    // SignatureResponse signature
     test('to test the property `signature`', () async {
       // TODO
     });

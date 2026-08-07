@@ -13,6 +13,7 @@ from app.models.api import (
     AssignChecklistTemplateRequest,
     AttachInspectionMediaRequest,
     AttachVoiceNoteRequest,
+    CompleteInspectionRequest,
     CreateAnnotationRequest,
     CreateInspectionRequest,
     InspectionDeleted,
@@ -212,12 +213,18 @@ async def start_inspection(
 )
 async def complete_inspection(
     inspection_id: str,
+    request: CompleteInspectionRequest,
     current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
     service: Annotated[InspectionService, Depends(get_inspection_service)],
 ) -> InspectionDetail:
+    """Signature capture is the final step of completion (Phase 7.8) --
+    signer identity (`current_user.uid`/`role_key`) always comes from the
+    verified token, never from the request body."""
     scope = CompanyScope(company_id=current_user.company_id)
     try:
-        return await service.complete_inspection(scope, inspection_id, current_user.uid)
+        return await service.complete_inspection(
+            scope, inspection_id, request, current_user.uid, current_user.role_key
+        )
     except InspectionServiceError as error:
         _raise_api_error(error)
         raise

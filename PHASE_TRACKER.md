@@ -53,7 +53,8 @@ Only one micro-task may be active at a time.
 | 7.5 | Damage annotation — draw/label shapes on inspection photos, offline-first via the record outbox, admin review overlay | Done |
 | 7.6 | Voice notes — record + attach to inspection, offline-capable, reusing the 7.4 media upload queue/worker | Done |
 | 7.7 | Manual status readings — condition/temperature/pressure/noise/vibration/leak/operational-status/comments/recommendations/priority logged on the inspection record; on completion, rolls up onto the asset's 3-state health, driving the 4.4 dashboard KPI (resolves the §9 deferral from Phase 4.1) | Done |
-| 7.8 | To be defined | In progress |
+| 7.8 | Digital signature — inspector sign-off drawn on-device at inspection completion, offline-capable, server-derived signer identity, revision-bound with pre-completion revision-conflict rejection (re-sign), and admin review display | Done |
+| 7.9 | To be defined | In progress |
 | 8 | To be defined | Not started |
 | 9 | To be defined | Not started |
 | 10 | To be defined | Not started |

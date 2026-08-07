@@ -553,6 +553,24 @@ class ReadingsInput(BaseModel):
     priority_level: Literal["low", "medium", "high", "critical"] | None = None
 
 
+class SignaturePointResponse(BaseModel):
+    x: float
+    y: float
+
+
+class SignatureStrokeResponse(BaseModel):
+    points: list[SignaturePointResponse]
+
+
+class SignatureResponse(BaseModel):
+    strokes: list[SignatureStrokeResponse]
+    signer_uid: str
+    signer_name: str
+    signer_role: str
+    signed_at: datetime
+    inspection_revision: int
+
+
 class InspectionListItem(BaseModel):
     id: str
     asset_id: str
@@ -589,9 +607,9 @@ class InspectionDetail(InspectionListItem):
     annotations: list[AnnotationResponse] = Field(default_factory=list)
     voice_notes: list[VoiceNoteResponse] = Field(default_factory=list)
     readings: ReadingsResponse | None = None
+    signature: SignatureResponse | None = None
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
     ai_analysis: dict[str, Any] | None = None
-    signature: dict[str, Any] | None = None
 
 
 class CreateInspectionRequest(BaseModel):
@@ -621,6 +639,30 @@ class UpdateInspectionRequest(BaseModel):
 class AssignChecklistTemplateRequest(BaseModel):
     checklist_template_id: str = Field(min_length=1)
     expected_revision: int | None = None
+
+
+class SignaturePointInput(BaseModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class SignatureStrokeInput(BaseModel):
+    points: list[SignaturePointInput] = Field(min_length=1)
+
+
+class CompleteInspectionRequest(BaseModel):
+    """Signature capture is the final step of completion (spec 7.2 "digital
+    signature", Phase 7.8) -- there is no separate sign-then-complete
+    endpoint. `expected_revision` is required, unlike the optional field on
+    `UpdateInspectionRequest`/`AssignChecklistTemplateRequest`: the whole
+    point of binding a signature to a revision is to reject a stale view
+    outright (409 `revision_conflict`) and force a refresh + re-sign, never
+    silently complete against out-of-date checklist/readings data. `strokes`
+    is a list of stroke objects (each with its own `points`), not a raw
+    `list[list[...]]` -- see `Signature.strokes`'s docstring for why."""
+
+    strokes: list[SignatureStrokeInput] = Field(min_length=1)
+    expected_revision: int
 
 
 class AttachInspectionMediaRequest(BaseModel):

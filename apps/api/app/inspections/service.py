@@ -13,10 +13,12 @@ from app.db.repositories.inspections import (
     InvalidTransitionError,
     RevisionConflictError,
 )
+from app.db.repositories.users import UserRepository
 from app.models.api import (
     AssignChecklistTemplateRequest,
     AttachInspectionMediaRequest,
     AttachVoiceNoteRequest,
+    CompleteInspectionRequest,
     CreateAnnotationRequest,
     CreateInspectionRequest,
     InspectionDetail,
@@ -42,6 +44,7 @@ from app.models.entities import (
     InspectionCreate,
     InspectionMedia,
     Readings,
+    Signature,
     VoiceNote,
 )
 from app.storage.service import InspectionMediaStorage, get_inspection_media_storage
@@ -163,9 +166,9 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
             _voice_note_response(voice_note, storage) for voice_note in inspection.voice_notes
         ],
         readings=inspection.readings.model_dump() if inspection.readings is not None else None,
+        signature=inspection.signature.model_dump() if inspection.signature is not None else None,
         ar_measurements=inspection.ar_measurements,
         ai_analysis=inspection.ai_analysis,
-        signature=inspection.signature,
     )
 
 
@@ -176,11 +179,13 @@ class InspectionService:
         inspections: InspectionRepository,
         assets: AssetRepository,
         checklist_templates: ChecklistTemplateRepository,
+        users: UserRepository,
         storage: InspectionMediaStorage | None = None,
     ) -> None:
         self._inspections = inspections
         self._assets = assets
         self._templates = checklist_templates
+        self._users = users
         self._storage = storage or get_inspection_media_storage()
 
     async def _active_asset(self, scope: CompanyScope, asset_id: str) -> Asset:
@@ -505,7 +510,12 @@ class InspectionService:
         return False
 
     async def complete_inspection(
-        self, scope: CompanyScope, inspection_id: str, actor_uid: str
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        request: CompleteInspectionRequest,
+        actor_uid: str,
+        actor_role_key: str,
     ) -> InspectionDetail:
         current = await self._active_inspection(scope, inspection_id)
         if current.status not in ({"draft", "in_progress"}):
@@ -513,6 +523,16 @@ class InspectionService:
                 409,
                 "invalid_transition",
                 f"Inspection cannot complete from status '{current.status}'",
+            )
+        if request.expected_revision != current.revision:
+            raise InspectionServiceError(
+                409,
+                "revision_conflict",
+                "Inspection was modified since expected_revision -- refresh and re-sign",
+                {
+                    "expected_revision": request.expected_revision,
+                    "current_revision": current.revision,
+                },
             )
         missing = [
             item.id
@@ -526,6 +546,20 @@ class InspectionService:
                 "Required checklist items are unanswered",
                 {"missing_item_ids": missing},
             )
+        signer = await self._users.get(scope, actor_uid)
+        if signer is None:
+            raise InspectionServiceError(404, "user_not_found", "Signer account was not found")
+        signature = Signature(
+            strokes=[
+                {"points": [point.model_dump() for point in stroke.points]}
+                for stroke in request.strokes
+            ],
+            signer_uid=actor_uid,
+            signer_name=signer.display_name,
+            signer_role=actor_role_key,
+            signed_at=utc_now(),
+            inspection_revision=current.revision + 1,
+        )
         try:
             updated = await self._inspections.apply_lifecycle(
                 scope,
@@ -533,7 +567,10 @@ class InspectionService:
                 actor_uid,
                 expected_statuses=frozenset({"draft", "in_progress"}),
                 next_status="completed",
-                extra_fields={"completed_at": utc_now()},
+                extra_fields={
+                    "completed_at": utc_now(),
+                    "signature": signature.model_dump(),
+                },
                 action="completed",
             )
         except InvalidTransitionError as error:
@@ -912,5 +949,6 @@ def get_inspection_service() -> InspectionService:
         inspections=InspectionRepository(client, audit),
         assets=AssetRepository(client, audit),
         checklist_templates=ChecklistTemplateRepository(client, audit),
+        users=UserRepository(client, audit),
         storage=get_inspection_media_storage(),
     )

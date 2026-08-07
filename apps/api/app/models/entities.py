@@ -395,6 +395,46 @@ class Readings(StrictModel):
     recorded_by: str | None = None
 
 
+class SignatureStroke(StrictModel):
+    """One continuous pen-down-to-pen-up stroke -- `Signature.strokes` is a
+    list of these rather than a raw `list[list[AnnotationPoint]]` because
+    generated clients (built_value's Dart codegen in particular) handle a
+    single level of list-of-object nesting far more reliably than a
+    doubly-nested `list[list[...]]`, which needs a builder factory the
+    generator doesn't always emit. A named `points` field sidesteps that
+    entirely and leaves room for future per-stroke metadata (color, width)
+    without another schema change."""
+
+    points: list[AnnotationPoint] = Field(min_length=1)
+
+
+class Signature(StrictModel):
+    """Inspector sign-off at inspection completion (spec 7.2 "digital
+    signature", Phase 7.8). Vector-drawn, mirroring `Annotation`'s D-054
+    normalized-points precedent, rather than a raster image -- tiny payload,
+    no Storage upload/signed-URL round trip, renders at any canvas size.
+    Identity fields (`signer_uid`/`signer_name`/`signer_role`) are always
+    server-derived from the authenticated caller, never taken from the
+    client. `inspection_revision` is the inspection's own `revision` at the
+    moment of signing -- `complete_inspection` requires `expected_revision`
+    to match before writing, so this is always exactly the completed
+    inspection's final revision. A completed inspection can never be edited
+    (see `TERMINAL_STATUSES` locking in `update_inspection`/
+    `assign_checklist_template`), so a persisted signature can never
+    actually go stale after the fact; "edited since signing" instead means
+    the pre-completion offline race where the signature was drawn against a
+    revision the server has since moved past -- that's rejected by the same
+    `revision_conflict` 409 the checklist/readings autosave protocol already
+    uses, forcing the client to refresh and re-sign before completing."""
+
+    strokes: list[SignatureStroke] = Field(min_length=1)
+    signer_uid: str
+    signer_name: str
+    signer_role: str
+    signed_at: datetime
+    inspection_revision: int
+
+
 class Inspection(TenantDoc):
     id: str
     asset_id: str
@@ -422,10 +462,10 @@ class Inspection(TenantDoc):
     annotations: list[Annotation] = Field(default_factory=list)
     voice_notes: list["VoiceNote"] = Field(default_factory=list)
     readings: Readings | None = None
+    signature: Signature | None = None
     # Reserved, always-empty until their own phases give these real shapes.
     ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
     ai_analysis: dict[str, Any] | None = None
-    signature: dict[str, Any] | None = None
 
     @field_validator("readings", mode="before")
     @classmethod

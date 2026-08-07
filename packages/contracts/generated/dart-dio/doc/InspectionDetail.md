@@ -32,7 +32,7 @@ Name | Type | Description | Notes
 **origin** | **String** |  | [optional]
 **readings** | [**ReadingsResponse**](ReadingsResponse.md) |  | [optional]
 **revision** | **int** |  |
-**signature** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional]
+**signature** | [**SignatureResponse**](SignatureResponse.md) |  | [optional]
 **startedAt** | [**DateTime**](DateTime.md) |  | [optional]
 **status** | **String** |  |
 **title** | **String** |  | [optional]
