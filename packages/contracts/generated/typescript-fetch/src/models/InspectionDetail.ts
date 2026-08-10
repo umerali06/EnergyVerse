@@ -62,6 +62,13 @@ import {
     ArMeasurementResponseToJSON,
     ArMeasurementResponseToJSONTyped,
 } from './ArMeasurementResponse';
+import type { AiAnalysisResponse } from './AiAnalysisResponse';
+import {
+    AiAnalysisResponseFromJSON,
+    AiAnalysisResponseFromJSONTyped,
+    AiAnalysisResponseToJSON,
+    AiAnalysisResponseToJSONTyped,
+} from './AiAnalysisResponse';
 import type { ChecklistTemplateItem } from './ChecklistTemplateItem';
 import {
     ChecklistTemplateItemFromJSON,
@@ -78,10 +85,10 @@ import {
 export interface InspectionDetail {
     /**
      *
-     * @type {{ [key: string]: any; }}
+     * @type {Array<AiAnalysisResponse>}
      * @memberof InspectionDetail
      */
-    aiAnalysis?: { [key: string]: any; } | null;
+    aiAnalysis?: Array<AiAnalysisResponse>;
     /**
      *
      * @type {Array<AnnotationResponse>}
@@ -308,7 +315,7 @@ export function InspectionDetailFromJSONTyped(json: any, ignoreDiscriminator: bo
     }
     return {
 
-        'aiAnalysis': json['ai_analysis'] == null ? undefined : json['ai_analysis'],
+        'aiAnalysis': json['ai_analysis'] == null ? undefined : ((json['ai_analysis'] as Array<any>).map(AiAnalysisResponseFromJSON)),
         'annotations': json['annotations'] == null ? undefined : ((json['annotations'] as Array<any>).map(AnnotationResponseFromJSON)),
         'arMeasurements': json['ar_measurements'] == null ? undefined : ((json['ar_measurements'] as Array<any>).map(ArMeasurementResponseFromJSON)),
         'areaId': json['area_id'] == null ? undefined : json['area_id'],
@@ -352,7 +359,7 @@ export function InspectionDetailToJSONTyped(value?: InspectionDetail | null, ign
 
     return {
 
-        'ai_analysis': value['aiAnalysis'],
+        'ai_analysis': value['aiAnalysis'] == null ? undefined : ((value['aiAnalysis'] as Array<any>).map(AiAnalysisResponseToJSON)),
         'annotations': value['annotations'] == null ? undefined : ((value['annotations'] as Array<any>).map(AnnotationResponseToJSON)),
         'ar_measurements': value['arMeasurements'] == null ? undefined : ((value['arMeasurements'] as Array<any>).map(ArMeasurementResponseToJSON)),
         'area_id': value['areaId'],

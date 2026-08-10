@@ -7,7 +7,7 @@ void main() {
   // TODO add properties to the builder and call build()
 
   group(InspectionDetail, () {
-    // BuiltMap<String, JsonObject> aiAnalysis
+    // BuiltList<AiAnalysisResponse> aiAnalysis
     test('to test the property `aiAnalysis`', () async {
       // TODO
     });

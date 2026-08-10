@@ -102,6 +102,7 @@ Class | Method | HTTP request | Description
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**getFacility**](doc/FacilitiesApi.md#getfacility) | **GET** /api/v1/facilities/{facility_id} | Get Facility
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**listFacilities**](doc/FacilitiesApi.md#listfacilities) | **GET** /api/v1/facilities | List Facilities
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**updateFacility**](doc/FacilitiesApi.md#updatefacility) | **PATCH** /api/v1/facilities/{facility_id} | Update Facility
+[*InspectionsApi*](doc/InspectionsApi.md) | [**analyzeInspectionMedia**](doc/InspectionsApi.md#analyzeinspectionmedia) | **POST** /api/v1/inspections/{inspection_id}/media/{media_id}/analyze | Analyze Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**assignInspectionChecklistTemplate**](doc/InspectionsApi.md#assigninspectionchecklisttemplate) | **POST** /api/v1/inspections/{inspection_id}/checklist-template | Assign Checklist Template
 [*InspectionsApi*](doc/InspectionsApi.md) | [**attachInspectionMedia**](doc/InspectionsApi.md#attachinspectionmedia) | **POST** /api/v1/inspections/{inspection_id}/media | Attach Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**attachInspectionVoiceNote**](doc/InspectionsApi.md#attachinspectionvoicenote) | **POST** /api/v1/inspections/{inspection_id}/voice-notes | Attach Inspection Voice Note
@@ -117,6 +118,7 @@ Class | Method | HTTP request | Description
 [*InspectionsApi*](doc/InspectionsApi.md) | [**detachInspectionVoiceNote**](doc/InspectionsApi.md#detachinspectionvoicenote) | **DELETE** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Detach Inspection Voice Note
 [*InspectionsApi*](doc/InspectionsApi.md) | [**getInspection**](doc/InspectionsApi.md#getinspection) | **GET** /api/v1/inspections/{inspection_id} | Get Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**listInspections**](doc/InspectionsApi.md#listinspections) | **GET** /api/v1/inspections | List Inspections
+[*InspectionsApi*](doc/InspectionsApi.md) | [**reviewInspectionAiAnalysis**](doc/InspectionsApi.md#reviewinspectionaianalysis) | **POST** /api/v1/inspections/{inspection_id}/ai-analysis/{analysis_id}/review | Review Inspection Ai Analysis
 [*InspectionsApi*](doc/InspectionsApi.md) | [**startInspection**](doc/InspectionsApi.md#startinspection) | **POST** /api/v1/inspections/{inspection_id}/start | Start Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspection**](doc/InspectionsApi.md#updateinspection) | **PATCH** /api/v1/inspections/{inspection_id} | Update Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionAnnotation**](doc/InspectionsApi.md#updateinspectionannotation) | **PATCH** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Update Inspection Annotation
@@ -149,6 +151,7 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AiAnalysisResponse](doc/AiAnalysisResponse.md)
  - [AnnotationPointInput](doc/AnnotationPointInput.md)
  - [AnnotationPointResponse](doc/AnnotationPointResponse.md)
  - [AnnotationResponse](doc/AnnotationResponse.md)

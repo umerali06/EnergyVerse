@@ -74,6 +74,14 @@ typedef DeleteMeasurementFn = Future<InspectionDetail> Function(
   String inspectionId,
   String measurementId,
 );
+typedef AnalyzeMediaFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  String mediaId,
+);
+typedef ReviewAiAnalysisFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  String analysisId,
+);
 
 /// A configurable [ApiContract] double for repository/sync-engine tests --
 /// every inspections-write method is overridable via a constructor
@@ -103,6 +111,8 @@ class FakeSyncApi implements ApiContract {
     CreateMeasurementFn? createInspectionArMeasurement,
     UpdateMeasurementFn? updateInspectionArMeasurement,
     DeleteMeasurementFn? deleteInspectionArMeasurement,
+    AnalyzeMediaFn? analyzeInspectionMedia,
+    ReviewAiAnalysisFn? reviewInspectionAiAnalysis,
   })  : _getInspection = getInspection,
         _createInspection = createInspection,
         _updateInspection = updateInspection,
@@ -123,7 +133,9 @@ class FakeSyncApi implements ApiContract {
         _deleteInspectionAnnotation = deleteInspectionAnnotation,
         _createInspectionArMeasurement = createInspectionArMeasurement,
         _updateInspectionArMeasurement = updateInspectionArMeasurement,
-        _deleteInspectionArMeasurement = deleteInspectionArMeasurement;
+        _deleteInspectionArMeasurement = deleteInspectionArMeasurement,
+        _analyzeInspectionMedia = analyzeInspectionMedia,
+        _reviewInspectionAiAnalysis = reviewInspectionAiAnalysis;
 
   final GetInspectionFn? _getInspection;
   final CreateInspectionFn? _createInspection;
@@ -146,6 +158,8 @@ class FakeSyncApi implements ApiContract {
   final CreateMeasurementFn? _createInspectionArMeasurement;
   final UpdateMeasurementFn? _updateInspectionArMeasurement;
   final DeleteMeasurementFn? _deleteInspectionArMeasurement;
+  final AnalyzeMediaFn? _analyzeInspectionMedia;
+  final ReviewAiAnalysisFn? _reviewInspectionAiAnalysis;
 
   final List<String> calls = [];
 
@@ -340,6 +354,24 @@ class FakeSyncApi implements ApiContract {
     final handler = _deleteInspectionArMeasurement;
     if (handler == null) throw UnimplementedError();
     return handler(inspectionId, measurementId);
+  }
+
+  @override
+  Future<InspectionDetail> analyzeInspectionMedia(
+      String inspectionId, String mediaId) {
+    calls.add('analyzeInspectionMedia:$inspectionId:$mediaId');
+    final handler = _analyzeInspectionMedia;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, mediaId);
+  }
+
+  @override
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+      String inspectionId, String analysisId) {
+    calls.add('reviewInspectionAiAnalysis:$inspectionId:$analysisId');
+    final handler = _reviewInspectionAiAnalysis;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, analysisId);
   }
 
   @override

@@ -6,6 +6,15 @@ void main() {
   final instance = FevApiClient().getInspectionsApi();
 
   group(InspectionsApi, () {
+    // Analyze Inspection Media
+    //
+    // Runs Claude vision analysis on one already-attached photo (spec 8 \"AI Photo & Video Analysis\", Phase 7.10) -- `media_id` is the media item's server id, matching `update_inspection_media`/`detach_inspection_media`'s own path parameter. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
+    //
+    //Future<InspectionDetail> analyzeInspectionMedia(String inspectionId, String mediaId) async
+    test('test analyzeInspectionMedia', () async {
+      // TODO
+    });
+
     // Assign Checklist Template
     //
     //Future<InspectionDetail> assignInspectionChecklistTemplate(String inspectionId, AssignChecklistTemplateRequest assignChecklistTemplateRequest) async
@@ -128,6 +137,15 @@ void main() {
     //
     //Future<InspectionListPage> listInspections({ String assetId, String facilityId, String status, String inspectorId, DateTime fromDate, DateTime toDate, String cursor, int limit }) async
     test('test listInspections', () async {
+      // TODO
+    });
+
+    // Review Inspection Ai Analysis
+    //
+    // Marks an AI analysis run as reviewed by the authenticated caller -- the \"confirm\" half of \"confirm or override\" (D-008). Idempotent on an already-reviewed or missing `analysis_id`.
+    //
+    //Future<InspectionDetail> reviewInspectionAiAnalysis(String inspectionId, String analysisId) async
+    test('test reviewInspectionAiAnalysis', () async {
       // TODO
     });
 

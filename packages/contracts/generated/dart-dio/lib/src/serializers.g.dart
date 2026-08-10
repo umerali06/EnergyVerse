@@ -7,6 +7,8 @@ part of 'serializers.dart';
 // **************************************************************************
 
 Serializers _$serializers = (new Serializers().toBuilder()
+      ..add(AiAnalysisResponse.serializer)
+      ..add(AiAnalysisResponseRiskLevelEnum.serializer)
       ..add(AnnotationPointInput.serializer)
       ..add(AnnotationPointResponse.serializer)
       ..add(AnnotationResponse.serializer)
@@ -156,6 +158,30 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(Value.serializer)
       ..add(VoiceNoteResponse.serializer)
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AiAnalysisResponse)]),
+          () => new ListBuilder<AiAnalysisResponse>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(AnnotationResponse)]),
+          () => new ListBuilder<AnnotationResponse>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ArMeasurementResponse)]),
+          () => new ListBuilder<ArMeasurementResponse>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ChecklistTemplateItem)]),
+          () => new ListBuilder<ChecklistTemplateItem>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(ChecklistResponse)]),
+          () => new ListBuilder<ChecklistResponse>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(InspectionMediaResponse)]),
+          () => new ListBuilder<InspectionMediaResponse>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(VoiceNoteResponse)]),
+          () => new ListBuilder<VoiceNoteResponse>())
+      ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(AnnotationPointInput)]),
           () => new ListBuilder<AnnotationPointInput>())
@@ -291,6 +317,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(UserListItem)]),
           () => new ListBuilder<UserListItem>())
       ..addBuilderFactory(
@@ -312,33 +341,6 @@ Serializers _$serializers = (new Serializers().toBuilder()
             const FullType.nullable(JsonObject)
           ]),
           () => new MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => new MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(AnnotationResponse)]),
-          () => new ListBuilder<AnnotationResponse>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(ArMeasurementResponse)]),
-          () => new ListBuilder<ArMeasurementResponse>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(ChecklistTemplateItem)]),
-          () => new ListBuilder<ChecklistTemplateItem>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(ChecklistResponse)]),
-          () => new ListBuilder<ChecklistResponse>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(InspectionMediaResponse)]),
-          () => new ListBuilder<InspectionMediaResponse>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(VoiceNoteResponse)]),
-          () => new ListBuilder<VoiceNoteResponse>())
       ..addBuilderFactory(
           const FullType(BuiltSet, const [const FullType(String)]),
           () => new SetBuilder<String>()))

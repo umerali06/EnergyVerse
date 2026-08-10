@@ -14,6 +14,7 @@ import 'package:built_value/iso_8601_date_time_serializer.dart';
 import 'package:fev_api_client/src/date_serializer.dart';
 import 'package:fev_api_client/src/model/date.dart';
 
+import 'package:fev_api_client/src/model/ai_analysis_response.dart';
 import 'package:fev_api_client/src/model/annotation_point_input.dart';
 import 'package:fev_api_client/src/model/annotation_point_response.dart';
 import 'package:fev_api_client/src/model/annotation_response.dart';
@@ -122,6 +123,7 @@ import 'package:fev_api_client/src/model/voice_note_response.dart';
 part 'serializers.g.dart';
 
 @SerializersFor([
+  AiAnalysisResponse,
   AnnotationPointInput,
   AnnotationPointResponse,
   AnnotationResponse,

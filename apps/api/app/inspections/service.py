@@ -3,6 +3,7 @@ import binascii
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from app.ai.vision_client import AiClientError, VisionAnalysisClient, get_vision_client
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
 from app.db.repositories.assets import AssetRepository
@@ -38,7 +39,9 @@ from app.models.api import (
 )
 from app.models.base import CompanyScope, utc_now
 from app.models.entities import (
+    AiAnalysis,
     Annotation,
+    AnnotationPoint,
     ArMeasurement,
     Asset,
     ChecklistResponse,
@@ -82,6 +85,11 @@ INSPECTION_VOICE_NOTE_ALLOWED_TYPES = frozenset(
 )
 INSPECTION_VOICE_NOTE_MAX_SIZE_BYTES = 20 * 1024 * 1024
 INSPECTION_VOICE_NOTE_MAX_DURATION_MS = 10 * 60 * 1000
+
+# A distinct violet, never used by any manual annotation color swatch, so an
+# AI-detected region (Phase 7.10) is visually identifiable as such even
+# before reading its `source`/`confidence` fields.
+AI_ANNOTATION_COLOR = "#7C3AED"
 
 
 class InspectionServiceError(Exception):
@@ -171,7 +179,7 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
         readings=inspection.readings.model_dump() if inspection.readings is not None else None,
         signature=inspection.signature.model_dump() if inspection.signature is not None else None,
         ar_measurements=[measurement.model_dump() for measurement in inspection.ar_measurements],
-        ai_analysis=inspection.ai_analysis,
+        ai_analysis=[analysis.model_dump() for analysis in inspection.ai_analysis],
     )
 
 
@@ -184,12 +192,14 @@ class InspectionService:
         checklist_templates: ChecklistTemplateRepository,
         users: UserRepository,
         storage: InspectionMediaStorage | None = None,
+        ai_client: VisionAnalysisClient | None = None,
     ) -> None:
         self._inspections = inspections
         self._assets = assets
         self._templates = checklist_templates
         self._users = users
         self._storage = storage or get_inspection_media_storage()
+        self._ai_client = ai_client or get_vision_client()
 
     async def _active_asset(self, scope: CompanyScope, asset_id: str) -> Asset:
         asset = await self._assets.get(scope, asset_id)
@@ -1045,6 +1055,89 @@ class InspectionService:
             return _to_detail(current, self._storage)
         updated = await self._inspections.remove_ar_measurement(
             scope, inspection_id, measurement, actor_uid
+        )
+        return _to_detail(updated, self._storage)
+
+    async def analyze_media(
+        self, scope: CompanyScope, inspection_id: str, media_id: str, actor_uid: str
+    ) -> InspectionDetail:
+        """Runs Claude vision analysis on one already-attached photo (spec 8
+        "AI Photo & Video Analysis", Phase 7.10) -- `media_id` is the media
+        item's server id, matching `update_media`/`detach_media`'s own path
+        parameter convention; internally resolved to the `local_id`
+        `Annotation.media_local_id` actually references. Video is out of
+        scope for this phase (no frame-extraction pipeline exists). Every
+        finding lands as its own `Annotation(source="ai", confidence=...)`,
+        never auto-confirmed; `AiAnalysis` carries the run's summary/
+        recommendations/risk level and starts `reviewed=False` until the
+        inspector explicitly reviews it."""
+        current = await self._active_inspection(scope, inspection_id)
+        media = next((m for m in current.media if m.id == media_id), None)
+        if media is None:
+            raise InspectionServiceError(
+                404,
+                "media_not_found",
+                "No media item with that id exists on this inspection",
+                {"media_id": media_id},
+            )
+        if media.kind != "photo":
+            raise InspectionServiceError(
+                422,
+                "ai_analysis_unsupported_media_kind",
+                "AI analysis currently supports photos only",
+                {"kind": media.kind},
+            )
+
+        image_bytes = self._storage.download_bytes(media.path)
+        try:
+            result = await self._ai_client.analyze_photo(image_bytes, media.content_type)
+        except AiClientError as error:
+            raise InspectionServiceError(502, "ai_analysis_failed", str(error)) from error
+
+        now = utc_now()
+        new_annotations = [
+            Annotation(
+                id=f"annotation_{uuid4().hex}",
+                media_local_id=media.local_id,
+                shape=finding.shape,
+                points=[AnnotationPoint(x=p.x, y=p.y) for p in finding.points],
+                color=AI_ANNOTATION_COLOR,
+                damage_type=finding.damage_type,
+                note=finding.note,
+                source="ai",
+                confidence=finding.confidence,
+                created_by=actor_uid,
+                created_at=now,
+            )
+            for finding in result.findings
+        ]
+        analysis = AiAnalysis(
+            id=f"analysis_{uuid4().hex}",
+            media_local_id=media.local_id,
+            model=self._ai_client.model_name,
+            summary=result.summary,
+            recommendations=result.recommendations,
+            risk_level=result.risk_level,
+            annotation_ids=[a.id for a in new_annotations],
+            created_by=actor_uid,
+            created_at=now,
+        )
+        updated = await self._inspections.append_ai_analysis(
+            scope, inspection_id, analysis, new_annotations, actor_uid
+        )
+        return _to_detail(updated, self._storage)
+
+    async def review_ai_analysis(
+        self, scope: CompanyScope, inspection_id: str, analysis_id: str, actor_uid: str
+    ) -> InspectionDetail:
+        """Marks an AI analysis run as reviewed by the authenticated caller
+        -- the "confirm" half of "confirm or override" (D-008). "Override"
+        is simply editing/deleting the underlying AI-sourced annotations
+        through the existing annotation endpoints; no separate action is
+        needed for that. Idempotent-on-missing, mirrors `update_annotation`."""
+        await self._active_inspection(scope, inspection_id)
+        updated = await self._inspections.mark_ai_analysis_reviewed(
+            scope, inspection_id, analysis_id, reviewed_by=actor_uid, actor_uid=actor_uid
         )
         return _to_detail(updated, self._storage)
 

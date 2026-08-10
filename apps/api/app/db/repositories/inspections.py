@@ -3,6 +3,7 @@ from google.cloud.firestore_v1 import ArrayRemove, ArrayUnion, FieldFilter
 from app.db.repositories.base import FIRESTORE_OPERATION_TIMEOUT_SECONDS, TenantRepository
 from app.models.base import CompanyScope, tenant_creation_fields, utc_now
 from app.models.entities import (
+    AiAnalysis,
     Annotation,
     ArMeasurement,
     ChecklistTemplateItem,
@@ -626,6 +627,96 @@ class InspectionRepository(TenantRepository[Inspection]):
             action="inspection.measurement_removed",
             target_id=inspection_id,
             metadata={"measurement": measurement.model_dump(mode="json")},
+        )
+        return updated
+
+    async def append_ai_analysis(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        analysis: AiAnalysis,
+        new_annotations: list[Annotation],
+        actor_uid: str,
+    ) -> Inspection:
+        """One atomic write for the whole result of an AI analysis run: the
+        new `Annotation(source="ai", ...)` records it detected plus the
+        analysis-level summary record, together -- never as two separate
+        writes, so a client can never observe annotations without their
+        owning analysis (or vice versa) mid-request."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        update: dict[str, object] = {
+            "ai_analysis": ArrayUnion([analysis.model_dump()]),
+            "updated_at": utc_now(),
+        }
+        if new_annotations:
+            # ArrayUnion rejects an empty list -- a photo with no detected
+            # findings still produces a real `AiAnalysis` record, just zero
+            # annotations, so this must stay conditional rather than always
+            # included.
+            update["annotations"] = ArrayUnion([a.model_dump() for a in new_annotations])
+        await self._collection.document(inspection_id).update(
+            update,
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.ai_analysis_created",
+            target_id=inspection_id,
+            metadata={
+                "analysis": analysis.model_dump(mode="json"),
+                "annotation_count": len(new_annotations),
+            },
+        )
+        return updated
+
+    async def mark_ai_analysis_reviewed(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        analysis_id: str,
+        *,
+        reviewed_by: str,
+        actor_uid: str,
+    ) -> Inspection:
+        """Idempotent-on-missing, same posture as `update_annotation`: if
+        `analysis_id` is no longer present, returns the current record
+        unchanged rather than raising. Re-marking an already-reviewed
+        analysis simply re-stamps `reviewed_by`/`reviewed_at`."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        existing = next((a for a in current.ai_analysis if a.id == analysis_id), None)
+        if existing is None:
+            return current
+
+        reviewed_analysis = existing.model_copy(
+            update={"reviewed": True, "reviewed_by": reviewed_by, "reviewed_at": utc_now()}
+        )
+        new_analyses = [
+            reviewed_analysis if a.id == analysis_id else a for a in current.ai_analysis
+        ]
+        await self._collection.document(inspection_id).update(
+            {
+                "ai_analysis": [a.model_dump() for a in new_analyses],
+                "updated_at": utc_now(),
+            },
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.ai_analysis_reviewed",
+            target_id=inspection_id,
+            metadata={"analysis_id": analysis_id, "reviewed_by": reviewed_by},
         )
         return updated
 

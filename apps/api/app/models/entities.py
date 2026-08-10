@@ -464,6 +464,30 @@ class ArMeasurement(StrictModel):
     created_at: datetime
 
 
+class AiAnalysis(StrictModel):
+    """One AI-assisted photo analysis run (spec 8 "AI Photo & Video Analysis",
+    Phase 7.10). Findings are never authoritative -- each one is persisted as
+    its own `Annotation(source="ai", ...)` (D-054's reserved fields, exactly
+    the mechanism this phase was designed to use); this record is the
+    analysis-level summary/metadata plus a `reviewed` flag the inspector sets
+    explicitly once they've looked at the findings, distinct from freely
+    editing/deleting the underlying annotations (that IS the "override" half
+    of "confirm or override")."""
+
+    id: str
+    media_local_id: str
+    model: str
+    summary: str
+    recommendations: str | None = None
+    risk_level: Literal["low", "medium", "high", "critical"] | None = None
+    annotation_ids: list[str] = Field(default_factory=list)
+    reviewed: bool = False
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    created_by: str
+    created_at: datetime
+
+
 class Inspection(TenantDoc):
     id: str
     asset_id: str
@@ -493,8 +517,7 @@ class Inspection(TenantDoc):
     readings: Readings | None = None
     signature: Signature | None = None
     ar_measurements: list[ArMeasurement] = Field(default_factory=list)
-    # Reserved, always-empty until its own phase gives it a real shape.
-    ai_analysis: dict[str, Any] | None = None
+    ai_analysis: list[AiAnalysis] = Field(default_factory=list)
 
     @field_validator("readings", mode="before")
     @classmethod
@@ -505,6 +528,17 @@ class Inspection(TenantDoc):
         validation (which requires `condition`)."""
         if value == {}:
             return None
+        return value
+
+    @field_validator("ai_analysis", mode="before")
+    @classmethod
+    def _normalize_legacy_ai_analysis(cls, value: object) -> object:
+        """Every inspection created before Phase 7.10 was written with the
+        old `ai_analysis: dict | None = None` placeholder, so a stored `None`
+        must still load cleanly as "never analyzed" rather than fail
+        `list[AiAnalysis]` validation."""
+        if value is None:
+            return []
         return value
 
 

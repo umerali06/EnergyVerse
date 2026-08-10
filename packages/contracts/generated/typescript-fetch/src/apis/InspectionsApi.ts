@@ -70,6 +70,11 @@ import {
     UpdateVoiceNoteRequestToJSON,
 } from '../models/index';
 
+export interface AnalyzeInspectionMediaRequest {
+    inspectionId: string;
+    mediaId: string;
+}
+
 export interface AssignInspectionChecklistTemplateRequest {
     inspectionId: string;
     assignChecklistTemplateRequest: AssignChecklistTemplateRequest;
@@ -147,6 +152,11 @@ export interface ListInspectionsRequest {
     limit?: number;
 }
 
+export interface ReviewInspectionAiAnalysisRequest {
+    inspectionId: string;
+    analysisId: string;
+}
+
 export interface StartInspectionRequest {
     inspectionId: string;
 }
@@ -184,6 +194,56 @@ export interface UpdateInspectionVoiceNoteRequest {
  *
  */
 export class InspectionsApi extends runtime.BaseAPI {
+
+    /**
+     * Runs Claude vision analysis on one already-attached photo (spec 8 \"AI Photo & Video Analysis\", Phase 7.10) -- `media_id` is the media item\'s server id, matching `update_inspection_media`/`detach_inspection_media`\'s own path parameter. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
+     * Analyze Inspection Media
+     */
+    async analyzeInspectionMediaRaw(requestParameters: AnalyzeInspectionMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling analyzeInspectionMedia().'
+            );
+        }
+
+        if (requestParameters['mediaId'] == null) {
+            throw new runtime.RequiredError(
+                'mediaId',
+                'Required parameter "mediaId" was null or undefined when calling analyzeInspectionMedia().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/media/{media_id}/analyze`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"media_id"}}`, encodeURIComponent(String(requestParameters['mediaId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Runs Claude vision analysis on one already-attached photo (spec 8 \"AI Photo & Video Analysis\", Phase 7.10) -- `media_id` is the media item\'s server id, matching `update_inspection_media`/`detach_inspection_media`\'s own path parameter. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
+     * Analyze Inspection Media
+     */
+    async analyzeInspectionMedia(requestParameters: AnalyzeInspectionMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.analyzeInspectionMediaRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Assign Checklist Template
@@ -933,6 +993,56 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async listInspections(requestParameters: ListInspectionsRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionListPage> {
         const response = await this.listInspectionsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Marks an AI analysis run as reviewed by the authenticated caller -- the \"confirm\" half of \"confirm or override\" (D-008). Idempotent on an already-reviewed or missing `analysis_id`.
+     * Review Inspection Ai Analysis
+     */
+    async reviewInspectionAiAnalysisRaw(requestParameters: ReviewInspectionAiAnalysisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling reviewInspectionAiAnalysis().'
+            );
+        }
+
+        if (requestParameters['analysisId'] == null) {
+            throw new runtime.RequiredError(
+                'analysisId',
+                'Required parameter "analysisId" was null or undefined when calling reviewInspectionAiAnalysis().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/ai-analysis/{analysis_id}/review`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"analysis_id"}}`, encodeURIComponent(String(requestParameters['analysisId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Marks an AI analysis run as reviewed by the authenticated caller -- the \"confirm\" half of \"confirm or override\" (D-008). Idempotent on an already-reviewed or missing `analysis_id`.
+     * Review Inspection Ai Analysis
+     */
+    async reviewInspectionAiAnalysis(requestParameters: ReviewInspectionAiAnalysisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.reviewInspectionAiAnalysisRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

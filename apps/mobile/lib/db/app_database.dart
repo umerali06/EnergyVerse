@@ -16,7 +16,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -41,6 +41,15 @@ class AppDatabase extends _$AppDatabase {
         // LocalInspections caching the server-confirmed digital signature,
         // plus a nullable `pendingSignatureStrokes` column holding the
         // just-drawn strokes until that signature syncs.
+        // v8 (Phase 7.9): an `arMeasurements` JSON-blob column on
+        // LocalInspections caching (and, for not-yet-synced captures,
+        // optimistically holding) the inspection's AR/manual dimension
+        // measurements.
+        // v9 (Phase 7.10): an `aiAnalysis` JSON-blob column on
+        // LocalInspections caching the server's synced
+        // `inspection.aiAnalysis[]` -- never written optimistically (same
+        // posture as `signature`), since there's nothing honest to echo
+        // before the AI call actually completes.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(localInspections, localInspections.assetCategory);
@@ -64,6 +73,13 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(localInspections, localInspections.signature);
             await m.addColumn(
                 localInspections, localInspections.pendingSignatureStrokes);
+          }
+          if (from < 8) {
+            await m.addColumn(
+                localInspections, localInspections.arMeasurements);
+          }
+          if (from < 9) {
+            await m.addColumn(localInspections, localInspections.aiAnalysis);
           }
         },
       );

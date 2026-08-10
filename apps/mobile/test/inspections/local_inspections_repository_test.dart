@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:fev_api_client/fev_api_client.dart';
+import 'package:fev_mobile/api/api_service.dart';
 import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/inspections/local_inspections_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +28,8 @@ InspectionDetail _serverDetailFixture({
   String id = 'insp-1',
   int revision = 3,
   String title = 'Server title',
+  List<AnnotationResponse> annotations = const [],
+  List<AiAnalysisResponse> aiAnalysis = const [],
 }) {
   final now = DateTime.utc(2026, 1, 1);
   return InspectionDetail(
@@ -39,6 +42,8 @@ InspectionDetail _serverDetailFixture({
       ..inspectionType = InspectionDetailInspectionTypeEnum.routine
       ..title = title
       ..revision = revision
+      ..annotations.replace(annotations)
+      ..aiAnalysis.replace(aiAnalysis)
       ..clientCreatedAt = now
       ..createdAt = now
       ..updatedAt = now,
@@ -1045,6 +1050,136 @@ void main() {
       final resumedOutbox = await secondDb.select(secondDb.outbox).get();
       expect(resumedOutbox.map((r) => r.mutationType),
           contains('create_measurement'));
+    });
+  });
+
+  group('AI photo analysis (Phase 7.10)', () {
+    test(
+        'analyzeMedia calls the API directly (not through the outbox) and upserts the result',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final annotation = AnnotationResponse((b) => b
+        ..id = 'annotation-1'
+        ..mediaLocalId = 'media-local-1'
+        ..shape = AnnotationResponseShapeEnum.rectangle
+        ..points.addAll([
+          AnnotationPointResponse((p) => p
+            ..x = 0.1
+            ..y = 0.1),
+          AnnotationPointResponse((p) => p
+            ..x = 0.4
+            ..y = 0.4),
+        ])
+        ..color = '#7C3AED'
+        ..source_ = AnnotationResponseSource_Enum.ai
+        ..confidence = 0.8
+        ..createdBy = 'user-1'
+        ..createdAt = DateTime.utc(2026, 1, 1));
+      final analysis = AiAnalysisResponse((b) => b
+        ..id = 'analysis-1'
+        ..mediaLocalId = 'media-local-1'
+        ..model = 'fake-model'
+        ..summary = 'Found corrosion'
+        ..annotationIds.add('annotation-1')
+        ..reviewed = false
+        ..createdBy = 'user-1'
+        ..createdAt = DateTime.utc(2026, 1, 1));
+
+      String? capturedMediaId;
+      final customApi = FakeSyncApi(
+        analyzeInspectionMedia: (inspectionId, mediaId) async {
+          capturedMediaId = mediaId;
+          return _serverDetailFixture(
+              id: id, annotations: [annotation], aiAnalysis: [analysis]);
+        },
+      );
+      final customRepository =
+          LocalInspectionsRepository(db: db, api: customApi);
+
+      await customRepository.analyzeMedia(
+          inspectionId: id, mediaId: 'media-server-1');
+
+      expect(capturedMediaId, 'media-server-1');
+      final record = await repository.getInspection(id);
+      expect(record!.annotations, hasLength(1));
+      expect(
+          record.annotations.single.source_, AnnotationResponseSource_Enum.ai);
+      expect(record.aiAnalysis, hasLength(1));
+      expect(record.aiAnalysis.single.summary, 'Found corrosion');
+      // Direct online-only call -- never touches the outbox, unlike every
+      // other mutation this repository makes. Only the original `create`
+      // draft mutation (from `createDraft` above) is still there.
+      final outbox = await db.select(db.outbox).get();
+      expect(outbox, hasLength(1));
+      expect(outbox.single.mutationType, 'create');
+    });
+
+    test(
+        'analyzeMedia propagates the API error and leaves the local cache untouched',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final customApi = FakeSyncApi(
+        analyzeInspectionMedia: (inspectionId, mediaId) async =>
+            throw const ApiException(
+                code: 'ai_analysis_failed', message: 'upstream failed'),
+      );
+      final customRepository =
+          LocalInspectionsRepository(db: db, api: customApi);
+
+      await expectLater(
+        customRepository.analyzeMedia(
+            inspectionId: id, mediaId: 'media-server-1'),
+        throwsA(isA<ApiException>()),
+      );
+
+      final record = await repository.getInspection(id);
+      expect(record!.annotations, isEmpty);
+      expect(record.aiAnalysis, isEmpty);
+    });
+
+    test(
+        'reviewAiAnalysis calls the API directly and upserts the reviewed result',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final reviewedAnalysis = AiAnalysisResponse((b) => b
+        ..id = 'analysis-1'
+        ..mediaLocalId = 'media-local-1'
+        ..model = 'fake-model'
+        ..summary = 'No issues detected.'
+        ..reviewed = true
+        ..reviewedBy = 'user-1'
+        ..reviewedAt = DateTime.utc(2026, 1, 2)
+        ..createdBy = 'user-1'
+        ..createdAt = DateTime.utc(2026, 1, 1));
+      String? capturedAnalysisId;
+      final customApi = FakeSyncApi(
+        reviewInspectionAiAnalysis: (inspectionId, analysisId) async {
+          capturedAnalysisId = analysisId;
+          return _serverDetailFixture(id: id, aiAnalysis: [reviewedAnalysis]);
+        },
+      );
+      final customRepository =
+          LocalInspectionsRepository(db: db, api: customApi);
+
+      await customRepository.reviewAiAnalysis(
+          inspectionId: id, analysisId: 'analysis-1');
+
+      expect(capturedAnalysisId, 'analysis-1');
+      final record = await repository.getInspection(id);
+      expect(record!.aiAnalysis.single.reviewed, true);
+      expect(record.aiAnalysis.single.reviewedBy, 'user-1');
     });
   });
 

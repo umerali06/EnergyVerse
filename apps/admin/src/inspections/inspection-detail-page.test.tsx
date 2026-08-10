@@ -78,7 +78,7 @@ function inspectionDetail(overrides: Partial<Record<string, unknown>> = {}) {
     voiceNotes: [],
     readings: null,
     arMeasurements: [],
-    aiAnalysis: null,
+    aiAnalysis: [],
     signature: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     updatedAt: new Date("2026-01-02T00:00:00Z"),
@@ -182,6 +182,24 @@ function measurementFixture(overrides: Partial<Record<string, unknown>> = {}) {
     points: [],
     note: "Measured with tape",
     checklistItemId: null,
+    createdBy: "demo-acme-field_inspector",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
+function aiAnalysisFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "analysis-1",
+    mediaLocalId: "local-1",
+    model: "claude-sonnet-5",
+    summary: "Visible corrosion on the flange.",
+    recommendations: "Schedule a closer inspection.",
+    riskLevel: "medium",
+    annotationIds: ["annotation-1"],
+    reviewed: false,
+    reviewedBy: null,
+    reviewedAt: null,
     createdBy: "demo-acme-field_inspector",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
@@ -493,6 +511,41 @@ describe("inspection detail page", () => {
     const measurementsSection = screen.getByTestId("measurements-section");
     expect(within(measurementsSection).getByText("AR")).toBeInTheDocument();
     expect(within(measurementsSection).getByText("42.0 cm")).toBeInTheDocument();
+  });
+
+  it("shows an honest empty state when no photos have been analyzed yet", async () => {
+    renderDetail();
+    await screen.findByText("Q3 Routine Inspection");
+    expect(screen.getByText("No photos have been analyzed yet.")).toBeInTheDocument();
+  });
+
+  it("renders an AI analysis run with its summary, risk level, and needs-review status", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({ aiAnalysis: [aiAnalysisFixture()] }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const aiSection = screen.getByTestId("ai-analysis-section");
+    expect(within(aiSection).getByText("Needs review")).toBeInTheDocument();
+    expect(within(aiSection).getByText("Medium risk")).toBeInTheDocument();
+    expect(within(aiSection).getByText("Visible corrosion on the flange.")).toBeInTheDocument();
+    expect(within(aiSection).getByText("Schedule a closer inspection.")).toBeInTheDocument();
+    expect(within(aiSection).getByText(/1 finding · claude-sonnet-5/)).toBeInTheDocument();
+  });
+
+  it("shows Reviewed once an analysis has been marked reviewed", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({
+        aiAnalysis: [aiAnalysisFixture({ reviewed: true, reviewedBy: "demo-acme-field_inspector" })],
+      }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const aiSection = screen.getByTestId("ai-analysis-section");
+    expect(within(aiSection).getByText("Reviewed")).toBeInTheDocument();
+    expect(within(aiSection).queryByText("Needs review")).not.toBeInTheDocument();
   });
 
   it("shows an honest empty state when the inspection has not been signed off yet", async () => {

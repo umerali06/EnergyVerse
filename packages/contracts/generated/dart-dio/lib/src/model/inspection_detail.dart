@@ -10,9 +10,9 @@ import 'package:fev_api_client/src/model/checklist_response.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:fev_api_client/src/model/ar_measurement_response.dart';
 import 'package:fev_api_client/src/model/inspection_media_response.dart';
+import 'package:fev_api_client/src/model/ai_analysis_response.dart';
 import 'package:fev_api_client/src/model/checklist_template_item.dart';
 import 'package:fev_api_client/src/model/voice_note_response.dart';
-import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
@@ -55,7 +55,7 @@ part 'inspection_detail.g.dart';
 abstract class InspectionDetail
     implements Built<InspectionDetail, InspectionDetailBuilder> {
   @BuiltValueField(wireName: r'ai_analysis')
-  BuiltMap<String, JsonObject?>? get aiAnalysis;
+  BuiltList<AiAnalysisResponse>? get aiAnalysis;
 
   @BuiltValueField(wireName: r'annotations')
   BuiltList<AnnotationResponse>? get annotations;
@@ -176,8 +176,8 @@ class _$InspectionDetailSerializer
       yield r'ai_analysis';
       yield serializers.serialize(
         object.aiAnalysis,
-        specifiedType: const FullType.nullable(
-            BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        specifiedType:
+            const FullType(BuiltList, [FullType(AiAnalysisResponse)]),
       );
     }
     if (object.annotations != null) {
@@ -395,10 +395,9 @@ class _$InspectionDetailSerializer
         case r'ai_analysis':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(
-                BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>?;
-          if (valueDes == null) continue;
+            specifiedType:
+                const FullType(BuiltList, [FullType(AiAnalysisResponse)]),
+          ) as BuiltList<AiAnalysisResponse>;
           result.aiAnalysis.replace(valueDes);
           break;
         case r'annotations':

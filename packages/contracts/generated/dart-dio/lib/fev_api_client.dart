@@ -27,6 +27,7 @@ export 'package:fev_api_client/src/api/roles_api.dart';
 export 'package:fev_api_client/src/api/system_api.dart';
 export 'package:fev_api_client/src/api/users_api.dart';
 
+export 'package:fev_api_client/src/model/ai_analysis_response.dart';
 export 'package:fev_api_client/src/model/annotation_point_input.dart';
 export 'package:fev_api_client/src/model/annotation_point_response.dart';
 export 'package:fev_api_client/src/model/annotation_response.dart';

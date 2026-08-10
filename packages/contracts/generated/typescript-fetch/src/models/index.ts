@@ -1,5 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
+export * from './AiAnalysisResponse';
 export * from './AnnotationPointInput';
 export * from './AnnotationPointResponse';
 export * from './AnnotationResponse';

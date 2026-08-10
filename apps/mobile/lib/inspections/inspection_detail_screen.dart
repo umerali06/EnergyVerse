@@ -11,6 +11,7 @@ import '../design_system/tokens_generated.dart';
 import '../media/inspection_media_gallery.dart';
 import '../media/inspection_voice_notes_section.dart';
 import '../sync/sync_engine.dart';
+import 'inspection_ai_analysis_section.dart';
 import 'inspection_measurements_section.dart';
 import 'inspection_readings_section.dart';
 import 'inspections_screen.dart'
@@ -303,6 +304,15 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
               annotations: inspection.annotations,
               editable: editable,
             ),
+            if (inspection.aiAnalysis.isNotEmpty) ...[
+              const SizedBox(height: DsSpacing.s5),
+              InspectionAiAnalysisSection(
+                key: ValueKey('ai-analysis-${inspection.id}'),
+                inspectionId: inspection.id,
+                analyses: inspection.aiAnalysis,
+                editable: editable,
+              ),
+            ],
             const SizedBox(height: DsSpacing.s5),
             InspectionVoiceNotesSection(
               key: ValueKey('voice-${inspection.id}'),

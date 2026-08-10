@@ -33,6 +33,10 @@ class FakeBlob:
     def delete(self) -> None:
         self.bucket.objects.pop(self.path, None)
 
+    def download_as_bytes(self) -> bytes:
+        data, _ = self.bucket.objects[self.path]
+        return data
+
     def generate_signed_url(self, expiration: timedelta, version: str = "v4") -> str:
         return f"https://fake-storage.invalid/{self.path}?signed=1"
 

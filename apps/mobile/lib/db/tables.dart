@@ -63,6 +63,17 @@ class LocalInspections extends Table {
   /// independently through [MediaQueue] exactly like any other photo).
   TextColumn get arMeasurements => text().withDefault(const Constant('[]'))();
 
+  /// The server's `InspectionDetail.aiAnalysis[]` (Phase 7.10) -- each
+  /// entry's own summary/recommendations/risk-level/reviewed state for a
+  /// Claude vision analysis run. Same caching posture as [voiceNotes]:
+  /// refreshed only from a synced server response, never written
+  /// optimistically, since there's nothing honest to echo before the AI
+  /// call actually completes (this is a direct, online-only action, not an
+  /// outbox mutation -- see `LocalInspectionsRepository.analyzeMedia`). The
+  /// AI-detected regions themselves land in [annotations] as ordinary
+  /// `source: "ai"` entries, not here.
+  TextColumn get aiAnalysis => text().withDefault(const Constant('[]'))();
+
   /// The server's `InspectionDetail.readings` (Phase 7.7) -- manually
   /// entered inspector readings (condition, temperature/pressure/noise,
   /// vibration, leak, operational status, comments, recommendations,

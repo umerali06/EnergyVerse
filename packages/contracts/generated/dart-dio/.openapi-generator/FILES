@@ -2,6 +2,7 @@
 .openapi-generator-ignore
 README.md
 analysis_options.yaml
+doc/AiAnalysisResponse.md
 doc/AnnotationPointInput.md
 doc/AnnotationPointResponse.md
 doc/AnnotationResponse.md
@@ -147,6 +148,7 @@ lib/src/auth/basic_auth.dart
 lib/src/auth/bearer_auth.dart
 lib/src/auth/oauth.dart
 lib/src/date_serializer.dart
+lib/src/model/ai_analysis_response.dart
 lib/src/model/annotation_point_input.dart
 lib/src/model/annotation_point_response.dart
 lib/src/model/annotation_response.dart
@@ -254,6 +256,7 @@ lib/src/model/value.dart
 lib/src/model/voice_note_response.dart
 lib/src/serializers.dart
 pubspec.yaml
+test/ai_analysis_response_test.dart
 test/annotation_point_input_test.dart
 test/annotation_point_response_test.dart
 test/annotation_response_test.dart
