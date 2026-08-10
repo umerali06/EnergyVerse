@@ -17,6 +17,7 @@ import 'package:fev_api_client/src/model/date.dart';
 import 'package:fev_api_client/src/model/annotation_point_input.dart';
 import 'package:fev_api_client/src/model/annotation_point_response.dart';
 import 'package:fev_api_client/src/model/annotation_response.dart';
+import 'package:fev_api_client/src/model/ar_measurement_response.dart';
 import 'package:fev_api_client/src/model/area_deleted.dart';
 import 'package:fev_api_client/src/model/area_detail.dart';
 import 'package:fev_api_client/src/model/area_list_page.dart';
@@ -49,6 +50,7 @@ import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
 import 'package:fev_api_client/src/model/complete_inspection_request.dart';
 import 'package:fev_api_client/src/model/create_annotation_request.dart';
+import 'package:fev_api_client/src/model/create_ar_measurement_request.dart';
 import 'package:fev_api_client/src/model/create_area_request.dart';
 import 'package:fev_api_client/src/model/create_asset_request.dart';
 import 'package:fev_api_client/src/model/create_checklist_template_request.dart';
@@ -95,6 +97,7 @@ import 'package:fev_api_client/src/model/signature_response.dart';
 import 'package:fev_api_client/src/model/signature_stroke_input.dart';
 import 'package:fev_api_client/src/model/signature_stroke_response.dart';
 import 'package:fev_api_client/src/model/update_annotation_request.dart';
+import 'package:fev_api_client/src/model/update_ar_measurement_request.dart';
 import 'package:fev_api_client/src/model/update_area_request.dart';
 import 'package:fev_api_client/src/model/update_asset_request.dart';
 import 'package:fev_api_client/src/model/update_checklist_template_request.dart';
@@ -122,6 +125,7 @@ part 'serializers.g.dart';
   AnnotationPointInput,
   AnnotationPointResponse,
   AnnotationResponse,
+  ArMeasurementResponse,
   AreaDeleted,
   AreaDetail,
   AreaListPage,
@@ -154,6 +158,7 @@ part 'serializers.g.dart';
   CompanyRegistrationResponse,
   CompleteInspectionRequest,
   CreateAnnotationRequest,
+  CreateArMeasurementRequest,
   CreateAreaRequest,
   CreateAssetRequest,
   CreateChecklistTemplateRequest,
@@ -200,6 +205,7 @@ part 'serializers.g.dart';
   SignatureStrokeInput,
   SignatureStrokeResponse,
   UpdateAnnotationRequest,
+  UpdateArMeasurementRequest,
   UpdateAreaRequest,
   UpdateAssetRequest,
   UpdateChecklistTemplateRequest,
@@ -222,11 +228,6 @@ part 'serializers.g.dart';
   VoiceNoteResponse,
 ])
 Serializers serializers = (_$serializers.toBuilder()
-      ..addBuilderFactory(
-        const FullType(
-            BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-        () => MapBuilder<String, JsonObject>(),
-      )
       ..add(const OneOfSerializer())
       ..add(const AnyOfSerializer())
       ..add(const DateSerializer())

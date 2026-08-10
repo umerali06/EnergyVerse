@@ -50,7 +50,10 @@ enum OutboxMutationType {
   detachVoiceNote('detach_voice_note'),
   createAnnotation('create_annotation'),
   updateAnnotation('update_annotation'),
-  deleteAnnotation('delete_annotation');
+  deleteAnnotation('delete_annotation'),
+  createMeasurement('create_measurement'),
+  updateMeasurement('update_measurement'),
+  deleteMeasurement('delete_measurement');
 
   const OutboxMutationType(this.wireValue);
 
@@ -167,6 +170,26 @@ String _encodeAnnotations(List<AnnotationResponse> annotations) => jsonEncode(
           .toList(),
     );
 
+List<ArMeasurementResponse> _decodeArMeasurements(String json) {
+  final list = jsonDecode(json) as List<dynamic>;
+  return list
+      .map(
+        (item) => standardSerializers.deserializeWith(
+          ArMeasurementResponse.serializer,
+          item as Map<String, dynamic>,
+        )!,
+      )
+      .toList();
+}
+
+String _encodeArMeasurements(List<ArMeasurementResponse> measurements) =>
+    jsonEncode(
+      measurements
+          .map((item) => standardSerializers.serializeWith(
+              ArMeasurementResponse.serializer, item))
+          .toList(),
+    );
+
 List<VoiceNoteResponse> _decodeVoiceNotes(String json) {
   final list = jsonDecode(json) as List<dynamic>;
   return list
@@ -226,8 +249,7 @@ ReadingsResponse _readingsInputToLocalResponse(ReadingsInput input) {
     ..recommendations = input.recommendations
     ..priorityLevel = input.priorityLevel == null
         ? null
-        : ReadingsResponsePriorityLevelEnum.valueOf(
-            input.priorityLevel!.name));
+        : ReadingsResponsePriorityLevelEnum.valueOf(input.priorityLevel!.name));
 }
 
 /// The inverse conversion, needed every time [LocalInspectionsRepository.
@@ -437,6 +459,7 @@ class LocalInspectionRecord {
         checklistResponses = _decodeChecklistResponses(row.checklistResponses),
         media = _decodeInspectionMedia(row.media),
         annotations = _decodeAnnotations(row.annotations),
+        arMeasurements = _decodeArMeasurements(row.arMeasurements),
         voiceNotes = _decodeVoiceNotes(row.voiceNotes),
         readings = _decodeReadings(row.readings),
         signature = _decodeSignature(row.signature),
@@ -457,6 +480,12 @@ class LocalInspectionRecord {
   /// al.), so it already reflects not-yet-synced local edits, not just the
   /// last server response.
   final List<AnnotationResponse> annotations;
+
+  /// AR/manual dimension measurements (Phase 7.9) -- same optimistic
+  /// posture as [annotations]: written locally at capture/edit/delete time
+  /// (see [LocalInspectionsRepository.createMeasurement] et al.), so this
+  /// already reflects not-yet-synced local edits.
+  final List<ArMeasurementResponse> arMeasurements;
 
   /// The server-synced voice-note references (Phase 7.6) -- same caching
   /// posture as [media]: refreshed only from a synced server response, since
@@ -668,6 +697,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
                 _encodeInspectionMedia(detail.media?.toList() ?? const [])),
             annotations: drift.Value(
                 _encodeAnnotations(detail.annotations?.toList() ?? const [])),
+            arMeasurements: drift.Value(_encodeArMeasurements(
+                detail.arMeasurements?.toList() ?? const [])),
             voiceNotes: drift.Value(
                 _encodeVoiceNotes(detail.voiceNotes?.toList() ?? const [])),
             readings: drift.Value(_encodeReadings(detail.readings)),
@@ -889,7 +920,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
           completedAt: drift.Value(now),
           updatedAt: drift.Value(now),
           syncState: const drift.Value('pending_sync'),
-          pendingSignatureStrokes: drift.Value(_encodeSignatureStrokes(strokes)),
+          pendingSignatureStrokes:
+              drift.Value(_encodeSignatureStrokes(strokes)),
         ),
       );
       final request = CompleteInspectionRequest(
@@ -1215,6 +1247,162 @@ class LocalInspectionsRepository extends ChangeNotifier {
         inspectionId: inspectionId,
         type: OutboxMutationType.deleteAnnotation,
         payload: jsonEncode({'annotation_id': annotationId}),
+      );
+    });
+  }
+
+  // ------------------------------------------------ AR/manual measurements (7.9)
+
+  /// Records a new dimension measurement -- either AR-captured (`method:
+  /// 'ar'`, always carrying [mediaLocalId] + exactly two [points] marking
+  /// the screenshot it was measured on) or manually entered (`method:
+  /// 'manual'`, [mediaLocalId]/[points] optional). Persists immediately to
+  /// the local `ar_measurements` blob, same optimistic offline-first posture
+  /// as [createAnnotation] -- small metadata with no separate upload queue
+  /// standing between "measured" and "visible offline" (D-063).
+  Future<String> createMeasurement({
+    required String inspectionId,
+    required String method,
+    required double distanceMeters,
+    required String createdBy,
+    String? label,
+    String? mediaLocalId,
+    List<AnnotationPointResponse> points = const [],
+    String? note,
+    String? checklistItemId,
+  }) async {
+    final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _db.transaction(() async {
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .getSingle();
+      final measurement = ArMeasurementResponse(
+        (b) => b
+          ..id = id
+          ..method = ArMeasurementResponseMethodEnum.valueOf(method)
+          ..distanceMeters = distanceMeters
+          ..label = label
+          ..mediaLocalId = mediaLocalId
+          ..points.replace(points)
+          ..note = note
+          ..checklistItemId = checklistItemId
+          ..createdBy = createdBy
+          ..createdAt = now,
+      );
+      final updatedMeasurements = [
+        ..._decodeArMeasurements(current.arMeasurements),
+        measurement
+      ];
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .write(
+        LocalInspectionsCompanion(
+            arMeasurements:
+                drift.Value(_encodeArMeasurements(updatedMeasurements))),
+      );
+
+      final request = CreateArMeasurementRequest(
+        (b) => b
+          ..id = id
+          ..method = CreateArMeasurementRequestMethodEnum.valueOf(method)
+          ..distanceMeters = distanceMeters
+          ..label = label
+          ..mediaLocalId = mediaLocalId
+          ..points.replace(points.map((p) => AnnotationPointInput((pb) => pb
+            ..x = p.x
+            ..y = p.y)))
+          ..note = note
+          ..checklistItemId = checklistItemId,
+      );
+      await _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.createMeasurement,
+        payload: jsonEncode(
+          standardSerializers.serializeWith(
+              CreateArMeasurementRequest.serializer, request),
+        ),
+      );
+    });
+    return id;
+  }
+
+  /// Edits an existing measurement's label/note/checklist link -- `null`
+  /// arguments leave that field unchanged. The captured method/distance/
+  /// screenshot/points are immutable once created (delete and recreate to
+  /// fix a wrong value). A no-op if [measurementId] isn't found locally.
+  Future<void> updateMeasurement({
+    required String inspectionId,
+    required String measurementId,
+    String? label,
+    String? note,
+    String? checklistItemId,
+  }) async {
+    await _db.transaction(() async {
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .getSingle();
+      final existingMeasurements =
+          _decodeArMeasurements(current.arMeasurements);
+      final index =
+          existingMeasurements.indexWhere((m) => m.id == measurementId);
+      if (index == -1) return;
+
+      final updatedMeasurement = existingMeasurements[index].rebuild((b) {
+        if (label != null) b.label = label;
+        if (note != null) b.note = note;
+        if (checklistItemId != null) b.checklistItemId = checklistItemId;
+      });
+      final updatedMeasurements = [...existingMeasurements];
+      updatedMeasurements[index] = updatedMeasurement;
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .write(
+        LocalInspectionsCompanion(
+            arMeasurements:
+                drift.Value(_encodeArMeasurements(updatedMeasurements))),
+      );
+
+      final request = UpdateArMeasurementRequest((b) {
+        if (label != null) b.label = label;
+        if (note != null) b.note = note;
+        if (checklistItemId != null) b.checklistItemId = checklistItemId;
+      });
+      await _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.updateMeasurement,
+        payload: jsonEncode({
+          'measurement_id': measurementId,
+          'request': standardSerializers.serializeWith(
+              UpdateArMeasurementRequest.serializer, request),
+        }),
+      );
+    });
+  }
+
+  /// Removes a measurement -- idempotent-on-missing locally, same posture as
+  /// [deleteAnnotation].
+  Future<void> deleteMeasurement({
+    required String inspectionId,
+    required String measurementId,
+  }) async {
+    await _db.transaction(() async {
+      final current = await (_db.select(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .getSingle();
+      final remaining = _decodeArMeasurements(current.arMeasurements)
+          .where((m) => m.id != measurementId)
+          .toList();
+      await (_db.update(_db.localInspections)
+            ..where((t) => t.id.equals(inspectionId)))
+          .write(
+        LocalInspectionsCompanion(
+            arMeasurements: drift.Value(_encodeArMeasurements(remaining))),
+      );
+      await _enqueue(
+        inspectionId: inspectionId,
+        type: OutboxMutationType.deleteMeasurement,
+        payload: jsonEncode({'measurement_id': measurementId}),
       );
     });
   }

@@ -22,6 +22,9 @@ String _mutationLabel(OutboxMutationType type) => switch (type) {
       OutboxMutationType.createAnnotation => 'Add annotation',
       OutboxMutationType.updateAnnotation => 'Edit annotation',
       OutboxMutationType.deleteAnnotation => 'Delete annotation',
+      OutboxMutationType.createMeasurement => 'Add measurement',
+      OutboxMutationType.updateMeasurement => 'Edit measurement',
+      OutboxMutationType.deleteMeasurement => 'Delete measurement',
     };
 
 /// The pending-mutation queue: every outbox row with its mutation type,
@@ -44,7 +47,8 @@ class SyncQueueScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Sync queue', style: Theme.of(context).textTheme.headlineMedium),
+                Text('Sync queue',
+                    style: Theme.of(context).textTheme.headlineMedium),
                 AnimatedBuilder(
                   animation: sync,
                   builder: (context, _) => AppButton(
@@ -72,7 +76,8 @@ class SyncQueueScreen extends StatelessWidget {
               )
             else
               for (final item in items)
-                _OutboxRow(key: ValueKey(item.id), item: item, repository: repository),
+                _OutboxRow(
+                    key: ValueKey(item.id), item: item, repository: repository),
           ],
         );
       },
@@ -101,7 +106,8 @@ class _OutboxRow extends StatelessWidget {
                   _mutationLabel(item.mutationType),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                if (item.attempts > 0) AppBadge(label: '${item.attempts} attempt(s)'),
+                if (item.attempts > 0)
+                  AppBadge(label: '${item.attempts} attempt(s)'),
               ],
             ),
             const SizedBox(height: DsSpacing.s1),

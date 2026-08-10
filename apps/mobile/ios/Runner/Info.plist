@@ -17,7 +17,7 @@
 	<key>CFBundleName</key>
 	<string>EnergyVerse</string>
 	<key>NSCameraUsageDescription</key>
-	<string>EnergyVerse uses the camera to attach asset reference photos, scan asset QR codes, and capture inspection photos and videos.</string>
+	<string>EnergyVerse uses the camera to attach asset reference photos, scan asset QR codes, capture inspection photos and videos, and power AR-based on-site dimension measurement.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>EnergyVerse records audio with inspection videos you capture in the field.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

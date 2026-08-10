@@ -17,7 +17,7 @@ void main() {
       // TODO
     });
 
-    // BuiltList<BuiltMap<String, JsonObject>> arMeasurements
+    // BuiltList<ArMeasurementResponse> arMeasurements
     test('to test the property `arMeasurements`', () async {
       // TODO
     });

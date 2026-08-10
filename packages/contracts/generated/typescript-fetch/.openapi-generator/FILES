@@ -24,6 +24,7 @@ src/index.ts
 src/models/AnnotationPointInput.ts
 src/models/AnnotationPointResponse.ts
 src/models/AnnotationResponse.ts
+src/models/ArMeasurementResponse.ts
 src/models/AreaDeleted.ts
 src/models/AreaDetail.ts
 src/models/AreaListPage.ts
@@ -56,6 +57,7 @@ src/models/CompanyRegistrationRequest.ts
 src/models/CompanyRegistrationResponse.ts
 src/models/CompleteInspectionRequest.ts
 src/models/CreateAnnotationRequest.ts
+src/models/CreateArMeasurementRequest.ts
 src/models/CreateAreaRequest.ts
 src/models/CreateAssetRequest.ts
 src/models/CreateChecklistTemplateRequest.ts
@@ -102,6 +104,7 @@ src/models/SignatureResponse.ts
 src/models/SignatureStrokeInput.ts
 src/models/SignatureStrokeResponse.ts
 src/models/UpdateAnnotationRequest.ts
+src/models/UpdateArMeasurementRequest.ts
 src/models/UpdateAreaRequest.ts
 src/models/UpdateAssetRequest.ts
 src/models/UpdateChecklistTemplateRequest.ts

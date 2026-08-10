@@ -40,6 +40,15 @@ function readingsConditionTone(condition: string): StatusTone {
   }
 }
 
+/** `1.5 m` under 1 meter shows as centimeters (`45.0 cm`) for readability --
+ * a fixed threshold, not a per-record unit choice, mirroring D-058's
+ * documented-unit rationale (the stored value is always meters; this is
+ * display-only). Mirrors the mobile client's `formatMeasurementDistance`. */
+function formatMeasurementDistance(meters: number): string {
+  if (meters < 1) return `${(meters * 100).toFixed(1)} cm`;
+  return `${meters.toFixed(2)} m`;
+}
+
 function formatVoiceNoteDuration(durationMs: number): string {
   const totalSeconds = Math.round(durationMs / 1000);
   const minutes = Math.floor(totalSeconds / 60)
@@ -451,6 +460,41 @@ export function InspectionDetailPage({
                   <p className="mt-1 text-bodySmall text-text-muted">
                     No manual status readings have been logged yet.
                   </p>
+                )}
+              </div>
+
+              <div data-testid="measurements-section">
+                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                  Measurements
+                  {(state.inspection.arMeasurements ?? []).length > 0 &&
+                    ` (${state.inspection.arMeasurements!.length})`}
+                </p>
+                {(state.inspection.arMeasurements ?? []).length === 0 ? (
+                  <p className="mt-1 text-bodySmall text-text-muted">
+                    No measurements have been recorded yet.
+                  </p>
+                ) : (
+                  <ul className="mt-2 grid gap-3">
+                    {state.inspection.arMeasurements!.map((measurement) => (
+                      <li
+                        className="flex flex-wrap items-center gap-3 rounded-md border border-border p-3"
+                        key={measurement.id}
+                      >
+                        <Badge>{measurement.method === "ar" ? "AR" : "Manual"}</Badge>
+                        <span className="font-mono text-bodySmall font-semibold text-text-primary">
+                          {formatMeasurementDistance(measurement.distanceMeters)}
+                        </span>
+                        {measurement.label && (
+                          <span className="text-caption text-text-secondary">
+                            {measurement.label}
+                          </span>
+                        )}
+                        {measurement.note && (
+                          <span className="text-caption text-text-muted">{measurement.note}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 

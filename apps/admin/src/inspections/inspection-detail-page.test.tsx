@@ -172,6 +172,22 @@ function readingsFixture(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function measurementFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "measurement-1",
+    method: "manual",
+    distanceMeters: 1.25,
+    label: "Flange gap",
+    mediaLocalId: null,
+    points: [],
+    note: "Measured with tape",
+    checklistItemId: null,
+    createdBy: "demo-acme-field_inspector",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
 function signatureFixture(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     strokes: [
@@ -443,6 +459,40 @@ describe("inspection detail page", () => {
     const readingsSection = screen.getByTestId("readings-section");
     expect(within(readingsSection).queryByText(/Priority:/)).not.toBeInTheDocument();
     expect(within(readingsSection).queryByText("Leak observed")).not.toBeInTheDocument();
+  });
+
+  it("shows an honest empty state when the inspection has no measurements yet", async () => {
+    renderDetail();
+    await screen.findByText("Q3 Routine Inspection");
+    expect(screen.getByText("No measurements have been recorded yet.")).toBeInTheDocument();
+  });
+
+  it("renders a manual measurement with its method badge, formatted distance, label, and note", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({ arMeasurements: [measurementFixture()] }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const measurementsSection = screen.getByTestId("measurements-section");
+    expect(within(measurementsSection).getByText("Manual")).toBeInTheDocument();
+    expect(within(measurementsSection).getByText("1.25 m")).toBeInTheDocument();
+    expect(within(measurementsSection).getByText("Flange gap")).toBeInTheDocument();
+    expect(within(measurementsSection).getByText("Measured with tape")).toBeInTheDocument();
+  });
+
+  it("renders an AR measurement under 1 meter in centimeters", async () => {
+    const getInspection = vi.fn(async () =>
+      inspectionDetail({
+        arMeasurements: [measurementFixture({ id: "measurement-2", method: "ar", distanceMeters: 0.42 })],
+      }),
+    );
+    renderDetail({ getInspection });
+    await screen.findByText("Q3 Routine Inspection");
+
+    const measurementsSection = screen.getByTestId("measurements-section");
+    expect(within(measurementsSection).getByText("AR")).toBeInTheDocument();
+    expect(within(measurementsSection).getByText("42.0 cm")).toBeInTheDocument();
   });
 
   it("shows an honest empty state when the inspection has not been signed off yet", async () => {

@@ -1,7 +1,16 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- QR scanning (Phase 4.5) and inspection photo/video capture (Phase 7.4) -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- AR dimension measurement (Phase 7.9). ar_flutter_plugin_2's own manifest
+         declares this feature as required="true", which would hide the app
+         entirely from the Play Store on non-ARCore devices -- overridden here
+         to "false" (with a manual fallback per D-062) so the app installs
+         everywhere. "optional" tells Play Services this app supports but does
+         not require ARCore. -->
+    <uses-feature android:name="android.hardware.camera.ar" android:required="false"
+        tools:replace="android:required"/>
     <!-- Audio track on recorded inspection videos (Phase 7.4) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- Best-effort start-of-inspection GPS capture (Phase 7.3) -->
@@ -38,6 +47,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Tells Google Play Services this app supports but does not require
+             ARCore (Phase 7.9), matching the optional uses-feature above. -->
+        <meta-data
+            android:name="com.google.ar.core"
+            android:value="optional" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

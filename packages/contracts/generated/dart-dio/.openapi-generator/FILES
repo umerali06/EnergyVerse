@@ -5,6 +5,7 @@ analysis_options.yaml
 doc/AnnotationPointInput.md
 doc/AnnotationPointResponse.md
 doc/AnnotationResponse.md
+doc/ArMeasurementResponse.md
 doc/AreaDeleted.md
 doc/AreaDetail.md
 doc/AreaListPage.md
@@ -43,6 +44,7 @@ doc/CompanyRegistrationRequest.md
 doc/CompanyRegistrationResponse.md
 doc/CompleteInspectionRequest.md
 doc/CreateAnnotationRequest.md
+doc/CreateArMeasurementRequest.md
 doc/CreateAreaRequest.md
 doc/CreateAssetRequest.md
 doc/CreateChecklistTemplateRequest.md
@@ -98,6 +100,7 @@ doc/SignatureStrokeInput.md
 doc/SignatureStrokeResponse.md
 doc/SystemApi.md
 doc/UpdateAnnotationRequest.md
+doc/UpdateArMeasurementRequest.md
 doc/UpdateAreaRequest.md
 doc/UpdateAssetRequest.md
 doc/UpdateChecklistTemplateRequest.md
@@ -147,6 +150,7 @@ lib/src/date_serializer.dart
 lib/src/model/annotation_point_input.dart
 lib/src/model/annotation_point_response.dart
 lib/src/model/annotation_response.dart
+lib/src/model/ar_measurement_response.dart
 lib/src/model/area_deleted.dart
 lib/src/model/area_detail.dart
 lib/src/model/area_list_page.dart
@@ -179,6 +183,7 @@ lib/src/model/company_registration_request.dart
 lib/src/model/company_registration_response.dart
 lib/src/model/complete_inspection_request.dart
 lib/src/model/create_annotation_request.dart
+lib/src/model/create_ar_measurement_request.dart
 lib/src/model/create_area_request.dart
 lib/src/model/create_asset_request.dart
 lib/src/model/create_checklist_template_request.dart
@@ -226,6 +231,7 @@ lib/src/model/signature_response.dart
 lib/src/model/signature_stroke_input.dart
 lib/src/model/signature_stroke_response.dart
 lib/src/model/update_annotation_request.dart
+lib/src/model/update_ar_measurement_request.dart
 lib/src/model/update_area_request.dart
 lib/src/model/update_asset_request.dart
 lib/src/model/update_checklist_template_request.dart
@@ -251,6 +257,7 @@ pubspec.yaml
 test/annotation_point_input_test.dart
 test/annotation_point_response_test.dart
 test/annotation_response_test.dart
+test/ar_measurement_response_test.dart
 test/area_deleted_test.dart
 test/area_detail_test.dart
 test/area_list_page_test.dart
@@ -289,6 +296,7 @@ test/company_registration_request_test.dart
 test/company_registration_response_test.dart
 test/complete_inspection_request_test.dart
 test/create_annotation_request_test.dart
+test/create_ar_measurement_request_test.dart
 test/create_area_request_test.dart
 test/create_asset_request_test.dart
 test/create_checklist_template_request_test.dart
@@ -344,6 +352,7 @@ test/signature_stroke_input_test.dart
 test/signature_stroke_response_test.dart
 test/system_api_test.dart
 test/update_annotation_request_test.dart
+test/update_ar_measurement_request_test.dart
 test/update_area_request_test.dart
 test/update_asset_request_test.dart
 test/update_checklist_template_request_test.dart

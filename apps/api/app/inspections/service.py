@@ -20,12 +20,14 @@ from app.models.api import (
     AttachVoiceNoteRequest,
     CompleteInspectionRequest,
     CreateAnnotationRequest,
+    CreateArMeasurementRequest,
     CreateInspectionRequest,
     InspectionDetail,
     InspectionListItem,
     InspectionListPage,
     InspectionMediaResponse,
     UpdateAnnotationRequest,
+    UpdateArMeasurementRequest,
     UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
     UpdateVoiceNoteRequest,
@@ -37,6 +39,7 @@ from app.models.api import (
 from app.models.base import CompanyScope, utc_now
 from app.models.entities import (
     Annotation,
+    ArMeasurement,
     Asset,
     ChecklistResponse,
     ChecklistTemplate,
@@ -167,7 +170,7 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
         ],
         readings=inspection.readings.model_dump() if inspection.readings is not None else None,
         signature=inspection.signature.model_dump() if inspection.signature is not None else None,
-        ar_measurements=inspection.ar_measurements,
+        ar_measurements=[measurement.model_dump() for measurement in inspection.ar_measurements],
         ai_analysis=inspection.ai_analysis,
     )
 
@@ -938,6 +941,110 @@ class InspectionService:
             return _to_detail(current, self._storage)
         updated = await self._inspections.remove_annotation(
             scope, inspection_id, annotation, actor_uid
+        )
+        return _to_detail(updated, self._storage)
+
+    async def create_ar_measurement(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        request: CreateArMeasurementRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        """Idempotent by client-generated `id`, mirrors `create_annotation`
+        exactly -- covers both AR-captured and manually-entered measurements
+        (spec 7.2 "AR-based dimension measurement", Phase 7.9, D-063)."""
+        current = await self._active_inspection(scope, inspection_id)
+
+        if request.method == "ar" and request.media_local_id is None:
+            raise InspectionServiceError(
+                422,
+                "ar_measurement_missing_screenshot",
+                "An AR measurement requires the screenshot it was measured on",
+            )
+
+        if request.media_local_id is not None and not any(
+            m.local_id == request.media_local_id for m in current.media
+        ):
+            raise InspectionServiceError(
+                404,
+                "media_not_found",
+                "Measurement references a media item that does not exist on this inspection",
+                {"media_local_id": request.media_local_id},
+            )
+
+        existing = next((m for m in current.ar_measurements if m.id == request.id), None)
+        if existing is not None:
+            if (
+                existing.method == request.method
+                and existing.distance_meters == request.distance_meters
+                and existing.label == request.label
+                and existing.media_local_id == request.media_local_id
+                and [p.model_dump() for p in existing.points]
+                == [p.model_dump() for p in request.points]
+                and existing.note == request.note
+                and existing.checklist_item_id == request.checklist_item_id
+            ):
+                return _to_detail(current, self._storage)
+            raise InspectionServiceError(
+                409,
+                "ar_measurement_conflict",
+                "A different measurement already exists for this id",
+                {"id": request.id},
+            )
+
+        measurement = ArMeasurement(
+            id=request.id,
+            method=request.method,
+            distance_meters=request.distance_meters,
+            label=request.label,
+            media_local_id=request.media_local_id,
+            points=[p.model_dump() for p in request.points],
+            note=request.note,
+            checklist_item_id=request.checklist_item_id,
+            created_by=actor_uid,
+            created_at=utc_now(),
+        )
+        updated = await self._inspections.append_ar_measurement(
+            scope, inspection_id, measurement, actor_uid
+        )
+        return _to_detail(updated, self._storage)
+
+    async def update_ar_measurement(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        measurement_id: str,
+        request: UpdateArMeasurementRequest,
+        actor_uid: str,
+    ) -> InspectionDetail:
+        """Idempotent-on-missing, same posture as `update_annotation`. Only
+        `label`/`note`/`checklist_item_id` are mutable -- the captured
+        method/distance/screenshot/points are immutable once created (mirrors
+        media's checklist_item_id/before_after_tag-only update); fixing a
+        wrong value means delete and recreate, same as a mis-tagged photo."""
+        await self._active_inspection(scope, inspection_id)
+        changes = request.model_dump(exclude_unset=True)
+        updated = await self._inspections.update_ar_measurement(
+            scope,
+            inspection_id,
+            measurement_id,
+            changes=changes,
+            actor_uid=actor_uid,
+        )
+        return _to_detail(updated, self._storage)
+
+    async def delete_ar_measurement(
+        self, scope: CompanyScope, inspection_id: str, measurement_id: str, actor_uid: str
+    ) -> InspectionDetail:
+        """Idempotent on an already-deleted `measurement_id` -- the mobile
+        outbox replays this call at-least-once, mirrors `delete_annotation`."""
+        current = await self._active_inspection(scope, inspection_id)
+        measurement = next((m for m in current.ar_measurements if m.id == measurement_id), None)
+        if measurement is None:
+            return _to_detail(current, self._storage)
+        updated = await self._inspections.remove_ar_measurement(
+            scope, inspection_id, measurement, actor_uid
         )
         return _to_detail(updated, self._storage)
 

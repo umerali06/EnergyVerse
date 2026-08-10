@@ -55,6 +55,13 @@ import {
     AnnotationResponseToJSON,
     AnnotationResponseToJSONTyped,
 } from './AnnotationResponse';
+import type { ArMeasurementResponse } from './ArMeasurementResponse';
+import {
+    ArMeasurementResponseFromJSON,
+    ArMeasurementResponseFromJSONTyped,
+    ArMeasurementResponseToJSON,
+    ArMeasurementResponseToJSONTyped,
+} from './ArMeasurementResponse';
 import type { ChecklistTemplateItem } from './ChecklistTemplateItem';
 import {
     ChecklistTemplateItemFromJSON,
@@ -83,10 +90,10 @@ export interface InspectionDetail {
     annotations?: Array<AnnotationResponse>;
     /**
      *
-     * @type {Array<{ [key: string]: any; }>}
+     * @type {Array<ArMeasurementResponse>}
      * @memberof InspectionDetail
      */
-    arMeasurements?: Array<{ [key: string]: any; }>;
+    arMeasurements?: Array<ArMeasurementResponse>;
     /**
      *
      * @type {string}
@@ -303,7 +310,7 @@ export function InspectionDetailFromJSONTyped(json: any, ignoreDiscriminator: bo
 
         'aiAnalysis': json['ai_analysis'] == null ? undefined : json['ai_analysis'],
         'annotations': json['annotations'] == null ? undefined : ((json['annotations'] as Array<any>).map(AnnotationResponseFromJSON)),
-        'arMeasurements': json['ar_measurements'] == null ? undefined : json['ar_measurements'],
+        'arMeasurements': json['ar_measurements'] == null ? undefined : ((json['ar_measurements'] as Array<any>).map(ArMeasurementResponseFromJSON)),
         'areaId': json['area_id'] == null ? undefined : json['area_id'],
         'assetId': json['asset_id'],
         'checklistItemsSnapshot': json['checklist_items_snapshot'] == null ? undefined : ((json['checklist_items_snapshot'] as Array<any>).map(ChecklistTemplateItemFromJSON)),
@@ -347,7 +354,7 @@ export function InspectionDetailToJSONTyped(value?: InspectionDetail | null, ign
 
         'ai_analysis': value['aiAnalysis'],
         'annotations': value['annotations'] == null ? undefined : ((value['annotations'] as Array<any>).map(AnnotationResponseToJSON)),
-        'ar_measurements': value['arMeasurements'],
+        'ar_measurements': value['arMeasurements'] == null ? undefined : ((value['arMeasurements'] as Array<any>).map(ArMeasurementResponseToJSON)),
         'area_id': value['areaId'],
         'asset_id': value['assetId'],
         'checklist_items_snapshot': value['checklistItemsSnapshot'] == null ? undefined : ((value['checklistItemsSnapshot'] as Array<any>).map(ChecklistTemplateItemToJSON)),

@@ -65,6 +65,15 @@ void main() {
       // TODO
     });
 
+    // Create Inspection Ar Measurement
+    //
+    // Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection_annotation`) -- covers both AR-captured and manually-entered dimension measurements (spec 7.2 \"AR-based dimension measurement\", Phase 7.9, D-063).
+    //
+    //Future<InspectionDetail> createInspectionArMeasurement(String inspectionId, CreateArMeasurementRequest createArMeasurementRequest) async
+    test('test createInspectionArMeasurement', () async {
+      // TODO
+    });
+
     // Delete Inspection
     //
     //Future<InspectionDeleted> deleteInspection(String inspectionId) async
@@ -78,6 +87,15 @@ void main() {
     //
     //Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) async
     test('test deleteInspectionAnnotation', () async {
+      // TODO
+    });
+
+    // Delete Inspection Ar Measurement
+    //
+    // Idempotent on an already-deleted `measurement_id` -- the mobile outbox replays this call at-least-once.
+    //
+    //Future<InspectionDetail> deleteInspectionArMeasurement(String inspectionId, String measurementId) async
+    test('test deleteInspectionArMeasurement', () async {
       // TODO
     });
 
@@ -131,6 +149,13 @@ void main() {
     //
     //Future<InspectionDetail> updateInspectionAnnotation(String inspectionId, String annotationId, UpdateAnnotationRequest updateAnnotationRequest) async
     test('test updateInspectionAnnotation', () async {
+      // TODO
+    });
+
+    // Update Inspection Ar Measurement
+    //
+    //Future<InspectionDetail> updateInspectionArMeasurement(String inspectionId, String measurementId, UpdateArMeasurementRequest updateArMeasurementRequest) async
+    test('test updateInspectionArMeasurement', () async {
       // TODO
     });
 

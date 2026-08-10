@@ -16,8 +16,10 @@ Method | HTTP request | Description
 [**completeInspection**](InspectionsApi.md#completeinspection) | **POST** /api/v1/inspections/{inspection_id}/complete | Complete Inspection
 [**createInspection**](InspectionsApi.md#createinspection) | **POST** /api/v1/inspections | Create Inspection
 [**createInspectionAnnotation**](InspectionsApi.md#createinspectionannotation) | **POST** /api/v1/inspections/{inspection_id}/annotations | Create Inspection Annotation
+[**createInspectionArMeasurement**](InspectionsApi.md#createinspectionarmeasurement) | **POST** /api/v1/inspections/{inspection_id}/ar-measurements | Create Inspection Ar Measurement
 [**deleteInspection**](InspectionsApi.md#deleteinspection) | **DELETE** /api/v1/inspections/{inspection_id} | Delete Inspection
 [**deleteInspectionAnnotation**](InspectionsApi.md#deleteinspectionannotation) | **DELETE** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Delete Inspection Annotation
+[**deleteInspectionArMeasurement**](InspectionsApi.md#deleteinspectionarmeasurement) | **DELETE** /api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id} | Delete Inspection Ar Measurement
 [**detachInspectionMedia**](InspectionsApi.md#detachinspectionmedia) | **DELETE** /api/v1/inspections/{inspection_id}/media/{media_id} | Detach Inspection Media
 [**detachInspectionVoiceNote**](InspectionsApi.md#detachinspectionvoicenote) | **DELETE** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Detach Inspection Voice Note
 [**getInspection**](InspectionsApi.md#getinspection) | **GET** /api/v1/inspections/{inspection_id} | Get Inspection
@@ -25,6 +27,7 @@ Method | HTTP request | Description
 [**startInspection**](InspectionsApi.md#startinspection) | **POST** /api/v1/inspections/{inspection_id}/start | Start Inspection
 [**updateInspection**](InspectionsApi.md#updateinspection) | **PATCH** /api/v1/inspections/{inspection_id} | Update Inspection
 [**updateInspectionAnnotation**](InspectionsApi.md#updateinspectionannotation) | **PATCH** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Update Inspection Annotation
+[**updateInspectionArMeasurement**](InspectionsApi.md#updateinspectionarmeasurement) | **PATCH** /api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id} | Update Inspection Ar Measurement
 [**updateInspectionMedia**](InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 [**updateInspectionVoiceNote**](InspectionsApi.md#updateinspectionvoicenote) | **PATCH** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Update Inspection Voice Note
 
@@ -336,6 +339,51 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **createInspectionArMeasurement**
+> InspectionDetail createInspectionArMeasurement(inspectionId, createArMeasurementRequest)
+
+Create Inspection Ar Measurement
+
+Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection_annotation`) -- covers both AR-captured and manually-entered dimension measurements (spec 7.2 \"AR-based dimension measurement\", Phase 7.9, D-063).
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final CreateArMeasurementRequest createArMeasurementRequest = ; // CreateArMeasurementRequest |
+
+try {
+    final response = api.createInspectionArMeasurement(inspectionId, createArMeasurementRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->createInspectionArMeasurement: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **createArMeasurementRequest** | [**CreateArMeasurementRequest**](CreateArMeasurementRequest.md)|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **deleteInspection**
 > InspectionDeleted deleteInspection(inspectionId)
 
@@ -406,6 +454,51 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **inspectionId** | **String**|  |
  **annotationId** | **String**|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteInspectionArMeasurement**
+> InspectionDetail deleteInspectionArMeasurement(inspectionId, measurementId)
+
+Delete Inspection Ar Measurement
+
+Idempotent on an already-deleted `measurement_id` -- the mobile outbox replays this call at-least-once.
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final String measurementId = measurementId_example; // String |
+
+try {
+    final response = api.deleteInspectionArMeasurement(inspectionId, measurementId);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->deleteInspectionArMeasurement: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **measurementId** | **String**|  |
 
 ### Return type
 
@@ -721,6 +814,51 @@ Name | Type | Description  | Notes
  **inspectionId** | **String**|  |
  **annotationId** | **String**|  |
  **updateAnnotationRequest** | [**UpdateAnnotationRequest**](UpdateAnnotationRequest.md)|  |
+
+### Return type
+
+[**InspectionDetail**](InspectionDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateInspectionArMeasurement**
+> InspectionDetail updateInspectionArMeasurement(inspectionId, measurementId, updateArMeasurementRequest)
+
+Update Inspection Ar Measurement
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getInspectionsApi();
+final String inspectionId = inspectionId_example; // String |
+final String measurementId = measurementId_example; // String |
+final UpdateArMeasurementRequest updateArMeasurementRequest = ; // UpdateArMeasurementRequest |
+
+try {
+    final response = api.updateInspectionArMeasurement(inspectionId, measurementId, updateArMeasurementRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling InspectionsApi->updateInspectionArMeasurement: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **inspectionId** | **String**|  |
+ **measurementId** | **String**|  |
+ **updateArMeasurementRequest** | [**UpdateArMeasurementRequest**](UpdateArMeasurementRequest.md)|  |
 
 ### Return type
 

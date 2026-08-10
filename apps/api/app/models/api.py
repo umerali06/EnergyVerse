@@ -571,6 +571,19 @@ class SignatureResponse(BaseModel):
     inspection_revision: int
 
 
+class ArMeasurementResponse(BaseModel):
+    id: str
+    method: Literal["ar", "manual"]
+    distance_meters: float
+    label: str | None = None
+    media_local_id: str | None = None
+    points: list[AnnotationPointResponse] = Field(default_factory=list)
+    note: str | None = None
+    checklist_item_id: str | None = None
+    created_by: str
+    created_at: datetime
+
+
 class InspectionListItem(BaseModel):
     id: str
     asset_id: str
@@ -608,7 +621,7 @@ class InspectionDetail(InspectionListItem):
     voice_notes: list[VoiceNoteResponse] = Field(default_factory=list)
     readings: ReadingsResponse | None = None
     signature: SignatureResponse | None = None
-    ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
+    ar_measurements: list[ArMeasurementResponse] = Field(default_factory=list)
     ai_analysis: dict[str, Any] | None = None
 
 
@@ -749,6 +762,23 @@ class UpdateAnnotationRequest(BaseModel):
         | None
     ) = None
     note: str | None = Field(default=None, max_length=1000)
+
+
+class CreateArMeasurementRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    method: Literal["ar", "manual"]
+    distance_meters: float = Field(gt=0, le=100000)
+    label: str | None = Field(default=None, max_length=200)
+    media_local_id: str | None = Field(default=None, max_length=200)
+    points: list[AnnotationPointInput] = Field(default_factory=list)
+    note: str | None = Field(default=None, max_length=1000)
+    checklist_item_id: str | None = Field(default=None, max_length=200)
+
+
+class UpdateArMeasurementRequest(BaseModel):
+    label: str | None = Field(default=None, max_length=200)
+    note: str | None = Field(default=None, max_length=1000)
+    checklist_item_id: str | None = Field(default=None, max_length=200)
 
 
 class InspectionDeleted(BaseModel):

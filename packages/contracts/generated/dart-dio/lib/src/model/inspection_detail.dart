@@ -8,6 +8,7 @@ import 'package:fev_api_client/src/model/readings_response.dart';
 import 'package:fev_api_client/src/model/signature_response.dart';
 import 'package:fev_api_client/src/model/checklist_response.dart';
 import 'package:built_collection/built_collection.dart';
+import 'package:fev_api_client/src/model/ar_measurement_response.dart';
 import 'package:fev_api_client/src/model/inspection_media_response.dart';
 import 'package:fev_api_client/src/model/checklist_template_item.dart';
 import 'package:fev_api_client/src/model/voice_note_response.dart';
@@ -60,7 +61,7 @@ abstract class InspectionDetail
   BuiltList<AnnotationResponse>? get annotations;
 
   @BuiltValueField(wireName: r'ar_measurements')
-  BuiltList<BuiltMap<String, JsonObject?>>? get arMeasurements;
+  BuiltList<ArMeasurementResponse>? get arMeasurements;
 
   @BuiltValueField(wireName: r'area_id')
   String? get areaId;
@@ -191,9 +192,8 @@ class _$InspectionDetailSerializer
       yield r'ar_measurements';
       yield serializers.serialize(
         object.arMeasurements,
-        specifiedType: const FullType(BuiltList, [
-          FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])
-        ]),
+        specifiedType:
+            const FullType(BuiltList, [FullType(ArMeasurementResponse)]),
       );
     }
     if (object.areaId != null) {
@@ -412,11 +412,9 @@ class _$InspectionDetailSerializer
         case r'ar_measurements':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [
-              FullType(
-                  BuiltMap, [FullType(String), FullType.nullable(JsonObject)])
-            ]),
-          ) as BuiltList<BuiltMap<String, JsonObject?>>;
+            specifiedType:
+                const FullType(BuiltList, [FullType(ArMeasurementResponse)]),
+          ) as BuiltList<ArMeasurementResponse>;
           result.arMeasurements.replace(valueDes);
           break;
         case r'area_id':

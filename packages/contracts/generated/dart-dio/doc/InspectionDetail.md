@@ -10,7 +10,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **aiAnalysis** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional]
 **annotations** | [**BuiltList&lt;AnnotationResponse&gt;**](AnnotationResponse.md) |  | [optional]
-**arMeasurements** | [**BuiltList&lt;BuiltMap&lt;String, JsonObject&gt;&gt;**](BuiltMap.md) |  | [optional]
+**arMeasurements** | [**BuiltList&lt;ArMeasurementResponse&gt;**](ArMeasurementResponse.md) |  | [optional]
 **areaId** | **String** |  | [optional]
 **assetId** | **String** |  |
 **checklistItemsSnapshot** | [**BuiltList&lt;ChecklistTemplateItem&gt;**](ChecklistTemplateItem.md) |  | [optional]

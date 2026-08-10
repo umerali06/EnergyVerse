@@ -36,13 +36,15 @@ class SyncEngine extends ChangeNotifier {
         _mediaRepository = mediaRepository,
         _now = now ?? DateTime.now,
         _connectivityDebounce = connectivityDebounce {
-    final streamFactory = connectivityStreamFactory ?? (() => Connectivity().onConnectivityChanged);
+    final streamFactory = connectivityStreamFactory ??
+        (() => Connectivity().onConnectivityChanged);
     _connectivitySubscription = streamFactory().listen(_onConnectivityEvent);
     _periodicTimer = Timer.periodic(periodicInterval, (_) {
       if (_connectivity != SyncConnectivity.offline) kick();
     });
     unawaited(
-      (checkConnectivity ?? Connectivity().checkConnectivity)().then(_onConnectivityEvent),
+      (checkConnectivity ?? Connectivity().checkConnectivity)()
+          .then(_onConnectivityEvent),
     );
     // A plain ChangeNotifier listener, not `repository.watchOutbox()`: a
     // widget rebuilding its own watch-stream StreamBuilder on every
@@ -63,7 +65,8 @@ class SyncEngine extends ChangeNotifier {
   final LocalMediaRepository? _mediaRepository;
   final DateTime Function() _now;
   final Duration _connectivityDebounce;
-  late final StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+  late final StreamSubscription<List<ConnectivityResult>>
+      _connectivitySubscription;
   late final Timer _periodicTimer;
   Timer? _debounceTimer;
   bool _disposed = false;
@@ -130,7 +133,8 @@ class SyncEngine extends ChangeNotifier {
     try {
       var bypass = bypassBackoff;
       while (true) {
-        final items = await _repository.queueForDrain(now: _now().toUtc(), bypassBackoff: bypass);
+        final items = await _repository.queueForDrain(
+            now: _now().toUtc(), bypassBackoff: bypass);
         for (final item in items) {
           final keepDrainingOtherInspections = await _replay(item);
           if (!keepDrainingOtherInspections) break;
@@ -209,10 +213,12 @@ class SyncEngine extends ChangeNotifier {
           UpdateInspectionMediaRequest.serializer,
           wrapper['request'] as Map<String, dynamic>,
         )!;
-        return _api.updateInspectionMedia(item.inspectionId, wrapper['media_id'] as String, request);
+        return _api.updateInspectionMedia(
+            item.inspectionId, wrapper['media_id'] as String, request);
       case OutboxMutationType.detachMedia:
         final wrapper = payload as Map<String, dynamic>;
-        return _api.detachInspectionMedia(item.inspectionId, wrapper['media_id'] as String);
+        return _api.detachInspectionMedia(
+            item.inspectionId, wrapper['media_id'] as String);
       case OutboxMutationType.attachVoiceNote:
         final request = standardSerializers.deserializeWith(
           AttachVoiceNoteRequest.serializer,
@@ -259,6 +265,29 @@ class SyncEngine extends ChangeNotifier {
           item.inspectionId,
           wrapper['annotation_id'] as String,
         );
+      case OutboxMutationType.createMeasurement:
+        final request = standardSerializers.deserializeWith(
+          CreateArMeasurementRequest.serializer,
+          payload as Map<String, dynamic>,
+        )!;
+        return _api.createInspectionArMeasurement(item.inspectionId, request);
+      case OutboxMutationType.updateMeasurement:
+        final wrapper = payload as Map<String, dynamic>;
+        final request = standardSerializers.deserializeWith(
+          UpdateArMeasurementRequest.serializer,
+          wrapper['request'] as Map<String, dynamic>,
+        )!;
+        return _api.updateInspectionArMeasurement(
+          item.inspectionId,
+          wrapper['measurement_id'] as String,
+          request,
+        );
+      case OutboxMutationType.deleteMeasurement:
+        final wrapper = payload as Map<String, dynamic>;
+        return _api.deleteInspectionArMeasurement(
+          item.inspectionId,
+          wrapper['measurement_id'] as String,
+        );
     }
   }
 
@@ -299,14 +328,16 @@ class SyncEngine extends ChangeNotifier {
       // A dropped connection would fail every subsequent row identically.
       return false;
     }
-    if (error.code == 'revision_conflict' || error.code == 'invalid_transition') {
+    if (error.code == 'revision_conflict' ||
+        error.code == 'invalid_transition') {
       return _handleConflictOrInvalidTransition(item, error);
     }
     await _repository.markPermanentError(item, message: error.message);
     return true;
   }
 
-  Future<bool> _handleConflictOrInvalidTransition(OutboxItemRecord item, ApiException error) async {
+  Future<bool> _handleConflictOrInvalidTransition(
+      OutboxItemRecord item, ApiException error) async {
     final InspectionDetail current;
     try {
       current = await _api.getInspection(item.inspectionId);
@@ -324,7 +355,8 @@ class SyncEngine extends ChangeNotifier {
       await _repository.applyAlreadyApplied(item: item, server: current);
       return true;
     }
-    await _repository.markConflict(inspectionId: item.inspectionId, serverSnapshot: current);
+    await _repository.markConflict(
+        inspectionId: item.inspectionId, serverSnapshot: current);
     return true;
   }
 
@@ -366,14 +398,15 @@ class SyncEngine extends ChangeNotifier {
           jsonDecode(item.row.payload) as Map<String, dynamic>,
         )!;
         return current.checklistTemplateId == request.checklistTemplateId;
-      // attachMedia/editMedia/detachMedia/*VoiceNote/*Annotation never carry
-      // `expected_revision` and the backend is idempotent-by-`local_id`/
-      // `media_id`/`voice_note_id`/`annotation_id` for all of them, so they
-      // can only ever fully succeed or fail outright -- structurally,
-      // `_handleError` never routes a `revision_conflict`/
-      // `invalid_transition` code to this method for these mutation types.
-      // These cases exist only to satisfy Dart's exhaustive-switch check;
-      // don't "helpfully" replace `true` with real comparison logic.
+      // attachMedia/editMedia/detachMedia/*VoiceNote/*Annotation/*Measurement
+      // never carry `expected_revision` and the backend is idempotent-by-
+      // `local_id`/`media_id`/`voice_note_id`/`annotation_id`/
+      // `measurement_id` for all of them, so they can only ever fully
+      // succeed or fail outright -- structurally, `_handleError` never
+      // routes a `revision_conflict`/`invalid_transition` code to this
+      // method for these mutation types. These cases exist only to satisfy
+      // Dart's exhaustive-switch check; don't "helpfully" replace `true`
+      // with real comparison logic.
       case OutboxMutationType.attachMedia:
       case OutboxMutationType.editMedia:
       case OutboxMutationType.detachMedia:
@@ -383,6 +416,9 @@ class SyncEngine extends ChangeNotifier {
       case OutboxMutationType.createAnnotation:
       case OutboxMutationType.updateAnnotation:
       case OutboxMutationType.deleteAnnotation:
+      case OutboxMutationType.createMeasurement:
+      case OutboxMutationType.updateMeasurement:
+      case OutboxMutationType.deleteMeasurement:
         return true;
     }
   }

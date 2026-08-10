@@ -52,6 +52,7 @@ InspectionDetail _inspectionDetailFixture({
   InspectionDetailStatusEnum status = InspectionDetailStatusEnum.inProgress,
   List<InspectionMediaResponse> media = const [],
   List<AnnotationResponse> annotations = const [],
+  List<ArMeasurementResponse> arMeasurements = const [],
   List<VoiceNoteResponse> voiceNotes = const [],
   ReadingsResponse? readings,
   SignatureResponse? signature,
@@ -84,6 +85,7 @@ InspectionDetail _inspectionDetailFixture({
       )
       ..media.addAll(media)
       ..annotations.addAll(annotations)
+      ..arMeasurements.addAll(arMeasurements)
       ..voiceNotes.addAll(voiceNotes)
       ..readings = readings?.toBuilder()
       ..signature = signature?.toBuilder(),
@@ -162,6 +164,23 @@ VoiceNoteResponse _voiceNoteFixture({String id = 'voice-1'}) {
   );
 }
 
+ArMeasurementResponse _measurementFixture({
+  String id = 'measurement-1',
+  String method = 'manual',
+  double distanceMeters = 1.25,
+}) {
+  return ArMeasurementResponse(
+    (b) => b
+      ..id = id
+      ..method = ArMeasurementResponseMethodEnum.valueOf(method)
+      ..distanceMeters = distanceMeters
+      ..label = 'Flange gap'
+      ..note = 'Measured with tape'
+      ..createdBy = 'demo-acme-field_inspector'
+      ..createdAt = DateTime.utc(2026, 1, 1),
+  );
+}
+
 AnnotationResponse _annotationFixture({String mediaLocalId = 'local-1'}) {
   return AnnotationResponse(
     (b) => b
@@ -191,6 +210,7 @@ class FakeApi implements ApiContract {
     this.offline = false,
     this.media = const [],
     this.annotations = const [],
+    this.arMeasurements = const [],
     this.voiceNotes = const [],
     this.readings,
     this.signature,
@@ -200,6 +220,7 @@ class FakeApi implements ApiContract {
   final InspectionDetailStatusEnum status;
   final List<InspectionMediaResponse> media;
   final List<AnnotationResponse> annotations;
+  final List<ArMeasurementResponse> arMeasurements;
   final List<VoiceNoteResponse> voiceNotes;
   final ReadingsResponse? readings;
   final SignatureResponse? signature;
@@ -369,6 +390,7 @@ class FakeApi implements ApiContract {
         status: status,
         media: media,
         annotations: annotations,
+        arMeasurements: arMeasurements,
         voiceNotes: voiceNotes,
         readings: readings,
         signature: signature);
@@ -465,6 +487,26 @@ class FakeApi implements ApiContract {
   @override
   Future<InspectionDetail> deleteInspectionAnnotation(
           String inspectionId, String annotationId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> createInspectionArMeasurement(
+    String inspectionId,
+    CreateArMeasurementRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+    UpdateArMeasurementRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> deleteInspectionArMeasurement(
+          String inspectionId, String measurementId) =>
       throw UnimplementedError();
 
   @override
@@ -596,7 +638,8 @@ void main() {
       // `Scrollable`, so the default `find.byType(Scrollable)` this helper
       // would otherwise use is no longer unique on this screen.
       final pageScrollable = find
-          .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+          .descendant(
+              of: find.byType(ListView), matching: find.byType(Scrollable))
           .first;
       await tester.scrollUntilVisible(
           find.byKey(const Key('complete-inspection')), 200,
@@ -644,8 +687,8 @@ void main() {
       // Signature capture (Phase 7.8) is the mandatory final step: "Sign &
       // Complete" stays disabled until something's drawn.
       expect(find.byKey(const Key('signature-pad-canvas')), findsOneWidget);
-      final confirmBeforeDrawing = tester
-          .widget<AppButton>(find.byKey(const Key('signature-confirm')));
+      final confirmBeforeDrawing =
+          tester.widget<AppButton>(find.byKey(const Key('signature-confirm')));
       expect(confirmBeforeDrawing.onPressed, isNull);
 
       await tester.drag(
@@ -653,8 +696,8 @@ void main() {
         const Offset(60, 40),
       );
       await tester.pumpAndSettle();
-      final confirmAfterDrawing = tester
-          .widget<AppButton>(find.byKey(const Key('signature-confirm')));
+      final confirmAfterDrawing =
+          tester.widget<AppButton>(find.byKey(const Key('signature-confirm')));
       expect(confirmAfterDrawing.onPressed, isNotNull);
 
       await tester.tap(find.byKey(const Key('signature-confirm')));
@@ -689,7 +732,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final pageScrollable = find
-          .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+          .descendant(
+              of: find.byType(ListView), matching: find.byType(Scrollable))
           .first;
       await tester.scrollUntilVisible(
           find.byKey(const Key('item-vibration_normal-pass')), 200,
@@ -762,7 +806,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final pageScrollable = find
-          .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+          .descendant(
+              of: find.byType(ListView), matching: find.byType(Scrollable))
           .first;
       await tester.scrollUntilVisible(
           find.byKey(const Key('readings-condition')), 200,
@@ -799,7 +844,8 @@ void main() {
       // section's state and lose the not-yet-flushed edit below.
       await tester.ensureVisible(find.byKey(const Key('readings-temperature')));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('readings-temperature')), '80');
+      await tester.enterText(
+          find.byKey(const Key('readings-temperature')), '80');
       await tester.pump(const Duration(milliseconds: 600));
 
       row = await (db.select(db.localInspections)
@@ -808,7 +854,8 @@ void main() {
       final record = LocalInspectionRecord(row);
       // The whole readings object is resent on every save, so the earlier
       // condition survives alongside the newly typed temperature.
-      expect(record.readings?.condition, ReadingsResponseConditionEnum.critical);
+      expect(
+          record.readings?.condition, ReadingsResponseConditionEnum.critical);
       expect(record.readings?.temperatureC, 80);
       await disposeApp(tester);
     },
@@ -1047,6 +1094,105 @@ void main() {
     expect(find.text('Queued'), findsOneWidget);
     expect(find.text('0 of 1 uploaded'), findsOneWidget);
     expect(find.text('00:15'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'shows an honest empty state when the inspection has no measurements yet',
+      (tester) async {
+    final api = FakeApi(identityFor(
+        'field_inspector', const ['inspections.read', 'inspections.write']));
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    // The page's own outer ListView is passed explicitly as `scrollable`
+    // since the 7.7 readings section's several `AppTextField`s (mounted by
+    // the time a scroll reaches MEASUREMENTS, which sits below them) each
+    // contribute their own internal `Scrollable`, making the default
+    // `find.byType(Scrollable)` this helper would otherwise use ambiguous.
+    final pageScrollable = find
+        .descendant(
+            of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(find.text('MEASUREMENTS'), 200,
+        scrollable: pageScrollable);
+    expect(find.text('MEASUREMENTS'), findsOneWidget);
+    expect(find.text('No measurements yet'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'renders a synced measurement with its formatted distance and label',
+      (tester) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      arMeasurements: [_measurementFixture()],
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    final pageScrollable = find
+        .descendant(
+            of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('measurement-tile-measurement-1')), 200,
+        scrollable: pageScrollable);
+    expect(find.text('1.25 m'), findsOneWidget);
+    expect(find.text('Flange gap'), findsOneWidget);
+    expect(find.text('Measured with tape'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets('a completed inspection hides the Add measurement action',
+      (tester) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      status: InspectionDetailStatusEnum.completed,
+      arMeasurements: [_measurementFixture()],
+      signature: _signatureFixture(),
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    final pageScrollable = find
+        .descendant(
+            of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(find.text('MEASUREMENTS'), 200,
+        scrollable: pageScrollable);
+    expect(find.byKey(const Key('add-measurement')), findsNothing);
+    expect(find.byKey(const Key('measurement-remove-measurement-1')),
+        findsNothing);
     await disposeApp(tester);
   });
 
