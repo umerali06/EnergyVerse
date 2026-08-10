@@ -187,6 +187,10 @@ abstract interface class ApiContract {
     String inspectionId,
     String measurementId,
   );
+  Future<InspectionDetail> analyzeInspectionMedia(
+      String inspectionId, String mediaId);
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+      String inspectionId, String analysisId);
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,
@@ -1184,6 +1188,35 @@ class ApiService implements ApiContract {
           .getInspectionsApi()
           .deleteInspectionArMeasurement(
               inspectionId: inspectionId, measurementId: measurementId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> analyzeInspectionMedia(
+      String inspectionId, String mediaId) async {
+    try {
+      final response = await _client
+          .getInspectionsApi()
+          .analyzeInspectionMedia(inspectionId: inspectionId, mediaId: mediaId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+    String inspectionId,
+    String analysisId,
+  ) async {
+    try {
+      final response = await _client
+          .getInspectionsApi()
+          .reviewInspectionAiAnalysis(
+              inspectionId: inspectionId, analysisId: analysisId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);

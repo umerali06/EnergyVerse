@@ -53,6 +53,7 @@ InspectionDetail _inspectionDetailFixture({
   List<InspectionMediaResponse> media = const [],
   List<AnnotationResponse> annotations = const [],
   List<ArMeasurementResponse> arMeasurements = const [],
+  List<AiAnalysisResponse> aiAnalysis = const [],
   List<VoiceNoteResponse> voiceNotes = const [],
   ReadingsResponse? readings,
   SignatureResponse? signature,
@@ -86,6 +87,7 @@ InspectionDetail _inspectionDetailFixture({
       ..media.addAll(media)
       ..annotations.addAll(annotations)
       ..arMeasurements.addAll(arMeasurements)
+      ..aiAnalysis.addAll(aiAnalysis)
       ..voiceNotes.addAll(voiceNotes)
       ..readings = readings?.toBuilder()
       ..signature = signature?.toBuilder(),
@@ -181,6 +183,30 @@ ArMeasurementResponse _measurementFixture({
   );
 }
 
+AiAnalysisResponse _aiAnalysisFixture({
+  String id = 'analysis-1',
+  bool reviewed = false,
+  String? riskLevel = 'medium',
+}) {
+  return AiAnalysisResponse(
+    (b) => b
+      ..id = id
+      ..mediaLocalId = 'local-1'
+      ..model = 'claude-sonnet-5'
+      ..summary = 'Visible corrosion on the flange.'
+      ..recommendations = 'Schedule a closer inspection.'
+      ..riskLevel = riskLevel == null
+          ? null
+          : AiAnalysisResponseRiskLevelEnum.valueOf(riskLevel)
+      ..annotationIds.add('annotation-1')
+      ..reviewed = reviewed
+      ..reviewedBy = reviewed ? 'demo-acme-field_inspector' : null
+      ..reviewedAt = reviewed ? DateTime.utc(2026, 1, 2) : null
+      ..createdBy = 'demo-acme-field_inspector'
+      ..createdAt = DateTime.utc(2026, 1, 1),
+  );
+}
+
 AnnotationResponse _annotationFixture({String mediaLocalId = 'local-1'}) {
   return AnnotationResponse(
     (b) => b
@@ -211,6 +237,7 @@ class FakeApi implements ApiContract {
     this.media = const [],
     this.annotations = const [],
     this.arMeasurements = const [],
+    this.aiAnalysis = const [],
     this.voiceNotes = const [],
     this.readings,
     this.signature,
@@ -221,6 +248,7 @@ class FakeApi implements ApiContract {
   final List<InspectionMediaResponse> media;
   final List<AnnotationResponse> annotations;
   final List<ArMeasurementResponse> arMeasurements;
+  final List<AiAnalysisResponse> aiAnalysis;
   final List<VoiceNoteResponse> voiceNotes;
   final ReadingsResponse? readings;
   final SignatureResponse? signature;
@@ -391,6 +419,7 @@ class FakeApi implements ApiContract {
         media: media,
         annotations: annotations,
         arMeasurements: arMeasurements,
+        aiAnalysis: aiAnalysis,
         voiceNotes: voiceNotes,
         readings: readings,
         signature: signature);
@@ -507,6 +536,16 @@ class FakeApi implements ApiContract {
   @override
   Future<InspectionDetail> deleteInspectionArMeasurement(
           String inspectionId, String measurementId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> analyzeInspectionMedia(
+          String inspectionId, String mediaId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+          String inspectionId, String analysisId) =>
       throw UnimplementedError();
 
   @override
@@ -1193,6 +1232,93 @@ void main() {
     expect(find.byKey(const Key('add-measurement')), findsNothing);
     expect(find.byKey(const Key('measurement-remove-measurement-1')),
         findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'does not show the AI analysis section when nothing has been analyzed yet',
+      (tester) async {
+    final api = FakeApi(identityFor(
+        'field_inspector', const ['inspections.read', 'inspections.write']));
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI ANALYSIS'), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'renders an AI analysis run with its summary, risk level, and a Mark reviewed action',
+      (tester) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      aiAnalysis: [_aiAnalysisFixture()],
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    final pageScrollable = find
+        .descendant(
+            of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('ai-analysis-analysis-1')), 200,
+        scrollable: pageScrollable);
+    expect(find.text('Visible corrosion on the flange.'), findsOneWidget);
+    expect(find.text('Schedule a closer inspection.'), findsOneWidget);
+    expect(find.text('NEEDS REVIEW'), findsOneWidget);
+    expect(find.byKey(const Key('mark-reviewed-analysis-1')), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+      'hides the Mark reviewed action once an analysis is already reviewed',
+      (tester) async {
+    final api = FakeApi(
+      identityFor(
+          'field_inspector', const ['inspections.read', 'inspections.write']),
+      aiAnalysis: [_aiAnalysisFixture(reviewed: true)],
+    );
+    await tester.pumpWidget(
+      FevApp(
+          api: api,
+          authGateway: FakeGateway(),
+          initialRoute: AppRoutes.inspections,
+          database: AppDatabase(NativeDatabase.memory())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Q3 Routine Inspection'));
+    await tester.pumpAndSettle();
+
+    final pageScrollable = find
+        .descendant(
+            of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('ai-analysis-analysis-1')), 200,
+        scrollable: pageScrollable);
+    expect(find.text('REVIEWED'), findsOneWidget);
+    expect(find.byKey(const Key('mark-reviewed-analysis-1')), findsNothing);
     await disposeApp(tester);
   });
 

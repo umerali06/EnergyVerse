@@ -143,7 +143,7 @@ class _$InspectionDetailStatusEnumSerializer
 
 class _$InspectionDetail extends InspectionDetail {
   @override
-  final BuiltMap<String, JsonObject?>? aiAnalysis;
+  final BuiltList<AiAnalysisResponse>? aiAnalysis;
   @override
   final BuiltList<AnnotationResponse>? annotations;
   @override
@@ -382,10 +382,10 @@ class InspectionDetailBuilder
     implements Builder<InspectionDetail, InspectionDetailBuilder> {
   _$InspectionDetail? _$v;
 
-  MapBuilder<String, JsonObject?>? _aiAnalysis;
-  MapBuilder<String, JsonObject?> get aiAnalysis =>
-      _$this._aiAnalysis ??= new MapBuilder<String, JsonObject?>();
-  set aiAnalysis(MapBuilder<String, JsonObject?>? aiAnalysis) =>
+  ListBuilder<AiAnalysisResponse>? _aiAnalysis;
+  ListBuilder<AiAnalysisResponse> get aiAnalysis =>
+      _$this._aiAnalysis ??= new ListBuilder<AiAnalysisResponse>();
+  set aiAnalysis(ListBuilder<AiAnalysisResponse>? aiAnalysis) =>
       _$this._aiAnalysis = aiAnalysis;
 
   ListBuilder<AnnotationResponse>? _annotations;

@@ -527,3 +527,54 @@ async def delete_inspection_ar_measurement(
     except InspectionServiceError as error:
         _raise_api_error(error)
         raise
+
+
+@router.post(
+    "/{inspection_id}/media/{media_id}/analyze",
+    response_model=InspectionDetail,
+    operation_id="analyze_inspection_media",
+    responses=error_responses(401, 403, 404, 422, 500, 502),
+)
+async def analyze_inspection_media(
+    inspection_id: str,
+    media_id: str,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Runs Claude vision analysis on one already-attached photo (spec 8 "AI
+    Photo & Video Analysis", Phase 7.10) -- `media_id` is the media item's
+    server id, matching `update_inspection_media`/`detach_inspection_media`'s
+    own path parameter. Every finding lands as an advisory
+    `Annotation(source="ai", ...)`; nothing here ever auto-confirms a
+    finding."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.analyze_media(scope, inspection_id, media_id, current_user.uid)
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.post(
+    "/{inspection_id}/ai-analysis/{analysis_id}/review",
+    response_model=InspectionDetail,
+    operation_id="review_inspection_ai_analysis",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def review_inspection_ai_analysis(
+    inspection_id: str,
+    analysis_id: str,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Marks an AI analysis run as reviewed by the authenticated caller --
+    the "confirm" half of "confirm or override" (D-008). Idempotent on an
+    already-reviewed or missing `analysis_id`."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.review_ai_analysis(
+            scope, inspection_id, analysis_id, current_user.uid
+        )
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise

@@ -1,6 +1,108 @@
 {
   "components": {
     "schemas": {
+      "AiAnalysisResponse": {
+        "properties": {
+          "annotation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Annotation Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "media_local_id": {
+            "title": "Media Local Id",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "recommendations": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendations"
+          },
+          "reviewed": {
+            "default": false,
+            "title": "Reviewed",
+            "type": "boolean"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "reviewed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed By"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "media_local_id",
+          "model",
+          "summary",
+          "created_by",
+          "created_at"
+        ],
+        "title": "AiAnalysisResponse",
+        "type": "object"
+      },
       "AnnotationPointInput": {
         "properties": {
           "x": {
@@ -2986,16 +3088,11 @@
       "InspectionDetail": {
         "properties": {
           "ai_analysis": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ai Analysis"
+            "items": {
+              "$ref": "#/components/schemas/AiAnalysisResponse"
+            },
+            "title": "Ai Analysis",
+            "type": "array"
           },
           "annotations": {
             "items": {
@@ -9937,6 +10034,103 @@
         ]
       }
     },
+    "/api/v1/inspections/{inspection_id}/ai-analysis/{analysis_id}/review": {
+      "post": {
+        "description": "Marks an AI analysis run as reviewed by the authenticated caller --\nthe \"confirm\" half of \"confirm or override\" (D-008). Idempotent on an\nalready-reviewed or missing `analysis_id`.",
+        "operationId": "review_inspection_ai_analysis",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inspection_id",
+            "required": true,
+            "schema": {
+              "title": "Inspection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "analysis_id",
+            "required": true,
+            "schema": {
+              "title": "Analysis Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Inspection Ai Analysis",
+        "tags": [
+          "inspections"
+        ]
+      }
+    },
     "/api/v1/inspections/{inspection_id}/annotations": {
       "post": {
         "description": "Idempotent upsert keyed by the client-generated `id` (mirrors\n`create_inspection`) -- annotations are vector metadata only, no image\nbytes pass through here.",
@@ -11181,6 +11375,113 @@
           }
         ],
         "summary": "Update Inspection Media",
+        "tags": [
+          "inspections"
+        ]
+      }
+    },
+    "/api/v1/inspections/{inspection_id}/media/{media_id}/analyze": {
+      "post": {
+        "description": "Runs Claude vision analysis on one already-attached photo (spec 8 \"AI\nPhoto & Video Analysis\", Phase 7.10) -- `media_id` is the media item's\nserver id, matching `update_inspection_media`/`detach_inspection_media`'s\nown path parameter. Every finding lands as an advisory\n`Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a\nfinding.",
+        "operationId": "analyze_inspection_media",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "inspection_id",
+            "required": true,
+            "schema": {
+              "title": "Inspection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "An upstream service (e.g. the AI vision provider) failed or is unreachable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Analyze Inspection Media",
         "tags": [
           "inspections"
         ]

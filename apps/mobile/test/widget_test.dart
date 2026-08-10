@@ -278,6 +278,14 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
+  Future<InspectionDetail> analyzeInspectionMedia(String inspectionId, String mediaId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> reviewInspectionAiAnalysis(String inspectionId, String analysisId) =>
+      throw UnimplementedError();
+
+  @override
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,

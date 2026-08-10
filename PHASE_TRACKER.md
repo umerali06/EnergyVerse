@@ -45,7 +45,7 @@ Only one micro-task may be active at a time.
 | 4.5 | QR code asset scanning | Done |
 | 5 | To be defined | **In progress** |
 | 6 | To be defined | Not started |
-| 7 | Inspections — flagship field-inspection module (data model, offline sync, capture, checklist, readings, signature, AR, AI analysis, admin review) | In progress |
+| 7 | Inspections — flagship field-inspection module (data model, offline sync, capture, checklist, readings, signature, AR, AI analysis, admin review) | **COMPLETE** |
 | 7.1 | Inspection data model, checklist templates, and backend CRUD/lifecycle | Done |
 | 7.2 | Offline engine — local store, sync queue, and conflict resolution | Done |
 | 7.3 | Inspection start flow — checklist-template auto-selection, GPS capture, interactive offline-first checklist filling with continuous autosave, and completion gating | Done |
@@ -55,6 +55,7 @@ Only one micro-task may be active at a time.
 | 7.7 | Manual status readings — condition/temperature/pressure/noise/vibration/leak/operational-status/comments/recommendations/priority logged on the inspection record; on completion, rolls up onto the asset's 3-state health, driving the 4.4 dashboard KPI (resolves the §9 deferral from Phase 4.1) | Done |
 | 7.8 | Digital signature — inspector sign-off drawn on-device at inspection completion, offline-capable, server-derived signer identity, revision-bound with pre-completion revision-conflict rejection (re-sign), and admin review display | Done |
 | 7.9 | AR/manual dimension measurement — AR plane-tap distance capture with screenshot evidence (`ar_flutter_plugin_2`, unvalidated on physical hardware per D-063), manual numeric-entry fallback, offline-first via the record outbox, admin review display | Done |
+| 7.10 | AI photo analysis — on-demand Claude vision analysis of inspection photos surfaces advisory `Annotation(source="ai", confidence)` findings the inspector must confirm or override, plus an analysis-level summary/recommendations/risk-level record with an explicit reviewed flag; real Claude API call unverified pending a live `ANTHROPIC_API_KEY` (CI-safe logic fully tested against a fake vision client) | Done |
 | 8 | To be defined | Not started |
 | 9 | To be defined | Not started |
 | 10 | To be defined | Not started |

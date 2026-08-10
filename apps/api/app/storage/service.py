@@ -180,6 +180,13 @@ class InspectionMediaStorage:
             .generate_signed_url(expiration=SIGNED_URL_EXPIRATION, version="v4")
         )
 
+    def download_bytes(self, path: str) -> bytes:
+        """Reads a photo's actual bytes back for the Phase 7.10 AI vision
+        call -- the one place this class breaks its own "bytes never pass
+        through this backend" precedent (see the class docstring), since a
+        vision API needs the image, not a browser-facing signed URL."""
+        return bytes(self._get_bucket().blob(path).download_as_bytes())
+
 
 def get_inspection_media_storage() -> InspectionMediaStorage:
     return InspectionMediaStorage()

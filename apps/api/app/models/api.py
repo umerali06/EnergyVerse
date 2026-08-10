@@ -584,6 +584,21 @@ class ArMeasurementResponse(BaseModel):
     created_at: datetime
 
 
+class AiAnalysisResponse(BaseModel):
+    id: str
+    media_local_id: str
+    model: str
+    summary: str
+    recommendations: str | None = None
+    risk_level: Literal["low", "medium", "high", "critical"] | None = None
+    annotation_ids: list[str] = Field(default_factory=list)
+    reviewed: bool = False
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    created_by: str
+    created_at: datetime
+
+
 class InspectionListItem(BaseModel):
     id: str
     asset_id: str
@@ -622,7 +637,7 @@ class InspectionDetail(InspectionListItem):
     readings: ReadingsResponse | None = None
     signature: SignatureResponse | None = None
     ar_measurements: list[ArMeasurementResponse] = Field(default_factory=list)
-    ai_analysis: dict[str, Any] | None = None
+    ai_analysis: list[AiAnalysisResponse] = Field(default_factory=list)
 
 
 class CreateInspectionRequest(BaseModel):
@@ -863,6 +878,7 @@ def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
         413: "Request payload exceeds the allowed size",
         422: "Request validation failed",
         500: "Unexpected server error",
+        502: "An upstream service (e.g. the AI vision provider) failed or is unreachable",
     }
     return {
         code: {"model": ErrorEnvelope, "description": descriptions[code]} for code in status_codes

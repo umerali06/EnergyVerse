@@ -30,6 +30,7 @@ from scripts.seed import (
     CHECKLIST_TEMPLATE_TANK_ID,
     run_seed,
 )
+from tests.fakes.ai import FakeAiClient
 from tests.fakes.firestore import FakeAsyncClient
 from tests.fakes.storage import FakeBucket
 
@@ -45,12 +46,14 @@ def wiring() -> dict[str, Any]:
     audit = AuditService(AuditLogRepository(client))
     bucket = FakeBucket()
     users = UserRepository(client, audit)
+    ai_client = FakeAiClient()
     service = InspectionService(
         inspections=InspectionRepository(client, audit),
         assets=AssetRepository(client, audit),
         checklist_templates=ChecklistTemplateRepository(client, audit),
         users=users,
         storage=InspectionMediaStorage(bucket),
+        ai_client=ai_client,
     )
     # `complete_inspection` (Phase 7.8) looks up the signer's display_name
     # server-side -- every identity `_identity()` builds must have a backing
@@ -70,7 +73,7 @@ def wiring() -> dict[str, Any]:
     )
     app.dependency_overrides[get_inspection_service] = lambda: service
     app.dependency_overrides[get_access_denial_audit] = lambda: audit
-    yield {"client": client, "bucket": bucket}
+    yield {"client": client, "bucket": bucket, "ai_client": ai_client}
     app.dependency_overrides.pop(get_inspection_service, None)
     app.dependency_overrides.pop(get_access_denial_audit, None)
 
@@ -1758,3 +1761,193 @@ def test_ar_measurement_survives_inspection_sync_round_trip(wiring: dict[str, An
     )
     assert response.status_code == 200
     assert response.json()["ar_measurements"] == [measurement_before]
+
+
+# --- AI photo analysis (Phase 7.10) -------------------------------------------
+
+
+def _attach_photo_with_id(
+    identity: CurrentUser, bucket: Any, inspection_id: str
+) -> tuple[str, str]:
+    """Seeds a real photo and attaches it, returning `(media_id, local_id)` --
+    `analyze` addresses media by its server id, mirroring
+    `update_inspection_media`/`detach_inspection_media`."""
+    local_id = str(uuid.uuid4())
+    wiring_path = _media_path(ACME_COMPANY_ID, inspection_id, local_id, "photo.jpg")
+    bucket.seed(wiring_path, b"bytes", "image/jpeg")
+    attached = _attach_media(identity, inspection_id, local_id=local_id)
+    assert attached.status_code == 200
+    media = attached.json()["media"][-1]
+    return media["id"], local_id
+
+
+def _analyze_media(identity: CurrentUser, inspection_id: str, media_id: str) -> Any:
+    return _request(
+        identity, "POST", f"/api/v1/inspections/{inspection_id}/media/{media_id}/analyze"
+    )
+
+
+def test_analyze_media_success(wiring: dict[str, Any]) -> None:
+    from app.ai.vision_client import AiAnalysisResult, AiFinding, AiFindingPoint
+
+    created = _create_inspection(_identity()).json()
+    media_id, local_id = _attach_photo_with_id(_identity(), wiring["bucket"], created["id"])
+    wiring["ai_client"].result = AiAnalysisResult(
+        summary="Visible corrosion on the flange.",
+        recommendations="Schedule a closer inspection.",
+        risk_level="medium",
+        findings=[
+            AiFinding(
+                shape="rectangle",
+                points=[AiFindingPoint(x=0.1, y=0.1), AiFindingPoint(x=0.4, y=0.4)],
+                damage_type="corrosion",
+                confidence=0.82,
+                note="Rust patch on flange bolt",
+            ),
+        ],
+    )
+
+    response = _analyze_media(_identity(), created["id"], media_id)
+    assert response.status_code == 200
+    body = response.json()
+
+    annotations = body["annotations"]
+    assert len(annotations) == 1
+    annotation = annotations[0]
+    assert annotation["media_local_id"] == local_id
+    assert annotation["source"] == "ai"
+    assert annotation["confidence"] == 0.82
+    assert annotation["damage_type"] == "corrosion"
+    assert annotation["color"] == "#7C3AED"
+
+    analyses = body["ai_analysis"]
+    assert len(analyses) == 1
+    analysis = analyses[0]
+    assert analysis["media_local_id"] == local_id
+    assert analysis["summary"] == "Visible corrosion on the flange."
+    assert analysis["recommendations"] == "Schedule a closer inspection."
+    assert analysis["risk_level"] == "medium"
+    assert analysis["annotation_ids"] == [annotation["id"]]
+    assert analysis["reviewed"] is False
+    assert analysis["reviewed_by"] is None
+    # AI analysis traffic never bumps revision, same as annotations/measurements.
+    assert body["revision"] == 1
+
+    # The fake client actually received the real uploaded bytes/content-type.
+    assert wiring["ai_client"].calls == [(b"bytes", "image/jpeg")]
+
+
+def test_analyze_media_with_no_findings(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_id, _ = _attach_photo_with_id(_identity(), wiring["bucket"], created["id"])
+    # Default FakeAiClient behavior: no findings, plain "no issues" summary.
+
+    response = _analyze_media(_identity(), created["id"], media_id)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["annotations"] == []
+    assert len(body["ai_analysis"]) == 1
+    assert body["ai_analysis"][0]["annotation_ids"] == []
+
+
+def test_analyze_media_rejects_unknown_media(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _analyze_media(_identity(), created["id"], "does-not-exist")
+    assert response.status_code == 404
+    assert response.json()["error"] == "media_not_found"
+
+
+def test_analyze_media_rejects_video(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    local_id = str(uuid.uuid4())
+    wiring["bucket"].seed(
+        _media_path(ACME_COMPANY_ID, created["id"], local_id, "clip.mp4"),
+        b"bytes",
+        "video/mp4",
+    )
+    attached = _attach_media(
+        _identity(),
+        created["id"],
+        local_id=local_id,
+        filename="clip.mp4",
+        kind="video",
+        content_type="video/mp4",
+    )
+    media_id = attached.json()["media"][-1]["id"]
+
+    response = _analyze_media(_identity(), created["id"], media_id)
+    assert response.status_code == 422
+    assert response.json()["error"] == "ai_analysis_unsupported_media_kind"
+
+
+def test_analyze_media_upstream_failure_returns_502(wiring: dict[str, Any]) -> None:
+    from app.ai.vision_client import AiClientError
+
+    created = _create_inspection(_identity()).json()
+    media_id, _ = _attach_photo_with_id(_identity(), wiring["bucket"], created["id"])
+    wiring["ai_client"].error = AiClientError("upstream timed out")
+
+    response = _analyze_media(_identity(), created["id"], media_id)
+    assert response.status_code == 502
+    assert response.json()["error"] == "ai_analysis_failed"
+    # A failed analysis leaves no partial annotations/analysis record behind.
+    refetched = _request(_identity(), "GET", f"/api/v1/inspections/{created['id']}")
+    assert refetched.json()["annotations"] == []
+    assert refetched.json()["ai_analysis"] == []
+
+
+def test_analyze_media_cross_tenant_returns_404(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_id, _ = _attach_photo_with_id(_identity(), wiring["bucket"], created["id"])
+    response = _analyze_media(_identity(company_id=BETA_COMPANY_ID), created["id"], media_id)
+    assert response.status_code == 404
+    assert response.json()["error"] == "inspection_not_found"
+
+
+def test_review_ai_analysis_marks_reviewed(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_id, _ = _attach_photo_with_id(_identity(), wiring["bucket"], created["id"])
+    analyzed = _analyze_media(_identity(), created["id"], media_id).json()
+    analysis_id = analyzed["ai_analysis"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/inspections/{created['id']}/ai-analysis/{analysis_id}/review",
+    )
+    assert response.status_code == 200
+    analysis = response.json()["ai_analysis"][0]
+    assert analysis["reviewed"] is True
+    assert analysis["reviewed_by"] == "test-user"
+    assert analysis["reviewed_at"] is not None
+
+
+def test_review_ai_analysis_is_idempotent_on_missing(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "POST",
+        f"/api/v1/inspections/{created['id']}/ai-analysis/does-not-exist/review",
+    )
+    assert response.status_code == 200
+    assert response.json()["ai_analysis"] == []
+
+
+def test_ai_analysis_survives_inspection_sync_round_trip(wiring: dict[str, Any]) -> None:
+    """An AI analysis (and the annotations it created) persists unchanged
+    across an unrelated checklist-autosave PATCH -- proves the two protocols
+    never collide, same guarantee as annotations/measurements."""
+    created = _create_inspection(_identity()).json()
+    media_id, _ = _attach_photo_with_id(_identity(), wiring["bucket"], created["id"])
+    wiring["ai_client"].result = None  # default "no findings" result
+    analyzed = _analyze_media(_identity(), created["id"], media_id).json()
+    analysis_before = analyzed["ai_analysis"][0]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}",
+        json={"notes": "unrelated autosave edit"},
+    )
+    assert response.status_code == 200
+    assert response.json()["ai_analysis"] == [analysis_before]

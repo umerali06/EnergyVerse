@@ -190,6 +190,25 @@ String _encodeArMeasurements(List<ArMeasurementResponse> measurements) =>
           .toList(),
     );
 
+List<AiAnalysisResponse> _decodeAiAnalysis(String json) {
+  final list = jsonDecode(json) as List<dynamic>;
+  return list
+      .map(
+        (item) => standardSerializers.deserializeWith(
+          AiAnalysisResponse.serializer,
+          item as Map<String, dynamic>,
+        )!,
+      )
+      .toList();
+}
+
+String _encodeAiAnalysis(List<AiAnalysisResponse> analyses) => jsonEncode(
+      analyses
+          .map((item) => standardSerializers.serializeWith(
+              AiAnalysisResponse.serializer, item))
+          .toList(),
+    );
+
 List<VoiceNoteResponse> _decodeVoiceNotes(String json) {
   final list = jsonDecode(json) as List<dynamic>;
   return list
@@ -460,6 +479,7 @@ class LocalInspectionRecord {
         media = _decodeInspectionMedia(row.media),
         annotations = _decodeAnnotations(row.annotations),
         arMeasurements = _decodeArMeasurements(row.arMeasurements),
+        aiAnalysis = _decodeAiAnalysis(row.aiAnalysis),
         voiceNotes = _decodeVoiceNotes(row.voiceNotes),
         readings = _decodeReadings(row.readings),
         signature = _decodeSignature(row.signature),
@@ -486,6 +506,13 @@ class LocalInspectionRecord {
   /// (see [LocalInspectionsRepository.createMeasurement] et al.), so this
   /// already reflects not-yet-synced local edits.
   final List<ArMeasurementResponse> arMeasurements;
+
+  /// AI photo analysis runs (Phase 7.10) -- synced-only, same posture as
+  /// [voiceNotes]/[signature]: never written optimistically, since there's
+  /// nothing honest to echo before the AI call actually completes. The
+  /// regions each run detected live in [annotations] as ordinary
+  /// `source: "ai"` entries, not here.
+  final List<AiAnalysisResponse> aiAnalysis;
 
   /// The server-synced voice-note references (Phase 7.6) -- same caching
   /// posture as [media]: refreshed only from a synced server response, since
@@ -651,6 +678,31 @@ class LocalInspectionsRepository extends ChangeNotifier {
     }
   }
 
+  /// Runs Claude vision analysis on one already-synced photo (Phase 7.10) --
+  /// a direct, immediate, ONLINE-ONLY call, never queued through the outbox
+  /// like every other mutation in this repository: there is no sensible
+  /// offline echo for an AI response that doesn't exist yet. Throws
+  /// [ApiException] on failure (unsupported media kind, upstream AI
+  /// failure, etc.) for the caller to surface; on success, upserts the
+  /// returned detail so the reactive `watchInspection` stream picks up the
+  /// new annotations/analysis immediately.
+  Future<void> analyzeMedia(
+      {required String inspectionId, required String mediaId}) async {
+    final detail = await _api.analyzeInspectionMedia(inspectionId, mediaId);
+    await _upsertFromServer(detail, syncState: LocalSyncState.synced);
+  }
+
+  /// Marks an AI analysis run as reviewed -- same direct, online-only
+  /// posture as [analyzeMedia]. "Override" is just editing/deleting the
+  /// underlying AI-sourced annotations via [updateAnnotation]/
+  /// [deleteAnnotation]; no separate action exists for that.
+  Future<void> reviewAiAnalysis(
+      {required String inspectionId, required String analysisId}) async {
+    final detail =
+        await _api.reviewInspectionAiAnalysis(inspectionId, analysisId);
+    await _upsertFromServer(detail, syncState: LocalSyncState.synced);
+  }
+
   Future<void> _upsertSyncedIfIdle({
     required String id,
     required Future<InspectionDetail> Function() fetchDetail,
@@ -699,6 +751,8 @@ class LocalInspectionsRepository extends ChangeNotifier {
                 _encodeAnnotations(detail.annotations?.toList() ?? const [])),
             arMeasurements: drift.Value(_encodeArMeasurements(
                 detail.arMeasurements?.toList() ?? const [])),
+            aiAnalysis: drift.Value(
+                _encodeAiAnalysis(detail.aiAnalysis?.toList() ?? const [])),
             voiceNotes: drift.Value(
                 _encodeVoiceNotes(detail.voiceNotes?.toList() ?? const [])),
             readings: drift.Value(_encodeReadings(detail.readings)),

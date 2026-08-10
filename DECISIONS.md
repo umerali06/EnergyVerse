@@ -67,6 +67,7 @@
 | D-061 | Completion requires signature: atomic, no reopen | **`POST /inspections/{id}/complete` now requires a body (`strokes` + `expected_revision`) — signing is the mandatory final step, no separate sign-then-complete call, no way to complete unsigned. A completed inspection stays fully immutable (no reopen/re-edit capability added); "edited after signing" is realized narrowly as the pre-completion offline race, rejected via the existing `revision_conflict` 409 (checked before the checklist-completeness check) and resolved by the existing `SyncEngine` conflict sheet, fixed this phase to correctly revert a stale `complete` mutation's optimistic status flip.** | **RESOLVED — LOCKED** | 2026-08-06 |
 | D-063 | Waiving D-062's physical-device validation gate before Phase 7.9 Step 2 | **Product owner explicitly chose to proceed straight to the full AR measurement feature (data model, offline sync, manual fallback, screenshot capture) without a human confirming `ar_flutter_plugin_2` plane detection/measurement on a real ARCore/ARKit device first. The D-062 spike code, permission/manifest changes, and dependency stay exactly as built. Risk accepted: if the plugin proves inadequate on real hardware later, the AR capture path (not the manual-entry path, the data model, or the sync protocol) is what gets swapped for native platform channels — everything else in Step 2 is written to be plugin-agnostic for exactly this reason.** | **RESOLVED — LOCKED** | 2026-08-10 |
 | D-064 | AR/manual measurement data model, screenshot evidence, and mutation protocol (Phase 7.9 Step 2) | **`Inspection.ar_measurements[]` (replacing the 7.1 `list[dict]` placeholder) holds one `ArMeasurement` per capture: `id`, `method` (`ar`\|`manual`), `distance_meters` (always meters, fixed-unit convention per D-058), optional `label`/`note`/`checklist_item_id`, optional `media_local_id` (an existing `InspectionMedia` item as visual evidence), and `points: list[AnnotationPoint]` reusing D-054's normalized-point shape but left genuinely optional — `ar_flutter_plugin_2` exposes no 2D screen-tap coordinate alongside its 3D hit-test result, so exact overlay markers are not fabricated; the screenshot alone is the AR method's evidence requirement (`media_local_id` mandatory, `points` not). Mutation protocol mirrors D-054/D-055's annotations exactly: three routes (create/update/delete), idempotent by client-generated `id`, no `expected_revision` (measurement traffic must never collide with checklist-autosave). Update is deliberately narrow — only `label`/`note`/`checklist_item_id` are mutable; method/distance/screenshot/points are immutable once created (delete-and-recreate fixes a mistake, same posture as media's checklist-link-only update). An AR screenshot is a plain `InspectionMedia` photo through the *existing* 7.4 pipeline (no new storage subfolder, no new `MediaKind`, no `MediaQueue` schema change) — a measurement simply references its `local_id`, exactly how an annotation references the photo it's drawn on, decoupling the measurement record from the screenshot's own upload completion. Mobile captures the screenshot via `ARSessionManager.snapshot()` (extracting bytes from the plugin's own `MemoryImage` return) and reuses `LocalMediaRepository.enqueueCapture` unmodified.** | **RESOLVED — LOCKED** | 2026-08-10 |
+| D-065 | AI photo analysis data model, Claude vision integration, and mutation protocol (Phase 7.10) | **`Inspection.ai_analysis[]` (replacing the 7.1 `dict \| None` placeholder) holds one `AiAnalysis` per run: `id`, `media_local_id`, `model`, `summary`, optional `recommendations`/`risk_level`, `annotation_ids` (the findings it produced), `reviewed`/`reviewed_by`/`reviewed_at`, `created_by`, `created_at`. Every detected finding is persisted as its own `Annotation(source="ai", confidence=...)` — the exact mechanism D-054 reserved `source`/`confidence` for; no new overlay model, no new review UI primitive. `app/ai/vision_client.py`'s `ClaudeVisionClient` is the first third-party HTTP/SDK call in this backend (every prior integration is Firebase) — a forced tool-use call (`report_photo_analysis`) constrains the model to return `summary` + `findings[]` (`shape`, 1-2 normalized points, optional `damage_type` from the same enum `Annotation` uses, `confidence`, optional `note`); a `VisionAnalysisClient` protocol is what `InspectionService` depends on so tests inject a `FakeAiClient`, no real API key required for CI. Two new routes deliberately don't mirror create/update/delete or attach/detach: `POST .../media/{media_id}/analyze` (triggers a fresh run, identified by the media item's server id like `update_inspection_media`) and `POST .../ai-analysis/{analysis_id}/review` (marks reviewed — the "confirm" half of D-008; "override" is simply editing/deleting the resulting annotations through the existing endpoints, no separate action). `InspectionRepository.append_ai_analysis` writes the new annotations and the analysis record in one atomic Firestore update. Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, immediate, ONLINE-ONLY calls, never queued through the offline outbox like every other mutation — there is no honest optimistic echo for an AI response that doesn't exist yet, and the action requires live connectivity to a paid third-party API regardless.** | **RESOLVED — LOCKED** | 2026-08-10 |
 
 ## Decision Details
 
@@ -1724,6 +1725,103 @@
   platform-channel replacement — `points` staying optional here is not a
   promise that AI/analytics can rely on it being populated today.
 
+### D-065 — AI Photo Analysis Data Model, Claude Vision Integration, and Mutation Protocol (Phase 7.10)
+
+- **Decision owner:** Product owner (confirmed scope/backend/trigger via
+  `AskUserQuestion` at phase start: build 7.10 now; Claude vision API only,
+  no separate CV model; on-demand "Analyze" action, never automatic).
+- **Data model:** `AiAnalysis` (`app/models/entities.py`) — `id`,
+  `media_local_id`, `model`, `summary`, optional `recommendations`/
+  `risk_level` (`low`\|`medium`\|`high`\|`critical`), `annotation_ids`,
+  `reviewed`/`reviewed_by`/`reviewed_at`, `created_by`, `created_at`.
+  Replaces the 7.1 `ai_analysis: dict[str, Any] | None` placeholder on
+  `Inspection`/`InspectionDetail`.
+- **Findings reuse D-054's reserved fields exactly as planned, not a
+  parallel structure.** Every detected finding is its own
+  `Annotation(source="ai", confidence=...)` — the exact reuse Phase 7.5's
+  docstring named this phase for two months earlier. `AiAnalysis` is the
+  run-level record (what model, what it concluded, whether it's been
+  reviewed); it is not a duplicate list of findings.
+- **First third-party HTTP/SDK integration in this backend.** Every prior
+  outbound call is Firebase (Auth/Firestore/Storage via `firebase-admin`).
+  `app/ai/vision_client.py`'s `ClaudeVisionClient` wraps the `anthropic`
+  SDK; a forced tool-use call (`tool_choice: {"type": "tool", "name":
+  "report_photo_analysis"}`) constrains the model to return structured
+  JSON (`summary`, optional `recommendations`/`risk_level`, `findings[]`)
+  instead of parsing free-form text. New `Settings.anthropic_api_key`
+  (`None` by default — an unset key fails closed with 502
+  `ai_analysis_failed`, never a silent no-op) and
+  `Settings.ai_vision_model` (default `claude-sonnet-5`).
+- **A `VisionAnalysisClient` `Protocol`, not a concrete-class dependency,
+  is what `InspectionService` actually depends on** — mirrors
+  `InspectionMediaStorage` accepting a `FakeBucket`. Tests inject
+  `tests/fakes/ai.py`'s `FakeAiClient`, so every route/service behavior
+  (success, no-findings, unknown media, video rejected, upstream failure,
+  cross-tenant, never-bumps-revision) is fully covered without a real
+  Anthropic API key. The actual live Claude call is unverified this phase
+  — no key was available in-session; real-creds verification
+  (`apps/api/scripts/verify_ai_analysis_roundtrip.py`, mirroring the 7.9
+  precedent) is an open follow-up once one is configured.
+- **Points are genuinely attempted here, unlike 7.9's AR capture.**
+  D-064's AR measurement forces `points` empty because the plugin has no
+  2D tap coordinate at all. Claude vision CAN be asked for real bounding
+  boxes, so the tool schema requests them — but nothing requires the
+  model to report a finding: a photo with no visible damage returns an
+  empty `findings[]` and a plain "no issues" summary, never a fabricated
+  region.
+- **New `InspectionMediaStorage.download_bytes()`** breaks the class's own
+  "bytes never pass through this backend" precedent (Phase 7.4) on
+  purpose — a vision API needs the actual image, not a signed URL a
+  browser can follow. This is the one and only place in the codebase that
+  reads media bytes back into the API process.
+- **Two new routes match neither the create/update/delete pattern
+  (annotations/measurements) nor the attach/edit/detach pattern (media/
+  voice notes), because "analyze" is neither a CRUD create nor a
+  reference-registration — it's a computation trigger.**
+  `POST /inspections/{id}/media/{media_id}/analyze` addresses media by
+  its server id (matching `update_inspection_media`'s own path
+  parameter), runs a fresh analysis every call (never idempotent-by-id —
+  each invocation is a genuinely new AI computation, not a replay of a
+  client-known mutation), and returns the full `InspectionDetail`.
+  `POST /inspections/{id}/ai-analysis/{analysis_id}/review` takes no body,
+  stamps `reviewed`/`reviewed_by`/`reviewed_at` server-side, and is
+  idempotent-on-missing/idempotent-on-replay like every other review-style
+  action in this codebase. `InspectionRepository.append_ai_analysis`
+  writes the new annotations and the analysis record in **one** atomic
+  Firestore update — never two separate writes, so a client can never
+  observe one without the other. A real bug was found and fixed while
+  testing the no-findings path: `ArrayUnion` rejects an empty list, so a
+  photo with zero detected findings (a legitimate, common outcome) must
+  conditionally omit the `annotations` field from that update rather than
+  always including it.
+- **Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, immediate,
+  ONLINE-ONLY calls — the first mutations in `LocalInspectionsRepository`
+  that deliberately bypass the offline outbox entirely.** Every other
+  mutation in this repository queues through `Outbox`/`SyncEngine` for
+  offline-first replay; these two cannot, because there is no honest
+  optimistic value to echo before a live AI call actually completes, and
+  the action requires real connectivity to a paid third-party API
+  regardless of any queueing. `AnnotationCanvasScreen` gained an "Analyze
+  with AI" app-bar action (only offered once a photo has synced) and a
+  new `InspectionAiAnalysisSection` lists each run with a "Mark reviewed"
+  button. Admin gets the same section, read-only — matching every other
+  Phase-7 sub-resource's admin surface (capture/trigger stays mobile-only;
+  admin reviews).
+- **Schema migration gap found and fixed retroactively, not new to this
+  phase.** `LocalInspections.schemaVersion` had stayed at `7` even after
+  Phase 7.9 added its `arMeasurements` column — no `onUpgrade` branch
+  existed for it, meaning an already-installed app would never receive
+  that column on update. Bumped to `9` (`8` for the retroactive
+  `arMeasurements` fix, `9` for this phase's new `aiAnalysis` column) with
+  both `onUpgrade` branches added.
+- **Consequences:** Any future AI-assisted capability in this codebase
+  (video analysis, a different provider, batch/automatic triggering)
+  should extend this same pattern — findings as advisory annotations,
+  server-side-only API keys, protocol-typed client for testability — 
+  rather than inventing a parallel review mechanism. Video analysis is
+  explicitly out of scope for this phase (`ai_analysis_unsupported_media_kind`
+  422) since no frame-extraction pipeline exists.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -2182,3 +2280,42 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   ARCore/ARKit plane-detection/measurement accuracy remains unverified on
   physical hardware — explicitly accepted risk per D-063, confined to the
   AR *capture* screen only.
+
+- **2026-08-10 — Phase 7.10 (AI photo analysis):** Continued in the same
+  session as 7.9 once the user confirmed scope directly (`AskUserQuestion`:
+  build 7.10 now; Claude vision API only, no separate CV model; on-demand
+  "Analyze" action, never automatic on upload). Added and locked D-065:
+  `AiAnalysis` run records plus `Annotation(source="ai", confidence)`
+  findings — exactly the reuse Phase 7.5's own docstring named this phase
+  for. First third-party HTTP/SDK call in this backend
+  (`app/ai/vision_client.py`'s `ClaudeVisionClient`, forced tool-use for
+  structured output) behind a `VisionAnalysisClient` protocol so tests
+  never need a real API key. Two real bugs found and fixed mid-phase, not
+  late-discovered: `ArrayUnion` rejects an empty list, so a photo with zero
+  AI findings needed the `annotations` field made conditional in
+  `append_ai_analysis`; and a genuine pre-existing gap from Phase 7.9 was
+  caught while adding this phase's own Drift column — `arMeasurements` had
+  been added without ever bumping `schemaVersion`/adding its `onUpgrade`
+  branch, silently meaning an already-installed app would never receive
+  it; fixed retroactively (v7→v9 in one migration). `analyzeMedia`/
+  `reviewAiAnalysis` are this repository's first mutations that
+  deliberately bypass the offline outbox — direct, online-only calls, no
+  optimistic echo for an AI response that doesn't exist yet. Backend (347
+  tests, up from 338 before this phase — 12 new: success with/without
+  findings, unsupported media kind rejected, unknown media 404, upstream
+  failure 502, cross-tenant 404, review marks/idempotent-on-missing, never
+  bumps revision, survives an unrelated checklist PATCH), mobile (246
+  tests, up from 236 — 3 repository tests for the direct online-only calls
+  plus 4 widget tests for the new `InspectionAiAnalysisSection`'s empty/
+  rendered/reviewed states), and admin (214 tests all green, no flake this
+  run — 4 new for the read-only AI analysis section) all green; `flutter
+  analyze`/ruff/mypy/ESLint/`next lint` clean; `next build` compiled all 29
+  routes with the bundle budget unchanged (342.8 KB); contracts
+  regenerated for `AiAnalysisResponse` and the two new operations with a
+  clean drift check. The real Claude API call is unverified this phase —
+  no `ANTHROPIC_API_KEY` was available in-session (user chose to proceed
+  without one rather than block on adding it); all logic is fully covered
+  against a `FakeAiClient`, and a real-creds proof is an open follow-up.
+  Phase 7 (data model, offline sync, capture, checklist, readings,
+  signature, AR, AI analysis, admin review) is now **COMPLETE** per its
+  own Phase 7 row description in `PHASE_TRACKER.md`.

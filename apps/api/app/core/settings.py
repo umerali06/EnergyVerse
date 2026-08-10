@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     firebase_storage_bucket: str | None = None
     seed_demo_password: str | None = None
     auth_action_url: str | None = None
+    # Phase 7.10 AI photo analysis (Claude vision). No key configured means
+    # `/analyze` routes fail closed with a clear 503, never a silent no-op.
+    anthropic_api_key: str | None = None
+    ai_vision_model: str = "claude-sonnet-5"
     # Base URL the QR deep-link payload is built from (`{app_base_url}/qr/{code}`).
     # Defaults to the admin app's own local dev origin; set to the real deployed
     # origin in production so scanned codes resolve there.

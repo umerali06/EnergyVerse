@@ -49,6 +49,22 @@ function formatMeasurementDistance(meters: number): string {
   return `${meters.toFixed(2)} m`;
 }
 
+/** Maps a Phase 7.10 AI analysis run's self-reported risk level onto the
+ * shared status-tone vocabulary, same idea as `readingsConditionTone`. */
+function riskLevelTone(risk: string): StatusTone {
+  switch (risk) {
+    case "low":
+      return "healthy";
+    case "medium":
+    case "high":
+      return "warning";
+    case "critical":
+      return "critical";
+    default:
+      return "info";
+  }
+}
+
 function formatVoiceNoteDuration(durationMs: number): string {
   const totalSeconds = Math.round(durationMs / 1000);
   const minutes = Math.floor(totalSeconds / 60)
@@ -355,6 +371,50 @@ export function InspectionDetailPage({
                         </li>
                       );
                     })}
+                  </ul>
+                )}
+              </div>
+
+              <div data-testid="ai-analysis-section">
+                <p className="font-mono text-caption uppercase tracking-[0.1em] text-text-muted">
+                  AI analysis
+                  {(state.inspection.aiAnalysis ?? []).length > 0 &&
+                    ` (${state.inspection.aiAnalysis!.length})`}
+                </p>
+                {(state.inspection.aiAnalysis ?? []).length === 0 ? (
+                  <p className="mt-1 text-bodySmall text-text-muted">
+                    No photos have been analyzed yet.
+                  </p>
+                ) : (
+                  <ul className="mt-2 grid gap-3">
+                    {state.inspection.aiAnalysis!.map((analysis) => (
+                      <li
+                        className="grid gap-2 rounded-md border border-border p-3"
+                        key={analysis.id}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusPill tone={analysis.reviewed ? "healthy" : "warning"}>
+                            {analysis.reviewed ? "Reviewed" : "Needs review"}
+                          </StatusPill>
+                          {analysis.riskLevel && (
+                            <StatusPill tone={riskLevelTone(analysis.riskLevel)}>
+                              {statusLabel(analysis.riskLevel)} risk
+                            </StatusPill>
+                          )}
+                        </div>
+                        <p className="text-bodySmall text-text-primary">{analysis.summary}</p>
+                        {analysis.recommendations && (
+                          <p className="text-bodySmall text-text-secondary">
+                            {analysis.recommendations}
+                          </p>
+                        )}
+                        <p className="font-mono text-caption text-text-muted">
+                          {(analysis.annotationIds ?? []).length} finding
+                          {(analysis.annotationIds ?? []).length === 1 ? "" : "s"} ·{" "}
+                          {analysis.model}
+                        </p>
+                      </li>
+                    ))}
                   </ul>
                 )}
               </div>

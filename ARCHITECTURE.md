@@ -2158,6 +2158,88 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   hatch) — the data model, sync protocol, and admin review surface built
   this phase are unaffected.
 
+### Phase 7.10 AI Photo Analysis
+
+- **New `AiAnalysis` entity replaces the untyped placeholder.**
+  `Inspection.ai_analysis` (`apps/api/app/models/entities.py`) was
+  `dict[str, Any] | None = None` reserved since 7.1; it's now
+  `list[AiAnalysis] = Field(default_factory=list)` — `id`, `media_local_id`,
+  `model`, `summary`, optional `recommendations`/`risk_level`,
+  `annotation_ids` (the findings this run produced), `reviewed`/
+  `reviewed_by`/`reviewed_at`, `created_by`, `created_at`. First backend
+  code in this repository to call a third-party HTTP/SDK API — every prior
+  integration is Firebase.
+- **Findings are advisory annotations, not a parallel data structure.**
+  Each detected finding becomes its own `Annotation(source="ai",
+  confidence=...)` — the exact mechanism `source`/`confidence` were
+  reserved for back in Phase 7.5 (D-054). No new overlay model, no new
+  review UI primitive: the existing annotation canvas (mobile) and
+  `AnnotationOverlay` (admin) already branch on `source == "ai"` and
+  render an "AI" badge. `AiAnalysis` itself is the run-level record
+  (summary/recommendations/risk level/reviewed state), not a duplicate
+  findings list.
+- **New `app/ai/vision_client.py`: `ClaudeVisionClient` calls the
+  Anthropic API with forced tool-use for reliable structured output** —
+  a `report_photo_analysis` tool schema constrains the model to return
+  `summary`, optional `recommendations`/`risk_level`, and a `findings[]`
+  array (`shape`, 1-2 normalized points, optional `damage_type` from the
+  same enum `Annotation` uses, `confidence`, optional `note`). A new
+  `VisionAnalysisClient` protocol is what `InspectionService` actually
+  depends on, so tests inject a `FakeAiClient` (mirrors `FakeBucket`)
+  without a real API key. New `Settings.anthropic_api_key`/
+  `ai_vision_model` (default `claude-sonnet-5`); an unset key fails
+  closed with 502 `ai_analysis_failed`, never a silent no-op.
+- **Points are not required to be exactly right, but a screenshot/photo
+  reference always is.** Unlike 7.9's AR capture (which can't supply 2D
+  tap coordinates at all), Claude vision CAN attempt real bounding boxes,
+  so `points` isn't forced empty here — but validation only requires the
+  model to return a `summary`; a photo with no visible damage returns an
+  empty `findings[]` and a plain "no issues" summary, never a fabricated
+  finding.
+- **New `InspectionMediaStorage.download_bytes()`** — the one place this
+  class breaks its own "bytes never pass through this backend" precedent
+  (Phase 7.4's direct-upload design): a vision API needs the actual image
+  bytes, not a signed URL a browser can follow.
+- **Two new routes, deliberately not matching 7.4/7.5/7.9's create/
+  update/delete shape.** `POST /inspections/{id}/media/{media_id}/analyze`
+  (triggers a fresh Claude vision run on an already-synced photo,
+  identified by its server `media_id` like `update_inspection_media`) and
+  `POST /inspections/{id}/ai-analysis/{analysis_id}/review` (marks a run
+  reviewed — the "confirm" half of D-008's "confirm or override"; "override"
+  is simply editing/deleting the AI-sourced annotations through the
+  existing annotation endpoints, no separate action needed). A new
+  `InspectionRepository.append_ai_analysis` writes the new annotations
+  and the analysis record in one atomic Firestore update — a real
+  ArrayUnion-rejects-empty-list bug was found and fixed here (a photo
+  with zero findings must still persist its `AiAnalysis` record without
+  attempting an empty annotations array-union).
+- **Mobile/admin: analysis is triggered from the field, reviewed from
+  anywhere — but never queued through the offline outbox.** Unlike
+  every other mutation in `LocalInspectionsRepository`, `analyzeMedia`/
+  `reviewAiAnalysis` are direct, immediate, online-only calls: there is
+  no sensible optimistic local echo for an AI response that doesn't
+  exist yet, and the call requires real connectivity to a paid API
+  regardless. A new "Analyze with AI" action lives on
+  `AnnotationCanvasScreen`'s app bar (only offered once a photo has
+  synced), and a new `InspectionAiAnalysisSection` lists each run's
+  summary/risk level/reviewed state with a "Mark reviewed" button. Admin
+  gets the same review section, read-only, matching every other
+  sub-resource's admin surface in this phase — no capture/trigger action
+  on admin. A new `LocalInspections.aiAnalysis` column caches synced runs
+  (schema v8→v9); this same migration also retroactively fixed a real gap
+  from Phase 7.9, whose `arMeasurements` column was added without ever
+  bumping `schemaVersion` or its own `onUpgrade` branch, meaning an
+  existing installed app would never have received that column.
+- **Contracts regenerated** for `AiAnalysisResponse` and the updated
+  `InspectionDetail`, plus the two new `InspectionsApi` operations, on
+  both generated clients.
+- **Real Claude API call unverified this phase** — no `ANTHROPIC_API_KEY`
+  was available in-session. All logic (route validation, media-kind
+  gating, error translation, annotation/analysis persistence, review
+  marking) is fully tested against a `FakeAiClient`; the actual vision
+  call against the live Anthropic API is an open follow-up once a real
+  key is configured.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -2226,3 +2308,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.7 — manual status readings (resolves the deferred §9 manual-status log) | See "Phase 7.7 Manual Status Readings" above for the full breakdown. In short: `Inspection.readings` (typed since 7.1's untyped `dict` placeholder) is a single nullable `Readings` object, not an array — deliberately rides the existing generic `update_inspection`/revision-aware PATCH the 7.3 checklist already uses (D-059), never the 7.4/7.5/7.6 append-idempotent-by-id/no-revision pattern, since it's one form with one editor rather than independent records. Fixed documented units (Celsius/bar/decibels, D-058) via unit-suffixed field names, no per-reading unit picker. On `complete_inspection` only, `READINGS_CONDITION_TO_ASSET_STATUS` maps the condition onto the asset's 4.1 `current_status` through a new `AssetRepository.roll_up_status_from_inspection` (own `asset.status_rolled_up` audit action), which the existing 4.4 dashboard `count()` query picks up on its next read with zero caching — verified end to end against the real Firebase project. Mobile's `InspectionReadingsSection` autosaves through a new `updateInspection(..., readings:)` parameter (not a new outbox mutation type), backed by a new nullable `LocalInspections.readings` column (schema v5→v6). Admin gains a read-only readings review section. Contracts regenerated for `ReadingsInput`/`ReadingsResponse` and the updated `InspectionDetail`/`UpdateInspectionRequest`. | 2026-08-06 |
 | Phase 7.8 — digital signature (inspector sign-off) | See "Phase 7.8 Digital Signature" above for the full breakdown. In short: `Inspection.signature` (typed since 7.1's untyped placeholder) is a single nullable `Signature` object holding a list of `SignatureStroke` objects (each `points: list[AnnotationPoint]`) — a named-stroke shape chosen specifically to avoid a real doubly-nested-list builder-factory gap in the pinned Dart generator. Signing is now the mandatory final step of `POST /inspections/{id}/complete` (a new required `CompleteInspectionRequest` body: `strokes` + `expected_revision`) — there is no separate sign-then-complete call and no way to complete unsigned. Signer identity is always server-derived (`InspectionService` gained a `UserRepository` dependency for the `display_name` lookup); a stale `expected_revision` is rejected with the existing `revision_conflict` 409 before the checklist-completeness check runs, which is also the entire "re-sign" mechanism — no reopen/re-edit capability was added, since a completed inspection stays immutable. Mobile gained `SignaturePad`/`SignaturePadController` and a `_SignatureCaptureSheet` modal opened from "Complete Inspection"; `LocalInspectionsRepository.completeInspection` now requires `strokes`, and `LocalInspections` gained `signature`/`pendingSignatureStrokes` columns (schema v6→v7). `markConflict` was fixed to re-sync `status`/`startedAt`/`completedAt` from the server on any conflict, so a stale `complete` attempt's optimistic status flip reverts correctly. Admin gains a read-only signature review section (signer/role/timestamp, valid-vs-superseded indicator, SVG stroke preview). Contracts regenerated for `Signature`/`SignatureStroke` request/response models and the updated `InspectionDetail`. | 2026-08-06 |
 | Phase 7.9 — AR/manual dimension measurement | See "Phase 7.9 AR/Manual Dimension Measurement" above for the full breakdown. In short: `Inspection.ar_measurements[]` (typed since 7.1's untyped placeholder) holds `ArMeasurement` records (method, distance in meters, optional label/note/checklist link, optional screenshot reference, optional overlay points) — mutation protocol is a field-for-field copy of 7.5's annotation pattern (idempotent by id, no `expected_revision`), and the evidence screenshot is a plain photo through the *existing* 7.4 media pipeline, not a new storage namespace. `points` stays genuinely optional even for AR captures since `ar_flutter_plugin_2` exposes no 2D tap coordinate to populate them honestly (D-064). Session opened on an already-uncommitted Step-1 spike (D-062) gated behind physical-device validation; the product owner waived that gate (D-063) so this phase shipped the full feature. Mobile gained `ArMeasurementScreen`/`ManualMeasurementScreen`/`InspectionMeasurementsSection`, three new `OutboxMutationType` values, and a new `LocalInspections.arMeasurements` column (schema v7→v8). Admin gains a read-only measurements review section. Contracts regenerated for `ArMeasurementResponse`/`CreateArMeasurementRequest`/`UpdateArMeasurementRequest` and the updated `InspectionDetail`. AR plane-detection/measurement accuracy on real hardware remains unverified — accepted risk, confined to the capture screen only. | 2026-08-10 |
+| Phase 7.10 — AI photo analysis | See "Phase 7.10 AI Photo Analysis" above for the full breakdown. In short: `Inspection.ai_analysis[]` (typed since 7.1's untyped placeholder) holds `AiAnalysis` run records; every detected finding is its own `Annotation(source="ai", confidence)` — the exact reuse Phase 7.5 (D-054) reserved those fields for, so no new overlay model was needed. First third-party HTTP/SDK call in this backend: new `app/ai/vision_client.py` (`ClaudeVisionClient`, forced tool-use for structured output) behind a `VisionAnalysisClient` protocol tests fake out. New `InspectionMediaStorage.download_bytes()` breaks the "bytes never pass through this backend" precedent since a vision call needs real image bytes. Two new routes (`analyze`, `review`) mirror neither the create/update/delete pattern nor the attach/detach pattern — `analyze` triggers a fresh run, `review` marks one reviewed (the "confirm" half of D-008; "override" is just editing/deleting the resulting annotations). `InspectionRepository.append_ai_analysis` writes annotations + the analysis record atomically; a real ArrayUnion-rejects-empty-list bug (a no-findings photo) was found and fixed. Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, online-only calls, never queued through the offline outbox (no honest optimistic echo for an AI response that doesn't exist yet); mobile gained an "Analyze with AI" action on the annotation canvas and a new `InspectionAiAnalysisSection`, admin a read-only mirror. New `LocalInspections.aiAnalysis` column (schema v8→v9) — this migration also retroactively fixed 7.9's `arMeasurements` column, which had been added without ever bumping `schemaVersion`. Contracts regenerated for `AiAnalysisResponse` and the updated `InspectionDetail`. The real Claude API call is unverified this phase (no `ANTHROPIC_API_KEY` available in-session); all logic is fully tested against a `FakeAiClient`. | 2026-08-10 |

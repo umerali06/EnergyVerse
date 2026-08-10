@@ -126,6 +126,14 @@ typedef UpdateAnnotationCallback = Future<List<AnnotationResponse>> Function({
 typedef DeleteAnnotationCallback = Future<List<AnnotationResponse>> Function(
     String annotationId);
 
+/// Runs AI analysis on this photo (Phase 7.10) and returns the resulting,
+/// authoritative annotation list -- same "never hand-build a response"
+/// contract as the other callbacks. Throws on failure (unsupported media
+/// kind, upstream AI failure, offline) for the canvas to surface as a
+/// snackbar; `null` means this photo isn't synced yet, so no "Analyze"
+/// action is offered at all.
+typedef AnalyzeCallback = Future<List<AnnotationResponse>> Function();
+
 /// Draw/label/view damage annotations over one inspection photo (Phase
 /// 7.5). Coordinates are normalized (0-1 relative to the image's own
 /// rendered box, not the device screen), so a shape drawn on one device
@@ -140,6 +148,7 @@ class AnnotationCanvasScreen extends StatefulWidget {
     required this.onCreate,
     required this.onUpdate,
     required this.onDelete,
+    this.onAnalyze,
     super.key,
   });
 
@@ -149,6 +158,7 @@ class AnnotationCanvasScreen extends StatefulWidget {
   final CreateAnnotationCallback onCreate;
   final UpdateAnnotationCallback onUpdate;
   final DeleteAnnotationCallback onDelete;
+  final AnalyzeCallback? onAnalyze;
 
   @override
   State<AnnotationCanvasScreen> createState() => _AnnotationCanvasScreenState();
@@ -305,7 +315,8 @@ class _AnnotationCanvasScreenState extends State<AnnotationCanvasScreen> {
           return (points.first - point).distance < _hitThreshold;
         }
         for (var i = 0; i < points.length - 1; i++) {
-          if (_distanceToSegment(point, points[i], points[i + 1]) < _hitThreshold) {
+          if (_distanceToSegment(point, points[i], points[i + 1]) <
+              _hitThreshold) {
             return true;
           }
         }
@@ -502,7 +513,11 @@ class _AnnotationCanvasScreenState extends State<AnnotationCanvasScreen> {
                       style: Theme.of(sheetContext).textTheme.titleMedium),
                   if (shape.source_ == AnnotationResponseSource_Enum.ai) ...[
                     const SizedBox(width: DsSpacing.s2),
-                    const AppBadge(label: 'AI'),
+                    AppBadge(
+                      label: shape.confidence == null
+                          ? 'AI'
+                          : 'AI · ${(shape.confidence! * 100).round()}%',
+                    ),
                   ],
                 ],
               ),
@@ -524,6 +539,23 @@ class _AnnotationCanvasScreenState extends State<AnnotationCanvasScreen> {
       },
     );
     if (action == 'delete') await _deleteShape(shape.id);
+  }
+
+  Future<void> _analyze() async {
+    final onAnalyze = widget.onAnalyze;
+    if (onAnalyze == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await onAnalyze();
+      if (!mounted) return;
+      setState(() => _shapes = result);
+    } catch (error) {
+      if (!mounted) return;
+      showAppToast(context, 'AI analysis failed: $error',
+          status: AppStatus.critical);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _deleteShape(String id) async {
@@ -638,6 +670,19 @@ class _AnnotationCanvasScreenState extends State<AnnotationCanvasScreen> {
         foregroundColor: Colors.white,
         title: const Text('Annotate photo'),
         actions: [
+          if (widget.onAnalyze != null)
+            IconButton(
+              key: const Key('analyze-with-ai'),
+              icon: _busy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome_outlined),
+              tooltip: 'Analyze with AI',
+              onPressed: _busy ? null : () => unawaited(_analyze()),
+            ),
           IconButton(
             icon: Icon(_showOverlay
                 ? Icons.visibility_outlined

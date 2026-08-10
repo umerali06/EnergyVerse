@@ -67,6 +67,8 @@ EXPECTED_OPERATIONS = {
     "create_inspection_ar_measurement",
     "update_inspection_ar_measurement",
     "delete_inspection_ar_measurement",
+    "analyze_inspection_media",
+    "review_inspection_ai_analysis",
     "list_checklist_templates",
     "get_checklist_template",
     "create_checklist_template",

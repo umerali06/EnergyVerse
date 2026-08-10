@@ -288,6 +288,18 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
             );
             return refreshed();
           },
+          // Analysis needs a real server media id and a live network round
+          // trip to the AI, so it's only offered once this photo has synced
+          // -- a not-yet-uploaded item has no `onAnalyze` at all.
+          onAnalyze: item.isLocalOnly
+              ? null
+              : () async {
+                  await repository.analyzeMedia(
+                    inspectionId: widget.inspectionId,
+                    mediaId: item.id,
+                  );
+                  return refreshed();
+                },
         ),
       ),
     );
@@ -301,8 +313,9 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
       builder: (context, snapshot) {
         // `MediaQueue` is shared with voice notes (Phase 7.6, `kind ==
         // 'audio'`) -- this gallery only ever renders photo/video tiles.
-        final queued =
-            (snapshot.data ?? const []).where((row) => row.kind != 'audio').toList();
+        final queued = (snapshot.data ?? const [])
+            .where((row) => row.kind != 'audio')
+            .toList();
         final items = <_GalleryItem>[
           ...widget.serverMedia.map(_GalleryItem.synced),
           ...queued.map(_GalleryItem.queued),

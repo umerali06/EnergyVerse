@@ -34,6 +34,101 @@ class InspectionsApi {
 
   const InspectionsApi(this._dio, this._serializers);
 
+  /// Analyze Inspection Media
+  /// Runs Claude vision analysis on one already-attached photo (spec 8 \&quot;AI Photo &amp; Video Analysis\&quot;, Phase 7.10) -- &#x60;media_id&#x60; is the media item&#39;s server id, matching &#x60;update_inspection_media&#x60;/&#x60;detach_inspection_media&#x60;&#39;s own path parameter. Every finding lands as an advisory &#x60;Annotation(source&#x3D;\&quot;ai\&quot;, ...)&#x60;; nothing here ever auto-confirms a finding.
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [mediaId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> analyzeInspectionMedia({
+    required String inspectionId,
+    required String mediaId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path =
+        r'/api/v1/inspections/{inspection_id}/media/{media_id}/analyze'
+            .replaceAll(
+                '{' r'inspection_id' '}',
+                encodeQueryParameter(
+                        _serializers, inspectionId, const FullType(String))
+                    .toString())
+            .replaceAll(
+                '{' r'media_id' '}',
+                encodeQueryParameter(
+                        _serializers, mediaId, const FullType(String))
+                    .toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
   /// Assign Checklist Template
   ///
   ///
@@ -1521,6 +1616,101 @@ class InspectionsApi {
     }
 
     return Response<InspectionListPage>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Review Inspection Ai Analysis
+  /// Marks an AI analysis run as reviewed by the authenticated caller -- the \&quot;confirm\&quot; half of \&quot;confirm or override\&quot; (D-008). Idempotent on an already-reviewed or missing &#x60;analysis_id&#x60;.
+  ///
+  /// Parameters:
+  /// * [inspectionId]
+  /// * [analysisId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [InspectionDetail] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<InspectionDetail>> reviewInspectionAiAnalysis({
+    required String inspectionId,
+    required String analysisId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path =
+        r'/api/v1/inspections/{inspection_id}/ai-analysis/{analysis_id}/review'
+            .replaceAll(
+                '{' r'inspection_id' '}',
+                encodeQueryParameter(
+                        _serializers, inspectionId, const FullType(String))
+                    .toString())
+            .replaceAll(
+                '{' r'analysis_id' '}',
+                encodeQueryParameter(
+                        _serializers, analysisId, const FullType(String))
+                    .toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    InspectionDetail? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(InspectionDetail),
+            ) as InspectionDetail;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<InspectionDetail>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
