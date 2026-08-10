@@ -65,6 +65,8 @@
 | D-059 | Readings mutation protocol rides the existing checklist-autosave revision path, not the 7.4/7.5/7.6 append pattern | **`Inspection.readings` is a single nullable `Readings` object (not an array of independent records), so it's mutated through the pre-existing `update_inspection`/`expected_revision`-aware PATCH the 7.3 checklist already uses — a new `readings` field on `UpdateInspectionRequest`, no new repository method, no new `OutboxMutationType`, no `expected_revision` bypass. This is the opposite of D-051/D-055/D-057's shared rationale (media/annotations/voice-notes are independent-record arrays that must never collide with the checklist-autosave revision bump); readings is form-like single-object data, the same shape as `title`/`notes`/`checklist_responses`, so it correctly reuses that exact protocol. On `complete_inspection` only, the condition maps onto the asset's 4.1 `current_status` via a new `AssetRepository.roll_up_status_from_inspection` (own `asset.status_rolled_up` audit action, distinct from the generic `asset.updated`), which the existing 4.4 dashboard `count()` aggregation reflects with no caching.** | **RESOLVED — LOCKED** | 2026-08-06 |
 | D-060 | Digital signature integrity: vector storage, server-derived identity, revision-binding | **`Signature.strokes` is normalized (0-1) vector data (`list[SignatureStroke]`, each `{points: list[AnnotationPoint]}` — a named single-level-nesting wrapper, not a raw `list[list[...]]`, to avoid a real Dart-generator builder-factory gap hit mid-phase), never a raster image. Signer identity/timestamp are always server-derived (`current_user` + a `UserRepository` lookup for `display_name`) — `CompleteInspectionRequest` has no signer field at all. `signature.inspection_revision` is stamped as the inspection's own post-completion revision, guaranteed to match the request's `expected_revision`.** | **RESOLVED — LOCKED** | 2026-08-06 |
 | D-061 | Completion requires signature: atomic, no reopen | **`POST /inspections/{id}/complete` now requires a body (`strokes` + `expected_revision`) — signing is the mandatory final step, no separate sign-then-complete call, no way to complete unsigned. A completed inspection stays fully immutable (no reopen/re-edit capability added); "edited after signing" is realized narrowly as the pre-completion offline race, rejected via the existing `revision_conflict` 409 (checked before the checklist-completeness check) and resolved by the existing `SyncEngine` conflict sheet, fixed this phase to correctly revert a stale `complete` mutation's optimistic status flip.** | **RESOLVED — LOCKED** | 2026-08-06 |
+| D-063 | Waiving D-062's physical-device validation gate before Phase 7.9 Step 2 | **Product owner explicitly chose to proceed straight to the full AR measurement feature (data model, offline sync, manual fallback, screenshot capture) without a human confirming `ar_flutter_plugin_2` plane detection/measurement on a real ARCore/ARKit device first. The D-062 spike code, permission/manifest changes, and dependency stay exactly as built. Risk accepted: if the plugin proves inadequate on real hardware later, the AR capture path (not the manual-entry path, the data model, or the sync protocol) is what gets swapped for native platform channels — everything else in Step 2 is written to be plugin-agnostic for exactly this reason.** | **RESOLVED — LOCKED** | 2026-08-10 |
+| D-064 | AR/manual measurement data model, screenshot evidence, and mutation protocol (Phase 7.9 Step 2) | **`Inspection.ar_measurements[]` (replacing the 7.1 `list[dict]` placeholder) holds one `ArMeasurement` per capture: `id`, `method` (`ar`\|`manual`), `distance_meters` (always meters, fixed-unit convention per D-058), optional `label`/`note`/`checklist_item_id`, optional `media_local_id` (an existing `InspectionMedia` item as visual evidence), and `points: list[AnnotationPoint]` reusing D-054's normalized-point shape but left genuinely optional — `ar_flutter_plugin_2` exposes no 2D screen-tap coordinate alongside its 3D hit-test result, so exact overlay markers are not fabricated; the screenshot alone is the AR method's evidence requirement (`media_local_id` mandatory, `points` not). Mutation protocol mirrors D-054/D-055's annotations exactly: three routes (create/update/delete), idempotent by client-generated `id`, no `expected_revision` (measurement traffic must never collide with checklist-autosave). Update is deliberately narrow — only `label`/`note`/`checklist_item_id` are mutable; method/distance/screenshot/points are immutable once created (delete-and-recreate fixes a mistake, same posture as media's checklist-link-only update). An AR screenshot is a plain `InspectionMedia` photo through the *existing* 7.4 pipeline (no new storage subfolder, no new `MediaKind`, no `MediaQueue` schema change) — a measurement simply references its `local_id`, exactly how an annotation references the photo it's drawn on, decoupling the measurement record from the screenshot's own upload completion. Mobile captures the screenshot via `ARSessionManager.snapshot()` (extracting bytes from the plugin's own `MemoryImage` return) and reuses `LocalMediaRepository.enqueueCapture` unmodified.** | **RESOLVED — LOCKED** | 2026-08-10 |
 
 ## Decision Details
 
@@ -1581,6 +1583,147 @@
   inspection must design the reopen/re-sign flow explicitly rather than
   assuming this phase already built it.
 
+### D-063 — Waiving the D-062 Device-Validation Gate
+
+- **Decision owner:** Product owner, asked directly via `AskUserQuestion`
+  once the Step-1 spike and its gate were surfaced at the start of this
+  session.
+- **Decision:** Proceed directly to Step 2 (the full measurement feature)
+  without the human physical-device confirmation D-062 called for. The two
+  alternatives offered — writing a test guide and waiting for a real-device
+  run, or dropping AR entirely for a manual-only fallback — were both
+  declined in favor of building the complete feature now.
+- **Consequences:** The data model, offline sync protocol, and admin review
+  surface built in Step 2 are the authoritative, permanent shape of Phase
+  7.9 — not spike code. Only the AR *capture* code path
+  (`ArMeasurementSpikeScreen`'s successor) carries residual risk from an
+  unvalidated plugin; the manual-entry fallback is a first-class, equally
+  supported way to record a measurement precisely so that risk never blocks
+  field use. If `ar_flutter_plugin_2` later proves inadequate on real
+  hardware, only that capture screen is replaced (native ARCore/ARKit
+  platform channels per D-062's own escape hatch) — the model, sync, and
+  review code are unaffected.
+
+### D-062 — AR Plugin Choice for the Phase 7.9 Spike: `ar_flutter_plugin_2`, Provisionally
+
+- **Decision owner:** Engineering, with the human validating the resulting
+  spike on a physical device before Step 2 (the full feature) begins — see
+  the phase brief's explicit device-validation gate and the D-040 exception
+  below.
+- **Decision:** For the Step-1 spike, adopted `ar_flutter_plugin_2` (a
+  community fork of the original `ar_flutter_plugin`, which has not been
+  updated since ~2022) as the one Dart API covering both ARCore (Android)
+  and ARKit (iOS). As of this phase (2026-08), no cross-platform Flutter AR
+  plugin is genuinely mature: `ar_flutter_plugin` itself is stale,
+  `ar_flutter_plugin_engine` is a 2-year-stale unverified fork, and
+  `ar_flutter_plugin_2` is version `0.0.3` whose own README states its
+  Android layer (migrated from the archived Sceneform to `sceneview_android`)
+  was AI-assisted and "may [need] refinement." The genuinely
+  actively-maintained alternative, `arkit_plugin`, is iOS-only. This is
+  explicitly a **provisional** pick for spike validation, not a locked
+  production dependency — the phase brief's own escape hatch (native
+  platform channels, Unity, or manual-only) applies if physical-device
+  testing shows it's inadequate.
+- **Gotcha found during setup:** `ar_flutter_plugin_2`'s own
+  `AndroidManifest.xml` declares
+  `<uses-feature android:name="android.hardware.camera.ar" android:required="true"/>`.
+  Left as-is, the Android manifest merger would carry that into the app,
+  which makes the Play Store hide the app entirely on any device without
+  ARCore hardware — directly breaking the phase brief's mandatory manual
+  fallback. The app manifest now overrides it to `required="false"` via
+  `tools:replace="android:required"`, plus a `com.google.ar.core` /
+  `optional` meta-data hint for Play Services. `minSdk` is floored at 28
+  (the plugin's own requirement) via `maxOf(flutter.minSdkVersion, 28)`
+  rather than a hardcoded literal, so it still tracks Flutter's own default
+  if that ever rises above 28.
+- **Dependency conflict resolved:** `ar_flutter_plugin_2` pins
+  `geolocator ^12.0.0`; the app has been on `^13.0.2` since Phase 7.3. Forced
+  via `dependency_overrides` rather than downgrading the app's own
+  geolocator — the plugin's only geolocator usage (`ARLocationManager`) is
+  limited to stable, version-independent calls, verified by a clean `flutter
+  pub get` + `flutter analyze`.
+- **D-040 exception (device validation is not automatable):** Per D-040, phase
+  evidence is normally automated tests + lint/type-check + real-creds backend
+  checks only, with no screenshot/manual-visual step. AR plane detection,
+  point placement, and real-world measurement accuracy cannot be exercised
+  in CI or this sandbox at all — there is no physical ARCore/ARKit device
+  here. This phase carries an explicit, narrow exception: the AR-specific
+  behavior (and only that behavior) is validated by the human on a physical
+  device, per a written test guide, instead of an automated test. Every
+  other part of the feature (measurement math, data model, offline sync,
+  manual fallback, unsupported-device routing) still follows D-040
+  unchanged.
+- **Consequences:** Nothing beyond the Step-1 spike is built until the human
+  confirms on a real device that plane detection and point placement work
+  and produce a roughly-accurate distance. If it doesn't, the next attempt
+  moves to native ARCore/ARKit platform channels (option (b)) rather than
+  another cross-platform fork, given how thin every fork in this space
+  currently is.
+
+### D-064 — AR/Manual Measurement Data Model, Screenshot Evidence, and Mutation Protocol (Phase 7.9 Step 2)
+
+- **Decision owner:** Engineering, following D-063's waiver of physical-device
+  validation.
+- **Data model:** `ArMeasurement` (`app/models/entities.py`) — `id`, `method`
+  (`ar`\|`manual`), `distance_meters` (`gt=0, le=100000`, always meters — same
+  fixed-unit rationale as `Readings`/D-058, so the value is unambiguous in
+  storage regardless of the unit the device displayed at capture),
+  `label`/`note`/`checklist_item_id` (all optional), `media_local_id`
+  (optional — the evidence screenshot, an existing `InspectionMedia.local_id`),
+  `points: list[AnnotationPoint]` (optional, default empty), `created_by`,
+  `created_at`. Replaces the 7.1 `ar_measurements: list[dict[str, Any]]`
+  placeholder on `Inspection`/`InspectionDetail`.
+- **Points are optional even for `method="ar"`, by design, not oversight:**
+  `ar_flutter_plugin_2`'s hit-test callback (`ARHitTestResult`) returns only a
+  `worldTransform`/`distance`/`type` — no 2D screen-space coordinate for
+  where the user actually tapped. Fabricating normalized overlay points from
+  data the plugin doesn't provide would be dishonest data; the screenshot
+  itself (evidence that a measurement was taken, in context) is what's
+  required for `method="ar"` (422 `ar_measurement_missing_screenshot` if
+  `media_local_id` is absent). `points` stays in the schema — reusing D-054's
+  `AnnotationPoint` shape — so a future capture path that CAN supply exact
+  tap coordinates (a native ARCore/ARKit platform-channel rewrite, or a
+  plugin update) fills it in with zero schema change.
+- **Mutation protocol mirrors D-054/D-055 exactly:** three new routes,
+  `POST/PATCH/DELETE /inspections/{id}/ar-measurements[/{measurement_id}]`,
+  idempotent by client-generated `id` (identical resubmit is a no-op 200;
+  conflicting resubmit under the same id is `409 ar_measurement_conflict`),
+  no `expected_revision` — measurement traffic must never collide with the
+  checklist-autosave revision protocol, same rationale as annotations/
+  voice-notes/media. `UpdateArMeasurementRequest` only accepts
+  `label`/`note`/`checklist_item_id` — the captured method/distance/
+  screenshot/points are immutable once created; fixing a wrong value means
+  delete-and-recreate, mirroring `UpdateInspectionMediaRequest`'s own
+  checklist-link-only update. Repository methods
+  (`append_ar_measurement`/`update_ar_measurement`/`remove_ar_measurement`)
+  are a field-for-field copy of the annotation repository pattern.
+- **The AR screenshot is a plain photo, not a new media kind:** it rides the
+  *existing* Phase 7.4 `InspectionMedia`/`MediaQueue`/`MediaUploadWorker`
+  pipeline unmodified — no new storage subfolder (unlike D-057's voice notes,
+  which needed `voice/` because they're a genuinely separate array), no new
+  `MediaKind`, no `MediaQueue` schema change. A measurement references the
+  screenshot by `media_local_id` exactly the way an annotation references the
+  photo it's drawn on (D-054) — decoupled from whether that upload has
+  actually finished, so a measurement can be created offline immediately
+  after capture regardless of upload state.
+- **Mobile capture mechanics:** `ARSessionManager.snapshot()` (a real,
+  documented method on the adopted plugin) returns a `MemoryImage`; its
+  public `bytes` field is extracted, written to a temp file via
+  `path_provider`, and handed to the *unmodified*
+  `LocalMediaRepository.enqueueCapture(kind: 'photo', ...)`. Screenshot
+  capture is wrapped in its own try/catch — a failure there (e.g. an
+  unimplemented platform channel) must never block recording the distance
+  itself; the measurement still saves without a screenshot, with an honest
+  in-UI note that capture failed. `ArMeasurementScreen` keeps "Enter manually
+  instead" reachable from every state (not gated behind an error), matching
+  D-062's "mandatory fallback" framing literally rather than treating manual
+  entry as an error-path afterthought.
+- **Consequences:** Any future measurement-adjacent capability (e.g. a
+  richer AI-assisted measurement in a later phase) that needs real overlay
+  points must either extend the capture UI to supply them or build a native
+  platform-channel replacement — `points` staying optional here is not a
+  promise that AI/analytics can rely on it being populated today.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -2002,3 +2145,40 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   spoofed signer in the same request), then reproduced the stale-revision
   race end to end and confirmed both the 409 rejection and a subsequent
   successful re-sign.
+
+- **2026-08-10 — Phase 7.9 (AR/manual dimension measurement):** Opened on
+  `phase/7.9-ar-measurement` with a Step-1 `ar_flutter_plugin_2` spike
+  already uncommitted from a prior session (D-062). Per D-062's own gate,
+  Step 2 (the full feature) was blocked on a human confirming AR plane
+  detection/measurement on a physical device first; asked the product
+  owner directly, who chose to waive that gate and proceed straight to the
+  full feature (D-063) rather than write a device test guide or drop AR
+  for manual-only. Added and locked D-064: `ArMeasurement` data model
+  (method/distance/label/note/optional screenshot reference/optional
+  overlay points), mutation protocol mirroring D-054/D-055's annotations
+  exactly (idempotent create/update/delete, no `expected_revision`), and
+  the AR screenshot riding the *existing* Phase 7.4 media pipeline
+  unmodified rather than a new storage namespace. A genuine design
+  correction made mid-phase, not a late-discovered bug: `points` was
+  initially specced as required (exactly two) for `method="ar"`, then
+  relaxed to fully optional once it became clear `ar_flutter_plugin_2`'s
+  hit-test callback carries no 2D screen-tap coordinate to populate them
+  honestly — the screenshot alone is the AR method's evidence requirement.
+  Backend (338 tests, up from ~325 before this phase — new coverage for
+  create/update/delete, manual vs. AR method validation, the missing-
+  screenshot 422, unknown-media 404, idempotent replay, conflicting-replay
+  409, cross-tenant 404, and the never-bumps-revision guarantee), mobile
+  (236 tests, up from 224 — repository CRUD + restart-persistence,
+  `SyncEngine` dispatch for all three mutation types, and detail-screen
+  empty-state/rendered/completed-hides-actions widget tests), and admin
+  (211 tests passing plus the pre-existing, unrelated
+  `company-settings-page.test.tsx` full-suite teardown flake noted in
+  [[fev-admin-vitest-full-suite-flake]] — 4 new tests for the read-only
+  measurements section: empty state, manual measurement render, and the
+  under-1-meter cm formatting threshold) all green; `flutter analyze`/
+  ruff/mypy/ESLint/`next lint` clean; contracts regenerated (`ArMeasurement`
+  request/response models across both generated clients) with a clean
+  operation-id drift check. Per D-062's own D-040 exception, real
+  ARCore/ARKit plane-detection/measurement accuracy remains unverified on
+  physical hardware — explicitly accepted risk per D-063, confined to the
+  AR *capture* screen only.

@@ -85,7 +85,8 @@ abstract interface class ApiContract {
     String? cursor,
     int limit = 20,
   });
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate});
+  Future<AuditLogFacets> getAuditLogFacets(
+      {DateTime? fromDate, DateTime? toDate});
   Future<AssetListPage> getAssets({
     String? facilityId,
     String? areaId,
@@ -149,7 +150,8 @@ abstract interface class ApiContract {
     String mediaId,
     UpdateInspectionMediaRequest request,
   );
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId);
+  Future<InspectionDetail> detachInspectionMedia(
+      String inspectionId, String mediaId);
   Future<InspectionDetail> attachInspectionVoiceNote(
     String inspectionId,
     AttachVoiceNoteRequest request,
@@ -159,7 +161,8 @@ abstract interface class ApiContract {
     String voiceNoteId,
     UpdateVoiceNoteRequest request,
   );
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId);
+  Future<InspectionDetail> detachInspectionVoiceNote(
+      String inspectionId, String voiceNoteId);
   Future<InspectionDetail> createInspectionAnnotation(
     String inspectionId,
     CreateAnnotationRequest request,
@@ -169,7 +172,21 @@ abstract interface class ApiContract {
     String annotationId,
     UpdateAnnotationRequest request,
   );
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId);
+  Future<InspectionDetail> deleteInspectionAnnotation(
+      String inspectionId, String annotationId);
+  Future<InspectionDetail> createInspectionArMeasurement(
+    String inspectionId,
+    CreateArMeasurementRequest request,
+  );
+  Future<InspectionDetail> updateInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+    UpdateArMeasurementRequest request,
+  );
+  Future<InspectionDetail> deleteInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+  );
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,
@@ -182,7 +199,8 @@ extension AssetWriteContract on ApiContract {
   ApiService get _assetWriter {
     final service = this;
     if (service is ApiService) return service;
-    throw UnsupportedError('Asset writes are not available on this API test double');
+    throw UnsupportedError(
+        'Asset writes are not available on this API test double');
   }
 
   Future<AssetDetail> createAsset(CreateAssetRequest request) =>
@@ -362,7 +380,8 @@ class ApiService implements ApiContract {
   @override
   Future<DashboardSummary> getDashboardSummary({int window = 30}) async {
     try {
-      final response = await _client.getDashboardApi().getDashboardSummary(window: window);
+      final response =
+          await _client.getDashboardApi().getDashboardSummary(window: window);
       final value = response.data;
       if (value == null) {
         throw const ApiException(
@@ -402,10 +421,12 @@ class ApiService implements ApiContract {
   }
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) async {
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+      {int window = 30}) async {
     try {
-      final response =
-          await _client.getDashboardApi().getDashboardActivitySeries(window: window);
+      final response = await _client
+          .getDashboardApi()
+          .getDashboardActivitySeries(window: window);
       final value = response.data;
       if (value == null) {
         throw const ApiException(
@@ -422,7 +443,8 @@ class ApiService implements ApiContract {
   @override
   Future<AssetDashboardSummary> getDashboardAssetsSummary() async {
     try {
-      final response = await _client.getDashboardApi().getDashboardAssetsSummary();
+      final response =
+          await _client.getDashboardApi().getDashboardAssetsSummary();
       final value = response.data;
       if (value == null) {
         throw const ApiException(
@@ -554,7 +576,8 @@ class ApiService implements ApiContract {
   }
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) async {
+  Future<AuditLogFacets> getAuditLogFacets(
+      {DateTime? fromDate, DateTime? toDate}) async {
     try {
       final response = await _client.getAuditApi().getAuditLogFacets(
             fromDate: fromDate?.toDate(),
@@ -630,7 +653,8 @@ class ApiService implements ApiContract {
   @override
   Future<AssetHistoryPage> getAssetHistory(String assetId) async {
     try {
-      final response = await _client.getAssetsApi().getAssetHistory(assetId: assetId);
+      final response =
+          await _client.getAssetsApi().getAssetHistory(assetId: assetId);
       final value = response.data;
       if (value == null) {
         throw const ApiException(
@@ -672,7 +696,8 @@ class ApiService implements ApiContract {
     }
   }
 
-  Future<AssetDetail> updateAsset(String assetId, UpdateAssetRequest request) async {
+  Future<AssetDetail> updateAsset(
+      String assetId, UpdateAssetRequest request) async {
     try {
       final response = await _client.getAssetsApi().updateAsset(
             assetId: assetId,
@@ -758,7 +783,8 @@ class ApiService implements ApiContract {
   @override
   Future<FacilityDetail> getFacility(String facilityId) async {
     try {
-      final response = await _client.getFacilitiesApi().getFacility(facilityId: facilityId);
+      final response =
+          await _client.getFacilitiesApi().getFacility(facilityId: facilityId);
       final value = response.data;
       if (value == null) {
         throw const ApiException(
@@ -852,8 +878,9 @@ class ApiService implements ApiContract {
   @override
   Future<InspectionDetail> getInspection(String inspectionId) async {
     try {
-      final response =
-          await _client.getInspectionsApi().getInspection(inspectionId: inspectionId);
+      final response = await _client
+          .getInspectionsApi()
+          .getInspection(inspectionId: inspectionId);
       final value = response.data;
       if (value == null) {
         throw const ApiException(
@@ -868,7 +895,8 @@ class ApiService implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> createInspection(CreateInspectionRequest request) async {
+  Future<InspectionDetail> createInspection(
+      CreateInspectionRequest request) async {
     try {
       final response = await _client.getInspectionsApi().createInspection(
             createInspectionRequest: request,
@@ -905,8 +933,9 @@ class ApiService implements ApiContract {
   @override
   Future<InspectionDetail> startInspection(String inspectionId) async {
     try {
-      final response =
-          await _client.getInspectionsApi().startInspection(inspectionId: inspectionId);
+      final response = await _client
+          .getInspectionsApi()
+          .startInspection(inspectionId: inspectionId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -932,8 +961,9 @@ class ApiService implements ApiContract {
   @override
   Future<InspectionDetail> cancelInspection(String inspectionId) async {
     try {
-      final response =
-          await _client.getInspectionsApi().cancelInspection(inspectionId: inspectionId);
+      final response = await _client
+          .getInspectionsApi()
+          .cancelInspection(inspectionId: inspectionId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -946,10 +976,11 @@ class ApiService implements ApiContract {
     AssignChecklistTemplateRequest request,
   ) async {
     try {
-      final response = await _client.getInspectionsApi().assignInspectionChecklistTemplate(
-            inspectionId: inspectionId,
-            assignChecklistTemplateRequest: request,
-          );
+      final response =
+          await _client.getInspectionsApi().assignInspectionChecklistTemplate(
+                inspectionId: inspectionId,
+                assignChecklistTemplateRequest: request,
+              );
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -991,7 +1022,8 @@ class ApiService implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) async {
+  Future<InspectionDetail> detachInspectionMedia(
+      String inspectionId, String mediaId) async {
     try {
       final response = await _client
           .getInspectionsApi()
@@ -1008,10 +1040,11 @@ class ApiService implements ApiContract {
     AttachVoiceNoteRequest request,
   ) async {
     try {
-      final response = await _client.getInspectionsApi().attachInspectionVoiceNote(
-            inspectionId: inspectionId,
-            attachVoiceNoteRequest: request,
-          );
+      final response =
+          await _client.getInspectionsApi().attachInspectionVoiceNote(
+                inspectionId: inspectionId,
+                attachVoiceNoteRequest: request,
+              );
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -1025,11 +1058,12 @@ class ApiService implements ApiContract {
     UpdateVoiceNoteRequest request,
   ) async {
     try {
-      final response = await _client.getInspectionsApi().updateInspectionVoiceNote(
-            inspectionId: inspectionId,
-            voiceNoteId: voiceNoteId,
-            updateVoiceNoteRequest: request,
-          );
+      final response =
+          await _client.getInspectionsApi().updateInspectionVoiceNote(
+                inspectionId: inspectionId,
+                voiceNoteId: voiceNoteId,
+                updateVoiceNoteRequest: request,
+              );
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -1044,7 +1078,8 @@ class ApiService implements ApiContract {
     try {
       final response = await _client
           .getInspectionsApi()
-          .detachInspectionVoiceNote(inspectionId: inspectionId, voiceNoteId: voiceNoteId);
+          .detachInspectionVoiceNote(
+              inspectionId: inspectionId, voiceNoteId: voiceNoteId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -1057,10 +1092,11 @@ class ApiService implements ApiContract {
     CreateAnnotationRequest request,
   ) async {
     try {
-      final response = await _client.getInspectionsApi().createInspectionAnnotation(
-            inspectionId: inspectionId,
-            createAnnotationRequest: request,
-          );
+      final response =
+          await _client.getInspectionsApi().createInspectionAnnotation(
+                inspectionId: inspectionId,
+                createAnnotationRequest: request,
+              );
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -1074,11 +1110,12 @@ class ApiService implements ApiContract {
     UpdateAnnotationRequest request,
   ) async {
     try {
-      final response = await _client.getInspectionsApi().updateInspectionAnnotation(
-            inspectionId: inspectionId,
-            annotationId: annotationId,
-            updateAnnotationRequest: request,
-          );
+      final response =
+          await _client.getInspectionsApi().updateInspectionAnnotation(
+                inspectionId: inspectionId,
+                annotationId: annotationId,
+                updateAnnotationRequest: request,
+              );
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -1093,7 +1130,60 @@ class ApiService implements ApiContract {
     try {
       final response = await _client
           .getInspectionsApi()
-          .deleteInspectionAnnotation(inspectionId: inspectionId, annotationId: annotationId);
+          .deleteInspectionAnnotation(
+              inspectionId: inspectionId, annotationId: annotationId);
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> createInspectionArMeasurement(
+    String inspectionId,
+    CreateArMeasurementRequest request,
+  ) async {
+    try {
+      final response =
+          await _client.getInspectionsApi().createInspectionArMeasurement(
+                inspectionId: inspectionId,
+                createArMeasurementRequest: request,
+              );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> updateInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+    UpdateArMeasurementRequest request,
+  ) async {
+    try {
+      final response =
+          await _client.getInspectionsApi().updateInspectionArMeasurement(
+                inspectionId: inspectionId,
+                measurementId: measurementId,
+                updateArMeasurementRequest: request,
+              );
+      return _requireInspection(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<InspectionDetail> deleteInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+  ) async {
+    try {
+      final response = await _client
+          .getInspectionsApi()
+          .deleteInspectionArMeasurement(
+              inspectionId: inspectionId, measurementId: measurementId);
       return _requireInspection(response.data);
     } on DioException catch (error) {
       throw _typedError(error);
@@ -1107,11 +1197,12 @@ class ApiService implements ApiContract {
     int limit = 25,
   }) async {
     try {
-      final response = await _client.getChecklistTemplatesApi().listChecklistTemplates(
-            category: category,
-            cursor: cursor,
-            limit: limit,
-          );
+      final response =
+          await _client.getChecklistTemplatesApi().listChecklistTemplates(
+                category: category,
+                cursor: cursor,
+                limit: limit,
+              );
       final value = response.data;
       if (value == null) {
         throw const ApiException(
@@ -1126,10 +1217,12 @@ class ApiService implements ApiContract {
   }
 
   @override
-  Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) async {
+  Future<ChecklistTemplateDetail> getChecklistTemplate(
+      String templateId) async {
     try {
-      final response =
-          await _client.getChecklistTemplatesApi().getChecklistTemplate(templateId: templateId);
+      final response = await _client
+          .getChecklistTemplatesApi()
+          .getChecklistTemplate(templateId: templateId);
       final value = response.data;
       if (value == null) {
         throw const ApiException(

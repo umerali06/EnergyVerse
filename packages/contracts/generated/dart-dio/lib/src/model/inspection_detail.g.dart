@@ -147,7 +147,7 @@ class _$InspectionDetail extends InspectionDetail {
   @override
   final BuiltList<AnnotationResponse>? annotations;
   @override
-  final BuiltList<BuiltMap<String, JsonObject?>>? arMeasurements;
+  final BuiltList<ArMeasurementResponse>? arMeasurements;
   @override
   final String? areaId;
   @override
@@ -394,12 +394,10 @@ class InspectionDetailBuilder
   set annotations(ListBuilder<AnnotationResponse>? annotations) =>
       _$this._annotations = annotations;
 
-  ListBuilder<BuiltMap<String, JsonObject?>>? _arMeasurements;
-  ListBuilder<BuiltMap<String, JsonObject?>> get arMeasurements =>
-      _$this._arMeasurements ??=
-          new ListBuilder<BuiltMap<String, JsonObject?>>();
-  set arMeasurements(
-          ListBuilder<BuiltMap<String, JsonObject?>>? arMeasurements) =>
+  ListBuilder<ArMeasurementResponse>? _arMeasurements;
+  ListBuilder<ArMeasurementResponse> get arMeasurements =>
+      _$this._arMeasurements ??= new ListBuilder<ArMeasurementResponse>();
+  set arMeasurements(ListBuilder<ArMeasurementResponse>? arMeasurements) =>
       _$this._arMeasurements = arMeasurements;
 
   String? _areaId;

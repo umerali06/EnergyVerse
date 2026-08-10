@@ -248,6 +248,26 @@ class _IdentityApi implements ApiContract {
       throw UnimplementedError();
 
   @override
+  Future<InspectionDetail> createInspectionArMeasurement(
+    String inspectionId,
+    CreateArMeasurementRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+    UpdateArMeasurementRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> deleteInspectionArMeasurement(
+          String inspectionId, String measurementId) =>
+      throw UnimplementedError();
+
+  @override
   Future<ChecklistTemplateListPage> getChecklistTemplates({
     String? category,
     String? cursor,

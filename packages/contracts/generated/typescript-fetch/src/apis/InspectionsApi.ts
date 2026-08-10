@@ -20,6 +20,7 @@ import type {
   AttachVoiceNoteRequest,
   CompleteInspectionRequest,
   CreateAnnotationRequest,
+  CreateArMeasurementRequest,
   CreateInspectionRequest,
   ErrorEnvelope,
   HTTPValidationError,
@@ -27,6 +28,7 @@ import type {
   InspectionDetail,
   InspectionListPage,
   UpdateAnnotationRequest,
+  UpdateArMeasurementRequest,
   UpdateInspectionMediaRequest,
   UpdateInspectionRequest,
   UpdateVoiceNoteRequest,
@@ -42,6 +44,8 @@ import {
     CompleteInspectionRequestToJSON,
     CreateAnnotationRequestFromJSON,
     CreateAnnotationRequestToJSON,
+    CreateArMeasurementRequestFromJSON,
+    CreateArMeasurementRequestToJSON,
     CreateInspectionRequestFromJSON,
     CreateInspectionRequestToJSON,
     ErrorEnvelopeFromJSON,
@@ -56,6 +60,8 @@ import {
     InspectionListPageToJSON,
     UpdateAnnotationRequestFromJSON,
     UpdateAnnotationRequestToJSON,
+    UpdateArMeasurementRequestFromJSON,
+    UpdateArMeasurementRequestToJSON,
     UpdateInspectionMediaRequestFromJSON,
     UpdateInspectionMediaRequestToJSON,
     UpdateInspectionRequestFromJSON,
@@ -97,6 +103,11 @@ export interface CreateInspectionAnnotationRequest {
     createAnnotationRequest: CreateAnnotationRequest;
 }
 
+export interface CreateInspectionArMeasurementRequest {
+    inspectionId: string;
+    createArMeasurementRequest: CreateArMeasurementRequest;
+}
+
 export interface DeleteInspectionRequest {
     inspectionId: string;
 }
@@ -104,6 +115,11 @@ export interface DeleteInspectionRequest {
 export interface DeleteInspectionAnnotationRequest {
     inspectionId: string;
     annotationId: string;
+}
+
+export interface DeleteInspectionArMeasurementRequest {
+    inspectionId: string;
+    measurementId: string;
 }
 
 export interface DetachInspectionMediaRequest {
@@ -144,6 +160,12 @@ export interface UpdateInspectionAnnotationRequest {
     inspectionId: string;
     annotationId: string;
     updateAnnotationRequest: UpdateAnnotationRequest;
+}
+
+export interface UpdateInspectionArMeasurementRequest {
+    inspectionId: string;
+    measurementId: string;
+    updateArMeasurementRequest: UpdateArMeasurementRequest;
 }
 
 export interface UpdateInspectionMediaOperationRequest {
@@ -514,6 +536,59 @@ export class InspectionsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection_annotation`) -- covers both AR-captured and manually-entered dimension measurements (spec 7.2 \"AR-based dimension measurement\", Phase 7.9, D-063).
+     * Create Inspection Ar Measurement
+     */
+    async createInspectionArMeasurementRaw(requestParameters: CreateInspectionArMeasurementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling createInspectionArMeasurement().'
+            );
+        }
+
+        if (requestParameters['createArMeasurementRequest'] == null) {
+            throw new runtime.RequiredError(
+                'createArMeasurementRequest',
+                'Required parameter "createArMeasurementRequest" was null or undefined when calling createInspectionArMeasurement().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/ar-measurements`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateArMeasurementRequestToJSON(requestParameters['createArMeasurementRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Idempotent upsert keyed by the client-generated `id` (mirrors `create_inspection_annotation`) -- covers both AR-captured and manually-entered dimension measurements (spec 7.2 \"AR-based dimension measurement\", Phase 7.9, D-063).
+     * Create Inspection Ar Measurement
+     */
+    async createInspectionArMeasurement(requestParameters: CreateInspectionArMeasurementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.createInspectionArMeasurementRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Delete Inspection
      */
     async deleteInspectionRaw(requestParameters: DeleteInspectionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDeleted>> {
@@ -601,6 +676,56 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async deleteInspectionAnnotation(requestParameters: DeleteInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.deleteInspectionAnnotationRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Idempotent on an already-deleted `measurement_id` -- the mobile outbox replays this call at-least-once.
+     * Delete Inspection Ar Measurement
+     */
+    async deleteInspectionArMeasurementRaw(requestParameters: DeleteInspectionArMeasurementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling deleteInspectionArMeasurement().'
+            );
+        }
+
+        if (requestParameters['measurementId'] == null) {
+            throw new runtime.RequiredError(
+                'measurementId',
+                'Required parameter "measurementId" was null or undefined when calling deleteInspectionArMeasurement().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"measurement_id"}}`, encodeURIComponent(String(requestParameters['measurementId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Idempotent on an already-deleted `measurement_id` -- the mobile outbox replays this call at-least-once.
+     * Delete Inspection Ar Measurement
+     */
+    async deleteInspectionArMeasurement(requestParameters: DeleteInspectionArMeasurementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.deleteInspectionArMeasurementRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -958,6 +1083,64 @@ export class InspectionsApi extends runtime.BaseAPI {
      */
     async updateInspectionAnnotation(requestParameters: UpdateInspectionAnnotationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
         const response = await this.updateInspectionAnnotationRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Inspection Ar Measurement
+     */
+    async updateInspectionArMeasurementRaw(requestParameters: UpdateInspectionArMeasurementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
+        if (requestParameters['inspectionId'] == null) {
+            throw new runtime.RequiredError(
+                'inspectionId',
+                'Required parameter "inspectionId" was null or undefined when calling updateInspectionArMeasurement().'
+            );
+        }
+
+        if (requestParameters['measurementId'] == null) {
+            throw new runtime.RequiredError(
+                'measurementId',
+                'Required parameter "measurementId" was null or undefined when calling updateInspectionArMeasurement().'
+            );
+        }
+
+        if (requestParameters['updateArMeasurementRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateArMeasurementRequest',
+                'Required parameter "updateArMeasurementRequest" was null or undefined when calling updateInspectionArMeasurement().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id}`.replace(`{${"inspection_id"}}`, encodeURIComponent(String(requestParameters['inspectionId']))).replace(`{${"measurement_id"}}`, encodeURIComponent(String(requestParameters['measurementId']))),
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateArMeasurementRequestToJSON(requestParameters['updateArMeasurementRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => InspectionDetailFromJSON(jsonValue));
+    }
+
+    /**
+     * Update Inspection Ar Measurement
+     */
+    async updateInspectionArMeasurement(requestParameters: UpdateInspectionArMeasurementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {
+        const response = await this.updateInspectionArMeasurementRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

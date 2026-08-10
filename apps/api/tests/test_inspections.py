@@ -1542,3 +1542,219 @@ def test_completed_critical_inspection_moves_dashboard_critical_assets_kpi(
         assert after["healthy"] == before["healthy"] - 1
     finally:
         app.dependency_overrides.pop(get_asset_management_service, None)
+
+
+# --- AR / manual dimension measurements (Phase 7.9) --------------------------
+
+
+def _create_ar_measurement(
+    identity: CurrentUser,
+    inspection_id: str,
+    *,
+    measurement_id: str | None = None,
+    method: str = "manual",
+    distance_meters: float = 1.25,
+    label: str | None = "Flange gap",
+    media_local_id: str | None = None,
+    points: list[dict[str, float]] | None = None,
+    note: str | None = None,
+    **overrides: Any,
+) -> Any:
+    payload: dict[str, Any] = {
+        "id": measurement_id or str(uuid.uuid4()),
+        "method": method,
+        "distance_meters": distance_meters,
+        "label": label,
+        "media_local_id": media_local_id,
+        "points": points or [],
+        "note": note,
+    }
+    payload.update(overrides)
+    return _request(
+        identity, "POST", f"/api/v1/inspections/{inspection_id}/ar-measurements", json=payload
+    )
+
+
+def test_create_manual_measurement_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _create_ar_measurement(_identity(), created["id"], distance_meters=2.4)
+    assert response.status_code == 200
+    measurements = response.json()["ar_measurements"]
+    assert len(measurements) == 1
+    measurement = measurements[0]
+    assert measurement["method"] == "manual"
+    assert measurement["distance_meters"] == 2.4
+    assert measurement["label"] == "Flange gap"
+    assert measurement["media_local_id"] is None
+    assert measurement["points"] == []
+    assert measurement["created_by"] == "test-user"
+    # measurement traffic never bumps revision -- must never collide with
+    # the checklist-autosave revision protocol (D-055's rationale, D-063).
+    assert response.json()["revision"] == 1
+
+
+def test_create_ar_measurement_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    response = _create_ar_measurement(
+        _identity(),
+        created["id"],
+        method="ar",
+        media_local_id=media_local_id,
+        points=[{"x": 0.2, "y": 0.3}, {"x": 0.6, "y": 0.7}],
+    )
+    assert response.status_code == 200
+    measurement = response.json()["ar_measurements"][0]
+    assert measurement["method"] == "ar"
+    assert measurement["media_local_id"] == media_local_id
+    assert measurement["points"] == [{"x": 0.2, "y": 0.3}, {"x": 0.6, "y": 0.7}]
+
+
+def test_create_ar_measurement_requires_screenshot(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _create_ar_measurement(_identity(), created["id"], method="ar")
+    assert response.status_code == 422
+    assert response.json()["error"] == "ar_measurement_missing_screenshot"
+
+
+def test_create_ar_measurement_without_points_succeeds(wiring: dict[str, Any]) -> None:
+    """Points are optional overlay markers, not a hard requirement -- the
+    Phase 7.9 AR capture screen can't reliably supply exact tap coordinates
+    from the underlying plugin, so the screenshot alone is sufficient
+    evidence for an AR measurement (D-064)."""
+    created = _create_inspection(_identity()).json()
+    media_local_id = _attach_photo(_identity(), wiring["bucket"], created["id"])
+    response = _create_ar_measurement(
+        _identity(), created["id"], method="ar", media_local_id=media_local_id
+    )
+    assert response.status_code == 200
+    measurement = response.json()["ar_measurements"][0]
+    assert measurement["method"] == "ar"
+    assert measurement["points"] == []
+
+
+def test_create_ar_measurement_rejects_unknown_media(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _create_ar_measurement(
+        _identity(),
+        created["id"],
+        method="ar",
+        media_local_id=str(uuid.uuid4()),
+        points=[{"x": 0.2, "y": 0.3}, {"x": 0.6, "y": 0.7}],
+    )
+    assert response.status_code == 404
+    assert response.json()["error"] == "media_not_found"
+
+
+def test_create_ar_measurement_idempotent_replay(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    measurement_id = str(uuid.uuid4())
+
+    first = _create_ar_measurement(_identity(), created["id"], measurement_id=measurement_id)
+    assert first.status_code == 200
+    second = _create_ar_measurement(_identity(), created["id"], measurement_id=measurement_id)
+    assert second.status_code == 200
+    assert len(second.json()["ar_measurements"]) == 1
+
+
+def test_create_ar_measurement_conflicting_replay_returns_409(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    measurement_id = str(uuid.uuid4())
+
+    first = _create_ar_measurement(_identity(), created["id"], measurement_id=measurement_id)
+    assert first.status_code == 200
+    conflicting = _create_ar_measurement(
+        _identity(), created["id"], measurement_id=measurement_id, distance_meters=9.9
+    )
+    assert conflicting.status_code == 409
+    assert conflicting.json()["error"] == "ar_measurement_conflict"
+
+
+def test_create_ar_measurement_cross_tenant_returns_404(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _create_ar_measurement(_identity(company_id=BETA_COMPANY_ID), created["id"])
+    assert response.status_code == 404
+    assert response.json()["error"] == "inspection_not_found"
+
+
+def test_update_ar_measurement_edits_label_and_note(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    attached = _create_ar_measurement(_identity(), created["id"]).json()
+    measurement_id = attached["ar_measurements"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/ar-measurements/{measurement_id}",
+        json={"label": "Updated label", "note": "Re-checked"},
+    )
+    assert response.status_code == 200
+    measurement = response.json()["ar_measurements"][0]
+    assert measurement["label"] == "Updated label"
+    assert measurement["note"] == "Re-checked"
+    # distance_meters is immutable once created.
+    assert measurement["distance_meters"] == 1.25
+
+
+def test_update_ar_measurement_is_idempotent_on_missing(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}/ar-measurements/does-not-exist",
+        json={"label": "Updated label"},
+    )
+    assert response.status_code == 200
+    assert response.json()["ar_measurements"] == []
+
+
+def test_delete_ar_measurement_success(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    attached = _create_ar_measurement(_identity(), created["id"]).json()
+    measurement_id = attached["ar_measurements"][0]["id"]
+
+    response = _request(
+        _identity(),
+        "DELETE",
+        f"/api/v1/inspections/{created['id']}/ar-measurements/{measurement_id}",
+    )
+    assert response.status_code == 200
+    assert response.json()["ar_measurements"] == []
+
+
+def test_delete_ar_measurement_replay_is_idempotent(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    attached = _create_ar_measurement(_identity(), created["id"]).json()
+    measurement_id = attached["ar_measurements"][0]["id"]
+
+    first = _request(
+        _identity(),
+        "DELETE",
+        f"/api/v1/inspections/{created['id']}/ar-measurements/{measurement_id}",
+    )
+    assert first.status_code == 200
+    second = _request(
+        _identity(),
+        "DELETE",
+        f"/api/v1/inspections/{created['id']}/ar-measurements/{measurement_id}",
+    )
+    assert second.status_code == 200
+    assert second.json()["ar_measurements"] == []
+
+
+def test_ar_measurement_survives_inspection_sync_round_trip(wiring: dict[str, Any]) -> None:
+    """A measurement persists unchanged across an unrelated inspection PATCH
+    (checklist-autosave revision path) -- proves the two protocols never
+    collide, same guarantee as annotations/voice-notes (D-055/D-057/D-063)."""
+    created = _create_inspection(_identity()).json()
+    attached = _create_ar_measurement(_identity(), created["id"]).json()
+    measurement_before = attached["ar_measurements"][0]
+
+    response = _request(
+        _identity(),
+        "PATCH",
+        f"/api/v1/inspections/{created['id']}",
+        json={"notes": "unrelated autosave edit"},
+    )
+    assert response.status_code == 200
+    assert response.json()["ar_measurements"] == [measurement_before]

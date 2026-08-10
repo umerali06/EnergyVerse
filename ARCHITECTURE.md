@@ -2075,6 +2075,89 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   `CompleteInspectionRequest`) and the updated `InspectionDetail`, on both
   generated clients.
 
+### Phase 7.9 AR/Manual Dimension Measurement
+
+- **New `ArMeasurement` entity replaces the untyped placeholder.**
+  `Inspection.ar_measurements` (`apps/api/app/models/entities.py`) was
+  `list[dict[str, Any]]` reserved since 7.1; it's now
+  `list[ArMeasurement] = Field(default_factory=list)` — `id`, `method`
+  (`ar`\|`manual`), `distance_meters` (always meters, D-058's fixed-unit
+  convention), optional `label`/`note`/`checklist_item_id`, optional
+  `media_local_id` (an existing `InspectionMedia.local_id` as visual
+  evidence), and `points: list[AnnotationPoint]` reusing D-054's
+  normalized-point shape. Session brief opened on an existing Step-1
+  Flutter spike (D-062) already gated behind physical-device validation;
+  the product owner explicitly waived that gate (D-063) so this phase
+  built the full feature directly (D-064).
+- **Points are optional even for AR captures, by design.**
+  `ar_flutter_plugin_2`'s hit-test callback carries no 2D screen-tap
+  coordinate — only a 3D `worldTransform`. Rather than fabricate overlay
+  markers from data the plugin doesn't supply, `method="ar"` requires only
+  `media_local_id` (422 `ar_measurement_missing_screenshot` otherwise);
+  `points` stays in the schema for a future capture path that can supply
+  real coordinates.
+- **Mutation protocol mirrors 7.5's annotations exactly, not 7.4/7.6's
+  attach-reference verbs.** Three new routes,
+  `POST/PATCH/DELETE /inspections/{id}/ar-measurements[/{measurement_id}]`,
+  idempotent by client-generated `id` (identical resubmit is a no-op 200;
+  conflicting resubmit is `409 ar_measurement_conflict`), never carrying
+  `expected_revision` — measurement traffic must never collide with the
+  checklist-autosave revision protocol. `UpdateArMeasurementRequest` only
+  accepts `label`/`note`/`checklist_item_id`; the captured method/
+  distance/screenshot/points are immutable (delete-and-recreate fixes a
+  mistake). `InspectionRepository.append_ar_measurement`/
+  `update_ar_measurement`/`remove_ar_measurement` are a field-for-field
+  copy of the annotation repository methods.
+- **The AR screenshot is a plain photo through the existing 7.4 pipeline
+  — no new storage namespace, no new media kind.** A measurement
+  references its evidence screenshot by `media_local_id`, exactly how a
+  7.5 annotation references the photo it's drawn on, decoupled from
+  whether that upload has finished. Contrast with 7.6's voice notes,
+  which needed a new `voice/` subfolder because they're a genuinely
+  separate array; a measurement's screenshot is just `media[]`.
+- **Mobile: production AR + manual capture screens replace the spike.**
+  `ArMeasurementScreen` (`apps/mobile/lib/ar/ar_measurement_screen.dart`)
+  detects a plane, places two tapped anchors, reads
+  `ARSessionManager.getDistanceBetweenAnchors`, and captures a screenshot
+  via `ARSessionManager.snapshot()` — its `MemoryImage` return's public
+  `bytes` field is extracted, written to a temp file
+  (`path_provider`), and handed to the *unmodified*
+  `LocalMediaRepository.enqueueCapture(kind: 'photo', ...)`. Screenshot
+  capture is wrapped in its own try/catch so a failure there never blocks
+  recording the distance itself. `ManualMeasurementScreen`
+  (`manual_measurement_screen.dart`) is the mandatory fallback — reachable
+  from every state of the AR screen via an always-visible "Enter manually"
+  action, not gated behind an error, per D-062's "mandatory fallback"
+  framing. Both hand back a shared `MeasurementCaptureResult` to the new
+  `InspectionMeasurementsSection`
+  (`apps/mobile/lib/inspections/inspection_measurements_section.dart`),
+  which enqueues the screenshot (if any) then calls
+  `LocalInspectionsRepository.createMeasurement`.
+- **Offline sync: three new `OutboxMutationType` values
+  (`create_measurement`/`update_measurement`/`delete_measurement`),
+  written to the local `ar_measurements` blob optimistically** (same
+  posture as 7.5's annotations — small vector/metadata with no separate
+  upload step for the record itself) via a new `LocalInspections.
+  arMeasurements` column (schema v7→v8). `SyncEngine._dispatch` gained the
+  three matching cases; `_alreadyApplied`'s exhaustive switch treats them
+  identically to the annotation cases (structurally unreachable —
+  `expected_revision` is never sent — but required to satisfy Dart's
+  exhaustiveness check).
+- **Admin: read-only measurements review** in the existing
+  `InspectionDetailPage`, a new section listing each measurement's method
+  badge (AR/Manual), formatted distance (`formatMeasurementDistance` —
+  centimeters under 1m, meters otherwise, mirrored field-for-field on
+  mobile), label, and note.
+- **Contracts regenerated** for `ArMeasurementResponse`/
+  `CreateArMeasurementRequest`/`UpdateArMeasurementRequest` and the
+  updated `InspectionDetail`, on both generated clients.
+- **Residual risk, explicitly accepted (D-063):** `ar_flutter_plugin_2`'s
+  plane detection and measurement accuracy remain unverified on physical
+  ARCore/ARKit hardware. If it proves inadequate, only the AR *capture*
+  screen is replaced (native platform channels per D-062's own escape
+  hatch) — the data model, sync protocol, and admin review surface built
+  this phase are unaffected.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -2142,3 +2225,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.5 — damage annotation (draw on inspection photos) | See "Phase 7.5 Damage Annotation" above for the full breakdown. In short: `Inspection.annotations[]` (typed since 7.1's untyped placeholder) holds normalized (0–1) vector shapes keyed by `media_local_id`, one `points[]` field covering all five shapes so 7.10's AI-detected regions can render on the same overlay via the reserved `source`/`confidence` fields. Three new routes mirror 7.4 media's mutation protocol exactly (idempotent by id, no `expected_revision`, `ArrayUnion`/`ArrayRemove` repository methods). Mobile annotations ride the existing 7.2 outbox/record (three new `OutboxMutationType` values) but — unlike media — write to the local cache optimistically, since there's no secondary upload queue standing between "drawn" and "visible offline." New `AnnotationCanvasScreen` (draw/label/undo/redo/select/move/delete) opens from any photo tile in `InspectionMediaSection`; overlay rendering (toggleable) lands on the gallery tile, the canvas itself, and a new read-only SVG overlay in admin's existing `InspectionDetailPage`. Contracts regenerated for `AnnotationResponse`/`CreateAnnotationRequest`/`UpdateAnnotationRequest`/`AnnotationPointResponse`/`AnnotationPointInput` and the three new `InspectionsApi` operations. | 2026-08-05 |
 | Phase 7.7 — manual status readings (resolves the deferred §9 manual-status log) | See "Phase 7.7 Manual Status Readings" above for the full breakdown. In short: `Inspection.readings` (typed since 7.1's untyped `dict` placeholder) is a single nullable `Readings` object, not an array — deliberately rides the existing generic `update_inspection`/revision-aware PATCH the 7.3 checklist already uses (D-059), never the 7.4/7.5/7.6 append-idempotent-by-id/no-revision pattern, since it's one form with one editor rather than independent records. Fixed documented units (Celsius/bar/decibels, D-058) via unit-suffixed field names, no per-reading unit picker. On `complete_inspection` only, `READINGS_CONDITION_TO_ASSET_STATUS` maps the condition onto the asset's 4.1 `current_status` through a new `AssetRepository.roll_up_status_from_inspection` (own `asset.status_rolled_up` audit action), which the existing 4.4 dashboard `count()` query picks up on its next read with zero caching — verified end to end against the real Firebase project. Mobile's `InspectionReadingsSection` autosaves through a new `updateInspection(..., readings:)` parameter (not a new outbox mutation type), backed by a new nullable `LocalInspections.readings` column (schema v5→v6). Admin gains a read-only readings review section. Contracts regenerated for `ReadingsInput`/`ReadingsResponse` and the updated `InspectionDetail`/`UpdateInspectionRequest`. | 2026-08-06 |
 | Phase 7.8 — digital signature (inspector sign-off) | See "Phase 7.8 Digital Signature" above for the full breakdown. In short: `Inspection.signature` (typed since 7.1's untyped placeholder) is a single nullable `Signature` object holding a list of `SignatureStroke` objects (each `points: list[AnnotationPoint]`) — a named-stroke shape chosen specifically to avoid a real doubly-nested-list builder-factory gap in the pinned Dart generator. Signing is now the mandatory final step of `POST /inspections/{id}/complete` (a new required `CompleteInspectionRequest` body: `strokes` + `expected_revision`) — there is no separate sign-then-complete call and no way to complete unsigned. Signer identity is always server-derived (`InspectionService` gained a `UserRepository` dependency for the `display_name` lookup); a stale `expected_revision` is rejected with the existing `revision_conflict` 409 before the checklist-completeness check runs, which is also the entire "re-sign" mechanism — no reopen/re-edit capability was added, since a completed inspection stays immutable. Mobile gained `SignaturePad`/`SignaturePadController` and a `_SignatureCaptureSheet` modal opened from "Complete Inspection"; `LocalInspectionsRepository.completeInspection` now requires `strokes`, and `LocalInspections` gained `signature`/`pendingSignatureStrokes` columns (schema v6→v7). `markConflict` was fixed to re-sync `status`/`startedAt`/`completedAt` from the server on any conflict, so a stale `complete` attempt's optimistic status flip reverts correctly. Admin gains a read-only signature review section (signer/role/timestamp, valid-vs-superseded indicator, SVG stroke preview). Contracts regenerated for `Signature`/`SignatureStroke` request/response models and the updated `InspectionDetail`. | 2026-08-06 |
+| Phase 7.9 — AR/manual dimension measurement | See "Phase 7.9 AR/Manual Dimension Measurement" above for the full breakdown. In short: `Inspection.ar_measurements[]` (typed since 7.1's untyped placeholder) holds `ArMeasurement` records (method, distance in meters, optional label/note/checklist link, optional screenshot reference, optional overlay points) — mutation protocol is a field-for-field copy of 7.5's annotation pattern (idempotent by id, no `expected_revision`), and the evidence screenshot is a plain photo through the *existing* 7.4 media pipeline, not a new storage namespace. `points` stays genuinely optional even for AR captures since `ar_flutter_plugin_2` exposes no 2D tap coordinate to populate them honestly (D-064). Session opened on an already-uncommitted Step-1 spike (D-062) gated behind physical-device validation; the product owner waived that gate (D-063) so this phase shipped the full feature. Mobile gained `ArMeasurementScreen`/`ManualMeasurementScreen`/`InspectionMeasurementsSection`, three new `OutboxMutationType` values, and a new `LocalInspections.arMeasurements` column (schema v7→v8). Admin gains a read-only measurements review section. Contracts regenerated for `ArMeasurementResponse`/`CreateArMeasurementRequest`/`UpdateArMeasurementRequest` and the updated `InspectionDetail`. AR plane-detection/measurement accuracy on real hardware remains unverified — accepted risk, confined to the capture screen only. | 2026-08-10 |

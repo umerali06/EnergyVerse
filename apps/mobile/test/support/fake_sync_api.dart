@@ -2,7 +2,8 @@ import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 
 typedef GetInspectionFn = Future<InspectionDetail> Function(String id);
-typedef CreateInspectionFn = Future<InspectionDetail> Function(CreateInspectionRequest request);
+typedef CreateInspectionFn = Future<InspectionDetail> Function(
+    CreateInspectionRequest request);
 typedef UpdateInspectionFn = Future<InspectionDetail> Function(
   String id,
   UpdateInspectionRequest request,
@@ -21,7 +22,8 @@ typedef GetChecklistTemplatesFn = Future<ChecklistTemplateListPage> Function({
   String? cursor,
   int limit,
 });
-typedef GetChecklistTemplateFn = Future<ChecklistTemplateDetail> Function(String templateId);
+typedef GetChecklistTemplateFn = Future<ChecklistTemplateDetail> Function(
+    String templateId);
 typedef AttachMediaFn = Future<InspectionDetail> Function(
   String inspectionId,
   AttachInspectionMediaRequest request,
@@ -31,7 +33,8 @@ typedef UpdateMediaFn = Future<InspectionDetail> Function(
   String mediaId,
   UpdateInspectionMediaRequest request,
 );
-typedef DetachMediaFn = Future<InspectionDetail> Function(String inspectionId, String mediaId);
+typedef DetachMediaFn = Future<InspectionDetail> Function(
+    String inspectionId, String mediaId);
 typedef AttachVoiceNoteFn = Future<InspectionDetail> Function(
   String inspectionId,
   AttachVoiceNoteRequest request,
@@ -57,6 +60,19 @@ typedef UpdateAnnotationFn = Future<InspectionDetail> Function(
 typedef DeleteAnnotationFn = Future<InspectionDetail> Function(
   String inspectionId,
   String annotationId,
+);
+typedef CreateMeasurementFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  CreateArMeasurementRequest request,
+);
+typedef UpdateMeasurementFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  String measurementId,
+  UpdateArMeasurementRequest request,
+);
+typedef DeleteMeasurementFn = Future<InspectionDetail> Function(
+  String inspectionId,
+  String measurementId,
 );
 
 /// A configurable [ApiContract] double for repository/sync-engine tests --
@@ -84,6 +100,9 @@ class FakeSyncApi implements ApiContract {
     CreateAnnotationFn? createInspectionAnnotation,
     UpdateAnnotationFn? updateInspectionAnnotation,
     DeleteAnnotationFn? deleteInspectionAnnotation,
+    CreateMeasurementFn? createInspectionArMeasurement,
+    UpdateMeasurementFn? updateInspectionArMeasurement,
+    DeleteMeasurementFn? deleteInspectionArMeasurement,
   })  : _getInspection = getInspection,
         _createInspection = createInspection,
         _updateInspection = updateInspection,
@@ -101,7 +120,10 @@ class FakeSyncApi implements ApiContract {
         _detachInspectionVoiceNote = detachInspectionVoiceNote,
         _createInspectionAnnotation = createInspectionAnnotation,
         _updateInspectionAnnotation = updateInspectionAnnotation,
-        _deleteInspectionAnnotation = deleteInspectionAnnotation;
+        _deleteInspectionAnnotation = deleteInspectionAnnotation,
+        _createInspectionArMeasurement = createInspectionArMeasurement,
+        _updateInspectionArMeasurement = updateInspectionArMeasurement,
+        _deleteInspectionArMeasurement = deleteInspectionArMeasurement;
 
   final GetInspectionFn? _getInspection;
   final CreateInspectionFn? _createInspection;
@@ -121,6 +143,9 @@ class FakeSyncApi implements ApiContract {
   final CreateAnnotationFn? _createInspectionAnnotation;
   final UpdateAnnotationFn? _updateInspectionAnnotation;
   final DeleteAnnotationFn? _deleteInspectionAnnotation;
+  final CreateMeasurementFn? _createInspectionArMeasurement;
+  final UpdateMeasurementFn? _updateInspectionArMeasurement;
+  final DeleteMeasurementFn? _deleteInspectionArMeasurement;
 
   final List<String> calls = [];
 
@@ -141,7 +166,8 @@ class FakeSyncApi implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> updateInspection(String inspectionId, UpdateInspectionRequest request) {
+  Future<InspectionDetail> updateInspection(
+      String inspectionId, UpdateInspectionRequest request) {
     calls.add('updateInspection:$inspectionId');
     final handler = _updateInspection;
     if (handler == null) throw UnimplementedError();
@@ -210,7 +236,8 @@ class FakeSyncApi implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) {
+  Future<InspectionDetail> detachInspectionMedia(
+      String inspectionId, String mediaId) {
     calls.add('detachInspectionMedia:$inspectionId:$mediaId');
     final handler = _detachInspectionMedia;
     if (handler == null) throw UnimplementedError();
@@ -241,7 +268,8 @@ class FakeSyncApi implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) {
+  Future<InspectionDetail> detachInspectionVoiceNote(
+      String inspectionId, String voiceNoteId) {
     calls.add('detachInspectionVoiceNote:$inspectionId:$voiceNoteId');
     final handler = _detachInspectionVoiceNote;
     if (handler == null) throw UnimplementedError();
@@ -272,11 +300,46 @@ class FakeSyncApi implements ApiContract {
   }
 
   @override
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) {
+  Future<InspectionDetail> deleteInspectionAnnotation(
+      String inspectionId, String annotationId) {
     calls.add('deleteInspectionAnnotation:$inspectionId:$annotationId');
     final handler = _deleteInspectionAnnotation;
     if (handler == null) throw UnimplementedError();
     return handler(inspectionId, annotationId);
+  }
+
+  @override
+  Future<InspectionDetail> createInspectionArMeasurement(
+    String inspectionId,
+    CreateArMeasurementRequest request,
+  ) {
+    calls.add('createInspectionArMeasurement:$inspectionId');
+    final handler = _createInspectionArMeasurement;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, request);
+  }
+
+  @override
+  Future<InspectionDetail> updateInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+    UpdateArMeasurementRequest request,
+  ) {
+    calls.add('updateInspectionArMeasurement:$inspectionId:$measurementId');
+    final handler = _updateInspectionArMeasurement;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, measurementId, request);
+  }
+
+  @override
+  Future<InspectionDetail> deleteInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+  ) {
+    calls.add('deleteInspectionArMeasurement:$inspectionId:$measurementId');
+    final handler = _deleteInspectionArMeasurement;
+    if (handler == null) throw UnimplementedError();
+    return handler(inspectionId, measurementId);
   }
 
   @override
@@ -303,7 +366,8 @@ class FakeSyncApi implements ApiContract {
   }) =>
       throw UnimplementedError();
   @override
-  Future<DashboardSummary> getDashboardSummary({int window = 30}) => throw UnimplementedError();
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) =>
+      throw UnimplementedError();
   @override
   Future<DashboardActivityPage> getDashboardActivity({
     int limit = 20,
@@ -312,10 +376,12 @@ class FakeSyncApi implements ApiContract {
   }) =>
       throw UnimplementedError();
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) =>
       throw UnimplementedError();
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() => throw UnimplementedError();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
   @override
   Future<UserListPage> getUsers({
     String? search,
@@ -347,7 +413,8 @@ class FakeSyncApi implements ApiContract {
   }) =>
       throw UnimplementedError();
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
   @override
   Future<AssetListPage> getAssets({
@@ -365,7 +432,8 @@ class FakeSyncApi implements ApiContract {
   @override
   Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      throw UnimplementedError();
   @override
   Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
   @override
@@ -378,7 +446,8 @@ class FakeSyncApi implements ApiContract {
   }) =>
       throw UnimplementedError();
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
   @override
   Future<AreaListPage> getAreas({
     String? facilityId,

@@ -2,9 +2,11 @@ import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
 
 typedef ResolveQrCodeFn = Future<QrScanResult> Function(String code);
-typedef CreateInspectionFn = Future<InspectionDetail> Function(CreateInspectionRequest request);
+typedef CreateInspectionFn = Future<InspectionDetail> Function(
+    CreateInspectionRequest request);
 
-CurrentUser defaultQrTestIdentity({List<String> permissions = const ['assets.read']}) {
+CurrentUser defaultQrTestIdentity(
+    {List<String> permissions = const ['assets.read']}) {
   return CurrentUser(
     (builder) => builder
       ..uid = 'demo-acme-field_inspector'
@@ -55,7 +57,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> getInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<CurrentUser> getCurrentUser() async => _identity;
@@ -73,7 +76,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardSummary> getDashboardSummary({int window = 30}) => throw UnimplementedError();
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) =>
+      throw UnimplementedError();
 
   @override
   Future<DashboardActivityPage> getDashboardActivity({
@@ -84,11 +88,13 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) =>
       throw UnimplementedError();
 
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() => throw UnimplementedError();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
 
   @override
   Future<UserListPage> getUsers({
@@ -127,7 +133,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
 
   @override
@@ -148,7 +155,8 @@ class FakeQrApi implements ApiContract {
   Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      throw UnimplementedError();
 
   @override
   Future<FacilityListPage> getFacilities({
@@ -161,7 +169,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
 
   @override
   Future<AreaListPage> getAreas({
@@ -184,7 +193,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> startInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> completeInspection(
@@ -194,7 +204,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> cancelInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
@@ -219,7 +230,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> detachInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -238,7 +250,8 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) =>
+  Future<InspectionDetail> detachInspectionVoiceNote(
+          String inspectionId, String voiceNoteId) =>
       throw UnimplementedError();
 
   @override
@@ -257,7 +270,28 @@ class FakeQrApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) =>
+  Future<InspectionDetail> deleteInspectionAnnotation(
+          String inspectionId, String annotationId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> createInspectionArMeasurement(
+    String inspectionId,
+    CreateArMeasurementRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> updateInspectionArMeasurement(
+    String inspectionId,
+    String measurementId,
+    UpdateArMeasurementRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<InspectionDetail> deleteInspectionArMeasurement(
+          String inspectionId, String measurementId) =>
       throw UnimplementedError();
 
   @override

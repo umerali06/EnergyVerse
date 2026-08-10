@@ -323,8 +323,7 @@ void main() {
     final server = _serverDetailFixture(id: id, revision: 2);
     await repository.markConflict(inspectionId: id, serverSnapshot: server);
 
-    row = await (db.select(db.localInspections)
-          ..where((t) => t.id.equals(id)))
+    row = await (db.select(db.localInspections)..where((t) => t.id.equals(id)))
         .getSingle();
     expect(row.status, 'in_progress');
     expect(row.completedAt, isNull);
@@ -860,6 +859,195 @@ void main() {
     });
   });
 
+  group('AR/manual measurements (Phase 7.9)', () {
+    test(
+        'createMeasurement writes to the local ar_measurements blob immediately and '
+        'queues a create_measurement mutation', () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+
+      final measurementId = await repository.createMeasurement(
+        inspectionId: id,
+        method: 'manual',
+        distanceMeters: 1.25,
+        createdBy: 'user-1',
+        label: 'Flange gap',
+        note: 'Measured with tape',
+      );
+
+      final record = await repository.getInspection(id);
+      expect(record!.arMeasurements, hasLength(1));
+      final measurement = record.arMeasurements.single;
+      expect(measurement.id, measurementId);
+      expect(measurement.method, ArMeasurementResponseMethodEnum.manual);
+      expect(measurement.distanceMeters, 1.25);
+      expect(measurement.label, 'Flange gap');
+      expect(measurement.note, 'Measured with tape');
+      expect(measurement.mediaLocalId, isNull);
+      expect(measurement.points, isEmpty);
+      expect(measurement.createdBy, 'user-1');
+
+      // Small metadata rides the SAME record outbox as annotations/checklist
+      // mutations -- never the heavy MediaQueue.
+      final outbox = await db.select(db.outbox).get();
+      expect(outbox, hasLength(2)); // create (draft) + create_measurement
+      expect(outbox.last.mutationType, 'create_measurement');
+      expect(outbox.last.inspectionId, id);
+    });
+
+    test(
+        'createMeasurement(method: ar) carries its screenshot reference and points',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+
+      await repository.createMeasurement(
+        inspectionId: id,
+        method: 'ar',
+        distanceMeters: 0.42,
+        createdBy: 'user-1',
+        mediaLocalId: 'media-local-1',
+        points: [
+          AnnotationPointResponse((b) => b
+            ..x = 0.2
+            ..y = 0.3),
+          AnnotationPointResponse((b) => b
+            ..x = 0.6
+            ..y = 0.7),
+        ],
+      );
+
+      final record = await repository.getInspection(id);
+      final measurement = record!.arMeasurements.single;
+      expect(measurement.method, ArMeasurementResponseMethodEnum.ar);
+      expect(measurement.mediaLocalId, 'media-local-1');
+      expect(measurement.points, hasLength(2));
+      expect(measurement.points![0].x, 0.2);
+      expect(measurement.points![1].x, 0.6);
+    });
+
+    test('updateMeasurement edits label/note in place, preserving distance',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final measurementId = await repository.createMeasurement(
+        inspectionId: id,
+        method: 'manual',
+        distanceMeters: 1.25,
+        createdBy: 'user-1',
+        label: 'Original label',
+      );
+
+      await repository.updateMeasurement(
+        inspectionId: id,
+        measurementId: measurementId,
+        note: 'Re-checked',
+      );
+
+      final record = await repository.getInspection(id);
+      final measurement = record!.arMeasurements.single;
+      expect(measurement.note, 'Re-checked');
+      // Untouched fields survive the partial update.
+      expect(measurement.label, 'Original label');
+      expect(measurement.distanceMeters, 1.25);
+
+      final outbox = await db.select(db.outbox).get();
+      expect(outbox.last.mutationType, 'update_measurement');
+    });
+
+    test(
+        'updateMeasurement is a no-op (no local write, no enqueue) when the id is not found',
+        () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final outboxBefore = await db.select(db.outbox).get();
+
+      await repository.updateMeasurement(
+        inspectionId: id,
+        measurementId: 'does-not-exist',
+        note: 'irrelevant',
+      );
+
+      final record = await repository.getInspection(id);
+      expect(record!.arMeasurements, isEmpty);
+      final outboxAfter = await db.select(db.outbox).get();
+      expect(outboxAfter, hasLength(outboxBefore.length));
+    });
+
+    test(
+        'deleteMeasurement removes it from the local blob and queues a delete_measurement '
+        'mutation', () async {
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final measurementId = await repository.createMeasurement(
+        inspectionId: id,
+        method: 'manual',
+        distanceMeters: 1.25,
+        createdBy: 'user-1',
+      );
+
+      await repository.deleteMeasurement(
+          inspectionId: id, measurementId: measurementId);
+
+      final record = await repository.getInspection(id);
+      expect(record!.arMeasurements, isEmpty);
+      final outbox = await db.select(db.outbox).get();
+      expect(outbox.last.mutationType, 'delete_measurement');
+    });
+
+    test('a measurement recorded offline persists across an app restart',
+        () async {
+      final dbFile =
+          File(p.join(tempDir.path, 'measurement_restart_test.sqlite'));
+
+      var firstDb = AppDatabase(NativeDatabase(dbFile));
+      var firstRepository =
+          LocalInspectionsRepository(db: firstDb, api: FakeSyncApi());
+      final id = await firstRepository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      final measurementId = await firstRepository.createMeasurement(
+        inspectionId: id,
+        method: 'manual',
+        distanceMeters: 2.5,
+        createdBy: 'user-1',
+        label: 'Pipe diameter',
+      );
+      // Simulate the app being killed with the measurement still unsynced.
+      await firstDb.close();
+
+      final secondDb = AppDatabase(NativeDatabase(dbFile));
+      addTearDown(secondDb.close);
+      final secondRepository =
+          LocalInspectionsRepository(db: secondDb, api: FakeSyncApi());
+
+      final record = await secondRepository.getInspection(id);
+      expect(record!.arMeasurements, hasLength(1));
+      expect(record.arMeasurements.single.id, measurementId);
+      expect(record.arMeasurements.single.label, 'Pipe diameter');
+      final resumedOutbox = await secondDb.select(secondDb.outbox).get();
+      expect(resumedOutbox.map((r) => r.mutationType),
+          contains('create_measurement'));
+    });
+  });
+
   group('readings (Phase 7.7)', () {
     test(
         'updateInspection(readings:) writes the local blob and coalesces into the '
@@ -896,7 +1084,8 @@ void main() {
       expect(readings.noiseLevelDb, 88.0);
       expect(readings.vibrationObservation, 'Slight rattle');
       expect(readings.leakObserved, false);
-      expect(readings.operationalStatus, ReadingsResponseOperationalStatusEnum.degraded);
+      expect(readings.operationalStatus,
+          ReadingsResponseOperationalStatusEnum.degraded);
       expect(readings.comments, 'Bearing noise increasing');
       expect(readings.recommendations, 'Schedule bearing replacement');
       expect(readings.priorityLevel, ReadingsResponsePriorityLevelEnum.high);
@@ -909,7 +1098,8 @@ void main() {
       expect(outbox.where((r) => r.mutationType.contains('reading')), isEmpty);
     });
 
-    test('an unrelated field edit resends the previously-saved readings unchanged',
+    test(
+        'an unrelated field edit resends the previously-saved readings unchanged',
         () async {
       final id = await repository.createDraft(
         assetId: 'asset-1',
@@ -918,7 +1108,8 @@ void main() {
       );
       await repository.updateInspection(
         id,
-        readings: ReadingsInput((b) => b..condition = ReadingsInputConditionEnum.good),
+        readings: ReadingsInput(
+            (b) => b..condition = ReadingsInputConditionEnum.good),
       );
 
       await repository.updateInspection(id, notes: 'unrelated autosave edit');
@@ -957,7 +1148,8 @@ void main() {
 
       await repository.updateInspection(
         id,
-        readings: ReadingsInput((b) => b..condition = ReadingsInputConditionEnum.good),
+        readings: ReadingsInput(
+            (b) => b..condition = ReadingsInputConditionEnum.good),
       );
 
       final record = await repository.getInspection(id);
@@ -993,8 +1185,10 @@ void main() {
           LocalInspectionsRepository(db: secondDb, api: FakeSyncApi());
 
       final record = await secondRepository.getInspection(id);
-      expect(record!.readings?.condition, ReadingsResponseConditionEnum.critical);
-      expect(record.readings?.priorityLevel, ReadingsResponsePriorityLevelEnum.critical);
+      expect(
+          record!.readings?.condition, ReadingsResponseConditionEnum.critical);
+      expect(record.readings?.priorityLevel,
+          ReadingsResponsePriorityLevelEnum.critical);
       final resumedOutbox = await secondDb.select(secondDb.outbox).get();
       expect(resumedOutbox.map((r) => r.mutationType), contains('update'));
     });

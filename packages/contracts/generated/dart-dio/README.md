@@ -109,8 +109,10 @@ Class | Method | HTTP request | Description
 [*InspectionsApi*](doc/InspectionsApi.md) | [**completeInspection**](doc/InspectionsApi.md#completeinspection) | **POST** /api/v1/inspections/{inspection_id}/complete | Complete Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**createInspection**](doc/InspectionsApi.md#createinspection) | **POST** /api/v1/inspections | Create Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**createInspectionAnnotation**](doc/InspectionsApi.md#createinspectionannotation) | **POST** /api/v1/inspections/{inspection_id}/annotations | Create Inspection Annotation
+[*InspectionsApi*](doc/InspectionsApi.md) | [**createInspectionArMeasurement**](doc/InspectionsApi.md#createinspectionarmeasurement) | **POST** /api/v1/inspections/{inspection_id}/ar-measurements | Create Inspection Ar Measurement
 [*InspectionsApi*](doc/InspectionsApi.md) | [**deleteInspection**](doc/InspectionsApi.md#deleteinspection) | **DELETE** /api/v1/inspections/{inspection_id} | Delete Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**deleteInspectionAnnotation**](doc/InspectionsApi.md#deleteinspectionannotation) | **DELETE** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Delete Inspection Annotation
+[*InspectionsApi*](doc/InspectionsApi.md) | [**deleteInspectionArMeasurement**](doc/InspectionsApi.md#deleteinspectionarmeasurement) | **DELETE** /api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id} | Delete Inspection Ar Measurement
 [*InspectionsApi*](doc/InspectionsApi.md) | [**detachInspectionMedia**](doc/InspectionsApi.md#detachinspectionmedia) | **DELETE** /api/v1/inspections/{inspection_id}/media/{media_id} | Detach Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**detachInspectionVoiceNote**](doc/InspectionsApi.md#detachinspectionvoicenote) | **DELETE** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Detach Inspection Voice Note
 [*InspectionsApi*](doc/InspectionsApi.md) | [**getInspection**](doc/InspectionsApi.md#getinspection) | **GET** /api/v1/inspections/{inspection_id} | Get Inspection
@@ -118,6 +120,7 @@ Class | Method | HTTP request | Description
 [*InspectionsApi*](doc/InspectionsApi.md) | [**startInspection**](doc/InspectionsApi.md#startinspection) | **POST** /api/v1/inspections/{inspection_id}/start | Start Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspection**](doc/InspectionsApi.md#updateinspection) | **PATCH** /api/v1/inspections/{inspection_id} | Update Inspection
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionAnnotation**](doc/InspectionsApi.md#updateinspectionannotation) | **PATCH** /api/v1/inspections/{inspection_id}/annotations/{annotation_id} | Update Inspection Annotation
+[*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionArMeasurement**](doc/InspectionsApi.md#updateinspectionarmeasurement) | **PATCH** /api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id} | Update Inspection Ar Measurement
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionMedia**](doc/InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionVoiceNote**](doc/InspectionsApi.md#updateinspectionvoicenote) | **PATCH** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Update Inspection Voice Note
 [*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
@@ -149,6 +152,7 @@ Class | Method | HTTP request | Description
  - [AnnotationPointInput](doc/AnnotationPointInput.md)
  - [AnnotationPointResponse](doc/AnnotationPointResponse.md)
  - [AnnotationResponse](doc/AnnotationResponse.md)
+ - [ArMeasurementResponse](doc/ArMeasurementResponse.md)
  - [AreaDeleted](doc/AreaDeleted.md)
  - [AreaDetail](doc/AreaDetail.md)
  - [AreaListPage](doc/AreaListPage.md)
@@ -181,6 +185,7 @@ Class | Method | HTTP request | Description
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
  - [CompleteInspectionRequest](doc/CompleteInspectionRequest.md)
  - [CreateAnnotationRequest](doc/CreateAnnotationRequest.md)
+ - [CreateArMeasurementRequest](doc/CreateArMeasurementRequest.md)
  - [CreateAreaRequest](doc/CreateAreaRequest.md)
  - [CreateAssetRequest](doc/CreateAssetRequest.md)
  - [CreateChecklistTemplateRequest](doc/CreateChecklistTemplateRequest.md)
@@ -227,6 +232,7 @@ Class | Method | HTTP request | Description
  - [SignatureStrokeInput](doc/SignatureStrokeInput.md)
  - [SignatureStrokeResponse](doc/SignatureStrokeResponse.md)
  - [UpdateAnnotationRequest](doc/UpdateAnnotationRequest.md)
+ - [UpdateArMeasurementRequest](doc/UpdateArMeasurementRequest.md)
  - [UpdateAreaRequest](doc/UpdateAreaRequest.md)
  - [UpdateAssetRequest](doc/UpdateAssetRequest.md)
  - [UpdateChecklistTemplateRequest](doc/UpdateChecklistTemplateRequest.md)

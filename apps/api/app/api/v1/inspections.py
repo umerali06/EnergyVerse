@@ -15,11 +15,13 @@ from app.models.api import (
     AttachVoiceNoteRequest,
     CompleteInspectionRequest,
     CreateAnnotationRequest,
+    CreateArMeasurementRequest,
     CreateInspectionRequest,
     InspectionDeleted,
     InspectionDetail,
     InspectionListPage,
     UpdateAnnotationRequest,
+    UpdateArMeasurementRequest,
     UpdateInspectionMediaRequest,
     UpdateInspectionRequest,
     UpdateVoiceNoteRequest,
@@ -448,6 +450,79 @@ async def delete_inspection_annotation(
     try:
         return await service.delete_annotation(
             scope, inspection_id, annotation_id, current_user.uid
+        )
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.post(
+    "/{inspection_id}/ar-measurements",
+    response_model=InspectionDetail,
+    operation_id="create_inspection_ar_measurement",
+    responses=error_responses(401, 403, 404, 409, 422, 500),
+)
+async def create_inspection_ar_measurement(
+    inspection_id: str,
+    request: CreateArMeasurementRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Idempotent upsert keyed by the client-generated `id` (mirrors
+    `create_inspection_annotation`) -- covers both AR-captured and
+    manually-entered dimension measurements (spec 7.2 "AR-based dimension
+    measurement", Phase 7.9, D-063)."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.create_ar_measurement(
+            scope, inspection_id, request, current_user.uid
+        )
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.patch(
+    "/{inspection_id}/ar-measurements/{measurement_id}",
+    response_model=InspectionDetail,
+    operation_id="update_inspection_ar_measurement",
+    responses=error_responses(401, 403, 404, 422, 500),
+)
+async def update_inspection_ar_measurement(
+    inspection_id: str,
+    measurement_id: str,
+    request: UpdateArMeasurementRequest,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.update_ar_measurement(
+            scope, inspection_id, measurement_id, request, current_user.uid
+        )
+    except InspectionServiceError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.delete(
+    "/{inspection_id}/ar-measurements/{measurement_id}",
+    response_model=InspectionDetail,
+    operation_id="delete_inspection_ar_measurement",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def delete_inspection_ar_measurement(
+    inspection_id: str,
+    measurement_id: str,
+    current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
+    service: Annotated[InspectionService, Depends(get_inspection_service)],
+) -> InspectionDetail:
+    """Idempotent on an already-deleted `measurement_id` -- the mobile
+    outbox replays this call at-least-once."""
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.delete_ar_measurement(
+            scope, inspection_id, measurement_id, current_user.uid
         )
     except InspectionServiceError as error:
         _raise_api_error(error)

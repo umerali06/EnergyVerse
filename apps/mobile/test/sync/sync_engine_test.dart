@@ -32,6 +32,7 @@ InspectionDetail _detailFrom({
   String status = 'inProgress',
   String? checklistTemplateId,
   List<AnnotationResponse> annotations = const [],
+  List<ArMeasurementResponse> arMeasurements = const [],
   List<VoiceNoteResponse> voiceNotes = const [],
   ReadingsResponse? readings,
   SignatureResponse? signature,
@@ -50,6 +51,7 @@ InspectionDetail _detailFrom({
       ..checklistTemplateId = checklistTemplateId
       ..revision = revision
       ..annotations.replace(annotations)
+      ..arMeasurements.replace(arMeasurements)
       ..voiceNotes.replace(voiceNotes)
       ..readings = readings?.toBuilder()
       ..signature = signature?.toBuilder()
@@ -69,13 +71,15 @@ SignatureResponse _signatureResponseFrom(
 }) =>
     SignatureResponse(
       (b) => b
-        ..strokes.replace(request.strokes.map((stroke) => SignatureStrokeResponse(
-              (sb) => sb.points.addAll(stroke.points.map((p) => SignaturePointResponse(
-                    (pb) => pb
-                      ..x = p.x
-                      ..y = p.y,
-                  ))),
-            )))
+        ..strokes
+            .replace(request.strokes.map((stroke) => SignatureStrokeResponse(
+                  (sb) => sb.points
+                      .addAll(stroke.points.map((p) => SignaturePointResponse(
+                            (pb) => pb
+                              ..x = p.x
+                              ..y = p.y,
+                          ))),
+                )))
         ..signerUid = 'user-1'
         ..signerName = 'Test Inspector'
         ..signerRole = 'field_inspector'
@@ -91,7 +95,8 @@ SignatureResponse _signatureResponseFrom(
 /// rather than a dedicated one.
 ReadingsResponse _readingsResponseFrom(ReadingsInput input) => ReadingsResponse(
       (b) => b
-        ..condition = ReadingsResponseConditionEnum.valueOf(input.condition.name)
+        ..condition =
+            ReadingsResponseConditionEnum.valueOf(input.condition.name)
         ..temperatureC = input.temperatureC
         ..pressureBar = input.pressureBar
         ..noiseLevelDb = input.noiseLevelDb
@@ -99,12 +104,14 @@ ReadingsResponse _readingsResponseFrom(ReadingsInput input) => ReadingsResponse(
         ..leakObserved = input.leakObserved
         ..operationalStatus = input.operationalStatus == null
             ? null
-            : ReadingsResponseOperationalStatusEnum.valueOf(input.operationalStatus!.name)
+            : ReadingsResponseOperationalStatusEnum.valueOf(
+                input.operationalStatus!.name)
         ..comments = input.comments
         ..recommendations = input.recommendations
         ..priorityLevel = input.priorityLevel == null
             ? null
-            : ReadingsResponsePriorityLevelEnum.valueOf(input.priorityLevel!.name)
+            : ReadingsResponsePriorityLevelEnum.valueOf(
+                input.priorityLevel!.name)
         ..recordedAt = DateTime.utc(2026, 1, 1)
         ..recordedBy = 'user-1',
     );
@@ -131,6 +138,29 @@ AnnotationResponse _annotationFrom(CreateAnnotationRequest request) =>
             ? null
             : AnnotationResponseDamageTypeEnum.valueOf(request.damageType!.name)
         ..note = request.note
+        ..createdBy = 'user-1'
+        ..createdAt = DateTime.utc(2026, 1, 1),
+    );
+
+/// Mirrors the real backend's `_to_detail`: a `create_measurement` response
+/// always echoes the inspection's CURRENT full `ar_measurements[]`, same
+/// full-row-overwrite trap `_annotationFrom` above guards against.
+ArMeasurementResponse _measurementFrom(CreateArMeasurementRequest request) =>
+    ArMeasurementResponse(
+      (b) => b
+        ..id = request.id
+        ..method = ArMeasurementResponseMethodEnum.valueOf(request.method.name)
+        ..distanceMeters = request.distanceMeters
+        ..label = request.label
+        ..mediaLocalId = request.mediaLocalId
+        ..points.replace(
+          (request.points ?? const <AnnotationPointInput>[])
+              .map((p) => AnnotationPointResponse((pb) => pb
+                ..x = p.x
+                ..y = p.y)),
+        )
+        ..note = request.note
+        ..checklistItemId = request.checklistItemId
         ..createdBy = 'user-1'
         ..createdAt = DateTime.utc(2026, 1, 1),
     );
@@ -798,8 +828,8 @@ void main() {
       final api = FakeSyncApi(
         createInspection: (request) async =>
             _detailFrom(id: request.id, revision: 1),
-        attachInspectionVoiceNote: (id, request) async =>
-            _detailFrom(id: id, revision: 1, voiceNotes: [_voiceNoteFrom(request)]),
+        attachInspectionVoiceNote: (id, request) async => _detailFrom(
+            id: id, revision: 1, voiceNotes: [_voiceNoteFrom(request)]),
       );
       final repository = LocalInspectionsRepository(db: db, api: api);
       final mediaRepository = LocalMediaRepository(db: db);
@@ -855,7 +885,8 @@ void main() {
       expect(row.voiceNotes, contains('"duration_ms":42000'));
     });
 
-    test('edit-voice-note dispatches the voice_note_id + request wrapper payload',
+    test(
+        'edit-voice-note dispatches the voice_note_id + request wrapper payload',
         () async {
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -883,7 +914,8 @@ void main() {
       await repository.enqueueEditVoiceNote(
         inspectionId: id,
         voiceNoteId: 'voice-1',
-        request: UpdateVoiceNoteRequest((b) => b..checklistItemId = 'vibration_normal'),
+        request: UpdateVoiceNoteRequest(
+            (b) => b..checklistItemId = 'vibration_normal'),
       );
 
       await engine.syncNow();
@@ -916,7 +948,8 @@ void main() {
         inspectionType: 'ad_hoc',
       );
       await engine.syncNow();
-      await repository.enqueueDetachVoiceNote(inspectionId: id, voiceNoteId: 'voice-2');
+      await repository.enqueueDetachVoiceNote(
+          inspectionId: id, voiceNoteId: 'voice-2');
 
       await engine.syncNow();
 
@@ -1128,6 +1161,132 @@ void main() {
     });
   });
 
+  group('measurement sync (Phase 7.9)', () {
+    test(
+        'create-measurement dispatches through the record outbox and clears it on success',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        createInspectionArMeasurement: (id, request) async =>
+            _detailFrom(id: id, revision: 1),
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      await repository.createMeasurement(
+        inspectionId: id,
+        method: 'manual',
+        distanceMeters: 1.25,
+        createdBy: 'user-1',
+      );
+
+      await engine.syncNow();
+
+      expect(api.calls, contains('createInspectionArMeasurement:$id'));
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+
+    test(
+        'update-measurement dispatches the measurement_id + request wrapper payload',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      String? capturedMeasurementId;
+      UpdateArMeasurementRequest? capturedRequest;
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        createInspectionArMeasurement: (id, request) async => _detailFrom(
+            id: id, revision: 1, arMeasurements: [_measurementFrom(request)]),
+        updateInspectionArMeasurement: (id, measurementId, request) async {
+          capturedMeasurementId = measurementId;
+          capturedRequest = request;
+          return _detailFrom(id: id, revision: 1);
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      final measurementId = await repository.createMeasurement(
+        inspectionId: id,
+        method: 'manual',
+        distanceMeters: 1.25,
+        createdBy: 'user-1',
+      );
+      await engine.syncNow();
+      await repository.updateMeasurement(
+        inspectionId: id,
+        measurementId: measurementId,
+        note: 'Re-checked',
+      );
+
+      await engine.syncNow();
+
+      expect(capturedMeasurementId, measurementId);
+      expect(capturedRequest?.note, 'Re-checked');
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+
+    test(
+        'delete-measurement dispatches just the measurement_id, no request body',
+        () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      String? capturedMeasurementId;
+      final api = FakeSyncApi(
+        createInspection: (request) async =>
+            _detailFrom(id: request.id, revision: 1),
+        createInspectionArMeasurement: (id, request) async => _detailFrom(
+            id: id, revision: 1, arMeasurements: [_measurementFrom(request)]),
+        deleteInspectionArMeasurement: (id, measurementId) async {
+          capturedMeasurementId = measurementId;
+          return _detailFrom(id: id, revision: 1);
+        },
+      );
+      final repository = LocalInspectionsRepository(db: db, api: api);
+      final engine = _buildEngine(repository: repository, api: api);
+      addTearDown(engine.dispose);
+
+      final id = await repository.createDraft(
+        assetId: 'asset-1',
+        inspectorId: 'user-1',
+        inspectionType: 'ad_hoc',
+      );
+      await engine.syncNow();
+      final measurementId = await repository.createMeasurement(
+        inspectionId: id,
+        method: 'manual',
+        distanceMeters: 1.25,
+        createdBy: 'user-1',
+      );
+      await engine.syncNow();
+      await repository.deleteMeasurement(
+          inspectionId: id, measurementId: measurementId);
+
+      await engine.syncNow();
+
+      expect(capturedMeasurementId, measurementId);
+      expect(await db.select(db.outbox).get(), isEmpty);
+    });
+  });
+
   group('readings sync (Phase 7.7)', () {
     test(
         'saving readings dispatches through the same update mutation and clears the outbox',
@@ -1170,10 +1329,12 @@ void main() {
 
       await engine.syncNow();
 
-      expect(captured?.readings?.condition, ReadingsInputConditionEnum.critical);
+      expect(
+          captured?.readings?.condition, ReadingsInputConditionEnum.critical);
       expect(await db.select(db.outbox).get(), isEmpty);
       final record = await repository.getInspection(id);
-      expect(record!.readings?.condition, ReadingsResponseConditionEnum.critical);
+      expect(
+          record!.readings?.condition, ReadingsResponseConditionEnum.critical);
       // Server-stamped fields land locally only once synced.
       expect(record.readings?.recordedBy, 'user-1');
       expect(record.syncState, LocalSyncState.synced);
@@ -1213,15 +1374,16 @@ void main() {
       await engine.syncNow();
       await repository.updateInspection(
         id,
-        readings:
-            ReadingsInput((b) => b..condition = ReadingsInputConditionEnum.good),
+        readings: ReadingsInput(
+            (b) => b..condition = ReadingsInputConditionEnum.good),
       );
       await engine.syncNow();
 
       await repository.updateInspection(id, title: 'unrelated edit');
       await engine.syncNow();
 
-      expect(requests.last.readings?.condition, ReadingsInputConditionEnum.good);
+      expect(
+          requests.last.readings?.condition, ReadingsInputConditionEnum.good);
       final record = await repository.getInspection(id);
       expect(record!.readings?.condition, ReadingsResponseConditionEnum.good);
       expect(record.title, 'unrelated edit');

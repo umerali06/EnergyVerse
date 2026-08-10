@@ -4,6 +4,7 @@ from app.db.repositories.base import FIRESTORE_OPERATION_TIMEOUT_SECONDS, Tenant
 from app.models.base import CompanyScope, tenant_creation_fields, utc_now
 from app.models.entities import (
     Annotation,
+    ArMeasurement,
     ChecklistTemplateItem,
     Inspection,
     InspectionCreate,
@@ -534,6 +535,97 @@ class InspectionRepository(TenantRepository[Inspection]):
             action="inspection.annotation_removed",
             target_id=inspection_id,
             metadata={"annotation": annotation.model_dump(mode="json")},
+        )
+        return updated
+
+    async def append_ar_measurement(
+        self, scope: CompanyScope, inspection_id: str, measurement: ArMeasurement, actor_uid: str
+    ) -> Inspection:
+        """Mirrors `append_annotation`: no `expected_revision`/revision bump
+        by design -- measurement traffic is per-inspection metadata and must
+        never collide with the checklist-autosave revision protocol."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        await self._collection.document(inspection_id).update(
+            {"ar_measurements": ArrayUnion([measurement.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.measurement_added",
+            target_id=inspection_id,
+            metadata={"measurement": measurement.model_dump(mode="json")},
+        )
+        return updated
+
+    async def update_ar_measurement(
+        self,
+        scope: CompanyScope,
+        inspection_id: str,
+        measurement_id: str,
+        *,
+        changes: dict[str, object],
+        actor_uid: str,
+    ) -> Inspection:
+        """Idempotent-on-missing, same posture as `update_annotation`: if
+        `measurement_id` is no longer present, returns the current record
+        unchanged rather than raising."""
+        current = await self.get(scope, inspection_id)
+        if current is None:
+            raise LookupError("inspection not found in company scope")
+        existing = next((m for m in current.ar_measurements if m.id == measurement_id), None)
+        if existing is None:
+            return current
+
+        updated_measurement = ArMeasurement.model_validate({**existing.model_dump(), **changes})
+        new_measurements = [
+            updated_measurement if m.id == measurement_id else m
+            for m in current.ar_measurements
+        ]
+        await self._collection.document(inspection_id).update(
+            {
+                "ar_measurements": [m.model_dump() for m in new_measurements],
+                "updated_at": utc_now(),
+            },
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.measurement_edited",
+            target_id=inspection_id,
+            metadata={"measurement": updated_measurement.model_dump(mode="json")},
+        )
+        return updated
+
+    async def remove_ar_measurement(
+        self, scope: CompanyScope, inspection_id: str, measurement: ArMeasurement, actor_uid: str
+    ) -> Inspection:
+        """Idempotent: an already-removed `measurement` entry is a harmless
+        ArrayRemove no-op, since delete replays via the mobile outbox
+        at-least-once (mirrors `remove_annotation`)."""
+        await self._collection.document(inspection_id).update(
+            {"ar_measurements": ArrayRemove([measurement.model_dump()]), "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        if updated is None:
+            raise LookupError("inspection not found in company scope")
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.measurement_removed",
+            target_id=inspection_id,
+            metadata={"measurement": measurement.model_dump(mode="json")},
         )
         return updated
 

@@ -11,8 +11,10 @@ import '../design_system/tokens_generated.dart';
 import '../media/inspection_media_gallery.dart';
 import '../media/inspection_voice_notes_section.dart';
 import '../sync/sync_engine.dart';
+import 'inspection_measurements_section.dart';
 import 'inspection_readings_section.dart';
-import 'inspections_screen.dart' show inspectionStatusFor, inspectionStatusLabel, syncStateBadge;
+import 'inspections_screen.dart'
+    show inspectionStatusFor, inspectionStatusLabel, syncStateBadge;
 import 'local_inspections_repository.dart';
 import 'signature_pad.dart';
 
@@ -51,7 +53,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
     if (!_started) {
       _started = true;
       unawaited(
-        SyncProvider.repositoryOf(context).refreshDetailFromNetwork(widget.inspectionId),
+        SyncProvider.repositoryOf(context)
+            .refreshDetailFromNetwork(widget.inspectionId),
       );
     }
   }
@@ -69,7 +72,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
     if (inspection.checklistTemplateId == null) {
       final category = inspection.assetCategory;
       if (category != null) {
-        final template = await repository.selectChecklistTemplateForCategory(category);
+        final template =
+            await repository.selectChecklistTemplateForCategory(category);
         if (template != null) {
           await repository.assignChecklistTemplate(
             inspection.id,
@@ -135,11 +139,13 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
 
     final repository = SyncProvider.repositoryOf(context);
     try {
-      await repository.completeInspection(widget.inspectionId, strokes: strokes);
+      await repository.completeInspection(widget.inspectionId,
+          strokes: strokes);
     } on ChecklistIncompleteError {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Answer every required item before completing.')),
+        const SnackBar(
+            content: Text('Answer every required item before completing.')),
       );
     }
   }
@@ -150,11 +156,16 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
     return StreamBuilder<LocalInspectionRecord?>(
       stream: repository.watchInspection(widget.inspectionId),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Padding(
             padding: EdgeInsets.all(DsSpacing.s6),
             child: Column(
-              children: [AppSkeleton(height: 32), SizedBox(height: DsSpacing.s3), AppSkeleton(height: 120)],
+              children: [
+                AppSkeleton(height: 32),
+                SizedBox(height: DsSpacing.s3),
+                AppSkeleton(height: 120)
+              ],
             ),
           );
         }
@@ -165,22 +176,27 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
             child: EmptyState(
               action: AppButton(
                 label: 'Retry',
-                onPressed: () => repository.refreshDetailFromNetwork(widget.inspectionId),
+                onPressed: () =>
+                    repository.refreshDetailFromNetwork(widget.inspectionId),
                 variant: AppButtonVariant.ghost,
               ),
-              description: "This inspection isn't on this device yet. Check your connection and try again.",
+              description:
+                  "This inspection isn't on this device yet. Check your connection and try again.",
               title: "Couldn't find this inspection",
             ),
           );
         }
 
-        WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowConflictSheet(inspection));
-        WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoStart(inspection));
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _maybeShowConflictSheet(inspection));
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _maybeAutoStart(inspection));
 
         final snapshotItems = inspection.checklistItemsSnapshot;
         final responses = inspection.checklistResponses;
         final badge = syncStateBadge(inspection.syncState);
-        final editable = inspection.status == 'draft' || inspection.status == 'in_progress';
+        final editable =
+            inspection.status == 'draft' || inspection.status == 'in_progress';
         final missing = missingRequiredItemIds(snapshotItems, responses);
 
         return ListView(
@@ -196,10 +212,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
               spacing: DsSpacing.s2,
               children: [
                 StatusPill(
-                  label: inspectionStatusLabel(wireToDartEnumName(inspection.status)),
-                  status: inspectionStatusFor(wireToDartEnumName(inspection.status)),
+                  label: inspectionStatusLabel(
+                      wireToDartEnumName(inspection.status)),
+                  status: inspectionStatusFor(
+                      wireToDartEnumName(inspection.status)),
                 ),
-                AppBadge(label: inspectionStatusLabel(wireToDartEnumName(inspection.inspectionType))),
+                AppBadge(
+                    label: inspectionStatusLabel(
+                        wireToDartEnumName(inspection.inspectionType))),
                 if (badge != null)
                   InkWell(
                     key: const Key('sync-state-badge'),
@@ -210,7 +230,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                   ),
               ],
             ),
-            if (inspection.syncState == LocalSyncState.error && inspection.errorMessage != null) ...[
+            if (inspection.syncState == LocalSyncState.error &&
+                inspection.errorMessage != null) ...[
               const SizedBox(height: DsSpacing.s3),
               Text(
                 inspection.errorMessage!,
@@ -241,7 +262,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
             ),
             if (inspection.notes != null && inspection.notes!.isNotEmpty) ...[
               const SizedBox(height: DsSpacing.s4),
-              Text('NOTES', style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
+              Text('NOTES',
+                  style: TextStyle(
+                      color: context.semantic.textMuted, letterSpacing: 1)),
               const SizedBox(height: DsSpacing.s1),
               Text(inspection.notes!),
             ],
@@ -249,7 +272,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('CHECKLIST', style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
+                Text('CHECKLIST',
+                    style: TextStyle(
+                        color: context.semantic.textMuted, letterSpacing: 1)),
                 if (snapshotItems.isNotEmpty)
                   Text(
                     '${responses.where(isChecklistResponseAnswered).length} / ${snapshotItems.length}'
@@ -296,10 +321,19 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
             if (inspection.signature != null ||
                 inspection.pendingSignatureStrokes != null) ...[
               const SizedBox(height: DsSpacing.s5),
-              Text('SIGNATURE', style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
+              Text('SIGNATURE',
+                  style: TextStyle(
+                      color: context.semantic.textMuted, letterSpacing: 1)),
               const SizedBox(height: DsSpacing.s2),
               _SignatureSummary(inspection: inspection),
             ],
+            const SizedBox(height: DsSpacing.s5),
+            InspectionMeasurementsSection(
+              key: ValueKey('measurements-${inspection.id}'),
+              inspectionId: inspection.id,
+              measurements: inspection.arMeasurements,
+              editable: editable,
+            ),
             if (editable) ...[
               const SizedBox(height: DsSpacing.s5),
               AppButton(
@@ -375,14 +409,15 @@ class _ChecklistSectionState extends State<_ChecklistSection> {
       rawValue: rawValue,
     );
     unawaited(
-      SyncProvider.repositoryOf(context)
-          .updateInspection(widget.inspectionId, checklistResponses: [response]),
+      SyncProvider.repositoryOf(context).updateInspection(widget.inspectionId,
+          checklistResponses: [response]),
     );
   }
 
   void _saveDebounced(ChecklistTemplateItem item, Object rawValue) {
     _debounce[item.id]?.cancel();
-    _debounce[item.id] = Timer(const Duration(milliseconds: 500), () => _save(item, rawValue));
+    _debounce[item.id] =
+        Timer(const Duration(milliseconds: 500), () => _save(item, rawValue));
   }
 
   @override
@@ -412,7 +447,9 @@ class _ChecklistSectionState extends State<_ChecklistSection> {
                     const SizedBox(height: DsSpacing.s1),
                     Text(
                       item.helpText!,
-                      style: TextStyle(color: context.semantic.textMuted, fontSize: DsTypography.sizeCaption),
+                      style: TextStyle(
+                          color: context.semantic.textMuted,
+                          fontSize: DsTypography.sizeCaption),
                     ),
                   ],
                   const SizedBox(height: DsSpacing.s2),
@@ -448,7 +485,9 @@ class _ChecklistSectionState extends State<_ChecklistSection> {
             child: AppButton(
               key: Key('item-${item.id}-pass'),
               label: 'Pass',
-              variant: current == true ? AppButtonVariant.primary : AppButtonVariant.ghost,
+              variant: current == true
+                  ? AppButtonVariant.primary
+                  : AppButtonVariant.ghost,
               onPressed: () => _save(item, true),
             ),
           ),
@@ -457,7 +496,9 @@ class _ChecklistSectionState extends State<_ChecklistSection> {
             child: AppButton(
               key: Key('item-${item.id}-fail'),
               label: 'Fail',
-              variant: current == false ? AppButtonVariant.danger : AppButtonVariant.ghost,
+              variant: current == false
+                  ? AppButtonVariant.danger
+                  : AppButtonVariant.ghost,
               onPressed: () => _save(item, false),
             ),
           ),
@@ -467,12 +508,14 @@ class _ChecklistSectionState extends State<_ChecklistSection> {
 
     if (item.itemType == ChecklistTemplateItemItemTypeEnum.select) {
       final options = item.options?.toList() ?? const <String>[];
-      final current = rawValue is String && options.contains(rawValue) ? rawValue : null;
+      final current =
+          rawValue is String && options.contains(rawValue) ? rawValue : null;
       return AppSelect<String>(
         label: 'Select an option',
         value: current,
         items: [
-          for (final option in options) DropdownMenuItem(value: option, child: Text(option)),
+          for (final option in options)
+            DropdownMenuItem(value: option, child: Text(option)),
         ],
         onChanged: (value) {
           if (value == null) return;
@@ -523,8 +566,12 @@ class _SignatureSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _InfoRow(label: 'Signed by', value: '${signature.signerName} (${signature.signerRole})'),
-            _InfoRow(label: 'Signed at', value: formatCompanyDateTime(signature.signedAt)),
+            _InfoRow(
+                label: 'Signed by',
+                value: '${signature.signerName} (${signature.signerRole})'),
+            _InfoRow(
+                label: 'Signed at',
+                value: formatCompanyDateTime(signature.signedAt)),
             const SizedBox(height: DsSpacing.s3),
             SignaturePreview(
               strokes: signature.strokes.map(_responseStrokeToOffsets).toList(),
@@ -538,7 +585,8 @@ class _SignatureSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Signed — syncing…', style: TextStyle(color: context.semantic.textMuted)),
+        Text('Signed — syncing…',
+            style: TextStyle(color: context.semantic.textMuted)),
         const SizedBox(height: DsSpacing.s2),
         SignaturePreview(strokes: pending.map(_inputStrokeToOffsets).toList()),
       ],
@@ -597,9 +645,8 @@ class _SignatureCaptureSheetState extends State<_SignatureCaptureSheet> {
                 key: const Key('signature-clear'),
                 label: 'Clear',
                 variant: AppButtonVariant.ghost,
-                onPressed: widget.controller.isEmpty
-                    ? null
-                    : widget.controller.clear,
+                onPressed:
+                    widget.controller.isEmpty ? null : widget.controller.clear,
               ),
             ),
           ],
@@ -685,7 +732,10 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               value,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],

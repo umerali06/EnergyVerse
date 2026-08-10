@@ -13,6 +13,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(AnnotationResponseDamageTypeEnum.serializer)
       ..add(AnnotationResponseShapeEnum.serializer)
       ..add(AnnotationResponseSource_Enum.serializer)
+      ..add(ArMeasurementResponse.serializer)
+      ..add(ArMeasurementResponseMethodEnum.serializer)
       ..add(AreaDeleted.serializer)
       ..add(AreaDetail.serializer)
       ..add(AreaListPage.serializer)
@@ -54,6 +56,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(CreateAnnotationRequest.serializer)
       ..add(CreateAnnotationRequestDamageTypeEnum.serializer)
       ..add(CreateAnnotationRequestShapeEnum.serializer)
+      ..add(CreateArMeasurementRequest.serializer)
+      ..add(CreateArMeasurementRequestMethodEnum.serializer)
       ..add(CreateAreaRequest.serializer)
       ..add(CreateAssetRequest.serializer)
       ..add(CreateAssetRequestCurrentStatusEnum.serializer)
@@ -123,6 +127,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(SignatureStrokeResponse.serializer)
       ..add(UpdateAnnotationRequest.serializer)
       ..add(UpdateAnnotationRequestDamageTypeEnum.serializer)
+      ..add(UpdateArMeasurementRequest.serializer)
       ..add(UpdateAreaRequest.serializer)
       ..add(UpdateAssetRequest.serializer)
       ..add(UpdateAssetRequestCurrentStatusEnum.serializer)
@@ -158,6 +163,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(AnnotationPointInput)]),
           () => new ListBuilder<AnnotationPointInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(AnnotationPointInput)]),
+          () => new ListBuilder<AnnotationPointInput>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(AnnotationPointResponse)]),
+          () => new ListBuilder<AnnotationPointResponse>())
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(AnnotationPointResponse)]),
@@ -309,13 +322,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(AnnotationResponse)]),
           () => new ListBuilder<AnnotationResponse>())
       ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => new ListBuilder<BuiltMap<String, JsonObject?>>())
+          const FullType(
+              BuiltList, const [const FullType(ArMeasurementResponse)]),
+          () => new ListBuilder<ArMeasurementResponse>())
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(ChecklistTemplateItem)]),

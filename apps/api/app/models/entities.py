@@ -435,6 +435,35 @@ class Signature(StrictModel):
     inspection_revision: int
 
 
+class ArMeasurement(StrictModel):
+    """A dimension measurement captured either via AR plane-tap distance
+    (`method="ar"`) or manual numeric entry (`method="manual"`, spec 7.2's
+    mandatory fallback for unsupported devices/plugin failure, D-063).
+    Distance is always stored in meters -- same fixed-unit rationale as
+    `Readings` (D-058) -- so it is unambiguous in storage regardless of
+    which unit the device displayed at capture time; unit conversion for
+    display is a client concern. An AR measurement always references the
+    screenshot it was measured against (`media_local_id`, an existing
+    `InspectionMedia` item) as visual evidence; a manual measurement has no
+    required screenshot but may optionally reference an existing photo for
+    context. `points` is an optional set of normalized (0-1) overlay
+    markers on that screenshot, reusing `AnnotationPoint`'s shape so it can
+    render on the same overlay model as damage annotations -- left empty
+    when the capturing client can't reliably supply exact tap coordinates
+    (true of the Phase 7.9 AR capture screen today, D-064)."""
+
+    id: str
+    method: Literal["ar", "manual"]
+    distance_meters: float = Field(gt=0, le=100000)
+    label: str | None = Field(default=None, max_length=200)
+    media_local_id: str | None = None
+    points: list[AnnotationPoint] = Field(default_factory=list)
+    note: str | None = Field(default=None, max_length=1000)
+    checklist_item_id: str | None = None
+    created_by: str
+    created_at: datetime
+
+
 class Inspection(TenantDoc):
     id: str
     asset_id: str
@@ -463,8 +492,8 @@ class Inspection(TenantDoc):
     voice_notes: list["VoiceNote"] = Field(default_factory=list)
     readings: Readings | None = None
     signature: Signature | None = None
-    # Reserved, always-empty until their own phases give these real shapes.
-    ar_measurements: list[dict[str, Any]] = Field(default_factory=list)
+    ar_measurements: list[ArMeasurement] = Field(default_factory=list)
+    # Reserved, always-empty until its own phase gives it a real shape.
     ai_analysis: dict[str, Any] | None = None
 
     @field_validator("readings", mode="before")

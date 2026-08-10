@@ -54,6 +54,15 @@ class LocalInspections extends Table {
   /// written to optimistically the way [annotations] is.
   TextColumn get voiceNotes => text().withDefault(const Constant('[]'))();
 
+  /// The server's `InspectionDetail.arMeasurements[]` (Phase 7.9), same
+  /// JSON-blob convention as [annotations] -- an AR or manual measurement is
+  /// small metadata (a distance plus an optional screenshot reference and
+  /// its two tapped points), written here optimistically the moment it's
+  /// captured, with no separate upload queue standing between "measured"
+  /// and "visible offline" (the referenced screenshot, if any, uploads
+  /// independently through [MediaQueue] exactly like any other photo).
+  TextColumn get arMeasurements => text().withDefault(const Constant('[]'))();
+
   /// The server's `InspectionDetail.readings` (Phase 7.7) -- manually
   /// entered inspector readings (condition, temperature/pressure/noise,
   /// vibration, leak, operational status, comments, recommendations,
@@ -146,7 +155,8 @@ class Outbox extends Table {
 
   /// `create | update | start | complete | cancel | assign_template |
   /// attach_media | edit_media | detach_media | create_annotation |
-  /// update_annotation | delete_annotation`. `attach_media`/`edit_media`/
+  /// update_annotation | delete_annotation | create_measurement |
+  /// update_measurement | delete_measurement`. `attach_media`/`edit_media`/
   /// `detach_media` (Phase 7.4) are small metadata-reference mutations only
   /// -- the media BYTES never flow through this outbox; they upload
   /// directly to Firebase Storage via the separate [MediaQueue] table and
@@ -154,9 +164,9 @@ class Outbox extends Table {
   /// traffic can never stall lightweight inspection-record sync. (A prior
   /// `upload_media` reservation comment here anticipated a single combined
   /// queue; this supersedes that design.) The three `*_annotation` types
-  /// (Phase 7.5) are themselves small vector-metadata mutations -- unlike
-  /// media, annotations have no separate upload queue at all; they ride
-  /// this same outbox end-to-end.
+  /// (Phase 7.5) and the three `*_measurement` types (Phase 7.9) are
+  /// themselves small vector/metadata mutations -- unlike media, they have
+  /// no separate upload queue at all; they ride this same outbox end-to-end.
   TextColumn get mutationType => text()();
 
   /// The built_value request object, serialized to JSON via the generated
@@ -202,7 +212,8 @@ class MediaQueue extends Table {
   RealColumn get gpsLat => real().nullable()();
   RealColumn get gpsLng => real().nullable()();
   DateTimeColumn get capturedAt => dateTime()();
-  TextColumn get beforeAfterTag => text().nullable()(); // 'before' | 'after' | null
+  TextColumn get beforeAfterTag =>
+      text().nullable()(); // 'before' | 'after' | null
 
   /// Recording length in milliseconds -- only ever set for `kind ==
   /// 'audio'` (Phase 7.6); null for a photo/video row, which have no
@@ -210,8 +221,7 @@ class MediaQueue extends Table {
   IntColumn get durationMs => integer().nullable()();
 
   /// `queued | uploading | uploaded | referenced | failed`.
-  TextColumn get uploadState =>
-      text().withDefault(const Constant('queued'))();
+  TextColumn get uploadState => text().withDefault(const Constant('queued'))();
 
   /// UI progress only, via `UploadTask.snapshotEvents` -- NOT resumed across
   /// an app restart (D-0xx: resumability is Firebase Storage's own
