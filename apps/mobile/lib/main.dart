@@ -19,6 +19,8 @@ import 'inspections/local_inspections_repository.dart';
 import 'media/local_media_repository.dart';
 import 'media/media_upload_worker.dart';
 import 'sync/sync_engine.dart';
+import 'work_orders/local_work_orders_repository.dart';
+import 'work_orders/work_order_sync_engine.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +54,8 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
   late final SyncEngine _sync;
   late final LocalMediaRepository _mediaRepository;
   late final MediaUploadWorker _mediaWorker;
+  late final LocalWorkOrdersRepository _workOrdersRepository;
+  late final WorkOrderSyncEngine _workOrderSync;
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
@@ -75,6 +79,9 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
       mediaRepository: _mediaRepository,
       inspectionsRepository: _repository,
     );
+    _workOrdersRepository = LocalWorkOrdersRepository(db: _db, api: _api);
+    _workOrderSync =
+        WorkOrderSyncEngine(repository: _workOrdersRepository, api: _api);
     _auth = AuthController(
       gateway: _gateway,
       api: _api,
@@ -89,6 +96,7 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     final uid = _auth.currentUser?.uid;
     if (uid != null) {
       unawaited(_repository.reconcileSessionOwner(uid));
+      unawaited(_workOrdersRepository.reconcileSessionOwner(uid));
       // Best-effort, so a field inspector who was online earlier today still
       // has checklist templates cached for fully-offline auto-selection
       // (Phase 7.3) even if they open the app in airplane mode next.
@@ -101,6 +109,7 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _sync.kick();
       _mediaWorker.kick();
+      _workOrderSync.kick();
     }
   }
 
@@ -110,6 +119,7 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     _auth.removeListener(_handleAuthChange);
     _sync.dispose();
     _mediaWorker.dispose();
+    _workOrderSync.dispose();
     _auth.dispose();
     _theme.dispose();
     unawaited(_db.close());
@@ -148,7 +158,11 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
               child: MediaProvider(
                 worker: _mediaWorker,
                 repository: _mediaRepository,
-                child: child!,
+                child: WorkOrderSyncProvider(
+                  engine: _workOrderSync,
+                  repository: _workOrdersRepository,
+                  child: child!,
+                ),
               ),
             ),
           ),

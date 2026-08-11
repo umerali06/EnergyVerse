@@ -4,8 +4,13 @@ import { protectedPage } from "@/seo/site";
 
 export const metadata: Metadata = protectedPage("Work Orders");
 
-import { ComingSoonScreen } from "@/shell/app-shell";
+import { RequirePermission } from "@/auth/route-guards";
+import { WorkOrdersPage } from "@/work-orders/work-orders-page";
 
-export default function Page() {
-  return <ComingSoonScreen moduleName="Work Orders" />;
+export default function WorkOrdersRoute() {
+  return (
+    <RequirePermission permission="work_orders.read">
+      <WorkOrdersPage />
+    </RequirePermission>
+  );
 }

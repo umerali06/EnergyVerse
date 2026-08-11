@@ -115,7 +115,6 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.workOrders,
         route: "/work-orders",
         requiredPermission: "work_orders.read",
-        comingSoon: true,
       },
       {
         label: "Permits",

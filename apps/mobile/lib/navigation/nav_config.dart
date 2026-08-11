@@ -67,7 +67,6 @@ class AppNav {
       icon: Icons.build_outlined,
       route: workOrders,
       requiredPermission: 'work_orders.read',
-      comingSoon: true,
       primary: true,
     ),
     NavDestination(

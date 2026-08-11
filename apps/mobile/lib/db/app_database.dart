@@ -10,13 +10,20 @@ import 'tables.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [LocalInspections, Outbox, LocalChecklistTemplates, MediaQueue],
+  tables: [
+    LocalInspections,
+    Outbox,
+    LocalChecklistTemplates,
+    MediaQueue,
+    LocalWorkOrders,
+    WorkOrderOutbox,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -50,6 +57,10 @@ class AppDatabase extends _$AppDatabase {
         // `inspection.aiAnalysis[]` -- never written optimistically (same
         // posture as `signature`), since there's nothing honest to echo
         // before the AI call actually completes.
+        // v10 (Phase 8.2): the new LocalWorkOrders cache table and its own
+        // separate WorkOrderOutbox mutation queue (accept/submit-for-review
+        // only -- see `tables.dart`'s class docs for why these are separate
+        // from LocalInspections/Outbox rather than reusing them).
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(localInspections, localInspections.assetCategory);
@@ -80,6 +91,10 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 9) {
             await m.addColumn(localInspections, localInspections.aiAnalysis);
+          }
+          if (from < 10) {
+            await m.createTable(localWorkOrders);
+            await m.createTable(workOrderOutbox);
           }
         },
       );

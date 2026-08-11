@@ -69,6 +69,7 @@
 | D-064 | AR/manual measurement data model, screenshot evidence, and mutation protocol (Phase 7.9 Step 2) | **`Inspection.ar_measurements[]` (replacing the 7.1 `list[dict]` placeholder) holds one `ArMeasurement` per capture: `id`, `method` (`ar`\|`manual`), `distance_meters` (always meters, fixed-unit convention per D-058), optional `label`/`note`/`checklist_item_id`, optional `media_local_id` (an existing `InspectionMedia` item as visual evidence), and `points: list[AnnotationPoint]` reusing D-054's normalized-point shape but left genuinely optional — `ar_flutter_plugin_2` exposes no 2D screen-tap coordinate alongside its 3D hit-test result, so exact overlay markers are not fabricated; the screenshot alone is the AR method's evidence requirement (`media_local_id` mandatory, `points` not). Mutation protocol mirrors D-054/D-055's annotations exactly: three routes (create/update/delete), idempotent by client-generated `id`, no `expected_revision` (measurement traffic must never collide with checklist-autosave). Update is deliberately narrow — only `label`/`note`/`checklist_item_id` are mutable; method/distance/screenshot/points are immutable once created (delete-and-recreate fixes a mistake, same posture as media's checklist-link-only update). An AR screenshot is a plain `InspectionMedia` photo through the *existing* 7.4 pipeline (no new storage subfolder, no new `MediaKind`, no `MediaQueue` schema change) — a measurement simply references its `local_id`, exactly how an annotation references the photo it's drawn on, decoupling the measurement record from the screenshot's own upload completion. Mobile captures the screenshot via `ARSessionManager.snapshot()` (extracting bytes from the plugin's own `MemoryImage` return) and reuses `LocalMediaRepository.enqueueCapture` unmodified.** | **RESOLVED — LOCKED** | 2026-08-10 |
 | D-065 | AI photo analysis data model, Claude vision integration, and mutation protocol (Phase 7.10) | **`Inspection.ai_analysis[]` (replacing the 7.1 `dict \| None` placeholder) holds one `AiAnalysis` per run: `id`, `media_local_id`, `model`, `summary`, optional `recommendations`/`risk_level`, `annotation_ids` (the findings it produced), `reviewed`/`reviewed_by`/`reviewed_at`, `created_by`, `created_at`. Every detected finding is persisted as its own `Annotation(source="ai", confidence=...)` — the exact mechanism D-054 reserved `source`/`confidence` for; no new overlay model, no new review UI primitive. `app/ai/vision_client.py`'s `ClaudeVisionClient` is the first third-party HTTP/SDK call in this backend (every prior integration is Firebase) — a forced tool-use call (`report_photo_analysis`) constrains the model to return `summary` + `findings[]` (`shape`, 1-2 normalized points, optional `damage_type` from the same enum `Annotation` uses, `confidence`, optional `note`); a `VisionAnalysisClient` protocol is what `InspectionService` depends on so tests inject a `FakeAiClient`, no real API key required for CI. Two new routes deliberately don't mirror create/update/delete or attach/detach: `POST .../media/{media_id}/analyze` (triggers a fresh run, identified by the media item's server id like `update_inspection_media`) and `POST .../ai-analysis/{analysis_id}/review` (marks reviewed — the "confirm" half of D-008; "override" is simply editing/deleting the resulting annotations through the existing endpoints, no separate action). `InspectionRepository.append_ai_analysis` writes the new annotations and the analysis record in one atomic Firestore update. Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, immediate, ONLINE-ONLY calls, never queued through the offline outbox like every other mutation — there is no honest optimistic echo for an AI response that doesn't exist yet, and the action requires live connectivity to a paid third-party API regardless.** | **RESOLVED — LOCKED** | 2026-08-10 |
 | D-066 | Work order lifecycle model and the `work_orders.close` permission split (Phase 8.1) | **New `WorkOrder` (`TenantDoc`), scope chosen from the original spec's remaining sections (§12) after the product owner picked "Work Orders" over Permit-to-Work/Notifications. Lifecycle: `open → assigned → in_progress → pending_review → closed`, plus a terminal `cancelled` reachable from any non-terminal state — mirrors `Inspection`'s draft/in_progress/completed+cancelled shape (D-045), adapted for the spec's explicit Assign/Accept/Supervisor-Review steps. A new `work_orders.close` permission is deliberately distinct from the pre-existing `work_orders.write` — granted to `operations_manager`/`company_admin`/`super_admin` but never to `maintenance_technician`, so the assigned technician can submit their completed repair for review but cannot close it themselves; enforced at the route layer (`require_permission("work_orders.close")` on `POST .../close` only). Independently, `WorkOrderService.accept_work_order`/`submit_work_order_for_review` enforce a self-only check (`current.technician_id == actor_uid`, else 403 `not_assigned_technician`) — "Accept Task" and "submit for review" are personal acknowledgments, not supervisory actions, so even a `company_admin`/`operations_manager` cannot accept or submit on a technician's behalf. Mutation protocol mirrors D-064/D-055's idempotent-by-id, no-`expected_revision`-on-bodyless-actions shape for `accept`/`close`/`cancel`; `assign`/`submit-for-review` accept an optional `expected_revision` since they carry a real body. `media` is reserved, always-empty on the entity until a future sub-phase gives "Upload Photos" a real shape, matching how `Inspection.ar_measurements`/`ai_analysis` were reserved ahead of their own phases. Backend-only for 8.1, mirroring how Phase 7.1 established the Inspection foundation before any client UI — mobile/admin work-order screens are deferred to future sub-phases.** | **RESOLVED — LOCKED** | 2026-08-11 |
+| D-067 | Work order mobile offline architecture: separate outbox/sync engine, not a reuse of inspections' (Phase 8.2) | **Chose a fully separate `LocalWorkOrders`/`WorkOrderOutbox`/`WorkOrderSyncEngine` triple over extending inspections' existing `LocalInspections`/`Outbox`/`SyncEngine` — same "unrelated domain entity, its own table" rationale D-051 already established for `MediaQueue` vs `Outbox`, applied one layer up to the sync engine itself, and chosen specifically to avoid an invasive, high-risk refactor of the working, already-well-tested inspections engine for a domain with only 2 mutation types instead of 18. `WorkOrderOutbox` carries only `accept`/`submit_for_review` — the technician's two field actions — since assign/close/cancel/create/delete are always-online supervisor actions taken from the admin app and structurally never need to queue offline. A genuine correctness gap was found and fixed mid-phase, not late-discovered: `WorkOrderSyncEngine._alreadyApplied`'s `accept` case initially copied `SyncEngine`'s `start` case verbatim (a bare status check), but a work order's technician can change out from under a queued `accept` via reassignment — unlike an inspection's inspector, fixed at creation — so a genuine "someone else was reassigned and accepted while I was offline" conflict would have been silently swallowed as success. Fixed by additionally comparing the fresh server `technicianId` against this device's own still-unmutated local row's `technicianId` (`accept`'s optimistic write never touches `technicianId`, only `status`/`acceptedAt`). A second, related gap: `markConflict` initially overwrote `completionNotes`/`laborHours`/`materialsUsed` from the server snapshot on any conflict, destroying exactly the technician's own submitted content that `resolveConflict(keepLocal: true)` needs to still be there to re-submit — fixed to only sync status-machinery fields (`status`/`technicianId`/`acceptedAt`) from the snapshot, mirroring how inspections' own `markConflict` already left title/notes/checklist responses alone for the identical reason.** | **RESOLVED — LOCKED** | 2026-08-11 |
 
 ## Decision Details
 
@@ -1914,6 +1915,68 @@
   `work_orders.close`, rather than overloading `.write` with an implicit
   hierarchy the RBAC model doesn't otherwise have.
 
+### D-067 — Work Order Mobile Offline Architecture: Separate Outbox/Sync Engine (Phase 8.2)
+
+- **Decision owner:** Product owner, via `AskUserQuestion` at phase
+  start — chose "mobile + admin together" over splitting into separate
+  sub-phases, and chose offline-first via the outbox over a Phase
+  7.10-style online-only direct call for the technician's accept/
+  submit-for-review actions.
+- **A fully separate `LocalWorkOrders`/`WorkOrderOutbox`/
+  `WorkOrderSyncEngine` triple, not an extension of inspections'
+  existing `LocalInspections`/`Outbox`/`SyncEngine`.** Same rationale
+  D-051 already established for `MediaQueue` living apart from
+  `Outbox` — an unrelated domain entity gets its own table — applied one
+  layer up to the sync engine class itself this time. The alternative
+  (genericizing `SyncEngine` to serve both domains) was rejected as an
+  invasive, high-risk refactor of a working, already-thoroughly-tested
+  engine, for a domain (`WorkOrderOutbox`) with only 2 mutation types
+  (`accept`, `submit_for_review`) against inspections' 18 — `assign`/
+  `close`/`cancel`/`create`/`delete` are always-online supervisor
+  actions taken from the admin app and structurally never need to queue
+  offline at all.
+- **A genuine correctness gap found and fixed mid-phase, not
+  late-discovered: `accept`'s "already applied" check needed more than
+  a bare status comparison.** `WorkOrderSyncEngine._alreadyApplied`'s
+  first draft copied `SyncEngine._alreadyApplied`'s `start` case
+  verbatim (`current.status.name == 'inProgress'`) — correct for
+  inspections, where the inspector is fixed at creation and can never
+  change, but wrong for work orders, whose technician CAN change out
+  from under a queued `accept` via reassignment. Under the original
+  logic, "Technician A queues an accept while offline, gets reassigned
+  to Technician B, B accepts online, A's device replays its stale
+  accept and gets `invalid_transition`" would have been silently
+  swallowed as success (A's local cache adopting B's state with no
+  conflict surfaced) purely because the status happened to coincidentally
+  match. Fixed by additionally comparing the fresh server
+  `technicianId` against this device's own local row's `technicianId`
+  — which `accept`'s own optimistic write never touches (only `status`/
+  `acceptedAt` are set locally), so it still reflects who actually
+  queued this mutation at the moment the comparison runs, before either
+  `applyMutationSuccess` or `markConflict` gets a chance to overwrite it.
+- **A second, related gap in the same review pass: `markConflict` was
+  overwriting the technician's own submitted content.** The first draft
+  synced `completionNotes`/`laborHours`/`materialsUsed`/`submittedAt`
+  from the server snapshot on every conflict, alongside the status
+  fields — destroying the technician's real entered data before
+  `resolveConflict(keepLocal: true)` ever got a chance to re-submit it.
+  Fixed to only sync the status-machinery fields
+  (`status`/`technicianId`/`acceptedAt`) from the snapshot, exactly
+  mirroring how inspections' own `markConflict` already left `title`/
+  `notes`/`checklist_responses` untouched for the identical reason — the
+  server's conflicting version of the content fields lives only in
+  `conflictServerSnapshot`, read by the `!keepLocal` ("discard mine")
+  path instead.
+- **Consequences:** Any future offline mutation whose "already applied"
+  determination depends on a mutable, reassignable field (not just a
+  status enum) must compare that field explicitly, the same way `accept`
+  now does — a bare status check is only safe when the acting entity is
+  fixed for the record's lifetime, as inspections' inspector is.
+  Similarly, any future `markConflict` implementation must sync only the
+  fields the conflict genuinely needs corrected (typically status/
+  ownership machinery), never the caller's own real content fields,
+  or "keep mine" silently has nothing left to keep.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -2452,3 +2515,56 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   backfill `work_orders.close` onto its existing `operations_manager`
   role, per every prior permission-addition precedent (D-029, D-036,
   etc.).
+
+- **2026-08-11 — Phase 8.2 (work order mobile + admin UI):** Continued in
+  the same session as 8.1 once the product owner confirmed scope
+  directly (`AskUserQuestion`: mobile + admin together, mirroring how
+  every Phase 7 sub-phase bundled mobile capture with its admin review
+  screen; offline-first via the outbox for the technician's accept/
+  submit-for-review actions, matching inspections' D-046/D-047
+  precedent over a Phase 7.10-style online-only call). Added and locked
+  D-067: a fully separate `LocalWorkOrders`/`WorkOrderOutbox`/
+  `WorkOrderSyncEngine` triple rather than extending inspections' own —
+  same rationale as D-051's `MediaQueue`, chosen to avoid an invasive
+  refactor of the working inspections engine for a 2-mutation-type
+  domain. Admin's work-orders UI was built by a delegated background
+  agent while mobile was built directly in this session; a real
+  incident occurred mid-phase when that agent ran `git stash` (with
+  `--include-untracked`) against the same shared working tree to get a
+  clean tsc baseline, momentarily reverting every uncommitted file on
+  disk (including this session's own in-progress mobile work) — no work
+  was actually lost (the stash captured everything and was recovered via
+  `git stash pop`), but it's now recorded as a standing lesson: never run
+  a concurrent agent with git/shell access against the same uncommitted
+  working tree without either committing first or isolating that agent
+  in its own worktree. Two genuine correctness gaps were found and fixed
+  during the sync-engine test-writing pass, not late-discovered: `accept`'s
+  "already applied" check needed to compare `technicianId` (not just
+  status) to correctly distinguish a genuine reassignment conflict from
+  "my own accept already landed"; and `markConflict` was overwriting the
+  technician's own submitted `completionNotes`/`laborHours`/
+  `materialsUsed` from the server snapshot, which would have silently
+  destroyed exactly the content `resolveConflict(keepLocal: true)` needs
+  to still be there to re-submit. Mobile (257 tests all green, including
+  8 new `work_order_sync_engine_test.dart` cases covering accept/submit
+  dispatch, both already-applied paths, both genuine-conflict paths, and
+  both `resolveConflict` directions, plus 4 new list/detail widget tests)
+  and admin (22 new tests across `work-orders-page.test.tsx`/
+  `work-order-detail-page.test.tsx`) all green; `flutter analyze` clean
+  (one pre-existing-pattern cosmetic `unused_element_parameter` warning
+  on a private `_InfoRow` widget, matching `inspection_detail_screen.dart`'s
+  own identical convention); admin ESLint clean, production build
+  compiled all 31 routes (bundle budget unchanged, 342.8 KB), full
+  `pnpm test` suite green. One pre-existing `app_shell_test.dart` case
+  ("tapping a bottom destination routes to its Coming soon page") was
+  retargeted a second time — Phase 4.2 already retargeted it once from
+  `/assets` to `/work-orders` when Assets stopped being a Coming-soon
+  stand-in; now that Work Orders is ALSO a real screen, the test asserts
+  the real Work Orders screen renders and the bottom-nav tab activates
+  correctly instead, since no primary bottom-nav destination is left
+  comingSoon at all — the generic ComingSoonScreen mechanism itself
+  stays covered by the adjacent "More destination" test (`/reports`).
+  No backend/contract changes were needed this phase — Phase 8.1 already
+  shipped the complete API surface and generated clients. Phase 8 (data
+  model, mobile technician flow, admin supervisor flow) is now
+  **COMPLETE** per its own scope description in `PHASE_TRACKER.md`.

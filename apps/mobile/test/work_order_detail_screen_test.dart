@@ -5,109 +5,124 @@ import 'package:fev_mobile/auth/app_routes.dart';
 import 'package:fev_mobile/auth/firebase_gateway.dart';
 import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const session = AuthSession(
-  uid: 'demo-acme-field_inspector',
-  email: 'field_inspector@acme.example.invalid',
+  uid: 'demo-acme-maintenance_technician',
+  email: 'maintenance_technician@acme.example.invalid',
   emailVerified: true,
 );
 
-const roleMatrix = <String, List<String>>{
-  'field_inspector': ['inspections.read', 'inspections.write'],
-  'executive': ['reports.read'],
-};
-
-CurrentUser identityFor(String roleKey, List<String> permissions) => CurrentUser(
+CurrentUser _identity() => CurrentUser(
       (builder) => builder
-        ..uid = 'demo-acme-field_inspector'
-        ..email = 'field_inspector@acme.example.invalid'
+        ..uid = 'demo-acme-maintenance_technician'
+        ..email = 'maintenance_technician@acme.example.invalid'
         ..companyId = 'acme-energy'
         ..companyName = 'Acme Energy'
-        ..roleKey = roleKey
+        ..roleKey = 'maintenance_technician'
         ..emailVerified = true
-        ..permissions.addAll(permissions),
+        ..permissions.addAll(const ['work_orders.read', 'work_orders.write']),
     );
 
-InspectionListItem _inspectionItemFixture({
-  String id = 'inspection-1',
-  String title = 'Q3 Routine Inspection',
-  InspectionListItemStatusEnum status = InspectionListItemStatusEnum.completed,
+WorkOrderDetail _detailFixture({
+  String status = 'assigned',
+  String? technicianId = 'demo-acme-maintenance_technician',
 }) {
   final now = DateTime.utc(2026, 1, 1);
-  return InspectionListItem(
+  return WorkOrderDetail(
     (b) => b
-      ..id = id
+      ..id = 'wo-1'
       ..assetId = 'asset-1'
       ..facilityId = 'facility-1'
-      ..inspectorId = 'demo-acme-field_inspector'
-      ..status = status
-      ..inspectionType = InspectionListItemInspectionTypeEnum.routine
-      ..title = title
+      ..title = 'Replace worn gasket'
+      ..priority = WorkOrderDetailPriorityEnum.medium
+      ..status = WorkOrderDetailStatusEnum.values.firstWhere((s) => s.name == status)
+      ..technicianId = technicianId
       ..revision = 1
       ..createdAt = now
+      ..createdBy = 'supervisor-1'
       ..updatedAt = now,
   );
 }
 
-InspectionListPage _pageFixture({List<InspectionListItem>? items, String? nextCursor}) =>
-    InspectionListPage((b) => b
-      ..items.addAll(items ?? [_inspectionItemFixture()])
-      ..nextCursor = nextCursor);
-
-InspectionDetail _inspectionDetailFixture({
-  String id = 'inspection-1',
-  String title = 'Q3 Routine Inspection',
-  InspectionDetailStatusEnum status = InspectionDetailStatusEnum.completed,
-}) {
-  final now = DateTime.utc(2026, 1, 1);
-  return InspectionDetail(
-    (b) => b
-      ..id = id
-      ..assetId = 'asset-1'
-      ..facilityId = 'facility-1'
-      ..inspectorId = 'demo-acme-field_inspector'
-      ..status = status
-      ..inspectionType = InspectionDetailInspectionTypeEnum.routine
-      ..title = title
-      ..revision = 1
-      ..clientCreatedAt = now
-      ..createdAt = now
-      ..updatedAt = now,
-  );
-}
-
-typedef GetInspectionsFn = Future<InspectionListPage> Function({
-  String? assetId,
-  String? facilityId,
-  String? status,
-  String? inspectorId,
-  String? cursor,
-  int limit,
-});
-
-typedef GetInspectionFn = Future<InspectionDetail> Function(String inspectionId);
+typedef GetWorkOrderFn = Future<WorkOrderDetail> Function(String id);
+typedef AcceptWorkOrderFn = Future<WorkOrderDetail> Function(String id);
+typedef SubmitForReviewFn = Future<WorkOrderDetail> Function(
+  String id,
+  SubmitWorkOrderForReviewRequest request,
+);
 
 class FakeApi implements ApiContract {
-  FakeApi(this.identity, {GetInspectionsFn? getInspections, GetInspectionFn? getInspection})
-      : _getInspections = getInspections ?? (({
-          String? assetId,
-          String? facilityId,
-          String? status,
-          String? inspectorId,
-          String? cursor,
-          int limit = 25,
-        }) async =>
-            _pageFixture()),
-        _getInspection = getInspection ?? ((id) async => _inspectionDetailFixture(id: id));
+  FakeApi({
+    GetWorkOrderFn? getWorkOrder,
+    AcceptWorkOrderFn? acceptWorkOrder,
+    SubmitForReviewFn? submitWorkOrderForReview,
+  })  : _getWorkOrder = getWorkOrder ?? ((id) async => _detailFixture()),
+        _acceptWorkOrder = acceptWorkOrder,
+        _submitWorkOrderForReview = submitWorkOrderForReview;
 
-  final CurrentUser identity;
-  final GetInspectionsFn _getInspections;
-  final GetInspectionFn _getInspection;
+  final GetWorkOrderFn _getWorkOrder;
+  final AcceptWorkOrderFn? _acceptWorkOrder;
+  final SubmitForReviewFn? _submitWorkOrderForReview;
+  final List<String> calls = [];
 
   @override
-  Future<CurrentUser> getCurrentUser() async => identity;
+  Future<CurrentUser> getCurrentUser() async => _identity();
+
+  @override
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  }) async =>
+      WorkOrderListPage((b) => b..items.addAll(const []));
+
+  @override
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId) {
+    calls.add('getWorkOrder');
+    return _getWorkOrder(workOrderId);
+  }
+
+  @override
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId) {
+    calls.add('acceptWorkOrder');
+    final handler = _acceptWorkOrder;
+    if (handler == null) throw UnimplementedError();
+    return handler(workOrderId);
+  }
+
+  @override
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  ) {
+    calls.add('submitWorkOrderForReview');
+    final handler = _submitWorkOrderForReview;
+    if (handler == null) throw UnimplementedError();
+    return handler(workOrderId, request);
+  }
+
+  @override
+  Future<WorkOrderDetail> createWorkOrder(CreateWorkOrderRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> assignWorkOrder(
+          String workOrderId, AssignWorkOrderRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) => throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) => throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) => throw UnimplementedError();
 
   @override
   Future<HealthResponse> getHealth() => throw UnimplementedError();
@@ -237,17 +252,10 @@ class FakeApi implements ApiContract {
     String? cursor,
     int limit = 25,
   }) =>
-      _getInspections(
-        assetId: assetId,
-        facilityId: facilityId,
-        status: status,
-        inspectorId: inspectorId,
-        cursor: cursor,
-        limit: limit,
-      );
+      throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => _getInspection(inspectionId);
+  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
 
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
@@ -255,9 +263,7 @@ class FakeApi implements ApiContract {
 
   @override
   Future<InspectionDetail> updateInspection(
-    String inspectionId,
-    UpdateInspectionRequest request,
-  ) =>
+          String inspectionId, UpdateInspectionRequest request) =>
       throw UnimplementedError();
 
   @override
@@ -265,9 +271,7 @@ class FakeApi implements ApiContract {
 
   @override
   Future<InspectionDetail> completeInspection(
-    String inspectionId,
-    CompleteInspectionRequest request,
-  ) =>
+          String inspectionId, CompleteInspectionRequest request) =>
       throw UnimplementedError();
 
   @override
@@ -275,16 +279,12 @@ class FakeApi implements ApiContract {
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
-    String inspectionId,
-    AssignChecklistTemplateRequest request,
-  ) =>
+          String inspectionId, AssignChecklistTemplateRequest request) =>
       throw UnimplementedError();
 
   @override
   Future<InspectionDetail> attachInspectionMedia(
-    String inspectionId,
-    AttachInspectionMediaRequest request,
-  ) =>
+          String inspectionId, AttachInspectionMediaRequest request) =>
       throw UnimplementedError();
 
   @override
@@ -301,9 +301,7 @@ class FakeApi implements ApiContract {
 
   @override
   Future<InspectionDetail> attachInspectionVoiceNote(
-    String inspectionId,
-    AttachVoiceNoteRequest request,
-  ) =>
+          String inspectionId, AttachVoiceNoteRequest request) =>
       throw UnimplementedError();
 
   @override
@@ -315,14 +313,13 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) =>
+  Future<InspectionDetail> detachInspectionVoiceNote(
+          String inspectionId, String voiceNoteId) =>
       throw UnimplementedError();
 
   @override
   Future<InspectionDetail> createInspectionAnnotation(
-    String inspectionId,
-    CreateAnnotationRequest request,
-  ) =>
+          String inspectionId, CreateAnnotationRequest request) =>
       throw UnimplementedError();
 
   @override
@@ -334,14 +331,13 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) =>
+  Future<InspectionDetail> deleteInspectionAnnotation(
+          String inspectionId, String annotationId) =>
       throw UnimplementedError();
 
   @override
   Future<InspectionDetail> createInspectionArMeasurement(
-    String inspectionId,
-    CreateArMeasurementRequest request,
-  ) =>
+          String inspectionId, CreateArMeasurementRequest request) =>
       throw UnimplementedError();
 
   @override
@@ -354,7 +350,9 @@ class FakeApi implements ApiContract {
 
   @override
   Future<InspectionDetail> deleteInspectionArMeasurement(
-          String inspectionId, String measurementId) =>
+    String inspectionId,
+    String measurementId,
+  ) =>
       throw UnimplementedError();
 
   @override
@@ -362,7 +360,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> reviewInspectionAiAnalysis(String inspectionId, String analysisId) =>
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+          String inspectionId, String analysisId) =>
       throw UnimplementedError();
 
   @override
@@ -375,55 +374,6 @@ class FakeApi implements ApiContract {
 
   @override
   Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderListPage> getWorkOrders({
-    String? assetId,
-    String? facilityId,
-    String? status,
-    String? technicianId,
-    String? cursor,
-    int limit = 25,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDetail> getWorkOrder(String workOrderId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDetail> createWorkOrder(CreateWorkOrderRequest request) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDetail> assignWorkOrder(
-    String workOrderId,
-    AssignWorkOrderRequest request,
-  ) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDetail> submitWorkOrderForReview(
-    String workOrderId,
-    SubmitWorkOrderForReviewRequest request,
-  ) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) =>
       throw UnimplementedError();
 }
 
@@ -450,74 +400,96 @@ class FakeGateway implements AuthGateway {
   Future<void> signOut() async {}
 }
 
-Future<void> pumpInspections(WidgetTester tester, {required FakeApi api}) async {
-  await tester.pumpWidget(
-    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
-  );
-  await tester.pump();
-}
-
-/// Drift's query-stream cancellation schedules a zero-duration internal
-/// Timer when a subscriber (e.g. the app shell's sync-status banner)
-/// unmounts. `flutter_test`'s pending-timer invariant check runs at the end
-/// of the test body itself -- before any `addTearDown` callback -- so this
-/// must be called inline, as the last step of every test that pumps
-/// [FevApp], to unmount and flush that timer before the check fires.
 Future<void> disposeApp(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());
   await tester.pump(const Duration(milliseconds: 1));
 }
 
 void main() {
-  testWidgets('shows loading then renders real tenant inspections', (tester) async {
-    final api = FakeApi(identityFor('field_inspector', roleMatrix['field_inspector']!));
-    await pumpInspections(tester, api: api);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Q3 Routine Inspection'), findsOneWidget);
-    await disposeApp(tester);
-  });
-
-  testWidgets('shows an honest empty state when no inspections match', (tester) async {
-    final api = FakeApi(
-      identityFor('field_inspector', roleMatrix['field_inspector']!),
-      getInspections: ({assetId, facilityId, status, inspectorId, cursor, limit = 25}) async =>
-          _pageFixture(items: const []),
+  testWidgets('shows Accept task for the assigned technician when status is assigned',
+      (tester) async {
+    final api = FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'assigned'));
+    await tester.pumpWidget(
+      FevApp(
+        api: api,
+        authGateway: FakeGateway(),
+        database: AppDatabase(NativeDatabase.memory()),
+      ),
     );
-    await pumpInspections(tester, api: api);
+    await tester.pump();
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.pushNamed(AppRoutes.workOrderDetail, arguments: 'wo-1');
     await tester.pumpAndSettle();
 
-    expect(find.text('No inspections found'), findsOneWidget);
+    expect(find.text('Accept task'), findsOneWidget);
+    expect(find.text('Submit for review'), findsNothing);
     await disposeApp(tester);
   });
 
-  testWidgets('re-fetches when the status filter changes', (tester) async {
-    final calls = <String?>[];
-    final api = FakeApi(
-      identityFor('field_inspector', roleMatrix['field_inspector']!),
-      getInspections: ({assetId, facilityId, status, inspectorId, cursor, limit = 25}) async {
-        calls.add(status);
-        return _pageFixture();
-      },
+  // Accept/submit-for-review dispatch to the API asynchronously through
+  // WorkOrderSyncEngine's background outbox drain (see D-066's offline-first
+  // choice) -- not synchronously on tap. That drain path (dispatch, revision
+  // conflicts, already-applied detection) is exhaustively covered against a
+  // real engine in `test/sync/work_order_sync_engine_test.dart`; these
+  // widget tests instead verify the LOCAL optimistic write the tap produces
+  // immediately, which is what drives the reactive UI regardless of whether
+  // the engine has drained yet -- mirrors `inspection_detail_screen_test.dart`'s
+  // same posture for its own start/complete buttons.
+  testWidgets('accepting optimistically flips the local status to in_progress', (tester) async {
+    final api = FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'assigned'));
+    await tester.pumpWidget(
+      FevApp(
+        api: api,
+        authGateway: FakeGateway(),
+        database: AppDatabase(NativeDatabase.memory()),
+      ),
     );
-    await pumpInspections(tester, api: api);
+    await tester.pump();
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.pushNamed(AppRoutes.workOrderDetail, arguments: 'wo-1');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('All statuses'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('In progress').last);
+    await tester.tap(find.text('Accept task'));
     await tester.pumpAndSettle();
 
-    expect(calls, contains('in_progress'));
+    expect(find.text('Accept task'), findsNothing);
+    expect(find.text('Submit for review'), findsOneWidget);
+    // StatusPill renders its label upper-cased.
+    expect(find.text('IN PROGRESS'), findsOneWidget);
     await disposeApp(tester);
   });
 
-  testWidgets('renders the honest 403 screen for a role without inspections.read', (tester) async {
-    final api = FakeApi(identityFor('executive', roleMatrix['executive']!));
-    await pumpInspections(tester, api: api);
+  testWidgets(
+      'submitting for review fills the sheet and optimistically moves to pending review',
+      (tester) async {
+    final api = FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'inProgress'));
+    await tester.pumpWidget(
+      FevApp(
+        api: api,
+        authGateway: FakeGateway(),
+        database: AppDatabase(NativeDatabase.memory()),
+      ),
+    );
+    await tester.pump();
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.pushNamed(AppRoutes.workOrderDetail, arguments: 'wo-1');
     await tester.pumpAndSettle();
 
-    expect(find.text("You can't view this area"), findsOneWidget);
+    await tester.tap(find.text('Submit for review'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Completion notes'),
+      'Replaced the gasket and tested for leaks.',
+    );
+    await tester.tap(find.text('Submit for review').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('PENDING REVIEW'), findsOneWidget);
+    expect(
+      find.text('Replaced the gasket and tested for leaks.'),
+      findsOneWidget,
+    );
     await disposeApp(tester);
   });
 }
