@@ -343,6 +343,55 @@ class FakeApi implements ApiContract {
   @override
   Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) =>
       throw UnimplementedError();
+
+  @override
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> createWorkOrder(CreateWorkOrderRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> assignWorkOrder(
+    String workOrderId,
+    AssignWorkOrderRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
 }
 
 class FakeGateway implements AuthGateway {
@@ -462,16 +511,28 @@ void main() {
     });
   });
 
-  testWidgets('tapping a bottom destination routes to its Coming soon page', (
-    tester,
-  ) async {
-    await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
-    await tester.tap(find.byKey(const Key('nav-/work-orders')));
-    await tester.pumpAndSettle();
-    expect(find.text('Work is coming soon'), findsOneWidget);
-    final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(bar.selectedIndex, 2);
-  });
+  testWidgets(
+    'tapping the Work bottom destination routes to the real Work Orders screen and marks it active',
+    (tester) async {
+      // Work Orders (Phase 8.2) is no longer a Coming-soon stand-in -- Home,
+      // Assets, and Work are now all real screens; the generic
+      // ComingSoonScreen mechanism itself stays covered by the "More
+      // destination" test below (/reports).
+      await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
+      await tester.tap(find.byKey(const Key('nav-/work-orders')));
+      await tester.pumpAndSettle();
+      expect(find.text('Work Orders'), findsOneWidget);
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 2);
+      // WorkOrdersScreen holds a live Drift watch-stream subscription;
+      // cancelling it on dispose schedules a zero-duration internal Timer
+      // that flutter_test's pending-timer check (run before any
+      // addTearDown) would otherwise trip on -- flush it inline, mirroring
+      // `inspections_screen_test.dart`'s `disposeApp` helper.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
 
   testWidgets('a More destination routes and marks the More tab active', (
     tester,

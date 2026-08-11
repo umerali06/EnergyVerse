@@ -17,6 +17,8 @@ import '../qr/qr_scan_screen.dart';
 import '../roles/roles_screen.dart';
 import '../shell/app_shell.dart';
 import '../users/users_screen.dart';
+import '../work_orders/work_order_detail_screen.dart';
+import '../work_orders/work_orders_screen.dart';
 import 'auth_experience.dart';
 import 'permissions.dart';
 import 'route_guards.dart';
@@ -45,6 +47,8 @@ class AppRoutes {
   static const inspectionSyncQueue = '/inspections/sync-queue';
   static const qrScan = '/qr-scan';
   static const qrScanResult = '/qr-scan/result';
+  static const workOrders = AppNav.workOrders;
+  static const workOrderDetail = '/work-orders/detail';
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? home;
@@ -239,6 +243,33 @@ class AppRoutes {
                 permission: 'assets.read',
                 fallback: const NoAccessScreen(permission: 'assets.read'),
                 child: QrScanResultScreen(result: result),
+              ),
+            ),
+          );
+        };
+      case workOrders:
+        return (_) => const RequireAuthGuard(
+              routeName: workOrders,
+              child: AppShellScaffold(
+                currentRoute: workOrders,
+                child: PermissionGate(
+                  permission: 'work_orders.read',
+                  fallback: NoAccessScreen(permission: 'work_orders.read'),
+                  child: WorkOrdersScreen(),
+                ),
+              ),
+            );
+      case workOrderDetail:
+        return (context) {
+          final workOrderId = ModalRoute.of(context)!.settings.arguments as String;
+          return RequireAuthGuard(
+            routeName: workOrderDetail,
+            child: AppShellScaffold(
+              currentRoute: workOrders,
+              child: PermissionGate(
+                permission: 'work_orders.read',
+                fallback: const NoAccessScreen(permission: 'work_orders.read'),
+                child: WorkOrderDetailScreen(workOrderId: workOrderId),
               ),
             ),
           );

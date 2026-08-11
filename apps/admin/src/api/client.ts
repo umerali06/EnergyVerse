@@ -18,6 +18,7 @@ import {
   RolesApi,
   SystemApi,
   UsersApi,
+  WorkOrdersApi,
   type AreaDetail,
   type AreaListPage,
   type AssetDashboardSummary,
@@ -26,6 +27,7 @@ import {
   type AssetListPage,
   type AssetQrLabel,
   type AssignChecklistTemplateRequest,
+  type AssignWorkOrderRequest,
   type AuditLogFacets,
   type AuditLogPage,
   type ChecklistTemplateDeleted,
@@ -39,6 +41,7 @@ import {
   type CreateChecklistTemplateRequest,
   type CreateInspectionRequest,
   type CreateRoleRequest,
+  type CreateWorkOrderRequest,
   type CurrentUser,
   type DashboardActivityPage,
   type DashboardActivitySeries,
@@ -70,6 +73,9 @@ import {
   type UpdateUserStatusRequest,
   type UserDetail,
   type UserListPage,
+  type WorkOrderDeleted,
+  type WorkOrderDetail,
+  type WorkOrderListPage,
 } from "@fev/api-client";
 
 import type { ToastApi } from "@/design-system/toast";
@@ -189,6 +195,15 @@ export type ListChecklistTemplatesOptions = {
   limit?: number;
 };
 
+export type ListWorkOrdersOptions = {
+  assetId?: string;
+  facilityId?: string;
+  status?: string;
+  technicianId?: string;
+  cursor?: string;
+  limit?: number;
+};
+
 function toDate(value?: string): Date | undefined {
   return value ? new Date(value) : undefined;
 }
@@ -210,6 +225,7 @@ export class FevApiClient {
   private readonly roles: RolesApi;
   private readonly system: SystemApi;
   private readonly users: UsersApi;
+  private readonly workOrders: WorkOrdersApi;
   private readonly onUnauthorized: UnauthorizedHook;
   private readonly refreshIdToken?: TokenProvider;
   private readonly toast?: ErrorToast;
@@ -237,6 +253,7 @@ export class FevApiClient {
     this.roles = new RolesApi(configuration);
     this.system = new SystemApi(configuration);
     this.users = new UsersApi(configuration);
+    this.workOrders = new WorkOrdersApi(configuration);
     this.onUnauthorized = options.onUnauthorized ?? (() => undefined);
     this.refreshIdToken = options.refreshIdToken;
     this.toast = options.toast;
@@ -620,6 +637,74 @@ export class FevApiClient {
         { templateId },
         signal ? { signal } : undefined,
       ),
+    );
+  }
+
+  listWorkOrders(
+    options: ListWorkOrdersOptions = {},
+    signal?: AbortSignal,
+  ): Promise<WorkOrderListPage> {
+    return this.execute(() =>
+      this.workOrders.listWorkOrders(
+        {
+          assetId: options.assetId,
+          facilityId: options.facilityId,
+          status: options.status,
+          technicianId: options.technicianId,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getWorkOrder(workOrderId: string, signal?: AbortSignal): Promise<WorkOrderDetail> {
+    return this.execute(() =>
+      this.workOrders.getWorkOrder({ workOrderId }, signal ? { signal } : undefined),
+    );
+  }
+
+  createWorkOrder(
+    request: CreateWorkOrderRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkOrderDetail> {
+    return this.execute(() =>
+      this.workOrders.createWorkOrder(
+        { createWorkOrderRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  assignWorkOrder(
+    workOrderId: string,
+    request: AssignWorkOrderRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkOrderDetail> {
+    return this.execute(() =>
+      this.workOrders.assignWorkOrder(
+        { workOrderId, assignWorkOrderRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  closeWorkOrder(workOrderId: string, signal?: AbortSignal): Promise<WorkOrderDetail> {
+    return this.execute(() =>
+      this.workOrders.closeWorkOrder({ workOrderId }, signal ? { signal } : undefined),
+    );
+  }
+
+  cancelWorkOrder(workOrderId: string, signal?: AbortSignal): Promise<WorkOrderDetail> {
+    return this.execute(() =>
+      this.workOrders.cancelWorkOrder({ workOrderId }, signal ? { signal } : undefined),
+    );
+  }
+
+  deleteWorkOrder(workOrderId: string, signal?: AbortSignal): Promise<WorkOrderDeleted> {
+    return this.execute(() =>
+      this.workOrders.deleteWorkOrder({ workOrderId }, signal ? { signal } : undefined),
     );
   }
 

@@ -56,8 +56,9 @@ Only one micro-task may be active at a time.
 | 7.8 | Digital signature — inspector sign-off drawn on-device at inspection completion, offline-capable, server-derived signer identity, revision-bound with pre-completion revision-conflict rejection (re-sign), and admin review display | Done |
 | 7.9 | AR/manual dimension measurement — AR plane-tap distance capture with screenshot evidence (`ar_flutter_plugin_2`, unvalidated on physical hardware per D-063), manual numeric-entry fallback, offline-first via the record outbox, admin review display | Done |
 | 7.10 | AI photo analysis — on-demand Claude vision analysis of inspection photos surfaces advisory `Annotation(source="ai", confidence)` findings the inspector must confirm or override, plus an analysis-level summary/recommendations/risk-level record with an explicit reviewed flag; real Claude API call unverified pending a live `ANTHROPIC_API_KEY` (CI-safe logic fully tested against a fake vision client) | Done |
-| 8 | Work orders — maintenance work order lifecycle raised against an asset (spec §12), assignment, technician self-accept/self-submit, and supervisor review/close | In progress |
+| 8 | Work orders — maintenance work order lifecycle raised against an asset (spec §12), assignment, technician self-accept/self-submit, and supervisor review/close | **COMPLETE** |
 | 8.1 | Work order data model and backend CRUD/lifecycle — `open → assigned → in_progress → pending_review → closed`, plus terminal `cancelled`; closing gated by a dedicated `work_orders.close` permission distinct from `work_orders.write` so the assigned technician cannot self-close (D-066) | Done |
+| 8.2 | Work order mobile + admin UI — offline-first technician flow (My Work Orders, Accept Task, Submit for Review via a dedicated `WorkOrderOutbox`/`WorkOrderSyncEngine`) and the admin supervisor flow (create, assign, review, close, cancel) | Done |
 | 9 | To be defined | Not started |
 | 10 | To be defined | Not started |
 | 11 | To be defined | Not started |

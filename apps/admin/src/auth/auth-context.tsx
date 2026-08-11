@@ -118,6 +118,17 @@ export type ChecklistTemplatesApiClient = Pick<
   | "updateChecklistTemplate"
 >;
 
+export type WorkOrdersApiClient = Pick<
+  FevApiClient,
+  | "assignWorkOrder"
+  | "cancelWorkOrder"
+  | "closeWorkOrder"
+  | "createWorkOrder"
+  | "deleteWorkOrder"
+  | "getWorkOrder"
+  | "listWorkOrders"
+>;
+
 type AuthContextValue = {
   apiClient: DashboardApiClient &
     UsersApiClient &
@@ -127,7 +138,8 @@ type AuthContextValue = {
     PlatformApiClient &
     AssetsApiClient &
     InspectionsApiClient &
-    ChecklistTemplatesApiClient;
+    ChecklistTemplatesApiClient &
+    WorkOrdersApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -206,7 +218,8 @@ export function AuthProvider({
     Partial<PlatformApiClient> &
     Partial<AssetsApiClient> &
     Partial<InspectionsApiClient> &
-    Partial<ChecklistTemplatesApiClient>;
+    Partial<ChecklistTemplatesApiClient> &
+    Partial<WorkOrdersApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -469,7 +482,8 @@ export function AuthProvider({
         PlatformApiClient &
         AssetsApiClient &
         InspectionsApiClient &
-        ChecklistTemplatesApiClient,
+        ChecklistTemplatesApiClient &
+        WorkOrdersApiClient,
       currentUser,
       error,
       passwordResetSentAt,

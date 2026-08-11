@@ -2314,6 +2314,72 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   a real `TestClient` request (not something a service-layer real-creds
   script can exercise).
 
+### Phase 8.2 Work Order Mobile + Admin UI
+
+- **Mobile is offline-first via a SEPARATE local cache/outbox/sync-engine
+  triple, not a reuse of the inspections one.** `LocalWorkOrders`
+  (Drift, schema v9→v10) mirrors `WorkOrderDetail`'s fields; unlike
+  `LocalInspections`, every row originates from a server fetch (a work
+  order is only ever created by admin, always online), so `syncState`
+  never starts `local_only`. `WorkOrderOutbox` (its own table, not a
+  reuse of `Outbox`) carries only two mutation types — `accept` and
+  `submit_for_review`, the only two technician-performed field actions —
+  since assign/close/cancel/create/delete are supervisor actions taken
+  from the always-online admin app and never need to queue offline.
+  `WorkOrderSyncEngine` is a structural clone of `SyncEngine` (same
+  connectivity-listening/backoff/drain-loop shape) rather than a
+  genericization of it — deliberately, to avoid an invasive refactor of
+  the working, well-tested inspections engine for a domain with a much
+  smaller mutation set.
+- **`accept`'s already-applied check needed more than a status
+  comparison, unlike inspections' `start`.** An inspection's inspector is
+  fixed at creation, so `SyncEngine._alreadyApplied`'s `start` case only
+  checks `status == inProgress`. A work order's technician can change
+  out from under a queued `accept` via reassignment, so
+  `WorkOrderSyncEngine._alreadyApplied` additionally compares the fresh
+  server `technicianId` against this device's own (still-unmutated —
+  `accept`'s optimistic write only touches `status`/`acceptedAt`) local
+  row's `technicianId`, distinguishing "my own accept actually landed"
+  from "someone else was reassigned and accepted while I was offline" —
+  the latter must surface as a real conflict, not be silently swallowed
+  as success.
+- **`markConflict` only overwrites status-machinery fields
+  (`status`/`technicianId`/`acceptedAt`), never
+  `completionNotes`/`laborHours`/`materialsUsed`** — mirroring how
+  inspections' own conflict handling syncs status/timestamps but leaves
+  title/notes/checklist responses alone. The technician's own submitted
+  content must survive a conflict so `resolveConflict(keepLocal: true)`
+  has real content to re-submit; the server's conflicting version of
+  those same fields lives only in `conflictServerSnapshot`, read by the
+  `!keepLocal` ("discard mine") path instead.
+- **Mobile UI**: `WorkOrdersScreen` defaults to "assigned to me" (a
+  `technicianId` filter seeded from the signed-in uid, toggleable off) —
+  the field technician's primary use of this screen — with a status
+  filter and a pending-outbox indicator mirroring inspections'
+  `_PendingQueueLink`. `WorkOrderDetailScreen` offers "Accept task" only
+  when `status == assigned` and the signed-in uid matches
+  `technicianId`, and "Submit for review" only when `status ==
+  in_progress` under the same self-check — every other action
+  (assign/close/cancel) is deliberately not offered here at all, since
+  those are supervisor actions taken from admin. A conflict surfaces the
+  same two-button "keep mine"/"use server's" sheet as
+  `InspectionDetailScreen`.
+- **Admin UI**: `work-orders-page.tsx` (list, filters, create modal) and
+  `work-order-detail-page.tsx` (assign modal, completion-details review
+  section, close/cancel actions) mirror the Assets/Users page and modal
+  conventions exactly. The "Close" action is gated by `work_orders.close`
+  specifically — distinct from the "Assign"/"Cancel" actions' gating on
+  `work_orders.write` — the UI-layer mirror of D-066's route-level
+  permission split. Admin never calls `accept`/`submitWorkOrderForReview`
+  at all (technician-only, self-only actions enforced server-side); its
+  `FevApiClient` wrapper only wires the 7 supervisor-relevant endpoints.
+- **Nav**: both apps' Work Orders placeholder (`comingSoon: true`) is
+  replaced by the real screens; the mobile bottom-nav slot and admin's
+  Operations nav group entry are otherwise unchanged.
+- No contract regeneration was needed this phase — the backend and its
+  generated clients already shipped complete in Phase 8.1; 8.2 is purely
+  new client-side code consuming the existing `WorkOrdersApi`.
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -2384,3 +2450,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.9 — AR/manual dimension measurement | See "Phase 7.9 AR/Manual Dimension Measurement" above for the full breakdown. In short: `Inspection.ar_measurements[]` (typed since 7.1's untyped placeholder) holds `ArMeasurement` records (method, distance in meters, optional label/note/checklist link, optional screenshot reference, optional overlay points) — mutation protocol is a field-for-field copy of 7.5's annotation pattern (idempotent by id, no `expected_revision`), and the evidence screenshot is a plain photo through the *existing* 7.4 media pipeline, not a new storage namespace. `points` stays genuinely optional even for AR captures since `ar_flutter_plugin_2` exposes no 2D tap coordinate to populate them honestly (D-064). Session opened on an already-uncommitted Step-1 spike (D-062) gated behind physical-device validation; the product owner waived that gate (D-063) so this phase shipped the full feature. Mobile gained `ArMeasurementScreen`/`ManualMeasurementScreen`/`InspectionMeasurementsSection`, three new `OutboxMutationType` values, and a new `LocalInspections.arMeasurements` column (schema v7→v8). Admin gains a read-only measurements review section. Contracts regenerated for `ArMeasurementResponse`/`CreateArMeasurementRequest`/`UpdateArMeasurementRequest` and the updated `InspectionDetail`. AR plane-detection/measurement accuracy on real hardware remains unverified — accepted risk, confined to the capture screen only. | 2026-08-10 |
 | Phase 7.10 — AI photo analysis | See "Phase 7.10 AI Photo Analysis" above for the full breakdown. In short: `Inspection.ai_analysis[]` (typed since 7.1's untyped placeholder) holds `AiAnalysis` run records; every detected finding is its own `Annotation(source="ai", confidence)` — the exact reuse Phase 7.5 (D-054) reserved those fields for, so no new overlay model was needed. First third-party HTTP/SDK call in this backend: new `app/ai/vision_client.py` (`ClaudeVisionClient`, forced tool-use for structured output) behind a `VisionAnalysisClient` protocol tests fake out. New `InspectionMediaStorage.download_bytes()` breaks the "bytes never pass through this backend" precedent since a vision call needs real image bytes. Two new routes (`analyze`, `review`) mirror neither the create/update/delete pattern nor the attach/detach pattern — `analyze` triggers a fresh run, `review` marks one reviewed (the "confirm" half of D-008; "override" is just editing/deleting the resulting annotations). `InspectionRepository.append_ai_analysis` writes annotations + the analysis record atomically; a real ArrayUnion-rejects-empty-list bug (a no-findings photo) was found and fixed. Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, online-only calls, never queued through the offline outbox (no honest optimistic echo for an AI response that doesn't exist yet); mobile gained an "Analyze with AI" action on the annotation canvas and a new `InspectionAiAnalysisSection`, admin a read-only mirror. New `LocalInspections.aiAnalysis` column (schema v8→v9) — this migration also retroactively fixed 7.9's `arMeasurements` column, which had been added without ever bumping `schemaVersion`. Contracts regenerated for `AiAnalysisResponse` and the updated `InspectionDetail`. The real Claude API call is unverified this phase (no `ANTHROPIC_API_KEY` available in-session); all logic is fully tested against a `FakeAiClient`. | 2026-08-10 |
 | Phase 8.1 — work order data model and backend CRUD/lifecycle | See "Phase 8.1 Work Order Data Model" above for the full breakdown. In short: new `WorkOrder` entity/repository/service/router (9 routes), lifecycle `open → assigned → in_progress → pending_review → closed` + terminal `cancelled` mirroring `Inspection`'s D-045 shape. A new `work_orders.close` permission (D-066) is deliberately distinct from `work_orders.write` — granted to `operations_manager`/`company_admin`/`super_admin`, withheld from `maintenance_technician` — enforced at the route layer on `close` only; `accept`/`submit-for-review` are separately enforced self-only in `WorkOrderService` (technician can't be acted for by anyone else). Backend-only scope, mirroring Phase 7.1's foundation-before-UI precedent — mobile/admin work-order screens are deferred to future sub-phases. Contracts regenerated for the new request/response models and 9 `WorkOrdersApi` operations. Real-creds verified against the live Firebase project; `reconcile_roles.py` run against the one real non-demo tenant to backfill `work_orders.close`. | 2026-08-11 |
+| Phase 8.2 — work order mobile + admin UI | See "Phase 8.2 Work Order Mobile + Admin UI" above for the full breakdown. In short: mobile ships a separate `LocalWorkOrders`/`WorkOrderOutbox`/`WorkOrderSyncEngine` triple (own Drift tables, schema v9→v10) rather than reusing the inspections one — only `accept`/`submit_for_review` (the technician's two field actions) ride the offline outbox; assign/close/cancel/create/delete are always-online supervisor actions from admin. `WorkOrderSyncEngine._alreadyApplied`'s `accept` case compares the fresh server `technicianId` against this device's own unmutated local row to distinguish a genuine reassignment conflict from "my own accept already landed" — inspections' `start` never needed this since its inspector is fixed at creation. `markConflict` preserves the technician's own `completionNotes`/`laborHours`/`materialsUsed` (only status-machinery fields sync from the snapshot), so "keep mine" has real content to re-submit. `WorkOrdersScreen` defaults to "assigned to me"; `WorkOrderDetailScreen` offers Accept/Submit-for-review only to the actually-assigned technician. Admin ships `work-orders-page.tsx`/`work-order-detail-page.tsx` mirroring the Assets/Users conventions, with Close gated by `work_orders.close` specifically (distinct from Assign/Cancel's `work_orders.write` gate) — the UI mirror of D-066's route split. No contract regeneration needed (Phase 8.1 already shipped the complete client surface); Phase 8 (data model, mobile technician flow, admin supervisor flow) is now **COMPLETE** per its own scope description in `PHASE_TRACKER.md`. | 2026-08-11 |

@@ -197,6 +197,28 @@ abstract interface class ApiContract {
     int limit = 25,
   });
   Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId);
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId);
+  Future<WorkOrderDetail> createWorkOrder(CreateWorkOrderRequest request);
+  Future<WorkOrderDetail> assignWorkOrder(
+    String workOrderId,
+    AssignWorkOrderRequest request,
+  );
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId);
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  );
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId);
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId);
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId);
 }
 
 extension AssetWriteContract on ApiContract {
@@ -1274,6 +1296,160 @@ class ApiService implements ApiContract {
       throw const ApiException(
         code: 'invalid_response',
         message: 'The API returned an empty inspection detail',
+      );
+    }
+    return value;
+  }
+
+  @override
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getWorkOrdersApi().listWorkOrders(
+            assetId: assetId,
+            facilityId: facilityId,
+            status: status,
+            technicianId: technicianId,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty work order list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .getWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> createWorkOrder(
+      CreateWorkOrderRequest request) async {
+    try {
+      final response = await _client.getWorkOrdersApi().createWorkOrder(
+            createWorkOrderRequest: request,
+          );
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> assignWorkOrder(
+    String workOrderId,
+    AssignWorkOrderRequest request,
+  ) async {
+    try {
+      final response = await _client.getWorkOrdersApi().assignWorkOrder(
+            workOrderId: workOrderId,
+            assignWorkOrderRequest: request,
+          );
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .acceptWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  ) async {
+    try {
+      final response =
+          await _client.getWorkOrdersApi().submitWorkOrderForReview(
+                workOrderId: workOrderId,
+                submitWorkOrderForReviewRequest: request,
+              );
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .closeWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .cancelWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .deleteWorkOrder(workOrderId: workOrderId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty work order deletion response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  WorkOrderDetail _requireWorkOrder(WorkOrderDetail? value) {
+    if (value == null) {
+      throw const ApiException(
+        code: 'invalid_response',
+        message: 'The API returned an empty work order detail',
       );
     }
     return value;
