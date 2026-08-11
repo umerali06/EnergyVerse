@@ -24,6 +24,7 @@ doc/AssetMediaResponse.md
 doc/AssetQrLabel.md
 doc/AssetsApi.md
 doc/AssignChecklistTemplateRequest.md
+doc/AssignWorkOrderRequest.md
 doc/AttachInspectionMediaRequest.md
 doc/AttachVoiceNoteRequest.md
 doc/AuditApi.md
@@ -52,6 +53,7 @@ doc/CreateChecklistTemplateRequest.md
 doc/CreateFacilityRequest.md
 doc/CreateInspectionRequest.md
 doc/CreateRoleRequest.md
+doc/CreateWorkOrderRequest.md
 doc/CurrentUser.md
 doc/DashboardActivityItem.md
 doc/DashboardActivityPage.md
@@ -99,6 +101,7 @@ doc/SignaturePointResponse.md
 doc/SignatureResponse.md
 doc/SignatureStrokeInput.md
 doc/SignatureStrokeResponse.md
+doc/SubmitWorkOrderForReviewRequest.md
 doc/SystemApi.md
 doc/UpdateAnnotationRequest.md
 doc/UpdateArMeasurementRequest.md
@@ -123,6 +126,11 @@ doc/ValidationError.md
 doc/ValidationErrorLocInner.md
 doc/Value.md
 doc/VoiceNoteResponse.md
+doc/WorkOrderDeleted.md
+doc/WorkOrderDetail.md
+doc/WorkOrderListItem.md
+doc/WorkOrderListPage.md
+doc/WorkOrdersApi.md
 lib/fev_api_client.dart
 lib/src/api.dart
 lib/src/api/areas_api.dart
@@ -141,6 +149,7 @@ lib/src/api/rbac_demo_api.dart
 lib/src/api/roles_api.dart
 lib/src/api/system_api.dart
 lib/src/api/users_api.dart
+lib/src/api/work_orders_api.dart
 lib/src/api_util.dart
 lib/src/auth/api_key_auth.dart
 lib/src/auth/auth.dart
@@ -168,6 +177,7 @@ lib/src/model/asset_list_page.dart
 lib/src/model/asset_media_response.dart
 lib/src/model/asset_qr_label.dart
 lib/src/model/assign_checklist_template_request.dart
+lib/src/model/assign_work_order_request.dart
 lib/src/model/attach_inspection_media_request.dart
 lib/src/model/attach_voice_note_request.dart
 lib/src/model/audit_log_entry.dart
@@ -192,6 +202,7 @@ lib/src/model/create_checklist_template_request.dart
 lib/src/model/create_facility_request.dart
 lib/src/model/create_inspection_request.dart
 lib/src/model/create_role_request.dart
+lib/src/model/create_work_order_request.dart
 lib/src/model/current_user.dart
 lib/src/model/dashboard_activity_item.dart
 lib/src/model/dashboard_activity_page.dart
@@ -232,6 +243,7 @@ lib/src/model/signature_point_response.dart
 lib/src/model/signature_response.dart
 lib/src/model/signature_stroke_input.dart
 lib/src/model/signature_stroke_response.dart
+lib/src/model/submit_work_order_for_review_request.dart
 lib/src/model/update_annotation_request.dart
 lib/src/model/update_ar_measurement_request.dart
 lib/src/model/update_area_request.dart
@@ -254,6 +266,10 @@ lib/src/model/validation_error.dart
 lib/src/model/validation_error_loc_inner.dart
 lib/src/model/value.dart
 lib/src/model/voice_note_response.dart
+lib/src/model/work_order_deleted.dart
+lib/src/model/work_order_detail.dart
+lib/src/model/work_order_list_item.dart
+lib/src/model/work_order_list_page.dart
 lib/src/serializers.dart
 pubspec.yaml
 test/ai_analysis_response_test.dart
@@ -278,6 +294,7 @@ test/asset_media_response_test.dart
 test/asset_qr_label_test.dart
 test/assets_api_test.dart
 test/assign_checklist_template_request_test.dart
+test/assign_work_order_request_test.dart
 test/attach_inspection_media_request_test.dart
 test/attach_voice_note_request_test.dart
 test/audit_api_test.dart
@@ -306,6 +323,7 @@ test/create_checklist_template_request_test.dart
 test/create_facility_request_test.dart
 test/create_inspection_request_test.dart
 test/create_role_request_test.dart
+test/create_work_order_request_test.dart
 test/current_user_test.dart
 test/dashboard_activity_item_test.dart
 test/dashboard_activity_page_test.dart
@@ -353,6 +371,7 @@ test/signature_point_response_test.dart
 test/signature_response_test.dart
 test/signature_stroke_input_test.dart
 test/signature_stroke_response_test.dart
+test/submit_work_order_for_review_request_test.dart
 test/system_api_test.dart
 test/update_annotation_request_test.dart
 test/update_ar_measurement_request_test.dart
@@ -377,3 +396,8 @@ test/validation_error_loc_inner_test.dart
 test/validation_error_test.dart
 test/value_test.dart
 test/voice_note_response_test.dart
+test/work_order_deleted_test.dart
+test/work_order_detail_test.dart
+test/work_order_list_item_test.dart
+test/work_order_list_page_test.dart
+test/work_orders_api_test.dart

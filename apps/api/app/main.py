@@ -21,6 +21,7 @@ from app.api.v1.qr import router as qr_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
 from app.api.v1.roles import router as roles_router
 from app.api.v1.users import router as users_router
+from app.api.v1.work_orders import router as work_orders_router
 from app.core.errors import (
     ApiError,
     api_error_response,
@@ -77,6 +78,13 @@ app = FastAPI(
             "name": "platform",
             "description": "Super-Admin cross-tenant platform administration (platform.admin only)",
         },
+        {
+            "name": "work_orders",
+            "description": (
+                "Company-scoped maintenance work orders, assignment, and lifecycle "
+                "(closing requires work_orders.close, distinct from work_orders.write)"
+            ),
+        },
     ],
 )
 app.add_exception_handler(ApiError, api_error_response)
@@ -107,6 +115,7 @@ app.include_router(qr_router)
 app.include_router(company_router)
 app.include_router(audit_router)
 app.include_router(platform_router)
+app.include_router(work_orders_router)
 
 
 @app.get(

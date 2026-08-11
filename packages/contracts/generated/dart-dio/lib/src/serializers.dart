@@ -34,6 +34,7 @@ import 'package:fev_api_client/src/model/asset_list_page.dart';
 import 'package:fev_api_client/src/model/asset_media_response.dart';
 import 'package:fev_api_client/src/model/asset_qr_label.dart';
 import 'package:fev_api_client/src/model/assign_checklist_template_request.dart';
+import 'package:fev_api_client/src/model/assign_work_order_request.dart';
 import 'package:fev_api_client/src/model/attach_inspection_media_request.dart';
 import 'package:fev_api_client/src/model/attach_voice_note_request.dart';
 import 'package:fev_api_client/src/model/audit_log_entry.dart';
@@ -58,6 +59,7 @@ import 'package:fev_api_client/src/model/create_checklist_template_request.dart'
 import 'package:fev_api_client/src/model/create_facility_request.dart';
 import 'package:fev_api_client/src/model/create_inspection_request.dart';
 import 'package:fev_api_client/src/model/create_role_request.dart';
+import 'package:fev_api_client/src/model/create_work_order_request.dart';
 import 'package:fev_api_client/src/model/current_user.dart';
 import 'package:fev_api_client/src/model/dashboard_activity_item.dart';
 import 'package:fev_api_client/src/model/dashboard_activity_page.dart';
@@ -97,6 +99,7 @@ import 'package:fev_api_client/src/model/signature_point_response.dart';
 import 'package:fev_api_client/src/model/signature_response.dart';
 import 'package:fev_api_client/src/model/signature_stroke_input.dart';
 import 'package:fev_api_client/src/model/signature_stroke_response.dart';
+import 'package:fev_api_client/src/model/submit_work_order_for_review_request.dart';
 import 'package:fev_api_client/src/model/update_annotation_request.dart';
 import 'package:fev_api_client/src/model/update_ar_measurement_request.dart';
 import 'package:fev_api_client/src/model/update_area_request.dart';
@@ -119,6 +122,10 @@ import 'package:fev_api_client/src/model/validation_error.dart';
 import 'package:fev_api_client/src/model/validation_error_loc_inner.dart';
 import 'package:fev_api_client/src/model/value.dart';
 import 'package:fev_api_client/src/model/voice_note_response.dart';
+import 'package:fev_api_client/src/model/work_order_deleted.dart';
+import 'package:fev_api_client/src/model/work_order_detail.dart';
+import 'package:fev_api_client/src/model/work_order_list_item.dart';
+import 'package:fev_api_client/src/model/work_order_list_page.dart';
 
 part 'serializers.g.dart';
 
@@ -143,6 +150,7 @@ part 'serializers.g.dart';
   AssetMediaResponse,
   AssetQrLabel,
   AssignChecklistTemplateRequest,
+  AssignWorkOrderRequest,
   AttachInspectionMediaRequest,
   AttachVoiceNoteRequest,
   AuditLogEntry,
@@ -167,6 +175,7 @@ part 'serializers.g.dart';
   CreateFacilityRequest,
   CreateInspectionRequest,
   CreateRoleRequest,
+  CreateWorkOrderRequest,
   CurrentUser,
   DashboardActivityItem,
   DashboardActivityPage,
@@ -206,6 +215,7 @@ part 'serializers.g.dart';
   SignatureResponse,
   SignatureStrokeInput,
   SignatureStrokeResponse,
+  SubmitWorkOrderForReviewRequest,
   UpdateAnnotationRequest,
   UpdateArMeasurementRequest,
   UpdateAreaRequest,
@@ -228,6 +238,10 @@ part 'serializers.g.dart';
   ValidationErrorLocInner,
   Value,
   VoiceNoteResponse,
+  WorkOrderDeleted,
+  WorkOrderDetail,
+  WorkOrderListItem,
+  WorkOrderListPage,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..add(const OneOfSerializer())

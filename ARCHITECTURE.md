@@ -2240,6 +2240,80 @@ live in one constants module. Firestore Rules remain deny-all for clients.
   call against the live Anthropic API is an open follow-up once a real
   key is configured.
 
+### Phase 8.1 Work Order Data Model
+
+- **New `WorkOrder` entity (`app/models/entities.py`), the first module
+  after Phase 7 that isn't Inspection sub-resource.** `id`, `asset_id`,
+  `facility_id`, `title`, optional `description`, `priority`, `status`,
+  optional `source_inspection_id`, `technician_id`/`assigned_by`/
+  `assigned_at`/`due_date`, `accepted_at`, `labor_hours`/
+  `materials_used`/`completion_notes`/`submitted_at`, `closed_by`/
+  `closed_at`, `cancelled_at`, `revision`, `deleted_at`, and a reserved
+  always-empty `media: list[dict]` (the same "reserve now, build later"
+  pattern Phase 7.1 used for `ar_measurements`/`ai_analysis`).
+- **Lifecycle mirrors `Inspection`'s draft/in_progress/completed +
+  cancelled shape (D-045), adapted for the spec's explicit Assign/
+  Accept/Supervisor-Review steps:** `open → assigned → in_progress →
+  pending_review → closed`, plus terminal `cancelled` reachable from any
+  non-terminal state. `WorkOrderRepository._apply_lifecycle` is a direct
+  structural copy of `InspectionRepository.apply_lifecycle` — same
+  `RevisionConflictError`/`InvalidTransitionError` pair, same
+  `{**current, **extra_fields, status, revision+1, updated_at}` write
+  shape, same one-audit-write-per-transition contract.
+- **New `work_orders.close` permission is the load-bearing authorization
+  decision of this phase (D-066).** Distinct from the pre-existing
+  `work_orders.write`, granted only to `operations_manager` and (via
+  `ALL_PERMISSION_KEYS`) `company_admin`/`super_admin` — never to
+  `maintenance_technician`. Enforced with a third `require_permission`
+  dependency on the router (`_work_orders_close_access`), gating only
+  `POST /work-orders/{id}/close`; every other route uses the existing
+  `.read`/`.write` pair. The real, already-registered non-demo tenant
+  needed one `reconcile_roles.py` run to backfill the grant onto its
+  `operations_manager` role, same precedent as every prior permission
+  addition since D-029.
+- **`accept`/`submit-for-review` are self-only, enforced in
+  `WorkOrderService`, not the route layer.** Both check
+  `current.technician_id == actor_uid` before delegating to the
+  repository, raising 403 `not_assigned_technician` otherwise — even a
+  `company_admin`/`operations_manager` holding `work_orders.write`
+  cannot accept or submit on the technician's behalf. This is a
+  per-record check a static permission key can't express, which is why
+  it lives in the service rather than as a fourth permission.
+- **Nine routes on `apps/api/app/api/v1/work_orders.py`**
+  (`GET/POST /work-orders`, `GET /work-orders/{id}`, `PATCH .../assign`,
+  `POST .../accept`, `PATCH .../submit-for-review`, `POST .../close`,
+  `POST .../cancel`, `DELETE /work-orders/{id}`), all thin wrappers over
+  `WorkOrderService`. `assign`/`submit-for-review` accept an optional
+  `expected_revision` (real request bodies); `accept`/`close`/`cancel`
+  are bodyless with no revision check — the same body-vs-bodyless split
+  `Inspection.apply_lifecycle`'s `start`/`cancel` vs `complete`
+  established.
+- **Seed data:** five `DemoWorkOrderSeed` fixtures spanning every
+  non-cancelled lifecycle state (`open`, `assigned`, `in_progress`,
+  `pending_review`, `closed`) across the existing Phase 4.1 demo assets,
+  walked through their real `create`/`assign`/`accept`/
+  `submit_for_review`/`close` repository calls by a new
+  `_ensure_work_order()` — a structural mirror of `_ensure_inspection()`,
+  seeded sequentially (not `asyncio.gather`'d) for the same
+  same-document-race reason.
+- **Backend-only for 8.1**, mirroring Phase 7.1's Inspection-foundation-
+  before-capture-UI precedent. Mobile assignment/accept/repair/submit
+  screens and an admin supervisor-review/close UI are deferred to future
+  sub-phases (8.2, 8.3, ...), not yet scoped or confirmed with the
+  product owner.
+- **Contracts regenerated** for `WorkOrderListItem`/`WorkOrderDetail`/
+  `CreateWorkOrderRequest`/`AssignWorkOrderRequest`/
+  `SubmitWorkOrderForReviewRequest`/`WorkOrderDeleted` and the nine new
+  `WorkOrdersApi` operations, on both generated clients.
+- **Real-creds verified** (`verify_work_order_roundtrip.py`) against the
+  live Firebase project: create → assign → (supervisor-accept correctly
+  rejected) → technician-accept → submit-for-review → close, plus an
+  independent create → cancel path, all against real Firestore data.
+  The `work_orders.close` permission split itself is an HTTP-route-
+  dependency concern, verified instead by `test_work_orders.py` against
+  a real `TestClient` request (not something a service-layer real-creds
+  script can exercise).
+
 ### AI Safety Boundary
 
 - Claude API and computer-vision models provide advisory analysis
@@ -2309,3 +2383,4 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 7.8 — digital signature (inspector sign-off) | See "Phase 7.8 Digital Signature" above for the full breakdown. In short: `Inspection.signature` (typed since 7.1's untyped placeholder) is a single nullable `Signature` object holding a list of `SignatureStroke` objects (each `points: list[AnnotationPoint]`) — a named-stroke shape chosen specifically to avoid a real doubly-nested-list builder-factory gap in the pinned Dart generator. Signing is now the mandatory final step of `POST /inspections/{id}/complete` (a new required `CompleteInspectionRequest` body: `strokes` + `expected_revision`) — there is no separate sign-then-complete call and no way to complete unsigned. Signer identity is always server-derived (`InspectionService` gained a `UserRepository` dependency for the `display_name` lookup); a stale `expected_revision` is rejected with the existing `revision_conflict` 409 before the checklist-completeness check runs, which is also the entire "re-sign" mechanism — no reopen/re-edit capability was added, since a completed inspection stays immutable. Mobile gained `SignaturePad`/`SignaturePadController` and a `_SignatureCaptureSheet` modal opened from "Complete Inspection"; `LocalInspectionsRepository.completeInspection` now requires `strokes`, and `LocalInspections` gained `signature`/`pendingSignatureStrokes` columns (schema v6→v7). `markConflict` was fixed to re-sync `status`/`startedAt`/`completedAt` from the server on any conflict, so a stale `complete` attempt's optimistic status flip reverts correctly. Admin gains a read-only signature review section (signer/role/timestamp, valid-vs-superseded indicator, SVG stroke preview). Contracts regenerated for `Signature`/`SignatureStroke` request/response models and the updated `InspectionDetail`. | 2026-08-06 |
 | Phase 7.9 — AR/manual dimension measurement | See "Phase 7.9 AR/Manual Dimension Measurement" above for the full breakdown. In short: `Inspection.ar_measurements[]` (typed since 7.1's untyped placeholder) holds `ArMeasurement` records (method, distance in meters, optional label/note/checklist link, optional screenshot reference, optional overlay points) — mutation protocol is a field-for-field copy of 7.5's annotation pattern (idempotent by id, no `expected_revision`), and the evidence screenshot is a plain photo through the *existing* 7.4 media pipeline, not a new storage namespace. `points` stays genuinely optional even for AR captures since `ar_flutter_plugin_2` exposes no 2D tap coordinate to populate them honestly (D-064). Session opened on an already-uncommitted Step-1 spike (D-062) gated behind physical-device validation; the product owner waived that gate (D-063) so this phase shipped the full feature. Mobile gained `ArMeasurementScreen`/`ManualMeasurementScreen`/`InspectionMeasurementsSection`, three new `OutboxMutationType` values, and a new `LocalInspections.arMeasurements` column (schema v7→v8). Admin gains a read-only measurements review section. Contracts regenerated for `ArMeasurementResponse`/`CreateArMeasurementRequest`/`UpdateArMeasurementRequest` and the updated `InspectionDetail`. AR plane-detection/measurement accuracy on real hardware remains unverified — accepted risk, confined to the capture screen only. | 2026-08-10 |
 | Phase 7.10 — AI photo analysis | See "Phase 7.10 AI Photo Analysis" above for the full breakdown. In short: `Inspection.ai_analysis[]` (typed since 7.1's untyped placeholder) holds `AiAnalysis` run records; every detected finding is its own `Annotation(source="ai", confidence)` — the exact reuse Phase 7.5 (D-054) reserved those fields for, so no new overlay model was needed. First third-party HTTP/SDK call in this backend: new `app/ai/vision_client.py` (`ClaudeVisionClient`, forced tool-use for structured output) behind a `VisionAnalysisClient` protocol tests fake out. New `InspectionMediaStorage.download_bytes()` breaks the "bytes never pass through this backend" precedent since a vision call needs real image bytes. Two new routes (`analyze`, `review`) mirror neither the create/update/delete pattern nor the attach/detach pattern — `analyze` triggers a fresh run, `review` marks one reviewed (the "confirm" half of D-008; "override" is just editing/deleting the resulting annotations). `InspectionRepository.append_ai_analysis` writes annotations + the analysis record atomically; a real ArrayUnion-rejects-empty-list bug (a no-findings photo) was found and fixed. Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, online-only calls, never queued through the offline outbox (no honest optimistic echo for an AI response that doesn't exist yet); mobile gained an "Analyze with AI" action on the annotation canvas and a new `InspectionAiAnalysisSection`, admin a read-only mirror. New `LocalInspections.aiAnalysis` column (schema v8→v9) — this migration also retroactively fixed 7.9's `arMeasurements` column, which had been added without ever bumping `schemaVersion`. Contracts regenerated for `AiAnalysisResponse` and the updated `InspectionDetail`. The real Claude API call is unverified this phase (no `ANTHROPIC_API_KEY` available in-session); all logic is fully tested against a `FakeAiClient`. | 2026-08-10 |
+| Phase 8.1 — work order data model and backend CRUD/lifecycle | See "Phase 8.1 Work Order Data Model" above for the full breakdown. In short: new `WorkOrder` entity/repository/service/router (9 routes), lifecycle `open → assigned → in_progress → pending_review → closed` + terminal `cancelled` mirroring `Inspection`'s D-045 shape. A new `work_orders.close` permission (D-066) is deliberately distinct from `work_orders.write` — granted to `operations_manager`/`company_admin`/`super_admin`, withheld from `maintenance_technician` — enforced at the route layer on `close` only; `accept`/`submit-for-review` are separately enforced self-only in `WorkOrderService` (technician can't be acted for by anyone else). Backend-only scope, mirroring Phase 7.1's foundation-before-UI precedent — mobile/admin work-order screens are deferred to future sub-phases. Contracts regenerated for the new request/response models and 9 `WorkOrdersApi` operations. Real-creds verified against the live Firebase project; `reconcile_roles.py` run against the one real non-demo tenant to backfill `work_orders.close`. | 2026-08-11 |

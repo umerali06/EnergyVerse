@@ -68,6 +68,7 @@
 | D-063 | Waiving D-062's physical-device validation gate before Phase 7.9 Step 2 | **Product owner explicitly chose to proceed straight to the full AR measurement feature (data model, offline sync, manual fallback, screenshot capture) without a human confirming `ar_flutter_plugin_2` plane detection/measurement on a real ARCore/ARKit device first. The D-062 spike code, permission/manifest changes, and dependency stay exactly as built. Risk accepted: if the plugin proves inadequate on real hardware later, the AR capture path (not the manual-entry path, the data model, or the sync protocol) is what gets swapped for native platform channels — everything else in Step 2 is written to be plugin-agnostic for exactly this reason.** | **RESOLVED — LOCKED** | 2026-08-10 |
 | D-064 | AR/manual measurement data model, screenshot evidence, and mutation protocol (Phase 7.9 Step 2) | **`Inspection.ar_measurements[]` (replacing the 7.1 `list[dict]` placeholder) holds one `ArMeasurement` per capture: `id`, `method` (`ar`\|`manual`), `distance_meters` (always meters, fixed-unit convention per D-058), optional `label`/`note`/`checklist_item_id`, optional `media_local_id` (an existing `InspectionMedia` item as visual evidence), and `points: list[AnnotationPoint]` reusing D-054's normalized-point shape but left genuinely optional — `ar_flutter_plugin_2` exposes no 2D screen-tap coordinate alongside its 3D hit-test result, so exact overlay markers are not fabricated; the screenshot alone is the AR method's evidence requirement (`media_local_id` mandatory, `points` not). Mutation protocol mirrors D-054/D-055's annotations exactly: three routes (create/update/delete), idempotent by client-generated `id`, no `expected_revision` (measurement traffic must never collide with checklist-autosave). Update is deliberately narrow — only `label`/`note`/`checklist_item_id` are mutable; method/distance/screenshot/points are immutable once created (delete-and-recreate fixes a mistake, same posture as media's checklist-link-only update). An AR screenshot is a plain `InspectionMedia` photo through the *existing* 7.4 pipeline (no new storage subfolder, no new `MediaKind`, no `MediaQueue` schema change) — a measurement simply references its `local_id`, exactly how an annotation references the photo it's drawn on, decoupling the measurement record from the screenshot's own upload completion. Mobile captures the screenshot via `ARSessionManager.snapshot()` (extracting bytes from the plugin's own `MemoryImage` return) and reuses `LocalMediaRepository.enqueueCapture` unmodified.** | **RESOLVED — LOCKED** | 2026-08-10 |
 | D-065 | AI photo analysis data model, Claude vision integration, and mutation protocol (Phase 7.10) | **`Inspection.ai_analysis[]` (replacing the 7.1 `dict \| None` placeholder) holds one `AiAnalysis` per run: `id`, `media_local_id`, `model`, `summary`, optional `recommendations`/`risk_level`, `annotation_ids` (the findings it produced), `reviewed`/`reviewed_by`/`reviewed_at`, `created_by`, `created_at`. Every detected finding is persisted as its own `Annotation(source="ai", confidence=...)` — the exact mechanism D-054 reserved `source`/`confidence` for; no new overlay model, no new review UI primitive. `app/ai/vision_client.py`'s `ClaudeVisionClient` is the first third-party HTTP/SDK call in this backend (every prior integration is Firebase) — a forced tool-use call (`report_photo_analysis`) constrains the model to return `summary` + `findings[]` (`shape`, 1-2 normalized points, optional `damage_type` from the same enum `Annotation` uses, `confidence`, optional `note`); a `VisionAnalysisClient` protocol is what `InspectionService` depends on so tests inject a `FakeAiClient`, no real API key required for CI. Two new routes deliberately don't mirror create/update/delete or attach/detach: `POST .../media/{media_id}/analyze` (triggers a fresh run, identified by the media item's server id like `update_inspection_media`) and `POST .../ai-analysis/{analysis_id}/review` (marks reviewed — the "confirm" half of D-008; "override" is simply editing/deleting the resulting annotations through the existing endpoints, no separate action). `InspectionRepository.append_ai_analysis` writes the new annotations and the analysis record in one atomic Firestore update. Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, immediate, ONLINE-ONLY calls, never queued through the offline outbox like every other mutation — there is no honest optimistic echo for an AI response that doesn't exist yet, and the action requires live connectivity to a paid third-party API regardless.** | **RESOLVED — LOCKED** | 2026-08-10 |
+| D-066 | Work order lifecycle model and the `work_orders.close` permission split (Phase 8.1) | **New `WorkOrder` (`TenantDoc`), scope chosen from the original spec's remaining sections (§12) after the product owner picked "Work Orders" over Permit-to-Work/Notifications. Lifecycle: `open → assigned → in_progress → pending_review → closed`, plus a terminal `cancelled` reachable from any non-terminal state — mirrors `Inspection`'s draft/in_progress/completed+cancelled shape (D-045), adapted for the spec's explicit Assign/Accept/Supervisor-Review steps. A new `work_orders.close` permission is deliberately distinct from the pre-existing `work_orders.write` — granted to `operations_manager`/`company_admin`/`super_admin` but never to `maintenance_technician`, so the assigned technician can submit their completed repair for review but cannot close it themselves; enforced at the route layer (`require_permission("work_orders.close")` on `POST .../close` only). Independently, `WorkOrderService.accept_work_order`/`submit_work_order_for_review` enforce a self-only check (`current.technician_id == actor_uid`, else 403 `not_assigned_technician`) — "Accept Task" and "submit for review" are personal acknowledgments, not supervisory actions, so even a `company_admin`/`operations_manager` cannot accept or submit on a technician's behalf. Mutation protocol mirrors D-064/D-055's idempotent-by-id, no-`expected_revision`-on-bodyless-actions shape for `accept`/`close`/`cancel`; `assign`/`submit-for-review` accept an optional `expected_revision` since they carry a real body. `media` is reserved, always-empty on the entity until a future sub-phase gives "Upload Photos" a real shape, matching how `Inspection.ar_measurements`/`ai_analysis` were reserved ahead of their own phases. Backend-only for 8.1, mirroring how Phase 7.1 established the Inspection foundation before any client UI — mobile/admin work-order screens are deferred to future sub-phases.** | **RESOLVED — LOCKED** | 2026-08-11 |
 
 ## Decision Details
 
@@ -1822,6 +1823,97 @@
   explicitly out of scope for this phase (`ai_analysis_unsupported_media_kind`
   422) since no frame-extraction pipeline exists.
 
+### D-066 — Work Order Lifecycle Model and the `work_orders.close` Permission Split (Phase 8.1)
+
+- **Decision owner:** Product owner, via `AskUserQuestion` at phase start —
+  chose to pick the next module from the original spec's remaining sections
+  (rather than describe new scope) and then chose "Work Orders" (§12)
+  specifically over Permit-to-Work, Notifications, and other remaining
+  sections. Also chose to merge the then-open Phase 7.10 PR and branch
+  from updated `main` before starting, rather than stack this phase on an
+  unmerged branch.
+- **Data model:** `WorkOrder` (`TenantDoc`, `app/models/entities.py`) —
+  `id`, `asset_id`, `facility_id`, `title`, optional `description`,
+  `priority` (`low`\|`medium`\|`high`\|`critical`), `status`, optional
+  `source_inspection_id` (a work order can originate from an inspection
+  finding, though nothing wires that link automatically yet — the field
+  is accepted, not auto-populated), `technician_id`/`assigned_by`/
+  `assigned_at`/`due_date`, `accepted_at`, `labor_hours`/`materials_used`/
+  `completion_notes`/`submitted_at`, `closed_by`/`closed_at`,
+  `cancelled_at`, `revision`, `deleted_at`, and a reserved always-empty
+  `media: list[dict]` — the same "reserve the field, build the feature
+  later" pattern Phase 7.1 used for `ar_measurements`/`ai_analysis`
+  ahead of Phases 7.9/7.10.
+- **Lifecycle:** `open → assigned → in_progress → pending_review →
+  closed`, plus a terminal `cancelled` reachable from any non-terminal
+  state — the same draft/in_progress/completed+cancelled shape D-045
+  established for `Inspection`, adapted for the spec's explicit Assign/
+  Accept/Supervisor-Review steps rather than a single start/complete
+  pair. `assign` is reachable from both `open` (first assignment) and
+  `assigned` (reassignment to a different technician), never from
+  `in_progress` onward, since the original technician has by then
+  started real repair work. `WorkOrderRepository._apply_lifecycle`
+  mirrors `InspectionRepository.apply_lifecycle`'s
+  `RevisionConflictError`/`InvalidTransitionError` shape exactly.
+- **A new `work_orders.close` permission, deliberately distinct from the
+  pre-existing `work_orders.write`, is the core authorization decision
+  of this phase.** The existing catalog had no way to distinguish "can
+  submit repair work" from "can approve/close it" — asked and resolved
+  directly rather than guessed, since granting `maintenance_technician`
+  the ability to self-close would make the spec's "Supervisor Review"
+  step advisory instead of enforced. `work_orders.close` is granted to
+  `operations_manager` explicitly and to `company_admin`/`super_admin`
+  automatically (`ALL_PERMISSION_KEYS`); `maintenance_technician`,
+  `field_inspector`, and every other role are not granted it. Enforced
+  purely at the route layer (`require_permission("work_orders.close")`
+  on `POST /work-orders/{id}/close` only — every other route uses the
+  existing `work_orders.read`/`.write`). Already-registered real tenants
+  outside the two demo companies need one `reconcile_roles.py
+  --company-id <id>` run to pick up the new grant, same precedent as
+  every prior permission addition (D-029, D-036's `audit.read`
+  backfills, etc.) — run this phase against the one real non-demo
+  tenant on `thinking-case-469504-c0`.
+- **`accept`/`submit-for-review` are self-only, independently of the
+  close-permission split, and enforced in the service layer rather than
+  a route dependency.** `WorkOrderService.accept_work_order`/
+  `submit_work_order_for_review` check `current.technician_id ==
+  actor_uid`, raising 403 `not_assigned_technician` otherwise — even a
+  caller holding `work_orders.write` for other reasons (a
+  `company_admin`/`operations_manager`) cannot accept or submit on the
+  technician's behalf. "Accept Task" is a personal acknowledgment and
+  "submit for review" is the technician vouching for their own
+  completed work — neither is a supervisory action, so neither belongs
+  behind a permission check the way `close` does; both require knowing
+  *which* technician is assigned, which only a per-record self-check
+  (not a static permission) can express.
+- **Mutation protocol mirrors D-064/D-055's existing conventions, split
+  by whether the action carries a real body.** `assign` and
+  `submit-for-review` accept an optional `expected_revision` (real
+  request bodies, so a stale-write race is meaningful); `accept`,
+  `close`, and `cancel` are bodyless actions with no revision check —
+  the same split `Inspection.apply_lifecycle`'s `start`/`cancel` already
+  established over `complete`'s revision-checked body. All five actions
+  are idempotent by the work order's own `id` (no separate mutation-id
+  concept needed, since a work order's `id` never changes across its
+  lifecycle unlike media/annotations' separate local/server id pairs).
+- **Backend-only scope for 8.1**, mirroring how Phase 7.1 shipped the
+  `Inspection` data model and CRUD/lifecycle a full sub-phase ahead of
+  any capture UI. Mobile assignment/accept/repair/submit screens and an
+  admin supervisor-review/close UI are deferred to future sub-phases
+  (8.2, 8.3, ...) not yet scoped or confirmed with the product owner —
+  per the tracker's own rule against inventing scope for phases marked
+  "To be defined."
+- **Consequences:** Any future action in this codebase that needs
+  "only the specific assigned person can do this, regardless of their
+  general write permission" should reuse this self-check-in-the-service-
+  layer pattern rather than inventing a new per-assignee permission key
+  (which would explode the permission catalog per-record instead of
+  per-role). Any future action that needs "requires supervisory sign-off
+  distinct from ordinary write access" should reuse the dedicated-
+  permission-key-at-the-route-layer pattern this phase established for
+  `work_orders.close`, rather than overloading `.write` with an implicit
+  hierarchy the RBAC model doesn't otherwise have.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -2319,3 +2411,44 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   Phase 7 (data model, offline sync, capture, checklist, readings,
   signature, AR, AI analysis, admin review) is now **COMPLETE** per its
   own Phase 7 row description in `PHASE_TRACKER.md`.
+
+- **2026-08-11 — Phase 8.1 (work order data model and backend CRUD/
+  lifecycle):** With Phase 7 complete and Phases 5/6/8+ still "To be
+  defined," asked the product owner directly rather than invent scope:
+  first to pick from the original spec's remaining sections, then
+  specifically "Work Orders" (§12) over Permit-to-Work/Notifications.
+  Merged the then-open PR #38 (Phase 7.10) and branched
+  `phase/8.1-work-order-model` from updated `main` before starting, per
+  the owner's explicit choice. Added and locked D-066: `WorkOrder`
+  lifecycle (`open → assigned → in_progress → pending_review → closed`
+  + terminal `cancelled`), mirroring D-045's `Inspection` shape; a new
+  `work_orders.close` permission granted to `operations_manager`/
+  `company_admin`/`super_admin` but deliberately withheld from
+  `maintenance_technician`, resolving a real authorization gap the
+  owner was asked about directly (should a technician be able to close
+  their own work order — no); and a service-layer self-check
+  (`technician_id == actor_uid`) on `accept`/`submit-for-review`
+  independent of that permission split. Backend-only scope, mirroring
+  how Phase 7.1 shipped the `Inspection` foundation ahead of any capture
+  UI — mobile/admin work-order screens are deferred to future
+  sub-phases. Backend suite (30 new tests in `test_work_orders.py` —
+  tenant isolation, table-driven RBAC across every system role, create/
+  list/get, assign (open/reassign/invalid-transition/revision-conflict),
+  accept/submit-for-review (self-only 403, invalid-transition), close
+  (permission-gated, invalid-transition), cancel, soft delete — plus 4
+  existing golden tests updated for the new permission catalog entry,
+  seed counts, and operation ids) all green (376 passed, 3 skipped, one
+  unrelated live-Firebase-auth network flake confirmed transient on
+  retry); ruff/mypy clean on `app`/`scripts`; contracts regenerated
+  (`WorkOrder*` request/response models and 9 new `WorkOrdersApi`
+  operations across both generated clients) with no collateral
+  formatting outside `packages/contracts`. Real-creds proof
+  (`verify_work_order_roundtrip.py`) against the live Firebase project:
+  created a work order, confirmed a supervisor cannot accept on the
+  technician's behalf, walked assign → accept → submit-for-review →
+  close end to end, and exercised the create → cancel path — all
+  against real Firestore data. `reconcile_roles.py` run against the one
+  real non-demo tenant (`cmp_feee017b83914cdd8323745e6359cc32`) to
+  backfill `work_orders.close` onto its existing `operations_manager`
+  role, per every prior permission-addition precedent (D-029, D-036,
+  etc.).

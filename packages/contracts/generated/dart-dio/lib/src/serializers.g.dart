@@ -35,6 +35,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(AssetMediaResponseKindEnum.serializer)
       ..add(AssetQrLabel.serializer)
       ..add(AssignChecklistTemplateRequest.serializer)
+      ..add(AssignWorkOrderRequest.serializer)
       ..add(AttachInspectionMediaRequest.serializer)
       ..add(AttachInspectionMediaRequestBeforeAfterTagEnum.serializer)
       ..add(AttachInspectionMediaRequestKindEnum.serializer)
@@ -69,6 +70,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(CreateInspectionRequest.serializer)
       ..add(CreateInspectionRequestInspectionTypeEnum.serializer)
       ..add(CreateRoleRequest.serializer)
+      ..add(CreateWorkOrderRequest.serializer)
+      ..add(CreateWorkOrderRequestPriorityEnum.serializer)
       ..add(CurrentUser.serializer)
       ..add(DashboardActivityItem.serializer)
       ..add(DashboardActivityPage.serializer)
@@ -127,6 +130,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(SignatureResponse.serializer)
       ..add(SignatureStrokeInput.serializer)
       ..add(SignatureStrokeResponse.serializer)
+      ..add(SubmitWorkOrderForReviewRequest.serializer)
       ..add(UpdateAnnotationRequest.serializer)
       ..add(UpdateAnnotationRequestDamageTypeEnum.serializer)
       ..add(UpdateArMeasurementRequest.serializer)
@@ -157,6 +161,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ValidationErrorLocInner.serializer)
       ..add(Value.serializer)
       ..add(VoiceNoteResponse.serializer)
+      ..add(WorkOrderDeleted.serializer)
+      ..add(WorkOrderDetail.serializer)
+      ..add(WorkOrderDetailPriorityEnum.serializer)
+      ..add(WorkOrderDetailStatusEnum.serializer)
+      ..add(WorkOrderListItem.serializer)
+      ..add(WorkOrderListItemPriorityEnum.serializer)
+      ..add(WorkOrderListItemStatusEnum.serializer)
+      ..add(WorkOrderListPage.serializer)
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(AiAnalysisResponse)]),
           () => new ListBuilder<AiAnalysisResponse>())
@@ -320,6 +332,12 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(UserListItem)]),
           () => new ListBuilder<UserListItem>())
       ..addBuilderFactory(
@@ -329,6 +347,9 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(ValidationErrorLocInner)]),
           () => new ListBuilder<ValidationErrorLocInner>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(WorkOrderListItem)]),
+          () => new ListBuilder<WorkOrderListItem>())
       ..addBuilderFactory(
           const FullType(BuiltMap, const [
             const FullType(String),

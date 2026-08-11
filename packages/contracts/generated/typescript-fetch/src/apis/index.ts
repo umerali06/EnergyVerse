@@ -16,3 +16,4 @@ export * from './RbacDemoApi';
 export * from './RolesApi';
 export * from './SystemApi';
 export * from './UsersApi';
+export * from './WorkOrdersApi';

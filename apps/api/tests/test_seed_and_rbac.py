@@ -9,6 +9,7 @@ from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
+from app.db.repositories.work_orders import WorkOrderRepository
 from app.models.base import CompanyScope
 from app.rbac.constants import PERMISSION_CATALOG, SYSTEM_ROLE_TEMPLATES
 from app.rbac.service import PermissionResolver
@@ -32,6 +33,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "permits.approve",
             "work_orders.read",
             "work_orders.write",
+            "work_orders.close",
             "reports.read",
             "reports.generate",
             "safety.read",
@@ -59,6 +61,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "permits.approve",
             "work_orders.read",
             "work_orders.write",
+            "work_orders.close",
             "reports.read",
             "reports.generate",
             "safety.read",
@@ -83,6 +86,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "permits.read",
             "work_orders.read",
             "work_orders.write",
+            "work_orders.close",
             "reports.read",
             "reports.generate",
             "safety.read",
@@ -160,7 +164,7 @@ def test_permission_catalog_is_exact() -> None:
         "inspections": {"inspections.read", "inspections.write"},
         "checklist_templates": {"checklist_templates.read", "checklist_templates.write"},
         "permits": {"permits.read", "permits.approve"},
-        "work_orders": {"work_orders.read", "work_orders.write"},
+        "work_orders": {"work_orders.read", "work_orders.write", "work_orders.close"},
         "reports": {"reports.read", "reports.generate"},
         "safety": {"safety.read", "safety.write"},
         "users": {"users.manage"},
@@ -174,7 +178,7 @@ def test_permission_catalog_is_exact() -> None:
         for group in grouped
     }
     assert actual == grouped
-    assert len(PERMISSION_CATALOG) == 23
+    assert len(PERMISSION_CATALOG) == 24
 
 
 def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
@@ -190,7 +194,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first == second
         assert client.counts() == counts_after_first
         assert first.companies == 2
-        assert first.permissions == 23
+        assert first.permissions == 24
         assert first.roles == 8
         assert first.role_permissions == expected_mappings
         assert first.users == 8
@@ -199,6 +203,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first.assets == 11
         assert first.checklist_templates == 3
         assert first.inspections == 3
+        assert first.work_orders == 5
         assert set(client.counts()) == {
             "audit_logs",
             "companies",
@@ -211,6 +216,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "assets",
             "checklist_templates",
             "inspections",
+            "work_orders",
         }
 
         company = client.documents("companies")[ACME_COMPANY_ID]
@@ -352,17 +358,20 @@ def test_company_a_query_never_returns_company_b_documents() -> None:
         assets = AssetRepository(client)  # type: ignore[arg-type]
         checklist_templates = ChecklistTemplateRepository(client)  # type: ignore[arg-type]
         inspections = InspectionRepository(client)  # type: ignore[arg-type]
+        work_orders = WorkOrderRepository(client)  # type: ignore[arg-type]
 
         assert len(await facilities.list(acme)) == 2
         assert len(await areas.list(acme)) == 4
         assert len(await assets.list(acme)) == 11
         assert len(await checklist_templates.list(acme)) == 3
         assert len(await inspections.list(acme)) == 3
+        assert len(await work_orders.list(acme)) == 5
         assert await facilities.list(second) == []
         assert await areas.list(second) == []
         assert await assets.list(second) == []
         assert await checklist_templates.list(second) == []
         assert await inspections.list(second) == []
+        assert await work_orders.list(second) == []
 
     asyncio.run(scenario())
 
