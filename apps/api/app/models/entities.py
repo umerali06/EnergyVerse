@@ -569,6 +569,58 @@ class InspectionUpdate(StrictModel):
     readings: Readings | None = None
 
 
+class WorkOrder(TenantDoc):
+    """A maintenance work order raised against an asset (spec section 12,
+    Phase 8.1). Lifecycle: `open -> assigned -> in_progress ->
+    pending_review -> closed`, plus a terminal `cancelled` reachable from
+    any non-terminal state -- mirrors `Inspection`'s draft/in_progress/
+    completed + cancelled shape (D-045), adapted for the spec's explicit
+    Assign/Accept/Supervisor-Review steps. Closing requires
+    `work_orders.close` (D-066) -- deliberately distinct from
+    `work_orders.write` so the assigned technician can submit their repair
+    for review but cannot close it themselves. `media` is reserved,
+    always-empty until a future phase gives "Upload Photos" a real shape,
+    matching how `Inspection.ar_measurements`/`ai_analysis` were reserved
+    in Phase 7.1 ahead of their own phases."""
+
+    id: str
+    asset_id: str
+    facility_id: str
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    status: Literal[
+        "open", "assigned", "in_progress", "pending_review", "closed", "cancelled"
+    ] = "open"
+    source_inspection_id: str | None = None
+    technician_id: str | None = None
+    assigned_by: str | None = None
+    assigned_at: datetime | None = None
+    due_date: datetime | None = None
+    accepted_at: datetime | None = None
+    labor_hours: float | None = Field(default=None, ge=0, le=1000)
+    materials_used: list[str] = Field(default_factory=list)
+    completion_notes: str | None = Field(default=None, max_length=2000)
+    submitted_at: datetime | None = None
+    closed_by: str | None = None
+    closed_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    revision: int = 1
+    deleted_at: datetime | None = None
+    media: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkOrderCreate(StrictModel):
+    id: str
+    asset_id: str
+    facility_id: str
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    due_date: datetime | None = None
+    source_inspection_id: str | None = None
+
+
 class AuditLog(AppendOnlyDoc):
     id: str
     company_id: str
@@ -599,6 +651,7 @@ class SeedCounts(StrictModel):
     assets: int
     checklist_templates: int
     inspections: int
+    work_orders: int
 
 
 class CurrentUser(StrictModel):

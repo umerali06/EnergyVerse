@@ -22,6 +22,7 @@ from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
+from app.db.repositories.work_orders import WorkOrderRepository
 from app.models.base import CompanyScope, utc_now
 from app.models.entities import (
     AreaCreate,
@@ -45,6 +46,7 @@ from app.models.entities import (
     SeedCounts,
     UserCreate,
     UserUpdate,
+    WorkOrderCreate,
 )
 from app.rbac.constants import PERMISSION_CATALOG, SYSTEM_ROLE_TEMPLATES, SystemRoleTemplate
 from app.rbac.seeding import (
@@ -57,6 +59,7 @@ SEED_ACTOR_UID = "system:seed"
 ACME_COMPANY_ID = "acme-energy"
 SECOND_COMPANY_ID = "beta-utilities"
 FIELD_INSPECTOR_UID = "demo-acme-field_inspector"
+MAINTENANCE_TECHNICIAN_UID = "demo-acme-maintenance_technician"
 
 
 @dataclass(frozen=True)
@@ -515,6 +518,74 @@ DEMO_INSPECTIONS = (
 )
 
 
+@dataclass(frozen=True)
+class DemoWorkOrderSeed:
+    id: str
+    asset_id: str
+    title: str
+    description: str | None
+    priority: str
+    target_status: str
+    technician_id: str | None = None
+    completion_notes: str | None = None
+    labor_hours: float | None = None
+    materials_used: tuple[str, ...] = field(default_factory=tuple)
+
+
+DEMO_WORK_ORDERS = (
+    DemoWorkOrderSeed(
+        id=_deterministic_id("work_order:pump-101-open"),
+        asset_id=ASSET_FEED_PUMP_ID,
+        title="Replace worn bearing seal",
+        description="Inspection flagged early-stage wear on the flange bearing seal.",
+        priority="medium",
+        target_status="open",
+    ),
+    DemoWorkOrderSeed(
+        id=_deterministic_id("work_order:tank-301-assigned"),
+        asset_id=f"{ACME_COMPANY_ID}__asset__t-301",
+        title="Recoat shell corrosion patch",
+        description=None,
+        priority="high",
+        target_status="assigned",
+        technician_id=MAINTENANCE_TECHNICIAN_UID,
+    ),
+    DemoWorkOrderSeed(
+        id=_deterministic_id("work_order:compressor-201-in-progress"),
+        asset_id=f"{ACME_COMPANY_ID}__asset__c-201",
+        title="Replace compressor drive belt",
+        description="Belt showing visible fraying during last inspection.",
+        priority="high",
+        target_status="in_progress",
+        technician_id=MAINTENANCE_TECHNICIAN_UID,
+    ),
+    DemoWorkOrderSeed(
+        id=_deterministic_id("work_order:pump-101-pending-review"),
+        asset_id=ASSET_FEED_PUMP_ID,
+        title="Lubricate feed pump coupling",
+        description=None,
+        priority="low",
+        target_status="pending_review",
+        technician_id=MAINTENANCE_TECHNICIAN_UID,
+        completion_notes="Coupling lubricated and re-torqued to spec.",
+        labor_hours=1.5,
+        materials_used=("Grease cartridge (NLGI 2)",),
+    ),
+    DemoWorkOrderSeed(
+        id=_deterministic_id("work_order:tank-301-closed"),
+        asset_id=f"{ACME_COMPANY_ID}__asset__t-301",
+        title="Replace pressure relief valve",
+        description="Valve failed function test during scheduled inspection.",
+        priority="critical",
+        target_status="closed",
+        technician_id=MAINTENANCE_TECHNICIAN_UID,
+        completion_notes="Valve replaced with OEM part and function-tested.",
+        labor_hours=3.0,
+        materials_used=("Pressure relief valve (OEM #4471-A)",),
+    ),
+)
+
+
 def role_id(company_id: str, role_key: str) -> str:
     return system_role_id(company_id, role_key)
 
@@ -966,6 +1037,70 @@ async def _ensure_inspection(
         )
 
 
+async def _ensure_work_order(
+    work_orders: WorkOrderRepository,
+    assets: AssetRepository,
+    scope: CompanyScope,
+    seed: DemoWorkOrderSeed,
+) -> None:
+    """Idempotent by existence check only, same posture as `_ensure_inspection`
+    -- walks each fixture through its real create -> assign -> accept ->
+    submit-for-review -> close transitions up to `seed.target_status`, calling
+    the repository directly (bypassing `WorkOrderService`'s self-accept/
+    self-submit checks, which are an authorization concern for real callers,
+    not a data-integrity one for a trusted seed script)."""
+    existing = await work_orders.get(scope, seed.id)
+    if existing is not None:
+        return
+
+    asset = await assets.get(scope, seed.asset_id)
+    if asset is None:
+        raise ValueError(f"Demo work order {seed.id} references unknown asset {seed.asset_id}")
+
+    technician_id = seed.technician_id or MAINTENANCE_TECHNICIAN_UID
+    work_order = await work_orders.create(
+        scope,
+        WorkOrderCreate(
+            id=seed.id,
+            asset_id=asset.id,
+            facility_id=asset.facility_id,
+            title=seed.title,
+            description=seed.description,
+            priority=seed.priority,
+            due_date=None,
+            source_inspection_id=None,
+        ),
+        SEED_ACTOR_UID,
+    )
+
+    if seed.target_status in ("assigned", "in_progress", "pending_review", "closed"):
+        work_order = await work_orders.assign(
+            scope,
+            work_order.id,
+            technician_id=technician_id,
+            due_date=None,
+            actor_uid=SEED_ACTOR_UID,
+            expected_revision=None,
+        )
+
+    if seed.target_status in ("in_progress", "pending_review", "closed"):
+        work_order = await work_orders.accept(scope, work_order.id, technician_id)
+
+    if seed.target_status in ("pending_review", "closed"):
+        work_order = await work_orders.submit_for_review(
+            scope,
+            work_order.id,
+            completion_notes=seed.completion_notes or "Repair completed.",
+            labor_hours=seed.labor_hours,
+            materials_used=list(seed.materials_used),
+            actor_uid=technician_id,
+            expected_revision=None,
+        )
+
+    if seed.target_status == "closed":
+        await work_orders.close(scope, work_order.id, SEED_ACTOR_UID)
+
+
 async def run_seed(
     client: AsyncClient | None = None,
     *,
@@ -986,6 +1121,7 @@ async def run_seed(
     assets = AssetRepository(firestore_client, audit)
     checklist_templates = ChecklistTemplateRepository(firestore_client, audit)
     inspections = InspectionRepository(firestore_client, audit)
+    work_orders = WorkOrderRepository(firestore_client, audit)
 
     await asyncio.gather(
         _ensure_company(
@@ -1085,6 +1221,12 @@ async def run_seed(
             FIELD_INSPECTOR_UID,
         )
 
+    # Sequential, not gathered: each work order walks real lifecycle
+    # transitions (create -> assign -> accept -> submit-for-review -> close)
+    # against the same document, same rationale as the inspections loop above.
+    for work_order_seed in DEMO_WORK_ORDERS:
+        await _ensure_work_order(work_orders, assets, acme_scope, work_order_seed)
+
     if with_auth_users:
         password = demo_password or settings.seed_demo_password
         if not password:
@@ -1125,14 +1267,20 @@ async def run_seed(
         audit_logs.list(acme_scope),
         audit_logs.list(second_scope),
     )
-    acme_facilities, acme_areas, acme_assets, acme_checklist_templates, acme_inspections = (
-        await asyncio.gather(
-            facilities.list(acme_scope),
-            areas.list(acme_scope),
-            assets.list(acme_scope),
-            checklist_templates.list(acme_scope),
-            inspections.list(acme_scope),
-        )
+    (
+        acme_facilities,
+        acme_areas,
+        acme_assets,
+        acme_checklist_templates,
+        acme_inspections,
+        acme_work_orders,
+    ) = await asyncio.gather(
+        facilities.list(acme_scope),
+        areas.list(acme_scope),
+        assets.list(acme_scope),
+        checklist_templates.list(acme_scope),
+        inspections.list(acme_scope),
+        work_orders.list(acme_scope),
     )
     return SeedCounts(
         companies=sum(
@@ -1152,6 +1300,7 @@ async def run_seed(
         assets=len(acme_assets),
         checklist_templates=len(acme_checklist_templates),
         inspections=len(acme_inspections),
+        work_orders=len(acme_work_orders),
     )
 
 

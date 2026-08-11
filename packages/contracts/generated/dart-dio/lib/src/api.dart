@@ -25,6 +25,7 @@ import 'package:fev_api_client/src/api/rbac_demo_api.dart';
 import 'package:fev_api_client/src/api/roles_api.dart';
 import 'package:fev_api_client/src/api/system_api.dart';
 import 'package:fev_api_client/src/api/users_api.dart';
+import 'package:fev_api_client/src/api/work_orders_api.dart';
 
 class FevApiClient {
   static const String basePath = r'http://localhost';
@@ -185,5 +186,11 @@ class FevApiClient {
   /// by doing that all interceptors will not be executed
   UsersApi getUsersApi() {
     return UsersApi(dio, serializers);
+  }
+
+  /// Get WorkOrdersApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  WorkOrdersApi getWorkOrdersApi() {
+    return WorkOrdersApi(dio, serializers);
   }
 }

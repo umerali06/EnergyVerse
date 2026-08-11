@@ -19,6 +19,7 @@ src/apis/RbacDemoApi.ts
 src/apis/RolesApi.ts
 src/apis/SystemApi.ts
 src/apis/UsersApi.ts
+src/apis/WorkOrdersApi.ts
 src/apis/index.ts
 src/index.ts
 src/models/AiAnalysisResponse.ts
@@ -41,6 +42,7 @@ src/models/AssetListPage.ts
 src/models/AssetMediaResponse.ts
 src/models/AssetQrLabel.ts
 src/models/AssignChecklistTemplateRequest.ts
+src/models/AssignWorkOrderRequest.ts
 src/models/AttachInspectionMediaRequest.ts
 src/models/AttachVoiceNoteRequest.ts
 src/models/AuditLogEntry.ts
@@ -65,6 +67,7 @@ src/models/CreateChecklistTemplateRequest.ts
 src/models/CreateFacilityRequest.ts
 src/models/CreateInspectionRequest.ts
 src/models/CreateRoleRequest.ts
+src/models/CreateWorkOrderRequest.ts
 src/models/CurrentUser.ts
 src/models/DashboardActivityItem.ts
 src/models/DashboardActivityPage.ts
@@ -104,6 +107,7 @@ src/models/SignaturePointResponse.ts
 src/models/SignatureResponse.ts
 src/models/SignatureStrokeInput.ts
 src/models/SignatureStrokeResponse.ts
+src/models/SubmitWorkOrderForReviewRequest.ts
 src/models/UpdateAnnotationRequest.ts
 src/models/UpdateArMeasurementRequest.ts
 src/models/UpdateAreaRequest.ts
@@ -126,6 +130,10 @@ src/models/ValidationError.ts
 src/models/ValidationErrorLocInner.ts
 src/models/Value.ts
 src/models/VoiceNoteResponse.ts
+src/models/WorkOrderDeleted.ts
+src/models/WorkOrderDetail.ts
+src/models/WorkOrderListItem.ts
+src/models/WorkOrderListPage.ts
 src/models/index.ts
 src/runtime.ts
 tsconfig.esm.json

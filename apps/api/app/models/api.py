@@ -868,6 +868,69 @@ class QrScanResult(BaseModel):
     work_orders_total: int = 0
 
 
+class WorkOrderListItem(BaseModel):
+    id: str
+    asset_id: str
+    facility_id: str
+    title: str
+    priority: Literal["low", "medium", "high", "critical"]
+    status: Literal["open", "assigned", "in_progress", "pending_review", "closed", "cancelled"]
+    technician_id: str | None = None
+    due_date: datetime | None = None
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorkOrderListPage(BaseModel):
+    items: list[WorkOrderListItem]
+    next_cursor: str | None = None
+
+
+class WorkOrderDetail(WorkOrderListItem):
+    description: str | None = None
+    source_inspection_id: str | None = None
+    assigned_by: str | None = None
+    assigned_at: datetime | None = None
+    accepted_at: datetime | None = None
+    labor_hours: float | None = None
+    materials_used: list[str] = Field(default_factory=list)
+    completion_notes: str | None = None
+    submitted_at: datetime | None = None
+    closed_by: str | None = None
+    closed_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    created_by: str
+
+
+class CreateWorkOrderRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    asset_id: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    due_date: datetime | None = None
+    source_inspection_id: str | None = Field(default=None, max_length=200)
+
+
+class AssignWorkOrderRequest(BaseModel):
+    technician_id: str = Field(min_length=1, max_length=200)
+    due_date: datetime | None = None
+    expected_revision: int | None = None
+
+
+class SubmitWorkOrderForReviewRequest(BaseModel):
+    completion_notes: str = Field(min_length=1, max_length=2000)
+    labor_hours: float | None = Field(default=None, ge=0, le=1000)
+    materials_used: list[str] = Field(default_factory=list)
+    expected_revision: int | None = None
+
+
+class WorkOrderDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
         201: "Resource created",

@@ -147,6 +147,15 @@ Class | Method | HTTP request | Description
 [*UsersApi*](doc/UsersApi.md) | [**listUsers**](doc/UsersApi.md#listusers) | **GET** /api/v1/users | List Users
 [*UsersApi*](doc/UsersApi.md) | [**setUserStatus**](doc/UsersApi.md#setuserstatus) | **PATCH** /api/v1/users/{user_id}/status | Set User Status
 [*UsersApi*](doc/UsersApi.md) | [**updateUser**](doc/UsersApi.md#updateuser) | **PATCH** /api/v1/users/{user_id} | Update User
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**acceptWorkOrder**](doc/WorkOrdersApi.md#acceptworkorder) | **POST** /api/v1/work-orders/{work_order_id}/accept | Accept Work Order
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**assignWorkOrder**](doc/WorkOrdersApi.md#assignworkorder) | **PATCH** /api/v1/work-orders/{work_order_id}/assign | Assign Work Order
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**cancelWorkOrder**](doc/WorkOrdersApi.md#cancelworkorder) | **POST** /api/v1/work-orders/{work_order_id}/cancel | Cancel Work Order
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**closeWorkOrder**](doc/WorkOrdersApi.md#closeworkorder) | **POST** /api/v1/work-orders/{work_order_id}/close | Close Work Order
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**createWorkOrder**](doc/WorkOrdersApi.md#createworkorder) | **POST** /api/v1/work-orders | Create Work Order
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**deleteWorkOrder**](doc/WorkOrdersApi.md#deleteworkorder) | **DELETE** /api/v1/work-orders/{work_order_id} | Delete Work Order
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**getWorkOrder**](doc/WorkOrdersApi.md#getworkorder) | **GET** /api/v1/work-orders/{work_order_id} | Get Work Order
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**listWorkOrders**](doc/WorkOrdersApi.md#listworkorders) | **GET** /api/v1/work-orders | List Work Orders
+[*WorkOrdersApi*](doc/WorkOrdersApi.md) | [**submitWorkOrderForReview**](doc/WorkOrdersApi.md#submitworkorderforreview) | **PATCH** /api/v1/work-orders/{work_order_id}/submit-for-review | Submit Work Order For Review
 
 
 ## Documentation For Models
@@ -171,6 +180,7 @@ Class | Method | HTTP request | Description
  - [AssetMediaResponse](doc/AssetMediaResponse.md)
  - [AssetQrLabel](doc/AssetQrLabel.md)
  - [AssignChecklistTemplateRequest](doc/AssignChecklistTemplateRequest.md)
+ - [AssignWorkOrderRequest](doc/AssignWorkOrderRequest.md)
  - [AttachInspectionMediaRequest](doc/AttachInspectionMediaRequest.md)
  - [AttachVoiceNoteRequest](doc/AttachVoiceNoteRequest.md)
  - [AuditLogEntry](doc/AuditLogEntry.md)
@@ -195,6 +205,7 @@ Class | Method | HTTP request | Description
  - [CreateFacilityRequest](doc/CreateFacilityRequest.md)
  - [CreateInspectionRequest](doc/CreateInspectionRequest.md)
  - [CreateRoleRequest](doc/CreateRoleRequest.md)
+ - [CreateWorkOrderRequest](doc/CreateWorkOrderRequest.md)
  - [CurrentUser](doc/CurrentUser.md)
  - [DashboardActivityItem](doc/DashboardActivityItem.md)
  - [DashboardActivityPage](doc/DashboardActivityPage.md)
@@ -234,6 +245,7 @@ Class | Method | HTTP request | Description
  - [SignatureResponse](doc/SignatureResponse.md)
  - [SignatureStrokeInput](doc/SignatureStrokeInput.md)
  - [SignatureStrokeResponse](doc/SignatureStrokeResponse.md)
+ - [SubmitWorkOrderForReviewRequest](doc/SubmitWorkOrderForReviewRequest.md)
  - [UpdateAnnotationRequest](doc/UpdateAnnotationRequest.md)
  - [UpdateArMeasurementRequest](doc/UpdateArMeasurementRequest.md)
  - [UpdateAreaRequest](doc/UpdateAreaRequest.md)
@@ -256,6 +268,10 @@ Class | Method | HTTP request | Description
  - [ValidationErrorLocInner](doc/ValidationErrorLocInner.md)
  - [Value](doc/Value.md)
  - [VoiceNoteResponse](doc/VoiceNoteResponse.md)
+ - [WorkOrderDeleted](doc/WorkOrderDeleted.md)
+ - [WorkOrderDetail](doc/WorkOrderDetail.md)
+ - [WorkOrderListItem](doc/WorkOrderListItem.md)
+ - [WorkOrderListPage](doc/WorkOrderListPage.md)
 
 
 ## Documentation For Authorization

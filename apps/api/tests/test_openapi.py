@@ -86,6 +86,15 @@ EXPECTED_OPERATIONS = {
     "update_platform_company_status",
     "update_platform_company",
     "get_platform_stats",
+    "list_work_orders",
+    "create_work_order",
+    "get_work_order",
+    "assign_work_order",
+    "accept_work_order",
+    "submit_work_order_for_review",
+    "close_work_order",
+    "cancel_work_order",
+    "delete_work_order",
 }
 
 # CSV export is intentionally not JSON-typed (D-019/3.4: streamed compliance
