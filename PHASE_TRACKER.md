@@ -183,7 +183,11 @@ Then the remaining unbuilt scope from that assessment: AI video analysis
 WebXR over the existing 3D scene (D-098). `scripts.backfill_inspection_titles`
 names inspections created before titles were derived.
 
+The Claude vision path was then verified against the live Anthropic API for the
+first time (`scripts.verify_ai_vision_live`), closing the Phase 7.10 open item.
+Both the photo and video paths returned well-formed findings, and the video run
+confirmed D-096's premise empirically: a defect recurring across four sampled
+frames was reported once, not four times.
+
 Still open and explicitly not delivered: AR measurement remains unvalidated on
-physical hardware (D-063), and the Claude vision path has still never run
-against a live `ANTHROPIC_API_KEY` -- both need hardware/credentials rather than
-code.
+physical hardware (D-063). That needs a device with ARCore/ARKit, not code.
