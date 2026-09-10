@@ -380,9 +380,7 @@ def test_suspended_company_blocks_login_and_me(
     app.dependency_overrides[get_token_verifier] = lambda: verifier
     try:
         with TestClient(app) as test_client:
-            blocked = test_client.get(
-                "/api/v1/auth/me", headers={"Authorization": "Bearer token"}
-            )
+            blocked = test_client.get("/api/v1/auth/me", headers={"Authorization": "Bearer token"})
     finally:
         app.dependency_overrides.pop(get_token_verifier, None)
     assert blocked.status_code == 403
@@ -393,9 +391,7 @@ def test_suspended_company_blocks_login_and_me(
     app.dependency_overrides[get_token_verifier] = lambda: verifier
     try:
         with TestClient(app) as test_client:
-            restored = test_client.get(
-                "/api/v1/auth/me", headers={"Authorization": "Bearer token"}
-            )
+            restored = test_client.get("/api/v1/auth/me", headers={"Authorization": "Bearer token"})
     finally:
         app.dependency_overrides.pop(get_token_verifier, None)
     assert restored.status_code == 200

@@ -2,6 +2,8 @@ import base64
 import binascii
 from uuid import uuid4
 
+from datetime import datetime, timezone
+
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
 from app.db.repositories.areas import AreaRepository
@@ -10,15 +12,25 @@ from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.facilities import FacilityRepository
 from app.models.api import (
+    CameraPreset,
     CreateFacilityRequest,
+    DigitalTwinHotspotResponse,
+    DigitalTwinSceneResponse,
     FacilityDetail,
     FacilityListPage,
+    UpdateDigitalTwinSceneRequest,
     UpdateFacilityRequest,
 )
 from app.models.base import CompanyScope
 from app.models.entities import Facility, FacilityCreate, FacilityUpdate
 
 SORT_OPTIONS = frozenset({"name", "-name", "created_at", "-created_at"})
+
+DEFAULT_CAMERA_PRESETS = [
+    CameraPreset(id="cam_overhead", name="Overhead Overview", position=[0.0, 30.0, 40.0], target=[0.0, 0.0, 0.0]),
+    CameraPreset(id="cam_pump_station", name="Pump Skid Station", position=[-12.0, 8.0, 15.0], target=[-6.0, 2.0, 0.0]),
+    CameraPreset(id="cam_tank_farm", name="Tank Farm Area", position=[18.0, 12.0, 18.0], target=[10.0, 4.0, 0.0]),
+]
 
 
 class FacilityManagementError(Exception):
@@ -70,18 +82,18 @@ class FacilityManagementService:
         areas: AreaRepository,
         assets: AssetRepository,
         companies: CompanyRepository,
+        audit: AuditService | None = None,
     ) -> None:
         self._facilities = facilities
         self._areas = areas
         self._assets = assets
         self._companies = companies
+        self._audit = audit
 
     async def _active_facility(self, scope: CompanyScope, facility_id: str) -> Facility:
         facility = await self._facilities.get(scope, facility_id)
         if facility is None or facility.deleted_at is not None:
-            raise FacilityManagementError(
-                404, "facility_not_found", "Facility was not found"
-            )
+            raise FacilityManagementError(404, "facility_not_found", "Facility was not found")
         return facility
 
     async def list_facilities(
@@ -207,6 +219,159 @@ class FacilityManagementService:
             )
         await self._facilities.soft_delete(scope, facility_id, actor_uid)
 
+    async def get_facility_3d_scene(
+        self, scope: CompanyScope, facility_id: str
+    ) -> DigitalTwinSceneResponse:
+        facility = await self._active_facility(scope, facility_id)
+        facility_assets = [
+            asset
+            for asset in await self._assets.list(scope)
+            if asset.facility_id == facility_id and asset.deleted_at is None
+        ]
+        asset_map = {asset.id: asset for asset in facility_assets}
+
+        client = self._facilities._client
+        doc_ref = client.collection("digital_twin_scenes").document(f"{scope.company_id}:{facility_id}")
+        doc = await doc_ref.get()
+
+        model_3d_url: str | None = None
+        scene_type = "procedural_refinery"
+        camera_presets = DEFAULT_CAMERA_PRESETS
+        configured_hotspots: list[dict[str, object]] = []
+        updated_at = facility.updated_at
+
+        if doc.exists:
+            data = doc.to_dict() or {}
+            model_3d_url = data.get("model_3d_url")  # type: ignore[assignment]
+            scene_type = str(data.get("scene_type", "procedural_refinery"))
+            if "camera_presets" in data and isinstance(data["camera_presets"], list):
+                camera_presets = [
+                    CameraPreset(**p) for p in data["camera_presets"] if isinstance(p, dict)
+                ]
+            if "hotspots" in data and isinstance(data["hotspots"], list):
+                configured_hotspots = [h for h in data["hotspots"] if isinstance(h, dict)]
+            if "updated_at" in data and data["updated_at"]:
+                raw_updated = data["updated_at"]
+                if isinstance(raw_updated, datetime):
+                    updated_at = raw_updated
+                elif isinstance(raw_updated, str):
+                    try:
+                        updated_at = datetime.fromisoformat(raw_updated)
+                    except ValueError:
+                        pass
+
+        hotspots_out: list[DigitalTwinHotspotResponse] = []
+        configured_asset_ids: set[str] = set()
+
+        for raw_h in configured_hotspots:
+            asset_id = str(raw_h.get("asset_id", ""))
+            if asset_id in asset_map:
+                asset = asset_map[asset_id]
+                configured_asset_ids.add(asset_id)
+                pos = raw_h.get("position")
+                position = (
+                    [float(x) for x in pos]  # type: ignore[union-attr]
+                    if isinstance(pos, list) and len(pos) == 3
+                    else [0.0, 1.5, 0.0]
+                )
+                radius = float(raw_h.get("radius", 1.0))
+                label = str(raw_h.get("label")) if raw_h.get("label") else asset.name
+                hotspots_out.append(
+                    DigitalTwinHotspotResponse(
+                        id=str(raw_h.get("id", f"hs_{asset.id}")),
+                        asset_id=asset.id,
+                        asset_name=asset.name,
+                        asset_tag=asset.asset_tag,
+                        category=asset.category,
+                        current_status=asset.current_status,  # type: ignore[arg-type]
+                        position=position,
+                        radius=radius,
+                        label=label,
+                    )
+                )
+
+        # Synthesize default spatial 3D placements for facility assets not explicitly bound yet
+        unplaced_assets = [asset for asset in facility_assets if asset.id not in configured_asset_ids]
+        for index, asset in enumerate(unplaced_assets):
+            # Arrange unplaced assets in a spatial ring/grid layout
+            col = index % 4
+            row = index // 4
+            x = (col - 1.5) * 8.0
+            z = (row - 1.0) * 8.0
+            y = 2.0 if asset.category.casefold() in {"pump", "compressor", "motor"} else 4.0
+            hotspots_out.append(
+                DigitalTwinHotspotResponse(
+                    id=f"hs_{asset.id}",
+                    asset_id=asset.id,
+                    asset_name=asset.name,
+                    asset_tag=asset.asset_tag,
+                    category=asset.category,
+                    current_status=asset.current_status,  # type: ignore[arg-type]
+                    position=[x, y, z],
+                    radius=1.5,
+                    label=asset.name,
+                )
+            )
+
+        return DigitalTwinSceneResponse(
+            facility_id=facility.id,
+            facility_name=facility.name,
+            model_3d_url=model_3d_url,
+            scene_type=scene_type,
+            camera_presets=camera_presets,
+            hotspots=hotspots_out,
+            updated_at=updated_at,
+        )
+
+    async def update_facility_3d_scene(
+        self,
+        scope: CompanyScope,
+        facility_id: str,
+        request: UpdateDigitalTwinSceneRequest,
+        actor_uid: str,
+    ) -> DigitalTwinSceneResponse:
+        facility = await self._active_facility(scope, facility_id)
+        client = self._facilities._client
+        doc_ref = client.collection("digital_twin_scenes").document(f"{scope.company_id}:{facility_id}")
+
+        now = datetime.now(timezone.utc)
+        camera_presets = (
+            [p.model_dump() for p in request.camera_presets]
+            if request.camera_presets is not None
+            else [p.model_dump() for p in DEFAULT_CAMERA_PRESETS]
+        )
+        hotspots = (
+            [h.model_dump() for h in request.hotspots]
+            if request.hotspots is not None
+            else []
+        )
+
+        payload = {
+            "facility_id": facility_id,
+            "model_3d_url": request.model_3d_url,
+            "scene_type": request.scene_type,
+            "camera_presets": camera_presets,
+            "hotspots": hotspots,
+            "updated_at": now.isoformat(),
+        }
+        await doc_ref.set(payload, merge=True)
+
+        if self._audit:
+            await self._audit.audit(
+                scope,
+                action="digital_twin_scene.updated",
+                actor_uid=actor_uid,
+                target_type="facility",
+                target_id=facility_id,
+                metadata={
+                    "facility_name": facility.name,
+                    "scene_type": request.scene_type,
+                    "hotspot_count": len(hotspots),
+                },
+            )
+
+        return await self.get_facility_3d_scene(scope, facility_id)
+
 
 def get_facility_management_service() -> FacilityManagementService:
     client = get_firestore_client()
@@ -216,4 +381,6 @@ def get_facility_management_service() -> FacilityManagementService:
         areas=AreaRepository(client, audit),
         assets=AssetRepository(client, audit),
         companies=CompanyRepository(client, audit),
+        audit=audit,
     )
+

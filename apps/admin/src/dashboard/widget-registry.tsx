@@ -3,6 +3,7 @@
 import { Component, type ReactNode } from "react";
 
 import { usePermissions } from "@/auth/permissions";
+import { useSubscription } from "@/billing/subscription-context";
 import { Card } from "@/design-system";
 
 /**
@@ -38,8 +39,16 @@ export type DashboardWidget = {
   id: string;
   title: string;
   requiredPermission: string;
+  /** Entitlement key the company's plan must include (Phase 13, D-093).
+   *
+   * Independent of `requiredPermission`, and it matters here for the same
+   * reason it matters in the nav: the work-order widget calls the gated
+   * `/api/v1/work-orders` route, so on a plan without that module it would
+   * render and then fail with a 402 toast. Omitted = part of every paid plan. */
+  requiredFeature?: string;
   /** Omitted = available at every subscription tier (true for every asset
-   * widget today). */
+   * widget today). Predates the Phase 13 catalog; `requiredFeature` is the
+   * authoritative gate. */
   minTier?: SubscriptionTier;
   size: WidgetSize;
   render: () => ReactNode;
@@ -95,8 +104,12 @@ class WidgetErrorBoundary extends Component<{ title: string; children: ReactNode
 
 export function DashboardWidgetGrid({ subscriptionTier }: { subscriptionTier?: string }) {
   const { can } = usePermissions();
+  const { hasFeature } = useSubscription();
   const widgets = getRegisteredWidgets().filter(
-    (widget) => can(widget.requiredPermission) && tierMeetsMinimum(subscriptionTier, widget.minTier),
+    (widget) =>
+      can(widget.requiredPermission) &&
+      hasFeature(widget.requiredFeature) &&
+      tierMeetsMinimum(subscriptionTier, widget.minTier),
   );
   if (widgets.length === 0) return null;
   return (

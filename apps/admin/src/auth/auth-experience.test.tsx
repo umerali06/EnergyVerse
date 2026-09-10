@@ -4,9 +4,11 @@ import { useSyncExternalStore } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "@/api";
+import { SubscriptionProvider } from "@/billing/subscription-context";
 import { ThemeProvider, ToastProvider } from "@/design-system";
 import { DashboardPage } from "@/dashboard/dashboard-page";
 import { AppShell } from "@/shell/app-shell";
+import { APP_HOME } from "@/navigation/routes";
 
 import { AuthProvider } from "./auth-context";
 import {
@@ -20,12 +22,14 @@ import { ClientAuthError, type AuthGateway, type AuthSession } from "./firebase-
 import { PublicOnly, RequireAuth, RequirePermission, VerifyEmailGate } from "./route-guards";
 
 const routerControl = vi.hoisted(() => {
+  // Literal, not the APP_HOME import: vi.hoisted runs before module imports.
+  const home = "/dashboard";
   type Snapshot = { path: string; search: string };
   const parse = (url: string): Snapshot => {
     const [path, search = ""] = url.split("?");
     return { path, search };
   };
-  let current: Snapshot = parse("/");
+  let current: Snapshot = parse(home);
   let history: Snapshot[] = [];
   const listeners = new Set<() => void>();
   const emit = () => listeners.forEach((listener) => listener());
@@ -33,7 +37,7 @@ const routerControl = vi.hoisted(() => {
     get current() {
       return current;
     },
-    reset(url = "/") {
+    reset(url = home) {
       current = parse(url);
       history = [];
     },
@@ -195,9 +199,36 @@ function AppRouterHarness({ reducedMotionOverride }: { reducedMotionOverride?: b
 }
 
 /** Minimal real-shaped fixtures for the three dashboard endpoints so any
- * test that reaches "/" (the Dashboard) resolves to a stable ready state
+ * test that reaches APP_HOME (the Dashboard) resolves to a stable ready state
  * without asserting on dashboard content itself — that's covered by
  * dashboard-page.test.tsx. */
+/** Every entitlement, so nav filtering never hides what an auth case asserts. */
+const fullPlan = {
+  tier: "enterprise",
+  planName: "Enterprise",
+  status: "active",
+  isEntitled: true,
+  features: [
+    "assets",
+    "inspections",
+    "ai_media_analysis",
+    "safety_reports",
+    "documents",
+    "reports",
+    "digital_twin",
+    "ar_inspection",
+    "permits",
+    "work_orders",
+    "vr_training",
+    "sso",
+    "audit_export",
+  ],
+  trialEndsAt: null,
+  trialDaysRemaining: null,
+  currentPeriodEnd: null,
+  quotas: { facilities: null, assets: null, seats: null },
+};
+
 function defaultDashboardApi() {
   return {
     getDashboardSummary: vi.fn(async () => ({
@@ -224,7 +255,7 @@ function defaultDashboardApi() {
 function renderAuth({
   apiResult = identity,
   gateway = new FakeGateway(),
-  initialPath = "/",
+  initialPath = APP_HOME,
   reducedMotionOverride,
 }: {
   apiResult?: typeof identity | Error;
@@ -251,7 +282,11 @@ function renderAuth({
           apiClient={{ getCurrentUser, registerCompanyAdmin, ...defaultDashboardApi() }}
           gateway={gateway}
         >
-          <AppRouterHarness reducedMotionOverride={reducedMotionOverride} />
+          {/* AppShell filters its nav by the company's plan, so the harness
+              supplies one. These cases are about auth, not billing. */}
+          <SubscriptionProvider initialSubscription={fullPlan}>
+            <AppRouterHarness reducedMotionOverride={reducedMotionOverride} />
+          </SubscriptionProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>,
@@ -303,7 +338,7 @@ describe("admin login experience", () => {
     release(session);
     expect(await screen.findByText("field_inspector")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Welcome, Field Inspector/ })).toBeInTheDocument();
-    expect(routerControl.current.path).toBe("/");
+    expect(routerControl.current.path).toBe(APP_HOME);
   });
 
   it.each([
@@ -337,7 +372,7 @@ describe("admin login experience", () => {
     expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
     expect(await screen.findByText("field_inspector")).toBeInTheDocument();
     expect(getCurrentUser).toHaveBeenCalledOnce();
-    expect(routerControl.current.path).toBe("/");
+    expect(routerControl.current.path).toBe(APP_HOME);
   });
 
   it("expires a dead session with the session-expired toast and a login redirect", async () => {
@@ -362,7 +397,7 @@ describe("admin login experience", () => {
     expect(await screen.findByRole("button", { name: "Login" })).toBeInTheDocument();
     expect(gateway.signOutCalls).toBe(1);
     // Simulate back/deep navigation to the protected URL after logout.
-    act(() => routerControl.push("/"));
+    act(() => routerControl.push(APP_HOME));
     expect(await screen.findByRole("button", { name: "Login" })).toBeInTheDocument();
     expect(screen.queryByText("field_inspector")).not.toBeInTheDocument();
   });
@@ -401,10 +436,10 @@ describe("admin login experience", () => {
     expect(screen.queryByText("403 — No access")).not.toBeInTheDocument();
   });
 
-  it("redirects an authenticated user away from login to Home", async () => {
+  it("redirects an authenticated user away from login to the app home", async () => {
     renderAuth({ gateway: new FakeGateway(session), initialPath: "/login" });
     expect(await screen.findByText("field_inspector")).toBeInTheDocument();
-    expect(routerControl.current.path).toBe("/");
+    expect(routerControl.current.path).toBe(APP_HOME);
   });
 
   it("routes an unverified user to verify and blocks protected routes", async () => {

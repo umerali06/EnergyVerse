@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../billing/subscription_controller.dart';
 import '../design_system/logo.dart';
 import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
@@ -14,29 +15,11 @@ class AuthSplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: const Key('auth-splash'),
+    return const Scaffold(
+      key: Key('auth-splash'),
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const BrandLogo(
-              decorative: true,
-              height: 40,
-              variant: LogoVariant.mark,
-            ),
-            const SizedBox(height: DsSpacing.s6),
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(strokeWidth: 3),
-            ),
-            const SizedBox(height: DsSpacing.s4),
-            Semantics(
-              liveRegion: true,
-              child: const Text('Restoring session'),
-            ),
-          ],
+        child: LogoLoader(
+          label: 'Restoring session',
         ),
       ),
     );
@@ -88,7 +71,17 @@ class _RequireAuthGuardState extends State<RequireAuthGuard>
     switch (auth.status) {
       case AuthStatus.authenticated:
         allow();
-        return SessionPermissionScope(child: widget.child);
+        // The plan scope sits inside the auth guard (only a signed-in session
+        // can read a subscription) and above the shell, whose navigation is
+        // filtered by the company's plan as well as the person's permissions
+        // (D-093).
+        return SessionPermissionScope(
+          child: SessionSubscriptionScope(
+            companyId: auth.currentUser?.companyId,
+            load: () => _loadSubscription(auth),
+            child: widget.child,
+          ),
+        );
       case AuthStatus.signedOut:
         if (widget.routeName != AppRoutes.home) {
           auth.pendingRoute = widget.routeName;
@@ -116,8 +109,7 @@ class PublicOnlyGuard extends StatefulWidget {
   State<PublicOnlyGuard> createState() => _PublicOnlyGuardState();
 }
 
-class _PublicOnlyGuardState extends State<PublicOnlyGuard>
-    with _GuardRedirect {
+class _PublicOnlyGuardState extends State<PublicOnlyGuard> with _GuardRedirect {
   @override
   Widget build(BuildContext context) {
     final auth = AuthProvider.of(context);
@@ -217,6 +209,19 @@ class _SessionPermissionScopeState extends State<SessionPermissionScope> {
       a.length == b.length && a.containsAll(b);
 }
 
+/// Maps the API response onto the small snapshot the shell acts on.
+Future<SubscriptionSnapshot> _loadSubscription(AuthController auth) async {
+  final response = await auth.api.getSubscription();
+  return SubscriptionSnapshot(
+    tier: response.tier,
+    planName: response.planName,
+    status: response.status,
+    isEntitled: response.isEntitled,
+    features: response.features.toSet(),
+    trialDaysRemaining: response.trialDaysRemaining,
+  );
+}
+
 /// Branded 403 state rendered in place when the role lacks a permission.
 /// UX only — FastAPI's require_permission stays authoritative.
 class NoAccessScreen extends StatelessWidget {
@@ -259,7 +264,8 @@ class NoAccessScreen extends StatelessWidget {
                 const SizedBox(height: DsSpacing.s6),
                 AppButton(
                   label: 'Back to Home',
-                  onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                  onPressed: () =>
+                      Navigator.of(context).pushNamedAndRemoveUntil(
                     AppRoutes.home,
                     (_) => false,
                   ),

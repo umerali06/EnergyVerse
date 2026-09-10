@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { ApiClientError } from "@/api/client";
 import { useAuth } from "@/auth/auth-context";
-import { EmptyState, MotionSection, Spinner } from "@/design-system";
+import { EmptyState, MotionSection, PageLoader } from "@/design-system";
 
 type ResolveStatus = "resolving" | "not-found" | "error";
 
@@ -40,8 +40,8 @@ export function QrResolvePage({
 
   if (status === "resolving") {
     return (
-      <section className="grid min-h-[60vh] place-items-center p-6" data-testid="qr-resolving">
-        <Spinner label="Resolving QR code" />
+      <section data-testid="qr-resolving">
+        <PageLoader label="Resolving QR code" />
       </section>
     );
   }

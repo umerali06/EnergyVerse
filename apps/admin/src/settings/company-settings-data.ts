@@ -12,55 +12,53 @@ export type AsyncStatus = "loading" | "error" | "ready";
  * single FevApiClient instance AuthProvider owns, mirroring the 3.2 roles
  * data hook.
  */
+import { useCachedQuery } from "@/cache/cache-context";
+
 export function useCompanySettingsData() {
   const { apiClient } = useAuth();
-  const [company, setCompany] = useState<{
-    status: AsyncStatus;
-    profile: CompanyProfile | null;
-  }>({ status: "loading", profile: null });
 
-  const fetchCompany = useCallback(async () => {
-    setCompany((current) => ({ ...current, status: "loading" }));
-    try {
-      const profile = await apiClient.getCompany();
-      setCompany({ status: "ready", profile });
-    } catch {
-      setCompany({ status: "error", profile: null });
-    }
-  }, [apiClient]);
+  const companyQuery = useCachedQuery<CompanyProfile>(
+    "company:profile",
+    () => apiClient.getCompany(),
+  );
 
-  useEffect(() => {
-    void fetchCompany();
-  }, [fetchCompany]);
+  const status: AsyncStatus = companyQuery.loading
+    ? "loading"
+    : companyQuery.error
+      ? "error"
+      : "ready";
 
   const updateCompany = useCallback(
     async (request: UpdateCompanyRequest): Promise<CompanyProfile> => {
       const profile = await apiClient.updateCompany(request);
-      setCompany({ status: "ready", profile });
+      companyQuery.mutate(profile);
       return profile;
     },
-    [apiClient],
+    [apiClient, companyQuery],
   );
 
   const uploadLogo = useCallback(
     async (file: File): Promise<CompanyProfile> => {
       const profile = await apiClient.uploadCompanyLogo(file);
-      setCompany({ status: "ready", profile });
+      companyQuery.mutate(profile);
       return profile;
     },
-    [apiClient],
+    [apiClient, companyQuery],
   );
 
   const removeLogo = useCallback(async (): Promise<CompanyProfile> => {
     const profile = await apiClient.removeCompanyLogo();
-    setCompany({ status: "ready", profile });
+    companyQuery.mutate(profile);
     return profile;
-  }, [apiClient]);
+  }, [apiClient, companyQuery]);
 
   return {
-    company,
-    retry: () => void fetchCompany(),
-    refresh: () => void fetchCompany(),
+    company: {
+      status,
+      profile: companyQuery.data,
+    },
+    retry: companyQuery.refetch,
+    refresh: companyQuery.refetch,
     updateCompany,
     uploadLogo,
     removeLogo,

@@ -103,6 +103,30 @@ def test_list_assets_is_tenant_scoped(wiring: dict[str, Any]) -> None:
     assert beta.json()["items"] == []
 
 
+def test_list_assets_treats_generated_dart_empty_filters_as_unset(
+    wiring: dict[str, Any],
+) -> None:
+    response = _request(
+        _identity(),
+        "GET",
+        "/api/v1/assets",
+        params={
+            "facility_id": "",
+            "area_id": "",
+            "category": "",
+            "current_status": "",
+            "parent_asset_id": "",
+            "search": "",
+            "sort": "-created_at",
+            "cursor": "",
+            "limit": 25,
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["items"]) == 11
+
+
 def test_get_asset_cross_tenant_returns_404(wiring: dict[str, Any]) -> None:
     response = _request(
         _identity(company_id=BETA_COMPANY_ID), "GET", f"/api/v1/assets/{ASSET_FEED_PUMP_ID}"
@@ -184,9 +208,7 @@ def test_asset_tag_is_unique_within_company(wiring: dict[str, Any]) -> None:
 
 def test_update_rejects_parent_cycle(wiring: dict[str, Any]) -> None:
     parent = _create_asset(_identity(), asset_tag="CYCLE-P").json()
-    child = _create_asset(
-        _identity(), asset_tag="CYCLE-C", parent_asset_id=parent["id"]
-    ).json()
+    child = _create_asset(_identity(), asset_tag="CYCLE-C", parent_asset_id=parent["id"]).json()
     response = _request(
         _identity(),
         "PATCH",
@@ -250,9 +272,7 @@ def test_media_upload_and_delete_use_scoped_private_object(
     assert media["url"].startswith("https://fake-storage.invalid/")
     paths = list(wiring["bucket"].objects)
     assert len(paths) == 1
-    assert paths[0].startswith(
-        f"companies/{ACME_COMPANY_ID}/assets/{asset['id']}/photo/"
-    )
+    assert paths[0].startswith(f"companies/{ACME_COMPANY_ID}/assets/{asset['id']}/photo/")
 
     deleted = _request(
         _identity(),
@@ -376,9 +396,7 @@ def test_list_assets_pagination_cursor_walks_full_set(wiring: dict[str, Any]) ->
 
 
 def test_list_assets_sort_by_name(wiring: dict[str, Any]) -> None:
-    response = _request(
-        _identity(), "GET", "/api/v1/assets", params={"sort": "name", "limit": 100}
-    )
+    response = _request(_identity(), "GET", "/api/v1/assets", params={"sort": "name", "limit": 100})
     assert response.status_code == 200
     names = [item["name"] for item in response.json()["items"]]
     assert names == sorted(names, key=str.casefold)

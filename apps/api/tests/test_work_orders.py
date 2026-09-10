@@ -94,9 +94,7 @@ def _create_work_order(identity: CurrentUser, **overrides: Any) -> Any:
 def _assign(identity: CurrentUser, work_order_id: str, **overrides: Any) -> Any:
     payload: dict[str, Any] = {"technician_id": MAINTENANCE_TECHNICIAN_UID}
     payload.update(overrides)
-    return _request(
-        identity, "PATCH", f"/api/v1/work-orders/{work_order_id}/assign", json=payload
-    )
+    return _request(identity, "PATCH", f"/api/v1/work-orders/{work_order_id}/assign", json=payload)
 
 
 def _accept(identity: CurrentUser, work_order_id: str) -> Any:
@@ -364,9 +362,7 @@ def test_submit_for_review_rejects_stale_expected_revision(wiring: dict[str, Any
     created = _create_work_order(_identity()).json()
     assert _assign(_identity(), created["id"]).status_code == 200
     assert _accept(_technician_identity(), created["id"]).status_code == 200
-    response = _submit_for_review(
-        _technician_identity(), created["id"], expected_revision=99
-    )
+    response = _submit_for_review(_technician_identity(), created["id"], expected_revision=99)
     assert response.status_code == 409
     assert response.json()["error"] == "revision_conflict"
 

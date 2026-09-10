@@ -132,9 +132,7 @@ def _complete_inspection(
         "expected_revision": expected_revision,
     }
     payload.update(extra)
-    return _request(
-        identity, "POST", f"/api/v1/inspections/{inspection_id}/complete", json=payload
-    )
+    return _request(identity, "POST", f"/api/v1/inspections/{inspection_id}/complete", json=payload)
 
 
 # --- tenant isolation and RBAC ------------------------------------------------
@@ -539,9 +537,7 @@ def test_cancel_after_completed_returns_invalid_transition(wiring: dict[str, Any
 
 def test_cancel_from_draft_succeeds(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
-    response = _request(
-        _identity(), "POST", f"/api/v1/inspections/{created['id']}/cancel"
-    )
+    response = _request(_identity(), "POST", f"/api/v1/inspections/{created['id']}/cancel")
     assert response.status_code == 200
     assert response.json()["status"] == "cancelled"
 
@@ -551,9 +547,7 @@ def test_cancel_from_draft_succeeds(wiring: dict[str, Any]) -> None:
 
 def test_complete_persists_signature_strokes_and_role(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
-    strokes = [
-        {"points": [{"x": 0.05, "y": 0.1}, {"x": 0.5, "y": 0.5}, {"x": 0.95, "y": 0.9}]}
-    ]
+    strokes = [{"points": [{"x": 0.05, "y": 0.1}, {"x": 0.5, "y": 0.5}, {"x": 0.95, "y": 0.9}]}]
     response = _complete_inspection(
         _identity(), created["id"], expected_revision=1, strokes=strokes
     )
@@ -656,9 +650,7 @@ def test_complete_without_signature_is_rejected(wiring: dict[str, Any]) -> None:
 def test_completed_inspection_signature_survives_get(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
     _complete_inspection(_identity(), created["id"], expected_revision=1)
-    fetched = _request(
-        _identity(), "GET", f"/api/v1/inspections/{created['id']}"
-    ).json()
+    fetched = _request(_identity(), "GET", f"/api/v1/inspections/{created['id']}").json()
     assert fetched["signature"]["signer_uid"] == "test-user"
     assert fetched["signature"]["inspection_revision"] == 2
 
@@ -726,9 +718,7 @@ def _attach_media(
         "captured_at": captured_at,
     }
     payload.update(overrides)
-    return _request(
-        identity, "POST", f"/api/v1/inspections/{inspection_id}/media", json=payload
-    )
+    return _request(identity, "POST", f"/api/v1/inspections/{inspection_id}/media", json=payload)
 
 
 def test_attach_inspection_media_success(wiring: dict[str, Any]) -> None:
@@ -802,9 +792,7 @@ def test_attach_inspection_media_rejects_wrong_content_type(wiring: dict[str, An
         b"bytes",
         "application/pdf",
     )
-    response = _attach_media(
-        _identity(), created["id"], local_id=local_id, filename="doc.pdf"
-    )
+    response = _attach_media(_identity(), created["id"], local_id=local_id, filename="doc.pdf")
     assert response.status_code == 422
     assert response.json()["error"] == "media_content_type_invalid"
 
@@ -817,9 +805,7 @@ def test_attach_inspection_media_rejects_oversized_blob(wiring: dict[str, Any]) 
         b"x" * (16 * 1024 * 1024),
         "image/jpeg",
     )
-    response = _attach_media(
-        _identity(), created["id"], local_id=local_id, filename="huge.jpg"
-    )
+    response = _attach_media(_identity(), created["id"], local_id=local_id, filename="huge.jpg")
     assert response.status_code == 413
     assert response.json()["error"] == "media_too_large"
 
@@ -896,9 +882,7 @@ def test_detach_inspection_media_replay_is_idempotent(wiring: dict[str, Any]) ->
     attached = _attach_media(_identity(), created["id"], local_id=local_id).json()
     media_id = attached["media"][0]["id"]
 
-    first = _request(
-        _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/media/{media_id}"
-    )
+    first = _request(_identity(), "DELETE", f"/api/v1/inspections/{created['id']}/media/{media_id}")
     assert first.status_code == 200
     second = _request(
         _identity(), "DELETE", f"/api/v1/inspections/{created['id']}/media/{media_id}"
@@ -976,7 +960,7 @@ def test_attach_inspection_voice_note_idempotent_replay(wiring: dict[str, Any]) 
 
 
 def test_attach_inspection_voice_note_conflicting_replay_returns_409(
-    wiring: dict[str, Any]
+    wiring: dict[str, Any],
 ) -> None:
     created = _create_inspection(_identity()).json()
     local_id = str(uuid.uuid4())
@@ -1195,9 +1179,7 @@ def test_create_annotation_success(wiring: dict[str, Any]) -> None:
 
 def test_create_annotation_rejects_unknown_media(wiring: dict[str, Any]) -> None:
     created = _create_inspection(_identity()).json()
-    response = _create_annotation(
-        _identity(), created["id"], media_local_id=str(uuid.uuid4())
-    )
+    response = _create_annotation(_identity(), created["id"], media_local_id=str(uuid.uuid4()))
     assert response.status_code == 404
     assert response.json()["error"] == "media_not_found"
 
@@ -1354,9 +1336,7 @@ def test_annotation_survives_inspection_sync_round_trip(wiring: dict[str, Any]) 
 # --- manual status readings + asset health rollup (Phase 7.7) ----------------
 
 
-def _put_readings(
-    identity: CurrentUser, inspection_id: str, **overrides: Any
-) -> Any:
+def _put_readings(identity: CurrentUser, inspection_id: str, **overrides: Any) -> Any:
     payload: dict[str, Any] = {"condition": "Good"}
     payload.update(overrides)
     return _request(

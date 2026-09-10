@@ -7,6 +7,7 @@ import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/subscription_fixtures.dart';
 
 const session = AuthSession(
   uid: 'demo-acme-maintenance_technician',
@@ -37,7 +38,8 @@ WorkOrderDetail _detailFixture({
       ..facilityId = 'facility-1'
       ..title = 'Replace worn gasket'
       ..priority = WorkOrderDetailPriorityEnum.medium
-      ..status = WorkOrderDetailStatusEnum.values.firstWhere((s) => s.name == status)
+      ..status =
+          WorkOrderDetailStatusEnum.values.firstWhere((s) => s.name == status)
       ..technicianId = technicianId
       ..revision = 1
       ..createdAt = now
@@ -66,6 +68,10 @@ class FakeApi implements ApiContract {
   final AcceptWorkOrderFn? _acceptWorkOrder;
   final SubmitForReviewFn? _submitWorkOrderForReview;
   final List<String> calls = [];
+
+  @override
+  Future<SubscriptionResponse> getSubscription() async =>
+      subscriptionResponseFixture();
 
   @override
   Future<CurrentUser> getCurrentUser() async => _identity();
@@ -116,13 +122,16 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) => throw UnimplementedError();
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
 
   @override
-  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) => throw UnimplementedError();
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
 
   @override
-  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) => throw UnimplementedError();
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
 
   @override
   Future<HealthResponse> getHealth() => throw UnimplementedError();
@@ -137,7 +146,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardSummary> getDashboardSummary({int window = 30}) => throw UnimplementedError();
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) =>
+      throw UnimplementedError();
 
   @override
   Future<DashboardActivityPage> getDashboardActivity({
@@ -148,11 +158,17 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) =>
       throw UnimplementedError();
 
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() => throw UnimplementedError();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() =>
+      throw UnimplementedError();
 
   @override
   Future<UserListPage> getUsers({
@@ -191,7 +207,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
 
   @override
@@ -212,7 +229,8 @@ class FakeApi implements ApiContract {
   Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      throw UnimplementedError();
 
   @override
   Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
@@ -228,7 +246,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
 
   @override
   Future<AreaListPage> getAreas({
@@ -255,7 +274,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> getInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
@@ -267,7 +287,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> startInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> completeInspection(
@@ -275,7 +296,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> cancelInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
@@ -296,7 +318,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> detachInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -356,7 +379,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> analyzeInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> analyzeInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -406,9 +430,11 @@ Future<void> disposeApp(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('shows Accept task for the assigned technician when status is assigned',
+  testWidgets(
+      'shows Accept task for the assigned technician when status is assigned',
       (tester) async {
-    final api = FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'assigned'));
+    final api =
+        FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'assigned'));
     await tester.pumpWidget(
       FevApp(
         api: api,
@@ -435,8 +461,10 @@ void main() {
   // immediately, which is what drives the reactive UI regardless of whether
   // the engine has drained yet -- mirrors `inspection_detail_screen_test.dart`'s
   // same posture for its own start/complete buttons.
-  testWidgets('accepting optimistically flips the local status to in_progress', (tester) async {
-    final api = FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'assigned'));
+  testWidgets('accepting optimistically flips the local status to in_progress',
+      (tester) async {
+    final api =
+        FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'assigned'));
     await tester.pumpWidget(
       FevApp(
         api: api,
@@ -462,7 +490,8 @@ void main() {
   testWidgets(
       'submitting for review fills the sheet and optimistically moves to pending review',
       (tester) async {
-    final api = FakeApi(getWorkOrder: (id) async => _detailFixture(status: 'inProgress'));
+    final api = FakeApi(
+        getWorkOrder: (id) async => _detailFixture(status: 'inProgress'));
     await tester.pumpWidget(
       FevApp(
         api: api,

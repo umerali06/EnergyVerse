@@ -16,6 +16,7 @@ from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.companies import CompanyRepository
+from app.db.repositories.documents import DocumentRepository
 from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.inspections import InspectionRepository
 from app.db.repositories.permissions import PermissionRepository
@@ -34,6 +35,7 @@ from app.models.entities import (
     ChecklistTemplateItem,
     CompanyCreate,
     CompanyUpdate,
+    DocumentCreate,
     FacilityCreate,
     FacilityUpdate,
     InspectionCreate,
@@ -586,6 +588,81 @@ DEMO_WORK_ORDERS = (
 )
 
 
+@dataclass(frozen=True)
+class DemoDocumentSeed:
+    id: str
+    title: str
+    document_code: str
+    category: str
+    description: str
+    file_path: str
+    filename: str
+    file_format: str
+    file_size_bytes: int
+    facility_id: str | None = None
+    asset_id: str | None = None
+    tags: tuple[str, ...] = field(default_factory=tuple)
+
+
+DEMO_DOCUMENTS = (
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:sop-001"),
+        title="High Pressure Feed Pump Operation & Safety SOP",
+        document_code="DOC-SOP-001",
+        category="sop",
+        description="Standard operating procedure for pre-start inspection, startup sequence, normal operation, and emergency shutdown of Feed Pump P-101.",
+        file_path="sops/DOC-SOP-001_feed_pump_sop.pdf",
+        filename="DOC-SOP-001_feed_pump_sop.pdf",
+        file_format="pdf",
+        file_size_bytes=2450120,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        asset_id=ASSET_FEED_PUMP_ID,
+        tags=("SOP", "P-101", "Safety", "High Pressure"),
+    ),
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:man-201"),
+        title="Ariel JGK/4 Compressor Technical Specification & Maintenance Manual",
+        document_code="DOC-MAN-201",
+        category="manual",
+        description="Original OEM technical specifications, lubrication guidelines, torque settings, and preventive maintenance manual for Reciprocating Compressor C-201.",
+        file_path="manuals/DOC-MAN-201_ariel_compressor_manual.pdf",
+        filename="DOC-MAN-201_ariel_compressor_manual.pdf",
+        file_format="pdf",
+        file_size_bytes=8910400,
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        asset_id=f"{ACME_COMPANY_ID}__asset__c-201",
+        tags=("Manual", "Compressor", "Ariel", "C-201"),
+    ),
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:pol-101"),
+        title="Site HSE Safety Policy & Hazardous Chemical Exposure Standard",
+        document_code="DOC-POL-101",
+        category="safety_policy",
+        description="Site-wide health, safety, and environmental compliance regulations governing PPE, chemical spill containment, and emergency evacuation protocols.",
+        file_path="policies/DOC-POL-101_hse_safety_policy.pdf",
+        filename="DOC-POL-101_hse_safety_policy.pdf",
+        file_format="pdf",
+        file_size_bytes=1840000,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        tags=("HSE", "Policy", "Safety", "Compliance"),
+    ),
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:crt-301"),
+        title="Crude Tank T-301 Annual API 653 Integrity Certificate",
+        document_code="DOC-CRT-301",
+        category="certificate",
+        description="Certified third-party inspection compliance certificate confirming shell thickness, foundation stability, and roof seal integrity per API 653 standards.",
+        file_path="certificates/DOC-CRT-301_api653_inspection.pdf",
+        filename="DOC-CRT-301_api653_inspection.pdf",
+        file_format="pdf",
+        file_size_bytes=1120000,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        asset_id=f"{ACME_COMPANY_ID}__asset__t-301",
+        tags=("Certificate", "API 653", "Tank 301", "Compliance"),
+    ),
+)
+
+
 def role_id(company_id: str, role_key: str) -> str:
     return system_role_id(company_id, role_key)
 
@@ -607,6 +684,7 @@ async def _ensure_company(
         existing.name != payload.name
         or existing.status != payload.status
         or existing.subscription_tier != payload.subscription_tier
+        or existing.subscription_status != payload.subscription_status
     ):
         await repository.update(
             scope,
@@ -614,6 +692,7 @@ async def _ensure_company(
                 name=payload.name,
                 status=payload.status,
                 subscription_tier=payload.subscription_tier,
+                subscription_status=payload.subscription_status,
             ),
             SEED_ACTOR_UID,
         )
@@ -1037,6 +1116,53 @@ async def _ensure_inspection(
         )
 
 
+async def _ensure_document(
+    documents: DocumentRepository,
+    scope: CompanyScope,
+    seed: DemoDocumentSeed,
+) -> None:
+    existing = await documents.get(scope, seed.id)
+    if existing is None:
+        await documents.create(
+            scope,
+            DocumentCreate(
+                id=seed.id,
+                title=seed.title,
+                document_code=seed.document_code,
+                category=seed.category, # type: ignore
+                description=seed.description,
+                facility_id=seed.facility_id,
+                asset_id=seed.asset_id,
+                file_path=seed.file_path,
+                filename=seed.filename,
+                file_format=seed.file_format, # type: ignore
+                file_size_bytes=seed.file_size_bytes,
+                status="active",
+                tags=list(seed.tags),
+            ),
+            SEED_ACTOR_UID,
+        )
+        return
+    if (
+        existing.title != seed.title
+        or existing.document_code != seed.document_code
+        or existing.category != seed.category
+        or existing.description != seed.description
+    ):
+        await documents.update_metadata(
+            scope,
+            seed.id,
+            {
+                "title": seed.title,
+                "document_code": seed.document_code,
+                "category": seed.category,
+                "description": seed.description,
+                "tags": list(seed.tags),
+            },
+            SEED_ACTOR_UID,
+        )
+
+
 async def _ensure_work_order(
     work_orders: WorkOrderRepository,
     assets: AssetRepository,
@@ -1122,6 +1248,7 @@ async def run_seed(
     checklist_templates = ChecklistTemplateRepository(firestore_client, audit)
     inspections = InspectionRepository(firestore_client, audit)
     work_orders = WorkOrderRepository(firestore_client, audit)
+    documents = DocumentRepository(firestore_client, audit)
 
     await asyncio.gather(
         _ensure_company(
@@ -1130,7 +1257,11 @@ async def run_seed(
                 id=ACME_COMPANY_ID,
                 name="Acme Energy",
                 status="active",
-                subscription_tier="demo",
+                # Phase 13: the demo tenant must exercise every module, so it
+                # carries the richest plan. "demo" was never a published tier,
+                # so it resolved to no entitlements once the gate went live.
+                subscription_tier="enterprise",
+                subscription_status="active",
             ),
         ),
         _ensure_company(
@@ -1139,7 +1270,12 @@ async def run_seed(
                 id=SECOND_COMPANY_ID,
                 name="Beta Utilities",
                 status="active",
-                subscription_tier="demo",
+                # Deliberately the entry tier: the second tenant already proves
+                # multi-tenant isolation, and on Starter it also demonstrates
+                # plan gating -- its admin holds work_orders.read and still
+                # gets a 402, with no Work Orders or Permits in either client.
+                subscription_tier="starter",
+                subscription_status="active",
             ),
         ),
     )
@@ -1227,6 +1363,9 @@ async def run_seed(
     for work_order_seed in DEMO_WORK_ORDERS:
         await _ensure_work_order(work_orders, assets, acme_scope, work_order_seed)
 
+    for doc_seed in DEMO_DOCUMENTS:
+        await _ensure_document(documents, acme_scope, doc_seed)
+
     if with_auth_users:
         password = demo_password or settings.seed_demo_password
         if not password:
@@ -1274,6 +1413,7 @@ async def run_seed(
         acme_checklist_templates,
         acme_inspections,
         acme_work_orders,
+        acme_documents,
     ) = await asyncio.gather(
         facilities.list(acme_scope),
         areas.list(acme_scope),
@@ -1281,6 +1421,7 @@ async def run_seed(
         checklist_templates.list(acme_scope),
         inspections.list(acme_scope),
         work_orders.list(acme_scope),
+        documents.list(acme_scope),
     )
     return SeedCounts(
         companies=sum(
@@ -1301,6 +1442,7 @@ async def run_seed(
         checklist_templates=len(acme_checklist_templates),
         inspections=len(acme_inspections),
         work_orders=len(acme_work_orders),
+        documents=len(acme_documents),
     )
 
 

@@ -10,6 +10,7 @@ import 'package:fev_mobile/inspections/local_inspections_repository.dart';
 import 'package:fev_mobile/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/subscription_fixtures.dart';
 
 const session = AuthSession(
   uid: 'demo-acme-field_inspector',
@@ -260,6 +261,10 @@ class FakeApi implements ApiContract {
   final bool offline;
 
   @override
+  Future<SubscriptionResponse> getSubscription() async =>
+      subscriptionResponseFixture();
+
+  @override
   Future<CurrentUser> getCurrentUser() async => identity;
 
   @override
@@ -293,6 +298,10 @@ class FakeApi implements ApiContract {
 
   @override
   Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() =>
       throw UnimplementedError();
 
   @override

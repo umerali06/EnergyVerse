@@ -60,9 +60,7 @@ async def _complete_with_condition(
     await service.complete_inspection(
         scope,
         inspection_id,
-        CompleteInspectionRequest(
-            strokes=_SIGNATURE_STROKES, expected_revision=updated.revision
-        ),
+        CompleteInspectionRequest(strokes=_SIGNATURE_STROKES, expected_revision=updated.revision),
         actor_uid,
         "field_inspector",
     )
@@ -112,9 +110,7 @@ async def main() -> None:
         print(f"PASS: dashboard Critical-Assets count reflects it ({critical_after})")
 
         restore_condition = _RESTORE_CONDITION[original_status]
-        restore_id = await _complete_with_condition(
-            service, scope, actor_uid, restore_condition
-        )
+        restore_id = await _complete_with_condition(service, scope, actor_uid, restore_condition)
         created_inspection_ids.append(restore_id)
         print(
             f"completed inspection {restore_id} with condition={restore_condition!r} "
@@ -131,8 +127,7 @@ async def main() -> None:
 
         critical_restored = await assets.count(scope, current_status="Critical")
         assert critical_restored == critical_before, (
-            f"expected Critical-Assets count back to {critical_before}, "
-            f"got {critical_restored}"
+            f"expected Critical-Assets count back to {critical_before}, got {critical_restored}"
         )
         print(f"PASS: dashboard Critical-Assets count restored ({critical_restored})")
 

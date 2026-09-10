@@ -94,7 +94,6 @@ export function CompanyRegistrationResponseToJSONTyped(value?: CompanyRegistrati
 
     return {
 
-            ...value,
         'company_id': value['companyId'],
         'email': value['email'],
         'email_verified': value['emailVerified'],

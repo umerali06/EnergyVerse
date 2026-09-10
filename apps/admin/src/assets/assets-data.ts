@@ -8,9 +8,10 @@ import type {
   AssetQrLabel,
   FacilityDetail,
 } from "@fev/api-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
+import { useCachedQuery } from "@/cache/cache-context";
 
 export type AsyncStatus = "loading" | "error" | "ready";
 
@@ -34,74 +35,48 @@ const DEFAULT_FILTERS: AssetFilters = {
   sort: "-created_at",
 };
 
-/**
- * Fetches the company's assets (paginated, filtered, sorted) plus a one-shot
- * facility/area directory used both as filter options and as an id -> name
- * lookup for the list/detail breadcrumb (the asset payloads only carry
- * facilityId/areaId, never names), mirroring the Phase 3.1 users data hook
- * and the Phase 3.4 audit facets/actor-directory pattern.
- *
- * `initialFilters` seeds the filter state once on mount (e.g. a dashboard KPI
- * card linking to `/assets?status=Critical`) -- it is read once, not kept in
- * sync with the URL afterward.
- */
 export function useAssetsData(initialFilters: Partial<AssetFilters> = {}) {
   const { apiClient } = useAuth();
   const [filters, setFilters] = useState<AssetFilters>({ ...DEFAULT_FILTERS, ...initialFilters });
-  const [list, setList] = useState<{
-    status: AsyncStatus;
-    items: AssetListItem[];
-    nextCursor: string | null;
-    loadingMore: boolean;
-  }>({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-  const [facilities, setFacilities] = useState<{ status: AsyncStatus; items: FacilityDetail[] }>({
-    status: "loading",
-    items: [],
-  });
-  const [areas, setAreas] = useState<{ status: AsyncStatus; items: AreaDetail[] }>({
-    status: "loading",
-    items: [],
-  });
+  const [extraItems, setExtraItems] = useState<AssetListItem[]>([]);
+  const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const requestId = useRef(0);
+  const filterKey = JSON.stringify(filters);
 
-  const fetchAssets = useCallback(
-    async (current: AssetFilters) => {
-      const id = ++requestId.current;
-      setList({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-      try {
-        const page = await apiClient.listAssets({
-          search: current.search.trim() || undefined,
-          facilityId: current.facilityId ?? undefined,
-          areaId: current.areaId ?? undefined,
-          category: current.category ?? undefined,
-          currentStatus: current.status ?? undefined,
-          sort: current.sort,
-          limit: PAGE_SIZE,
-        });
-        if (requestId.current === id) {
-          setList({
-            status: "ready",
-            items: page.items,
-            nextCursor: page.nextCursor ?? null,
-            loadingMore: false,
-          });
-        }
-      } catch {
-        // FevApiClient already surfaced the unified-envelope toast; this
-        // local state just drives the retry-capable error UI.
-        if (requestId.current === id) {
-          setList({ status: "error", items: [], nextCursor: null, loadingMore: false });
-        }
-      }
-    },
-    [apiClient],
+  const assetsQuery = useCachedQuery<{ items: AssetListItem[]; nextCursor: string | null }>(
+    `assets:list:${filterKey}`,
+    () =>
+      apiClient.listAssets({
+        search: filters.search.trim() || undefined,
+        facilityId: filters.facilityId ?? undefined,
+        areaId: filters.areaId ?? undefined,
+        category: filters.category ?? undefined,
+        currentStatus: filters.status ?? undefined,
+        sort: filters.sort,
+        limit: PAGE_SIZE,
+      }),
   );
 
+  const facilitiesQuery = useCachedQuery<{ items: FacilityDetail[] }>(
+    "facilities:lookup:100",
+    () => apiClient.listFacilities({ limit: LOOKUP_LIMIT, sort: "name" }),
+  );
+
+  const areasQuery = useCachedQuery<{ items: AreaDetail[] }>(
+    "areas:lookup:100",
+    () => apiClient.listAreas({ limit: LOOKUP_LIMIT, sort: "name" }),
+  );
+
+  const currentNextCursor =
+    extraNextCursor !== undefined
+      ? extraNextCursor
+      : (assetsQuery.data?.nextCursor ?? null);
+
   const loadMore = useCallback(async () => {
-    const cursor = list.nextCursor;
-    if (!cursor || list.loadingMore) return;
-    setList((current) => ({ ...current, loadingMore: true }));
+    const cursor = currentNextCursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
     try {
       const page = await apiClient.listAssets({
         search: filters.search.trim() || undefined,
@@ -113,56 +88,21 @@ export function useAssetsData(initialFilters: Partial<AssetFilters> = {}) {
         cursor,
         limit: PAGE_SIZE,
       });
-      setList((current) => ({
-        status: "ready",
-        items: [...current.items, ...page.items],
-        nextCursor: page.nextCursor ?? null,
-        loadingMore: false,
-      }));
+      setExtraItems((prev) => [...prev, ...page.items]);
+      setExtraNextCursor(page.nextCursor ?? null);
     } catch {
-      setList((current) => ({ ...current, loadingMore: false }));
+      // Toast
+    } finally {
+      setLoadingMore(false);
     }
-  }, [apiClient, filters, list.loadingMore, list.nextCursor]);
-
-  const fetchFacilities = useCallback(async () => {
-    setFacilities({ status: "loading", items: [] });
-    try {
-      const page = await apiClient.listFacilities({ limit: LOOKUP_LIMIT, sort: "name" });
-      setFacilities({ status: "ready", items: page.items });
-    } catch {
-      setFacilities({ status: "error", items: [] });
-    }
-  }, [apiClient]);
-
-  const fetchAreas = useCallback(async () => {
-    setAreas({ status: "loading", items: [] });
-    try {
-      const page = await apiClient.listAreas({ limit: LOOKUP_LIMIT, sort: "name" });
-      setAreas({ status: "ready", items: page.items });
-    } catch {
-      setAreas({ status: "error", items: [] });
-    }
-  }, [apiClient]);
-
-  useEffect(() => {
-    void fetchAssets(filters);
-  }, [fetchAssets, filters]);
-
-  useEffect(() => {
-    void fetchFacilities();
-  }, [fetchFacilities]);
-
-  useEffect(() => {
-    void fetchAreas();
-  }, [fetchAreas]);
-
-  const retry = useCallback(() => void fetchAssets(filters), [fetchAssets, filters]);
+  }, [apiClient, filters, currentNextCursor, loadingMore]);
 
   const setFilter = useCallback(
     <K extends keyof AssetFilters>(key: K, value: AssetFilters[K]) => {
+      setExtraItems([]);
+      setExtraNextCursor(undefined);
       setFilters((current) => {
         const next = { ...current, [key]: value };
-        // Changing facility invalidates any previously selected area.
         if (key === "facilityId") next.areaId = null;
         return next;
       });
@@ -170,42 +110,52 @@ export function useAssetsData(initialFilters: Partial<AssetFilters> = {}) {
     [],
   );
 
-  const clearFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
+  const clearFilters = useCallback(() => {
+    setExtraItems([]);
+    setExtraNextCursor(undefined);
+    setFilters(DEFAULT_FILTERS);
+  }, []);
 
-  const getAsset = useCallback(
-    (assetId: string): Promise<AssetDetail> => apiClient.getAsset(assetId),
-    [apiClient],
-  );
+  const listStatus = assetsQuery.loading ? "loading" : assetsQuery.error ? "error" : "ready";
+  const facilityStatus = facilitiesQuery.loading ? "loading" : facilitiesQuery.error ? "error" : "ready";
+  const areaStatus = areasQuery.loading ? "loading" : areasQuery.error ? "error" : "ready";
 
-  const getAssetHistory = useCallback(
-    (assetId: string): Promise<AssetHistoryPage> => apiClient.getAssetHistory(assetId),
-    [apiClient],
-  );
-
-  const getChildAssets = useCallback(
-    (parentAssetId: string): Promise<AssetListItem[]> =>
-      apiClient.listAssets({ parentAssetId, limit: LOOKUP_LIMIT }).then((page) => page.items),
-    [apiClient],
-  );
-
-  const getAssetQrLabel = useCallback(
-    (assetId: string): Promise<AssetQrLabel> => apiClient.getAssetQrLabel(assetId),
-    [apiClient],
-  );
+  const allItems = [...(assetsQuery.data?.items ?? []), ...extraItems];
 
   return {
     filters,
     setFilter,
     clearFilters,
-    list,
-    retry,
+    list: {
+      status: listStatus,
+      items: allItems,
+      nextCursor: currentNextCursor,
+      loadingMore,
+    },
+    retry: assetsQuery.refetch,
     loadMore,
-    facilities,
-    areas,
-    getAsset,
-    getAssetHistory,
-    getChildAssets,
-    getAssetQrLabel,
+    facilities: {
+      status: facilityStatus,
+      items: facilitiesQuery.data?.items ?? [],
+    },
+    areas: {
+      status: areaStatus,
+      items: areasQuery.data?.items ?? [],
+    },
+    getAsset: useCallback((assetId: string) => apiClient.getAsset(assetId), [apiClient]),
+    getAssetHistory: useCallback(
+      (assetId: string) => apiClient.getAssetHistory(assetId),
+      [apiClient],
+    ),
+    getChildAssets: useCallback(
+      (parentAssetId: string) =>
+        apiClient.listAssets({ parentAssetId, limit: LOOKUP_LIMIT }).then((page) => page.items),
+      [apiClient],
+    ),
+    getAssetQrLabel: useCallback(
+      (assetId: string) => apiClient.getAssetQrLabel(assetId),
+      [apiClient],
+    ),
   };
 }
 

@@ -57,7 +57,8 @@ void resetDashboardWidgetRegistryForTests() {
   _registry.clear();
 }
 
-List<DashboardWidgetSpec> registeredDashboardWidgets() => List.unmodifiable(_registry);
+List<DashboardWidgetSpec> registeredDashboardWidgets() =>
+    List.unmodifiable(_registry);
 
 /// One widget throwing during build must not blank the rest of the
 /// dashboard -- each widget gets its own boundary via [ErrorWidget.builder]
@@ -119,14 +120,74 @@ class DashboardWidgetGrid extends StatelessWidget {
         .where((spec) => filter?.call(spec) ?? true)
         .toList();
     if (widgets.isEmpty) return const SizedBox.shrink();
-    return Column(
-      key: const Key('dashboard-widget-grid'),
-      children: [
-        for (final spec in widgets) ...[
-          _WidgetBoundary(title: spec.title, builder: spec.builder),
-          if (spec != widgets.last) const SizedBox(height: DsSpacing.s3),
-        ],
-      ],
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth > 600 ? 3 : 2;
+        final rows = <Widget>[];
+        final statBuffer = <DashboardWidgetSpec>[];
+
+        void flushStatBuffer() {
+          if (statBuffer.isEmpty) return;
+          for (var i = 0; i < statBuffer.length; i += columns) {
+            final chunk = statBuffer.sublist(
+              i,
+              (i + columns).clamp(0, statBuffer.length),
+            );
+            rows.add(
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final spec in chunk) ...[
+                      Expanded(
+                        child: _WidgetBoundary(
+                          title: spec.title,
+                          builder: spec.builder,
+                        ),
+                      ),
+                      if (spec != chunk.last) const SizedBox(width: DsSpacing.s3),
+                    ],
+                    if (chunk.length < columns)
+                      for (var k = 0; k < columns - chunk.length; k++) ...[
+                        const SizedBox(width: DsSpacing.s3),
+                        const Expanded(child: SizedBox.shrink()),
+                      ],
+                  ],
+                ),
+              ),
+            );
+            rows.add(const SizedBox(height: DsSpacing.s3));
+          }
+          statBuffer.clear();
+        }
+
+        for (final spec in widgets) {
+          final isFullWidth = spec.id.contains('condition') ||
+              spec.id.contains('by-type') ||
+              spec.id.contains('chart');
+          if (isFullWidth) {
+            flushStatBuffer();
+            rows.add(
+              _WidgetBoundary(title: spec.title, builder: spec.builder),
+            );
+            rows.add(const SizedBox(height: DsSpacing.s3));
+          } else {
+            statBuffer.add(spec);
+          }
+        }
+        flushStatBuffer();
+
+        if (rows.isNotEmpty && rows.last is SizedBox) {
+          rows.removeLast();
+        }
+
+        return Column(
+          key: const Key('dashboard-widget-grid'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: rows,
+        );
+      },
     );
   }
 }

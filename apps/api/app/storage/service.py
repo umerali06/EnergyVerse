@@ -93,10 +93,7 @@ class AssetMediaStorage:
     @staticmethod
     def object_path(company_id: str, asset_id: str, kind: str, filename: str) -> str:
         safe_name = Path(filename).name.replace(" ", "_")
-        return (
-            f"companies/{company_id}/assets/{asset_id}/{kind}/"
-            f"{uuid4().hex}_{safe_name}"
-        )
+        return f"companies/{company_id}/assets/{asset_id}/{kind}/{uuid4().hex}_{safe_name}"
 
     def upload(
         self,
@@ -128,6 +125,53 @@ def get_asset_media_storage() -> AssetMediaStorage:
     return AssetMediaStorage()
 
 
+class SafetyEvidenceStorage:
+    """Server-mediated private evidence for safety incidents (D-069)."""
+
+    def __init__(self, bucket: Any = None) -> None:
+        self._bucket = bucket
+
+    def _get_bucket(self) -> Any:
+        if self._bucket is None:
+            self._bucket = get_storage_bucket()
+        return self._bucket
+
+    @staticmethod
+    def object_path(company_id: str, report_id: str, filename: str) -> str:
+        safe_name = Path(filename).name.replace(" ", "_")
+        return (
+            f"companies/{company_id}/safety-reports/{report_id}/evidence/{uuid4().hex}_{safe_name}"
+        )
+
+    def upload(
+        self,
+        company_id: str,
+        report_id: str,
+        filename: str,
+        data: bytes,
+        content_type: str,
+    ) -> str:
+        path = self.object_path(company_id, report_id, filename)
+        self._get_bucket().blob(path).upload_from_string(data, content_type=content_type)
+        return path
+
+    def delete(self, path: str) -> None:
+        blob = self._get_bucket().blob(path)
+        if blob.exists():
+            blob.delete()
+
+    def signed_url_for(self, path: str) -> str:
+        return str(
+            self._get_bucket()
+            .blob(path)
+            .generate_signed_url(expiration=SIGNED_URL_EXPIRATION, version="v4")
+        )
+
+
+def get_safety_evidence_storage() -> SafetyEvidenceStorage:
+    return SafetyEvidenceStorage()
+
+
 class InspectionMediaStorage:
     """Tenant/inspection-scoped inspection media objects.
 
@@ -149,10 +193,7 @@ class InspectionMediaStorage:
     @staticmethod
     def object_path(company_id: str, inspection_id: str, local_id: str, filename: str) -> str:
         safe_name = Path(filename).name.replace(" ", "_")
-        return (
-            f"companies/{company_id}/inspections/{inspection_id}/media/"
-            f"{local_id}_{safe_name}"
-        )
+        return f"companies/{company_id}/inspections/{inspection_id}/media/{local_id}_{safe_name}"
 
     @staticmethod
     def voice_object_path(company_id: str, inspection_id: str, local_id: str, filename: str) -> str:
@@ -161,10 +202,7 @@ class InspectionMediaStorage:
         the inspection, not `media[]`, so they get their own namespace even
         though bytes flow through the exact same direct-upload design."""
         safe_name = Path(filename).name.replace(" ", "_")
-        return (
-            f"companies/{company_id}/inspections/{inspection_id}/voice/"
-            f"{local_id}_{safe_name}"
-        )
+        return f"companies/{company_id}/inspections/{inspection_id}/voice/{local_id}_{safe_name}"
 
     def verify_uploaded(self, path: str) -> tuple[bool, int | None, str | None]:
         blob = self._get_bucket().blob(path)
@@ -190,3 +228,39 @@ class InspectionMediaStorage:
 
 def get_inspection_media_storage() -> InspectionMediaStorage:
     return InspectionMediaStorage()
+
+
+class GeneratedReportStorage:
+    """Private finalized report artifacts under the D-083 fixed namespace."""
+
+    def __init__(self, bucket: Any = None) -> None:
+        self._bucket = bucket
+
+    def _get_bucket(self) -> Any:
+        if self._bucket is None:
+            self._bucket = get_storage_bucket()
+        return self._bucket
+
+    @staticmethod
+    def export_path(company_id: str, report_id: str, filename: str) -> str:
+        safe_name = Path(filename).name.replace(" ", "_")
+        return f"companies/{company_id}/reports/{report_id}/exports/{safe_name}"
+
+    def upload(
+        self,
+        company_id: str,
+        report_id: str,
+        filename: str,
+        data: bytes,
+        content_type: str,
+    ) -> str:
+        path = self.export_path(company_id, report_id, filename)
+        self._get_bucket().blob(path).upload_from_string(data, content_type=content_type)
+        return path
+
+    def signed_url_for(self, path: str) -> str:
+        return str(
+            self._get_bucket()
+            .blob(path)
+            .generate_signed_url(expiration=SIGNED_URL_EXPIRATION, version="v4")
+        )

@@ -15,12 +15,19 @@ firebase-admin = "^7.0.0"
 python-multipart = "^0.0.32"
 tzdata = "^2026.3"
 anthropic = "^0.69.0"
+reportlab = "^4.4.0"
+python-docx = "^1.2.0"
+openpyxl = "^3.1.5"
+pypdf = "^6.0.0"
+stripe = "^15.6.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
 httpx = "^0.28.0"
 ruff = "^0.9.0"
 mypy = "^1.14.0"
+types-openpyxl = "^3.1.5.20260807"
+types-reportlab = "^4.5.1.20260807"
 
 [build-system]
 requires = ["poetry-core"]

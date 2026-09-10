@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/assets_fixtures.dart';
 import 'support/dashboard_fixtures.dart';
+import 'support/subscription_fixtures.dart';
 
 const session = AuthSession(
   uid: 'demo-acme-company_admin',
@@ -22,7 +23,8 @@ const roleMatrix = <String, List<String>>{
   'field_inspector': ['reports.read'],
 };
 
-CurrentUser identityFor(String roleKey, List<String> permissions) => CurrentUser(
+CurrentUser identityFor(String roleKey, List<String> permissions) =>
+    CurrentUser(
       (builder) => builder
         ..uid = 'demo-acme-company_admin'
         ..email = 'company_admin@acme.example.invalid'
@@ -46,6 +48,14 @@ typedef GetAssetsFn = Future<AssetListPage> Function({
 });
 typedef GetAssetFn = Future<AssetDetail> Function(String assetId);
 typedef GetAssetHistoryFn = Future<AssetHistoryPage> Function(String assetId);
+typedef GetWorkOrdersFn = Future<WorkOrderListPage> Function({
+  String? assetId,
+  String? facilityId,
+  String? status,
+  String? technicianId,
+  String? cursor,
+  int limit,
+});
 
 class FakeApi implements ApiContract {
   FakeApi(
@@ -53,6 +63,7 @@ class FakeApi implements ApiContract {
     GetAssetsFn? getAssets,
     GetAssetFn? getAsset,
     GetAssetHistoryFn? getAssetHistory,
+    GetWorkOrdersFn? getWorkOrders,
   })  : _getAssets = getAssets ??
             (({
               String? facilityId,
@@ -65,14 +76,33 @@ class FakeApi implements ApiContract {
               String? cursor,
               int limit = 25,
             }) async =>
-                parentAssetId != null ? assetListPageFixture(items: const []) : assetListPageFixture()),
-        _getAsset = getAsset ?? ((assetId) async => assetDetailFixture(id: assetId)),
-        _getAssetHistory = getAssetHistory ?? ((assetId) async => assetHistoryPageFixture());
+                parentAssetId != null
+                    ? assetListPageFixture(items: const [])
+                    : assetListPageFixture()),
+        _getAsset =
+            getAsset ?? ((assetId) async => assetDetailFixture(id: assetId)),
+        _getAssetHistory =
+            getAssetHistory ?? ((assetId) async => assetHistoryPageFixture()),
+        _getWorkOrders = getWorkOrders ??
+            (({
+              assetId,
+              facilityId,
+              status,
+              technicianId,
+              cursor,
+              limit = 25,
+            }) async =>
+                WorkOrderListPage((b) => b));
 
   final CurrentUser identity;
   final GetAssetsFn _getAssets;
   final GetAssetFn _getAsset;
   final GetAssetHistoryFn _getAssetHistory;
+  final GetWorkOrdersFn _getWorkOrders;
+
+  @override
+  Future<SubscriptionResponse> getSubscription() async =>
+      subscriptionResponseFixture();
 
   @override
   Future<CurrentUser> getCurrentUser() async => identity;
@@ -102,11 +132,17 @@ class FakeApi implements ApiContract {
       emptyDashboardActivityPage();
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) async =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) async =>
       dashboardSeriesFixture(windowDays: window);
 
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() async => assetDashboardSummaryFixture();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() async =>
+      assetDashboardSummaryFixture();
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() async =>
+      safetyDashboardSummaryFixture();
 
   @override
   Future<UserListPage> getUsers({
@@ -145,7 +181,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
 
   @override
@@ -176,7 +213,8 @@ class FakeApi implements ApiContract {
   Future<AssetDetail> getAsset(String assetId) => _getAsset(assetId);
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => _getAssetHistory(assetId);
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      _getAssetHistory(assetId);
 
   @override
   Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
@@ -192,7 +230,8 @@ class FakeApi implements ApiContract {
       facilityListPageFixture();
 
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
 
   @override
   Future<AreaListPage> getAreas({
@@ -219,7 +258,8 @@ class FakeApi implements ApiContract {
       InspectionListPage((b) => b);
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> getInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
@@ -233,7 +273,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> startInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> completeInspection(
@@ -243,7 +284,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> cancelInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
@@ -268,7 +310,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> detachInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -287,7 +330,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) =>
+  Future<InspectionDetail> detachInspectionVoiceNote(
+          String inspectionId, String voiceNoteId) =>
       throw UnimplementedError();
 
   @override
@@ -306,7 +350,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) =>
+  Future<InspectionDetail> deleteInspectionAnnotation(
+          String inspectionId, String annotationId) =>
       throw UnimplementedError();
 
   @override
@@ -330,11 +375,13 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> analyzeInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> analyzeInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> reviewInspectionAiAnalysis(String inspectionId, String analysisId) =>
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+          String inspectionId, String analysisId) =>
       throw UnimplementedError();
 
   @override
@@ -358,7 +405,14 @@ class FakeApi implements ApiContract {
     String? cursor,
     int limit = 25,
   }) =>
-      throw UnimplementedError();
+      _getWorkOrders(
+        assetId: assetId,
+        facilityId: facilityId,
+        status: status,
+        technicianId: technicianId,
+        cursor: cursor,
+        limit: limit,
+      );
 
   @override
   Future<WorkOrderDetail> getWorkOrder(String workOrderId) =>
@@ -422,9 +476,17 @@ class FakeGateway implements AuthGateway {
   Future<void> signOut() async {}
 }
 
-Future<void> pumpAssets(WidgetTester tester, {required FakeApi api}) async {
+Future<void> pumpAssets(
+  WidgetTester tester, {
+  required FakeApi api,
+  String initialRoute = AppRoutes.assets,
+}) async {
   await tester.pumpWidget(
-    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.assets, database: AppDatabase(NativeDatabase.memory())),
+    FevApp(
+        api: api,
+        authGateway: FakeGateway(),
+        initialRoute: initialRoute,
+        database: AppDatabase(NativeDatabase.memory())),
   );
   await tester.pump();
 }
@@ -441,12 +503,15 @@ Future<void> scrollTo(
     await tester.drag(list, const Offset(0, -300));
     await tester.pumpAndSettle();
   }
-  expect(finder.evaluate(), isNotEmpty, reason: 'target not found after $maxDrags scroll steps');
+  expect(finder.evaluate(), isNotEmpty,
+      reason: 'target not found after $maxDrags scroll steps');
 }
 
 void main() {
-  testWidgets('shows loading then renders the real tenant assets', (tester) async {
-    final api = FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
+  testWidgets('shows loading then renders the real tenant assets',
+      (tester) async {
+    final api =
+        FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
     await pumpAssets(tester, api: api);
     await tester.pump();
 
@@ -457,7 +522,8 @@ void main() {
     expect(find.text('PMP-001'), findsOneWidget);
   });
 
-  testWidgets('shows an honest empty state when no assets match', (tester) async {
+  testWidgets('shows an honest empty state when no assets match',
+      (tester) async {
     final api = FakeApi(
       identityFor('company_admin', roleMatrix['company_admin']!),
       getAssets: ({
@@ -479,7 +545,8 @@ void main() {
     expect(find.text('No assets found'), findsOneWidget);
   });
 
-  testWidgets('shows a retry-capable error state when the list request fails', (tester) async {
+  testWidgets('shows a retry-capable error state when the list request fails',
+      (tester) async {
     var attempts = 0;
     final api = FakeApi(
       identityFor('company_admin', roleMatrix['company_admin']!),
@@ -511,7 +578,9 @@ void main() {
     expect(attempts, 2);
   });
 
-  testWidgets('loads more assets via cursor pagination and appends without duplicating', (
+  testWidgets(
+      'loads more assets via cursor pagination and appends without duplicating',
+      (
     tester,
   ) async {
     var calls = 0;
@@ -538,7 +607,10 @@ void main() {
         }
         expect(cursor, 'cursor-1');
         return assetListPageFixture(
-          items: [assetListItemFixture(id: 'a2', assetTag: 'PMP-002', name: 'Second Pump')],
+          items: [
+            assetListItemFixture(
+                id: 'a2', assetTag: 'PMP-002', name: 'Second Pump')
+          ],
         );
       },
     );
@@ -555,10 +627,13 @@ void main() {
     expect(calls, 2);
   });
 
-  testWidgets('opens the asset detail route with overview and reserved-tab empty states', (
+  testWidgets(
+      'opens the asset detail route with overview and reserved-tab empty states',
+      (
     tester,
   ) async {
-    final api = FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
+    final api =
+        FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
     await pumpAssets(tester, api: api);
     await tester.pumpAndSettle();
 
@@ -567,20 +642,57 @@ void main() {
 
     expect(find.text('Acme Co'), findsOneWidget);
     final noSubAssets = find.text('No sub-assets.');
-    await scrollTo(tester, noSubAssets, listKey: const Key('asset-overview-scroll'));
+    await scrollTo(tester, noSubAssets,
+        listKey: const Key('asset-overview-scroll'));
     expect(noSubAssets, findsOneWidget);
 
     await tester.tap(find.text('Inspections'));
     await tester.pumpAndSettle();
     expect(find.text('No inspections yet'), findsOneWidget);
 
+    await tester.tap(find.text('Work Orders'));
+    await tester.pumpAndSettle();
+    expect(find.text('No work orders yet'), findsOneWidget);
+    expect(find.text('No work orders have been created for this asset yet.'),
+        findsOneWidget);
+
     await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
-    expect(find.text('No history has been recorded for this asset yet.'), findsOneWidget);
+    expect(find.text('No history has been recorded for this asset yet.'),
+        findsOneWidget);
   });
 
-  testWidgets('hides Assets for a role without assets.read at the route level', (tester) async {
-    final api = FakeApi(identityFor('field_inspector', roleMatrix['field_inspector']!));
+  testWidgets('asset detail survives a browser-style direct URL load',
+      (tester) async {
+    final api =
+        FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
+
+    await pumpAssets(
+      tester,
+      api: api,
+      initialRoute: '/assets/detail?id=asset-1',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Feed Pump'), findsOneWidget);
+    expect(find.text("This page doesn't exist"), findsNothing);
+  });
+
+  testWidgets('asset detail without an id renders the safe not-found screen',
+      (tester) async {
+    final api =
+        FakeApi(identityFor('company_admin', roleMatrix['company_admin']!));
+
+    await pumpAssets(tester, api: api, initialRoute: AppRoutes.assetDetail);
+    await tester.pumpAndSettle();
+
+    expect(find.text("This page doesn't exist"), findsOneWidget);
+  });
+
+  testWidgets('hides Assets for a role without assets.read at the route level',
+      (tester) async {
+    final api =
+        FakeApi(identityFor('field_inspector', roleMatrix['field_inspector']!));
     await pumpAssets(tester, api: api);
     await tester.pumpAndSettle();
 
@@ -615,11 +727,63 @@ void main() {
       final context = tester.element(find.byType(Scaffold).first);
       Navigator.of(
         context,
-      ).pushNamedAndRemoveUntil(AppRoutes.assets, (_) => false, arguments: 'Critical');
+      ).pushNamedAndRemoveUntil(AppRoutes.assets, (_) => false,
+          arguments: 'Critical');
       await tester.pumpAndSettle();
 
       expect(capturedStatus, 'Critical');
       expect(find.text('Critical'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'renders real work orders list on asset detail work orders tab',
+    (tester) async {
+      final now = DateTime.utc(2026, 1, 1);
+      final api = FakeApi(
+        identityFor('company_admin', roleMatrix['company_admin']!),
+        getWorkOrders: (
+            {assetId,
+            facilityId,
+            status,
+            technicianId,
+            cursor,
+            limit = 25}) async {
+          return WorkOrderListPage(
+            (b) => b
+              ..items.add(
+                WorkOrderListItem(
+                  (w) => w
+                    ..id = 'wo-asset-101'
+                    ..assetId = assetId
+                    ..facilityId = 'facility-1'
+                    ..title = 'Gasket Maintenance'
+                    ..priority = WorkOrderListItemPriorityEnum.high
+                    ..status = WorkOrderListItemStatusEnum.inProgress
+                    ..revision = 1
+                    ..createdAt = now
+                    ..updatedAt = now,
+                ),
+              ),
+          );
+        },
+      );
+
+      await pumpAssets(
+        tester,
+        api: api,
+        initialRoute: '/assets/detail?id=asset-1',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Work Orders'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Gasket Maintenance'), findsOneWidget);
+      expect(find.text('HIGH'), findsOneWidget);
+      expect(find.text('IN PROGRESS'), findsOneWidget);
     },
   );
 }

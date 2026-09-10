@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "@/auth/auth-context";
 import type { AuthGateway, AuthSession } from "@/auth/firebase-gateway";
 import { PermissionProvider } from "@/auth/permissions";
+import { SubscriptionProvider } from "@/billing/subscription-context";
 import { ThemeProvider, ToastProvider } from "@/design-system";
 import { DashboardWidgetGrid } from "@/dashboard/widget-registry";
 
@@ -12,6 +13,34 @@ import { DashboardWidgetGrid } from "@/dashboard/widget-registry";
 // dashboard-page.tsx's side-effect import -- the registry is idempotent
 // (registerWidget no-ops on a duplicate id), so no per-test reset is needed.
 import "./asset-widgets";
+
+/** Fully-entitled plan: these cases are about permissions and rendering, not
+ * billing. `useSubscription` fails closed without a provider (D-093). */
+const allFeatures = {
+  tier: "enterprise",
+  planName: "Enterprise",
+  status: "active",
+  isEntitled: true,
+  features: [
+    "assets",
+    "inspections",
+    "ai_media_analysis",
+    "safety_reports",
+    "documents",
+    "reports",
+    "digital_twin",
+    "ar_inspection",
+    "permits",
+    "work_orders",
+    "vr_training",
+    "sso",
+    "audit_export",
+  ],
+  trialEndsAt: null,
+  trialDaysRemaining: null,
+  currentPeriodEnd: null,
+  quotas: { facilities: null, assets: null, seats: null },
+};
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -83,9 +112,11 @@ function renderAssetWidgets(getDashboardAssetsSummary: ReturnType<typeof vi.fn>)
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider apiClient={apiClient} gateway={new FakeGateway()}>
+          <SubscriptionProvider initialSubscription={allFeatures}>
           <PermissionProvider initialPermissions={["assets.read"]}>
             <DashboardWidgetGrid />
           </PermissionProvider>
+        </SubscriptionProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>,

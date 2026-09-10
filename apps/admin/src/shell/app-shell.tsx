@@ -13,13 +13,17 @@ import {
 
 import { useAuth } from "@/auth/auth-context";
 import { usePermissions } from "@/auth/permissions";
-import { Badge, Button, cn, Logo, MotionSection, ThemeSwitch, Tooltip } from "@/design-system";
+import { Badge, Button, cn, Logo, MotionSection, ThemeToggleIcon, Tooltip } from "@/design-system";
 import {
   findNavItem,
   isRouteActive,
   visibleNavGroups,
   type NavGroup,
 } from "@/navigation/nav-config";
+import { SidebarPlanSummary } from "@/billing/sidebar-plan";
+import { useSubscription } from "@/billing/subscription-context";
+import { APP_HOME } from "@/navigation/routes";
+import { GlobalSearch } from "./global-search";
 
 export const sidebarPreferenceKey = "fev.admin.sidebar-collapsed";
 
@@ -60,20 +64,54 @@ function displayNameFor(email: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+/** Placeholder rows shown while the company's plan is still resolving.
+ *
+ * Without this the nav rendered its ungated items immediately and then *grew*
+ * as the plan arrived, because `hasFeature` fails closed while loading. Safe,
+ * but the list visibly reflowing on every cold load is worse than a moment of
+ * skeleton — so nothing is claimed until the answer is known. */
+function NavSkeleton({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div aria-hidden className="mt-2 grid gap-1 px-3">
+      {Array.from({ length: 9 }).map((_, index) => (
+        <div
+          className="flex items-center gap-3 rounded-md px-3 py-1.5"
+          key={index}
+          style={{ opacity: 1 - index * 0.06 }}
+        >
+          <span className="size-5 shrink-0 animate-pulse rounded bg-elevated" />
+          {!collapsed && (
+            <span
+              className="h-3 animate-pulse rounded bg-elevated"
+              style={{ width: `${58 + ((index * 13) % 34)}%` }}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function NavList({
   groups,
   collapsed,
   pathname,
   onNavigate,
+  planLoading = false,
 }: {
   groups: NavGroup[];
   collapsed: boolean;
   pathname: string;
   onNavigate: (route: string) => void;
+  planLoading?: boolean;
 }) {
   return (
-    <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 pb-6">
-      {groups.map((group) => (
+    <nav
+      aria-label="Primary"
+      className="flex-1 overflow-y-auto px-3 pb-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {planLoading ? <NavSkeleton collapsed={collapsed} /> : null}
+      {(planLoading ? [] : groups).map((group) => (
         <div key={group.label} className="mt-5 first:mt-2">
           {!collapsed && (
             <p className="px-3 pb-2 font-mono text-caption uppercase tracking-[0.18em] text-text-muted">
@@ -135,7 +173,7 @@ function CollapseIcon({ collapsed }: { collapsed: boolean }) {
   return (
     <svg
       aria-hidden
-      className={cn("size-4 transition-transform", collapsed && "rotate-180")}
+      className={cn("size-3.5 transition-transform", collapsed && "rotate-180")}
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
@@ -150,6 +188,7 @@ function CollapseIcon({ collapsed }: { collapsed: boolean }) {
 
 function Sidebar({
   groups,
+  planLoading,
   collapsed,
   canToggle,
   onToggle,
@@ -162,31 +201,50 @@ function Sidebar({
   onToggle: () => void;
   pathname: string;
   onNavigate: (route: string) => void;
+  planLoading: boolean;
 }) {
   return (
     <aside
       className={cn(
-        "flex h-screen shrink-0 flex-col border-r border-border bg-surface/80 transition-[width] duration-200 motion-reduce:transition-none",
+        "sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200 motion-reduce:transition-none",
+        // `relative` anchors the collapse handle to the outer edge.
+        "relative",
         collapsed ? "w-16" : "w-60",
       )}
       data-collapsed={collapsed}
       data-testid="app-sidebar"
     >
       <SidebarBrand collapsed={collapsed} />
-      <NavList collapsed={collapsed} groups={groups} onNavigate={onNavigate} pathname={pathname} />
+      <NavList
+        collapsed={collapsed}
+        groups={groups}
+        onNavigate={onNavigate}
+        pathname={pathname}
+        planLoading={planLoading}
+      />
+      {/* The plan belongs here rather than only on the dashboard: an admin
+          needs to see how close the company is to a cap before a create fails
+          with a 402, and the sidebar is on every screen. */}
+      <div className="mt-auto border-t border-border p-3">
+        <SidebarPlanSummary collapsed={collapsed} />
+      </div>
+
+      {/* Collapse rides the sidebar's outer edge rather than sitting in the
+          footer: a second control there competed with the plan block for the
+          eye, and an edge handle is where the affordance actually is. Hidden
+          from the tab order is not an option, so it stays a real button with a
+          focus ring. */}
       {canToggle && (
-        <div className={cn("border-t border-border p-3", collapsed && "flex justify-center")}>
-          <button
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-bodySmall font-semibold text-text-secondary outline-none transition-colors hover:bg-elevated hover:text-text-primary focus-visible:ring-2 focus-visible:ring-primary-400"
-            onClick={onToggle}
-            type="button"
-          >
-            <CollapseIcon collapsed={collapsed} />
-            {!collapsed && <span>Collapse</span>}
-          </button>
-        </div>
+        <button
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="absolute -right-3 bottom-24 grid size-6 place-items-center rounded-full border border-border bg-surface text-text-muted shadow-sm outline-none transition-colors hover:border-primary-400 hover:text-text-primary focus-visible:ring-2 focus-visible:ring-primary-400"
+          onClick={onToggle}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          type="button"
+        >
+          <CollapseIcon collapsed={collapsed} />
+        </button>
       )}
     </aside>
   );
@@ -201,12 +259,14 @@ function MobileDrawer({
   groups,
   pathname,
   onNavigate,
+  planLoading,
 }: {
   open: boolean;
   onClose: () => void;
   groups: NavGroup[];
   pathname: string;
   onNavigate: (route: string) => void;
+  planLoading: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -280,7 +340,13 @@ function MobileDrawer({
             </svg>
           </button>
         </div>
-        <NavList collapsed={false} groups={groups} onNavigate={onNavigate} pathname={pathname} />
+        <NavList
+          collapsed={false}
+          groups={groups}
+          onNavigate={onNavigate}
+          pathname={pathname}
+          planLoading={planLoading}
+        />
       </div>
     </div>
   );
@@ -367,9 +433,9 @@ function Header({
   showMenuButton: boolean;
 }) {
   const located = findNavItem(pathname);
-  const title = located?.item.label ?? (pathname === "/" ? "Dashboard" : "Not found");
+  const title = located?.item.label ?? (pathname === APP_HOME ? "Dashboard" : "Not found");
   return (
-    <header className="flex items-center gap-3 border-b border-border bg-surface/60 px-4 py-2.5 md:px-6">
+    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-surface/80 backdrop-blur-md px-4 py-2.5 md:px-6">
       {showMenuButton && (
         <button
           aria-label="Open navigation menu"
@@ -394,7 +460,7 @@ function Header({
         <nav aria-label="Breadcrumb" className="hidden text-caption text-text-muted sm:block">
           <ol className="flex gap-1">
             <li>FEV</li>
-            {located && located.item.route !== "/" && (
+            {located && located.item.route !== APP_HOME && (
               <li className="before:mx-1 before:content-['/']">{located.group.label}</li>
             )}
             <li
@@ -408,18 +474,9 @@ function Header({
         <h1 className="truncate text-h5 font-bold">{title}</h1>
       </div>
       <div className="hidden items-center md:flex">
-        <label className="sr-only" htmlFor="global-search">
-          Global search (coming in Phase 16)
-        </label>
-        <input
-          className="w-48 cursor-not-allowed rounded-lg border border-border bg-elevated/60 px-3 py-2 text-bodySmall text-text-muted lg:w-64"
-          disabled
-          id="global-search"
-          placeholder="Search — coming soon"
-          title="Global search arrives with Phase 16"
-          type="search"
-        />
+        <GlobalSearch />
       </div>
+      <ThemeToggleIcon />
       <Tooltip content="Notifications — coming soon (Phase 15)">
         <button
           aria-disabled="true"
@@ -442,7 +499,6 @@ function Header({
           </svg>
         </button>
       </Tooltip>
-      <ThemeSwitch />
       <UserMenu />
     </header>
   );
@@ -461,7 +517,11 @@ export function AppShell({
   const viewport = useViewport();
   const [collapsedPreference, setCollapsedPreference] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const groups = visibleNavGroups(can);
+  const { hasFeature, status: planStatus } = useSubscription();
+  const groups = visibleNavGroups(can, hasFeature);
+  // Gated items are absent until the plan resolves, so show a skeleton rather
+  // than a list that grows a moment later.
+  const planLoading = planStatus === "loading";
 
   useEffect(() => {
     setCollapsedPreference(window.localStorage.getItem(sidebarPreferenceKey) === "true");
@@ -492,7 +552,7 @@ export function AppShell({
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-background text-text-primary" data-viewport={viewport}>
+    <div className="flex h-screen overflow-hidden bg-background text-text-primary" data-viewport={viewport}>
       <a
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary-500 focus:px-4 focus:py-2 focus:text-white"
         href="#main-content"
@@ -507,6 +567,7 @@ export function AppShell({
           onNavigate={navigate}
           onToggle={toggleCollapsed}
           pathname={pathname}
+          planLoading={planLoading}
         />
       )}
       {viewport === "mobile" && (
@@ -516,15 +577,16 @@ export function AppShell({
           onNavigate={navigate}
           open={drawerOpen}
           pathname={pathname}
+          planLoading={planLoading}
         />
       )}
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           onOpenDrawer={() => setDrawerOpen(true)}
           pathname={pathname}
           showMenuButton={viewport === "mobile"}
         />
-        <main className="flex-1 overflow-y-auto" id="main-content">
+        <main className="app-scroll flex-1 overflow-y-auto" id="main-content">
           <MotionSection
             key={pathname}
             className="h-full"
@@ -552,7 +614,7 @@ export function ComingSoonScreen({ moduleName }: { moduleName: string }) {
           yet — no data has been faked.
         </p>
         <div className="mt-7">
-          <Button onClick={() => router.push("/")} variant="ghost">
+          <Button onClick={() => router.push(APP_HOME)} variant="ghost">
             Back to Dashboard
           </Button>
         </div>
@@ -574,7 +636,7 @@ export function NotFoundScreen() {
           Check the address, or head back to the dashboard.
         </p>
         <div className="mt-7">
-          <Button onClick={() => router.push("/")} variant="ghost">
+          <Button onClick={() => router.push(APP_HOME)} variant="ghost">
             Back to Dashboard
           </Button>
         </div>

@@ -122,9 +122,7 @@ def test_me_returns_seeded_identity_and_exact_permissions(
     _override_repositories(monkeypatch, firestore)
     uid = "demo-acme-field_inspector"
     response = _request_with_verifier(
-        StaticTokenVerifier(
-            {"uid": uid, "company_id": ACME_COMPANY_ID, "email_verified": True}
-        )
+        StaticTokenVerifier({"uid": uid, "company_id": ACME_COMPANY_ID, "email_verified": True})
     )
 
     assert response.status_code == 200

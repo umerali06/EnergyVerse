@@ -9,7 +9,11 @@ import '../design_system/chart.dart';
 import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
+import '../safety/safety_widgets.dart';
+import '../permits/permit_widgets.dart';
+import '../reports/report_widgets.dart';
 import 'dashboard_controller.dart';
+import '../sync/sync_engine.dart';
 import 'format.dart';
 import 'reserved_widgets.dart';
 import 'widget_registry.dart';
@@ -35,11 +39,9 @@ String _greetingName(String email) {
 }
 
 /// Role-aware dashboard built ONLY from real data (audit_logs/users/roles
-/// per app/api/v1/dashboard.py, plus real asset KPIs per
-/// app/api/v1/dashboard.py's assets-summary route). Work orders/permits/
-/// incidents don't exist yet (Phases 7/10/11) -- the pluggable widget
-/// registry (widget_registry.dart) shows an honest empty state for those,
-/// never a placeholder number.
+/// per app/api/v1/dashboard.py, plus real asset and safety KPIs from their
+/// typed summary routes). The pluggable registry keeps only genuinely unbuilt
+/// modules as honest empty states and never renders placeholder numbers.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -55,10 +57,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.didChangeDependencies();
     // InheritedWidget lookups (AuthProvider.of) aren't allowed in initState,
     // so the controller is built here instead — guarded to run only once.
-    _controller ??= DashboardController(api: AuthProvider.of(context).api)..start();
+    _controller ??= DashboardController(api: AuthProvider.of(context).api)
+      ..start();
     // Idempotent (registerDashboardWidget no-ops on a duplicate id) -- safe
     // to call on every dependency change.
     registerAssetDashboardWidgets();
+    registerSafetyDashboardWidgets();
+    registerPermitDashboardWidgets();
+    registerReportDashboardWidgets();
     registerReservedDashboardWidgets();
   }
 
@@ -78,16 +84,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final controller = _controller;
     if (controller == null) return const SizedBox.shrink();
 
+    final isOffline = SyncProvider.engineOf(context).connectivity ==
+        SyncConnectivity.offline;
+
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) => ListView(
         key: const Key('dashboard-scroll'),
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
+          if (isOffline) const _OfflineBanner(),
           _Header(user: user),
           const SizedBox(height: DsSpacing.s6),
           if (showUsers || showRoles) ...[
-            _StatGrid(controller: controller, showRoles: showRoles, showUsers: showUsers),
+            _StatGrid(
+                controller: controller,
+                showRoles: showRoles,
+                showUsers: showUsers),
             const SizedBox(height: DsSpacing.s6),
           ] else ...[
             _AuditOnlyStat(controller: controller),
@@ -109,6 +122,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: DsSpacing.s4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: DsSpacing.s4,
+        vertical: DsSpacing.s3,
+      ),
+      decoration: BoxDecoration(
+        color: DsColors.statusWarning.withAlpha(24),
+        border: Border.all(color: DsColors.statusWarning.withAlpha(96)),
+        borderRadius: BorderRadius.circular(DsRadius.md),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_rounded, color: DsColors.statusWarning, size: 20),
+          const SizedBox(width: DsSpacing.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Operating Offline',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: DsTypography.sizeBodySmall,
+                    color: DsColors.statusWarning,
+                  ),
+                ),
+                Text(
+                  'Showing local cached data. Queue items will sync automatically when online.',
+                  style: TextStyle(
+                    fontSize: DsTypography.sizeCaption,
+                    color: context.semantic.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Header extends StatelessWidget {
   const _Header({required this.user});
 
@@ -118,7 +179,8 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     const weekdays = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', //
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+      'Sunday', //
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,7 +203,8 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             AppBadge(label: user.roleKey),
-            Text(user.companyName, style: Theme.of(context).textTheme.bodySmall),
+            Text(user.companyName,
+                style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
         const SizedBox(height: DsSpacing.s2),
@@ -159,54 +222,38 @@ class _Header extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.status, required this.value, this.onRetry});
+  const _StatTile({
+    required this.label,
+    required this.status,
+    required this.value,
+    this.icon,
+    this.onRetry,
+  });
 
   final String label;
   final LoadStatus status;
   final int? value;
+  final IconData? icon;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: DsTypography.mono,
-              fontSize: DsTypography.sizeCaption,
-              color: context.semantic.textMuted,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: DsSpacing.s2),
-          if (status == LoadStatus.loading)
-            const SizedBox(
-              height: 28,
-              width: 28,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else if (status == LoadStatus.error)
-            TextButton(onPressed: onRetry, child: const Text('Retry'))
-          else
-            Text(
-              '$value',
-              style: TextStyle(
-                fontFamily: DsTypography.mono,
-                fontSize: DsTypography.sizeH2,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-        ],
-      ),
+    return AppStatCard(
+      label: label,
+      value: value != null ? '$value' : null,
+      loading: status == LoadStatus.loading,
+      error: status == LoadStatus.error,
+      icon: icon,
+      onRetry: onRetry,
     );
   }
 }
 
 class _StatGrid extends StatelessWidget {
-  const _StatGrid({required this.controller, required this.showUsers, required this.showRoles});
+  const _StatGrid(
+      {required this.controller,
+      required this.showUsers,
+      required this.showRoles});
 
   final DashboardController controller;
   final bool showUsers;
@@ -219,6 +266,7 @@ class _StatGrid extends StatelessWidget {
       if (showUsers)
         _StatTile(
           label: 'USERS IN COMPANY',
+          icon: Icons.people_outline,
           onRetry: controller.retrySummary,
           status: controller.summaryStatus,
           value: summary?.usersTotal,
@@ -226,6 +274,7 @@ class _StatGrid extends StatelessWidget {
       if (showUsers)
         _StatTile(
           label: 'ACTIVE USERS',
+          icon: Icons.how_to_reg_outlined,
           onRetry: controller.retrySummary,
           status: controller.summaryStatus,
           value: summary?.usersActive,
@@ -233,37 +282,50 @@ class _StatGrid extends StatelessWidget {
       if (showRoles)
         _StatTile(
           label: 'ROLES CONFIGURED',
+          icon: Icons.admin_panel_settings_outlined,
           onRetry: controller.retrySummary,
           status: controller.summaryStatus,
           value: summary?.rolesTotal,
         ),
       _StatTile(
         label: 'AUDIT EVENTS (${controller.window}D)',
+        icon: Icons.history_outlined,
         onRetry: controller.retrySummary,
         status: controller.summaryStatus,
         value: summary?.auditEvents,
       ),
     ];
-    // A plain Row/Column grid, not GridView: GridView carries its own
-    // Scrollable/Viewport even with shrinkWrap+NeverScrollableScrollPhysics,
-    // which needlessly nests a second scrollable inside the page ListView.
-    final rows = <Widget>[];
-    for (var i = 0; i < tiles.length; i += 2) {
-      final rowTiles = tiles.sublist(i, (i + 2).clamp(0, tiles.length));
-      rows.add(
-        Row(
-          children: [
-            for (final tile in rowTiles) ...[
-              Expanded(child: tile),
-              if (tile != rowTiles.last) const SizedBox(width: DsSpacing.s3),
-            ],
-            if (rowTiles.length == 1) const Spacer(),
-          ],
-        ),
-      );
-      if (i + 2 < tiles.length) rows.add(const SizedBox(height: DsSpacing.s3));
-    }
-    return Column(children: rows);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth > 600 ? 3 : 2;
+        final rows = <Widget>[];
+        for (var i = 0; i < tiles.length; i += columns) {
+          final chunk = tiles.sublist(i, (i + columns).clamp(0, tiles.length));
+          rows.add(
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final tile in chunk) ...[
+                    Expanded(child: tile),
+                    if (tile != chunk.last) const SizedBox(width: DsSpacing.s3),
+                  ],
+                  if (chunk.length < columns)
+                    for (var k = 0; k < columns - chunk.length; k++) ...[
+                      const SizedBox(width: DsSpacing.s3),
+                      const Expanded(child: SizedBox.shrink()),
+                    ],
+                ],
+              ),
+            ),
+          );
+          if (i + columns < tiles.length) {
+            rows.add(const SizedBox(height: DsSpacing.s3));
+          }
+        }
+        return Column(children: rows);
+      },
+    );
   }
 }
 
@@ -276,6 +338,7 @@ class _AuditOnlyStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StatTile(
       label: 'AUDIT EVENTS (${controller.window}D)',
+      icon: Icons.history_outlined,
       onRetry: controller.retrySummary,
       status: controller.summaryStatus,
       value: controller.summary?.auditEvents,
@@ -299,7 +362,8 @@ class _ActivityChartCard extends StatelessWidget {
           ),
         )
         .toList();
-    final allZero = points.isNotEmpty && points.every((point) => point.value == 0);
+    final allZero =
+        points.isNotEmpty && points.every((point) => point.value == 0);
     final status = switch (controller.seriesStatus) {
       LoadStatus.loading => ChartStatus.loading,
       LoadStatus.error => ChartStatus.error,
@@ -319,9 +383,11 @@ class _ActivityChartCard extends StatelessWidget {
           const SizedBox(height: DsSpacing.s4),
           TimeSeriesChart(
             data: points,
-            emptyDescription: 'Activity appears here once events are recorded for this tenant.',
+            emptyDescription:
+                'Activity appears here once events are recorded for this tenant.',
             emptyTitle: 'No activity to chart yet',
-            errorDescription: "Couldn't load activity data. Check your connection and try again.",
+            errorDescription:
+                "Couldn't load activity data. Check your connection and try again.",
             onRetry: controller.retrySeries,
             status: status,
           ),
@@ -362,7 +428,8 @@ class _WindowSwitcher extends StatelessWidget {
 }
 
 class _WindowButton extends StatelessWidget {
-  const _WindowButton({required this.selected, required this.label, required this.onTap});
+  const _WindowButton(
+      {required this.selected, required this.label, required this.onTap});
 
   final bool selected;
   final String label;
@@ -381,7 +448,8 @@ class _WindowButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(DsRadius.sm),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: DsSpacing.s3, vertical: DsSpacing.s1),
+          padding: const EdgeInsets.symmetric(
+              horizontal: DsSpacing.s3, vertical: DsSpacing.s1),
           child: Text(
             label,
             style: TextStyle(
@@ -410,7 +478,8 @@ class _ActivityFeedCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent activity', style: Theme.of(context).textTheme.titleLarge),
+          Text('Recent activity',
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: DsSpacing.s3),
           if (controller.activityStatus == LoadStatus.loading)
             const Padding(
@@ -427,7 +496,9 @@ class _ActivityFeedCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: DsSpacing.s2),
-                  TextButton(onPressed: controller.retryActivity, child: const Text('Retry')),
+                  TextButton(
+                      onPressed: controller.retryActivity,
+                      child: const Text('Retry')),
                 ],
               ),
             )
@@ -472,7 +543,8 @@ class _ActivityRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(iconFor(actionIconFor(item.action)), size: 18, color: context.semantic.textMuted),
+          Icon(iconFor(actionIconFor(item.action)),
+              size: 18, color: context.semantic.textMuted),
           const SizedBox(width: DsSpacing.s2),
           Expanded(
             child: RichText(
@@ -566,4 +638,3 @@ class _QuickActionsCard extends StatelessWidget {
     );
   }
 }
-

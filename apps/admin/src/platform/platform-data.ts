@@ -20,80 +20,50 @@ const PAGE_SIZE = 20;
  * the Phase 3.1/3.4 data-fetching hooks. Only ever reachable by a
  * `platform.admin` caller -- gated at the route by RequirePermission.
  */
+import { useCachedQuery } from "@/cache/cache-context";
+
 export function usePlatformCompaniesData() {
   const { apiClient } = useAuth();
-  const [list, setList] = useState<{
-    status: AsyncStatus;
-    items: PlatformCompanySummary[];
-    nextCursor: string | null;
-    loadingMore: boolean;
-  }>({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-  const [stats, setStats] = useState<{ status: AsyncStatus; value: PlatformStats | null }>({
-    status: "loading",
-    value: null,
-  });
+  const [extraItems, setExtraItems] = useState<PlatformCompanySummary[]>([]);
+  const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const requestId = useRef(0);
+  const companiesQuery = useCachedQuery<{ items: PlatformCompanySummary[]; nextCursor: string | null }>(
+    "platform:companies:list",
+    () => apiClient.listPlatformCompanies({ limit: PAGE_SIZE }),
+  );
 
-  const fetchList = useCallback(async () => {
-    const id = ++requestId.current;
-    setList({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-    try {
-      const page = await apiClient.listPlatformCompanies({ limit: PAGE_SIZE });
-      if (requestId.current === id) {
-        setList({
-          status: "ready",
-          items: page.items,
-          nextCursor: page.nextCursor ?? null,
-          loadingMore: false,
-        });
-      }
-    } catch {
-      if (requestId.current === id) {
-        setList({ status: "error", items: [], nextCursor: null, loadingMore: false });
-      }
-    }
-  }, [apiClient]);
+  const statsQuery = useCachedQuery<PlatformStats>(
+    "platform:stats",
+    () => apiClient.getPlatformStats(),
+  );
+
+  const currentNextCursor =
+    extraNextCursor !== undefined
+      ? extraNextCursor
+      : (companiesQuery.data?.nextCursor ?? null);
 
   const loadMore = useCallback(async () => {
-    const cursor = list.nextCursor;
-    if (!cursor || list.loadingMore) return;
-    setList((current) => ({ ...current, loadingMore: true }));
+    const cursor = currentNextCursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
     try {
       const page = await apiClient.listPlatformCompanies({ cursor, limit: PAGE_SIZE });
-      setList((current) => ({
-        status: "ready",
-        items: [...current.items, ...page.items],
-        nextCursor: page.nextCursor ?? null,
-        loadingMore: false,
-      }));
+      setExtraItems((prev) => [...prev, ...page.items]);
+      setExtraNextCursor(page.nextCursor ?? null);
     } catch {
-      setList((current) => ({ ...current, loadingMore: false }));
+      // Toast handles error
+    } finally {
+      setLoadingMore(false);
     }
-  }, [apiClient, list.loadingMore, list.nextCursor]);
-
-  const fetchStats = useCallback(async () => {
-    setStats({ status: "loading", value: null });
-    try {
-      const value = await apiClient.getPlatformStats();
-      setStats({ status: "ready", value });
-    } catch {
-      setStats({ status: "error", value: null });
-    }
-  }, [apiClient]);
-
-  useEffect(() => {
-    void fetchList();
-  }, [fetchList]);
-
-  useEffect(() => {
-    void fetchStats();
-  }, [fetchStats]);
+  }, [apiClient, currentNextCursor, loadingMore]);
 
   const refresh = useCallback(() => {
-    void fetchList();
-    void fetchStats();
-  }, [fetchList, fetchStats]);
+    setExtraItems([]);
+    setExtraNextCursor(undefined);
+    void companiesQuery.refetch();
+    void statsQuery.refetch();
+  }, [companiesQuery, statsQuery]);
 
   const getCompany = useCallback(
     (companyId: string): Promise<PlatformCompanyDetail> => apiClient.getPlatformCompany(companyId),
@@ -114,12 +84,33 @@ export function usePlatformCompaniesData() {
     [apiClient],
   );
 
+  const listStatus: AsyncStatus = companiesQuery.loading
+    ? "loading"
+    : companiesQuery.error
+      ? "error"
+      : "ready";
+  const statsStatus: AsyncStatus = statsQuery.loading
+    ? "loading"
+    : statsQuery.error
+      ? "error"
+      : "ready";
+
+  const allItems = [...(companiesQuery.data?.items ?? []), ...extraItems];
+
   return {
-    list,
-    retryList: fetchList,
+    list: {
+      status: listStatus,
+      items: allItems,
+      nextCursor: currentNextCursor,
+      loadingMore,
+    },
+    retryList: companiesQuery.refetch,
     loadMore,
-    stats,
-    retryStats: fetchStats,
+    stats: {
+      status: statsStatus,
+      value: statsQuery.data,
+    },
+    retryStats: statsQuery.refetch,
     refresh,
     getCompany,
     setCompanyStatus,

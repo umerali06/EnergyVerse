@@ -9,7 +9,8 @@ import 'package:uuid/uuid.dart';
 
 import '../api/api_service.dart';
 import '../db/app_database.dart';
-import '../inspections/local_inspections_repository.dart' show dartEnumNameToWire;
+import '../inspections/local_inspections_repository.dart'
+    show dartEnumNameToWire;
 
 /// Mirrors [LocalSyncState] (`local_inspections_repository.dart`) but a work
 /// order never starts `local_only` -- see `LocalWorkOrders`'s class doc.
@@ -198,8 +199,8 @@ class LocalWorkOrdersRepository extends ChangeNotifier {
             dueDate: drift.Value(detail.dueDate),
             acceptedAt: drift.Value(detail.acceptedAt),
             laborHours: drift.Value(detail.laborHours?.toDouble()),
-            materialsUsed: drift.Value(
-                _encodeMaterialsUsed(detail.materialsUsed?.toList() ?? const [])),
+            materialsUsed: drift.Value(_encodeMaterialsUsed(
+                detail.materialsUsed?.toList() ?? const [])),
             completionNotes: drift.Value(detail.completionNotes),
             submittedAt: drift.Value(detail.submittedAt),
             closedBy: drift.Value(detail.closedBy),
@@ -389,7 +390,8 @@ class LocalWorkOrdersRepository extends ChangeNotifier {
     required WorkOrderDetail server,
   }) async {
     await _db.transaction(() async {
-      await (_db.delete(_db.workOrderOutbox)..where((t) => t.id.equals(item.id)))
+      await (_db.delete(_db.workOrderOutbox)
+            ..where((t) => t.id.equals(item.id)))
           .go();
       final remaining = await (_db.select(_db.workOrderOutbox)
             ..where((t) => t.workOrderId.equals(item.workOrderId)))
@@ -410,7 +412,8 @@ class LocalWorkOrdersRepository extends ChangeNotifier {
   }) async {
     await _db.transaction(() async {
       final now = DateTime.now().toUtc();
-      await (_db.update(_db.workOrderOutbox)..where((t) => t.id.equals(item.id)))
+      await (_db.update(_db.workOrderOutbox)
+            ..where((t) => t.id.equals(item.id)))
           .write(
         WorkOrderOutboxCompanion(
           attempts: drift.Value(item.attempts + 1),
@@ -435,7 +438,8 @@ class LocalWorkOrdersRepository extends ChangeNotifier {
       {required String message}) async {
     await _db.transaction(() async {
       final now = DateTime.now().toUtc();
-      await (_db.update(_db.workOrderOutbox)..where((t) => t.id.equals(item.id)))
+      await (_db.update(_db.workOrderOutbox)
+            ..where((t) => t.id.equals(item.id)))
           .write(
         WorkOrderOutboxCompanion(
           attempts: drift.Value(item.attempts + 1),

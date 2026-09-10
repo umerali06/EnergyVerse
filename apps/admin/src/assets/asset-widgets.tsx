@@ -18,27 +18,19 @@ type AsyncSlice = { status: AsyncStatus; data: AssetDashboardSummary | null };
  * entangled with another's. The endpoint itself is cheap (Firestore count()
  * aggregation, see D-039), so the extra requests are not a real cost.
  */
+import { useCachedQuery } from "@/cache/cache-context";
+
 function useAssetDashboardSummary() {
   const { apiClient } = useAuth();
-  const [slice, setSlice] = useState<AsyncSlice>({ status: "loading", data: null });
-  const requestId = useRef(0);
-
-  const fetchSummary = useCallback(async () => {
-    const id = ++requestId.current;
-    setSlice({ status: "loading", data: null });
-    try {
-      const result = await apiClient.getDashboardAssetsSummary();
-      if (requestId.current === id) setSlice({ status: "ready", data: result });
-    } catch {
-      if (requestId.current === id) setSlice({ status: "error", data: null });
-    }
-  }, [apiClient]);
-
-  useEffect(() => {
-    void fetchSummary();
-  }, [fetchSummary]);
-
-  return { ...slice, retry: fetchSummary };
+  const query = useCachedQuery<AssetDashboardSummary>(
+    "dashboard:assets:summary",
+    () => apiClient.getDashboardAssetsSummary(),
+  );
+  return {
+    status: query.loading ? "loading" : query.error ? "error" : "ready",
+    data: query.data,
+    retry: query.refetch,
+  };
 }
 
 function StatCard({

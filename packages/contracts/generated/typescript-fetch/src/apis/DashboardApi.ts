@@ -20,6 +20,9 @@ import type {
   DashboardActivitySeries,
   DashboardSummary,
   ErrorEnvelope,
+  PermitDashboardSummary,
+  ReportDashboardSummary,
+  SafetyDashboardSummary,
 } from '../models/index';
 import {
     AssetDashboardSummaryFromJSON,
@@ -32,6 +35,12 @@ import {
     DashboardSummaryToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
+    PermitDashboardSummaryFromJSON,
+    PermitDashboardSummaryToJSON,
+    ReportDashboardSummaryFromJSON,
+    ReportDashboardSummaryToJSON,
+    SafetyDashboardSummaryFromJSON,
+    SafetyDashboardSummaryToJSON,
 } from '../models/index';
 
 export interface GetDashboardActivityRequest {
@@ -168,6 +177,108 @@ export class DashboardApi extends runtime.BaseAPI {
      */
     async getDashboardAssetsSummary(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetDashboardSummary> {
         const response = await this.getDashboardAssetsSummaryRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Dashboard Permits Summary
+     */
+    async getDashboardPermitsSummaryRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PermitDashboardSummary>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/dashboard/permits-summary`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => PermitDashboardSummaryFromJSON(jsonValue));
+    }
+
+    /**
+     * Dashboard Permits Summary
+     */
+    async getDashboardPermitsSummary(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PermitDashboardSummary> {
+        const response = await this.getDashboardPermitsSummaryRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Dashboard Reports Summary
+     */
+    async getDashboardReportsSummaryRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ReportDashboardSummary>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/dashboard/reports-summary`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ReportDashboardSummaryFromJSON(jsonValue));
+    }
+
+    /**
+     * Dashboard Reports Summary
+     */
+    async getDashboardReportsSummary(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ReportDashboardSummary> {
+        const response = await this.getDashboardReportsSummaryRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Dashboard Safety Summary
+     */
+    async getDashboardSafetySummaryRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SafetyDashboardSummary>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/dashboard/safety-summary`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SafetyDashboardSummaryFromJSON(jsonValue));
+    }
+
+    /**
+     * Dashboard Safety Summary
+     */
+    async getDashboardSafetySummary(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SafetyDashboardSummary> {
+        const response = await this.getDashboardSafetySummaryRaw(initOverrides);
         return await response.value();
     }
 

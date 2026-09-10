@@ -96,8 +96,7 @@ async def main() -> None:
             "(spoofed client value must be ignored)"
         )
         assert completed.signature.signer_name == "Acme Field Inspector", (
-            f"expected signer_name='Acme Field Inspector', "
-            f"got {completed.signature.signer_name!r}"
+            f"expected signer_name='Acme Field Inspector', got {completed.signature.signer_name!r}"
         )
         assert completed.signature.signer_role == actor_role_key
         assert completed.signature.inspection_revision == completed.revision, (
@@ -164,8 +163,7 @@ async def main() -> None:
         assert resigned.signature is not None
         assert resigned.signature.inspection_revision == resigned.revision
         print(
-            f"PASS: re-sign against the current revision succeeded "
-            f"(revision={resigned.revision})"
+            f"PASS: re-sign against the current revision succeeded (revision={resigned.revision})"
         )
     finally:
         for inspection_id in created_inspection_ids:

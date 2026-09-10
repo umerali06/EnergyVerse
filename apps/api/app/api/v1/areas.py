@@ -7,6 +7,8 @@ from app.areas.service import (
     AreaManagementService,
     get_area_management_service,
 )
+from app.billing.dependencies import require_feature
+from app.billing.plans import Feature
 from app.core.errors import ApiError
 from app.models.api import (
     AreaDeleted,
@@ -20,7 +22,13 @@ from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
 from app.rbac.dependencies import require_permission
 
-router = APIRouter(prefix="/api/v1/areas", tags=["areas"])
+router = APIRouter(
+    prefix="/api/v1/areas", tags=["areas"],
+    # Entitlement gate (D-090): the company's plan must include this
+    # module. Stacks with each route's own require_permission -- the
+    # person may be allowed while the tenant has not paid for it.
+    dependencies=[Depends(require_feature(Feature.ASSETS))],
+)
 
 _areas_read_access = require_permission("areas.read")
 _areas_write_access = require_permission("areas.write")

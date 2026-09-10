@@ -12,8 +12,8 @@ import 'auth_controller.dart';
 final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 const _resetCooldown = Duration(seconds: 60);
 
-void _backToLogin(BuildContext context) =>
-    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+void _backToLogin(BuildContext context) => Navigator.of(context)
+    .pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -99,6 +99,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _email,
                               enabled: !loading,
                               errorText: _emailError,
+                              onChanged: (_) {
+                                if (_emailError != null || auth.error != null) {
+                                  setState(() => _emailError = null);
+                                  auth.clearError();
+                                }
+                              },
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               textInputAction: TextInputAction.next,
@@ -111,6 +117,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _password,
                               enabled: !loading,
                               errorText: _passwordError,
+                              onChanged: (_) {
+                                if (_passwordError != null || auth.error != null) {
+                                  setState(() => _passwordError = null);
+                                  auth.clearError();
+                                }
+                              },
                               obscureText: !_showPassword,
                               autofillHints: const [AutofillHints.password],
                               onSubmitted: (_) => _submit(),
@@ -634,40 +646,40 @@ class RbacDemoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-        padding: const EdgeInsets.all(DsSpacing.s6),
-        children: [
-          StaggeredReveal(
-            index: 0,
-            child: AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const StatusPill(
-                    label: 'Access granted',
-                    status: AppStatus.healthy,
-                  ),
-                  const SizedBox(height: DsSpacing.s4),
-                  Text(
-                    'Assets demo',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: DsSpacing.s3),
-                  const Text(
-                    'This page requires the assets.write permission. The '
-                    'client gate mirrors the authoritative FastAPI '
-                    'require_permission dependency on /api/v1/_rbac-demo/single.',
-                  ),
-                  const SizedBox(height: DsSpacing.s5),
-                  TextButton(
-                    onPressed: () => Navigator.of(context)
-                        .pushNamedAndRemoveUntil(AppRoutes.home, (_) => false),
-                    child: const Text('Back to Home'),
-                  ),
-                ],
-              ),
+      padding: const EdgeInsets.all(DsSpacing.s6),
+      children: [
+        StaggeredReveal(
+          index: 0,
+          child: AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const StatusPill(
+                  label: 'Access granted',
+                  status: AppStatus.healthy,
+                ),
+                const SizedBox(height: DsSpacing.s4),
+                Text(
+                  'Assets demo',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: DsSpacing.s3),
+                const Text(
+                  'This page requires the assets.write permission. The '
+                  'client gate mirrors the authoritative FastAPI '
+                  'require_permission dependency on /api/v1/_rbac-demo/single.',
+                ),
+                const SizedBox(height: DsSpacing.s5),
+                TextButton(
+                  onPressed: () => Navigator.of(context)
+                      .pushNamedAndRemoveUntil(AppRoutes.home, (_) => false),
+                  child: const Text('Back to Home'),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
+      ],
     );
   }
 }

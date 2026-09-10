@@ -223,13 +223,22 @@ class AssetRepository(TenantRepository[Asset]):
             query = query.where(filter=FieldFilter("category", "==", category))
         elif current_status is not None:
             query = query.where(filter=FieldFilter("current_status", "==", current_status))
-        query = query.order_by("created_at", direction="DESCENDING")
-
         documents = []
-        async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
-            data = snapshot.to_dict()
-            if data is not None and data.get("company_id") == scope.company_id:
-                documents.append(self.model_type.model_validate(data))
-            if len(documents) >= ASSET_QUERY_CAP:
-                break
+        try:
+            ordered_query = query.order_by("created_at", direction="DESCENDING")
+            async for snapshot in ordered_query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+                data = snapshot.to_dict()
+                if data is not None and data.get("company_id") == scope.company_id:
+                    documents.append(self.model_type.model_validate(data))
+                if len(documents) >= ASSET_QUERY_CAP:
+                    break
+        except Exception:
+            documents.clear()
+            async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+                data = snapshot.to_dict()
+                if data is not None and data.get("company_id") == scope.company_id:
+                    documents.append(self.model_type.model_validate(data))
+                if len(documents) >= ASSET_QUERY_CAP:
+                    break
+            documents.sort(key=lambda a: a.created_at, reverse=True)
         return documents

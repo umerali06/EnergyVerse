@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "@/auth/auth-context";
 import type { AuthGateway, AuthSession } from "@/auth/firebase-gateway";
 import { PermissionProvider } from "@/auth/permissions";
+import { SubscriptionProvider } from "@/billing/subscription-context";
 import { ThemeProvider, ToastProvider } from "@/design-system";
 import { designTokens } from "@/design-system/tokens.generated";
 
@@ -137,11 +138,7 @@ function activityItem(overrides: Partial<Record<string, unknown>> = {}) {
 /** Seeds PermissionProvider from the resolved identity, same as RequireAuth
  * does in route-guards.tsx — scoped narrowly here since these tests exercise
  * DashboardPage directly rather than the full router/shell stack. */
-function DashboardWithPermissions({
-  reducedMotionOverride,
-}: {
-  reducedMotionOverride?: boolean;
-}) {
+function DashboardWithPermissions({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const auth = useAuth();
   if (auth.status !== "authenticated" || !auth.currentUser) return <p>restoring…</p>;
   return (
@@ -158,6 +155,7 @@ function renderDashboard({
   getDashboardActivity = vi.fn(async () => ({ items: [activityItem()], nextCursor: null })),
   getDashboardActivitySeries = vi.fn(async () => seriesFor(30, 4)),
   getDashboardAssetsSummary = vi.fn(async () => readyAssetsSummary),
+  getDashboardPermitsSummary = vi.fn(async () => ({ active: 4 })),
   reducedMotionOverride,
 }: {
   roleKey?: string;
@@ -166,6 +164,7 @@ function renderDashboard({
   getDashboardActivity?: ReturnType<typeof vi.fn>;
   getDashboardActivitySeries?: ReturnType<typeof vi.fn>;
   getDashboardAssetsSummary?: ReturnType<typeof vi.fn>;
+  getDashboardPermitsSummary?: ReturnType<typeof vi.fn>;
   reducedMotionOverride?: boolean;
 } = {}) {
   const identity = {
@@ -184,18 +183,46 @@ function renderDashboard({
     getDashboardActivity,
     getDashboardActivitySeries,
     getDashboardAssetsSummary,
+    getDashboardPermitsSummary,
   };
   const view = render(
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider apiClient={apiClient} gateway={new FakeGateway()}>
-          <DashboardWithPermissions reducedMotionOverride={reducedMotionOverride} />
+          {/* The dashboard's plan card reads the company's entitlements; an
+              injected subscription keeps these cases about the dashboard. */}
+          <SubscriptionProvider initialSubscription={dashboardSubscription}>
+            <DashboardWithPermissions reducedMotionOverride={reducedMotionOverride} />
+          </SubscriptionProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>,
   );
   return { ...view, apiClient };
 }
+
+const dashboardSubscription = {
+  tier: "operations",
+  planName: "Operations",
+  status: "trialing",
+  isEntitled: true,
+  features: [
+    "assets",
+    "inspections",
+    "ai_media_analysis",
+    "safety_reports",
+    "documents",
+    "reports",
+    "digital_twin",
+    "ar_inspection",
+    "permits",
+    "work_orders",
+  ],
+  trialEndsAt: null,
+  trialDaysRemaining: 7,
+  currentPeriodEnd: null,
+  quotas: { facilities: 5, assets: 2500, seats: 75 },
+};
 
 describe("dashboard page", () => {
   it("shows loading skeletons and then renders the real summary data", async () => {
@@ -211,7 +238,9 @@ describe("dashboard page", () => {
     await screen.findByText("Users in company");
     expect(container.querySelector(".animate-shimmer")).toBeInTheDocument();
     resolveSummary(readySummary);
-    await waitFor(() => expect(screen.getAllByText("7")).toHaveLength(2)); // usersTotal + rolesTotal
+    // usersTotal + rolesTotal, plus the plan card's seat usage, which is the
+    // same user count shown against the plan's seat cap (Phase 13.5).
+    await waitFor(() => expect(screen.getAllByText("7")).toHaveLength(3));
     expect(screen.getByText("6")).toBeInTheDocument(); // usersActive
     expect(container.querySelector(".animate-shimmer")).not.toBeInTheDocument();
   });
@@ -243,7 +272,9 @@ describe("dashboard page", () => {
   it("shows the activity feed's own error state independently of the chart", async () => {
     renderDashboard({ getDashboardActivity: vi.fn().mockRejectedValue(new Error("down")) });
     expect(
-      await screen.findByText("Couldn't load recent activity. Check your connection and try again."),
+      await screen.findByText(
+        "Couldn't load recent activity. Check your connection and try again.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -324,22 +355,38 @@ describe("dashboard page", () => {
     mockPush = vi.fn();
     renderDashboard({ roleKey: "field_inspector", permissions: ["assets.read", "reports.read"] });
     const criticalAssetsCard = await screen.findByText("Critical assets");
-    await waitFor(() => expect(within(criticalAssetsCard.closest("section")!).getByText("1")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(criticalAssetsCard.closest("section")!).getByText("1")).toBeInTheDocument(),
+    );
     await userEvent.setup().click(criticalAssetsCard.closest("section")!);
     expect(mockPush).toHaveBeenCalledWith("/assets?status=Critical");
   });
 
-  it("shows the reserved KPI empty state only for modules that don't exist yet", async () => {
+  it("shows the active work orders KPI when user has work_orders.read permission", async () => {
     renderDashboard({
       roleKey: "custom",
       permissions: ["assets.read", "reports.read", "work_orders.read"],
     });
-    expect(await screen.findByText("Work Orders")).toBeInTheDocument();
     expect(
-      screen.getByText("Work order metrics appear once the Work Orders module is enabled."),
+      await screen.findByText("Open work orders"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Permits")).not.toBeInTheDocument();
     expect(screen.queryByText("Safety & Incidents")).not.toBeInTheDocument();
+  });
+
+  it("renders the real permission-gated Active Permits KPI", async () => {
+    renderDashboard({
+      roleKey: "executive",
+      permissions: ["reports.read", "permits.read"],
+    });
+    const label = await screen.findByText("Active permits");
+    const card = label.closest("section")!;
+    await waitFor(() => expect(within(card).getByText("4")).toBeInTheDocument());
+    expect(
+      screen.queryByText("Permit metrics appear once the Permits module is enabled."),
+    ).not.toBeInTheDocument();
+    await userEvent.setup().click(card);
+    expect(mockPush).toHaveBeenCalledWith("/permits");
   });
 
   it("shows each asset widget's own error state without breaking the rest of the dashboard", async () => {

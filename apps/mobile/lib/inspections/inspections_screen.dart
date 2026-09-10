@@ -29,17 +29,22 @@ String inspectionStatusLabel(String camelCaseName) {
   return spaced
       .trim()
       .split(' ')
-      .map((word) => word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
+      .map((word) =>
+          word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
       .join(' ');
 }
 
 /// A sync-state badge for a locally-cached inspection, or `null` when
 /// `synced` (no extra badge needed for the common case).
 Widget? syncStateBadge(LocalSyncState state) => switch (state) {
-      LocalSyncState.localOnly => const StatusPill(label: 'Local only', status: AppStatus.info),
-      LocalSyncState.pendingSync => const StatusPill(label: 'Pending sync', status: AppStatus.info),
-      LocalSyncState.conflict => const StatusPill(label: 'Conflict', status: AppStatus.critical),
-      LocalSyncState.error => const StatusPill(label: 'Sync error', status: AppStatus.critical),
+      LocalSyncState.localOnly =>
+        const StatusPill(label: 'Local only', status: AppStatus.info),
+      LocalSyncState.pendingSync =>
+        const StatusPill(label: 'Pending sync', status: AppStatus.info),
+      LocalSyncState.conflict =>
+        const StatusPill(label: 'Conflict', status: AppStatus.critical),
+      LocalSyncState.error =>
+        const StatusPill(label: 'Sync error', status: AppStatus.critical),
       LocalSyncState.synced => null,
     };
 
@@ -70,7 +75,8 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   }
 
   void _openDetail(String inspectionId) {
-    Navigator.of(context).pushNamed(AppRoutes.inspectionDetail, arguments: inspectionId);
+    Navigator.of(context)
+        .pushNamed(AppRoutes.inspectionDetail, arguments: inspectionId);
   }
 
   @override
@@ -88,11 +94,12 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Inspections', style: Theme.of(context).textTheme.headlineMedium),
+                Text('Inspections',
+                    style: Theme.of(context).textTheme.headlineMedium),
                 _PendingQueueLink(
                   key: const Key('open-sync-queue'),
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.inspectionSyncQueue),
+                  onPressed: () => Navigator.of(context)
+                      .pushNamed(AppRoutes.inspectionSyncQueue),
                 ),
               ],
             ),
@@ -106,7 +113,8 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
               items: const [
                 DropdownMenuItem(value: null, child: Text('All statuses')),
                 DropdownMenuItem(value: 'draft', child: Text('Draft')),
-                DropdownMenuItem(value: 'in_progress', child: Text('In progress')),
+                DropdownMenuItem(
+                    value: 'in_progress', child: Text('In progress')),
                 DropdownMenuItem(value: 'completed', child: Text('Completed')),
                 DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
               ],
@@ -126,7 +134,8 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                   onPressed: controller.retry,
                   variant: AppButtonVariant.ghost,
                 ),
-                description: "Couldn't load inspections. Check your connection and try again.",
+                description:
+                    "Couldn't load inspections. Check your connection and try again.",
                 title: 'Something went wrong',
               )
             else if (controller.items.isEmpty)
@@ -178,7 +187,8 @@ class _PendingQueueLink extends StatelessWidget {
 }
 
 class _InspectionRow extends StatelessWidget {
-  const _InspectionRow({required this.inspection, required this.onTap, super.key});
+  const _InspectionRow(
+      {required this.inspection, required this.onTap, super.key});
 
   final LocalInspectionRecord inspection;
   final VoidCallback onTap;
@@ -216,11 +226,14 @@ class _InspectionRow extends StatelessWidget {
                       spacing: DsSpacing.s2,
                       children: [
                         AppBadge(
-                          label: inspectionStatusLabel(wireToDartEnumName(inspection.inspectionType)),
+                          label: inspectionStatusLabel(
+                              wireToDartEnumName(inspection.inspectionType)),
                         ),
                         StatusPill(
-                          label: inspectionStatusLabel(wireToDartEnumName(inspection.status)),
-                          status: inspectionStatusFor(wireToDartEnumName(inspection.status)),
+                          label: inspectionStatusLabel(
+                              wireToDartEnumName(inspection.status)),
+                          status: inspectionStatusFor(
+                              wireToDartEnumName(inspection.status)),
                         ),
                         if (badge != null) badge,
                       ],

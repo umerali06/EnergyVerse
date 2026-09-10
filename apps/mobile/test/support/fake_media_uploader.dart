@@ -24,7 +24,10 @@ class FakeMediaUpload implements MediaUpload {
     cancelled = true;
     if (!_completer.isCompleted) {
       _completer.completeError(
-        FirebaseException(plugin: 'firebase_storage', code: 'cancelled', message: 'cancelled'),
+        FirebaseException(
+            plugin: 'firebase_storage',
+            code: 'cancelled',
+            message: 'cancelled'),
       );
     }
   }
@@ -37,12 +40,14 @@ class FakeMediaUpload implements MediaUpload {
 
   void fail(String code, String message) {
     if (!_completer.isCompleted) {
-      _completer.completeError(FirebaseException(plugin: 'firebase_storage', code: code, message: message));
+      _completer.completeError(FirebaseException(
+          plugin: 'firebase_storage', code: code, message: message));
     }
   }
 }
 
-typedef UploadFn = FakeMediaUpload Function(String storagePath, File file, String contentType);
+typedef UploadFn = FakeMediaUpload Function(
+    String storagePath, File file, String contentType);
 
 /// A configurable [MediaUploader] double -- every call to [upload] is
 /// recorded and, by default, returns a fresh auto-completing

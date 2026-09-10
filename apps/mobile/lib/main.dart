@@ -18,6 +18,12 @@ import 'firebase_options.dart';
 import 'inspections/local_inspections_repository.dart';
 import 'media/local_media_repository.dart';
 import 'media/media_upload_worker.dart';
+import 'permits/local_permits_repository.dart';
+import 'permits/permit_sync_engine.dart';
+import 'safety/local_safety_reports_repository.dart';
+import 'safety/local_safety_evidence_repository.dart';
+import 'safety/safety_evidence_upload_worker.dart';
+import 'safety/safety_sync_engine.dart';
 import 'sync/sync_engine.dart';
 import 'work_orders/local_work_orders_repository.dart';
 import 'work_orders/work_order_sync_engine.dart';
@@ -30,7 +36,12 @@ Future<void> main() async {
 }
 
 class FevApp extends StatefulWidget {
-  const FevApp({this.api, this.authGateway, this.initialRoute, this.database, super.key});
+  const FevApp(
+      {this.api,
+      this.authGateway,
+      this.initialRoute,
+      this.database,
+      super.key});
 
   final ApiContract? api;
   final AuthGateway? authGateway;
@@ -56,6 +67,12 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
   late final MediaUploadWorker _mediaWorker;
   late final LocalWorkOrdersRepository _workOrdersRepository;
   late final WorkOrderSyncEngine _workOrderSync;
+  late final LocalSafetyReportsRepository _safetyRepository;
+  late final SafetySyncEngine _safetySync;
+  late final LocalSafetyEvidenceRepository _safetyEvidenceRepository;
+  late final SafetyEvidenceUploadWorker _safetyEvidenceWorker;
+  late final LocalPermitsRepository _permitsRepository;
+  late final PermitSyncEngine _permitSync;
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
@@ -74,7 +91,8 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     _db = widget.database ?? AppDatabase();
     _repository = LocalInspectionsRepository(db: _db, api: _api);
     _mediaRepository = LocalMediaRepository(db: _db);
-    _sync = SyncEngine(repository: _repository, api: _api, mediaRepository: _mediaRepository);
+    _sync = SyncEngine(
+        repository: _repository, api: _api, mediaRepository: _mediaRepository);
     _mediaWorker = MediaUploadWorker(
       mediaRepository: _mediaRepository,
       inspectionsRepository: _repository,
@@ -82,6 +100,24 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     _workOrdersRepository = LocalWorkOrdersRepository(db: _db, api: _api);
     _workOrderSync =
         WorkOrderSyncEngine(repository: _workOrdersRepository, api: _api);
+    final safetyApi = _api is SafetyApiContract
+        ? _api as SafetyApiContract
+        : const UnavailableSafetyApiContract();
+    _safetyRepository = LocalSafetyReportsRepository(db: _db, api: safetyApi);
+    _safetySync =
+        SafetySyncEngine(repository: _safetyRepository, api: safetyApi);
+    _safetyEvidenceRepository = LocalSafetyEvidenceRepository(db: _db);
+    _safetyEvidenceWorker = SafetyEvidenceUploadWorker(
+      evidenceRepository: _safetyEvidenceRepository,
+      reportsRepository: _safetyRepository,
+      api: safetyApi,
+    );
+    final permitApi = _api is PermitApiContract
+        ? _api as PermitApiContract
+        : const UnavailablePermitApiContract();
+    _permitsRepository = LocalPermitsRepository(db: _db, api: permitApi);
+    _permitSync =
+        PermitSyncEngine(repository: _permitsRepository, api: permitApi);
     _auth = AuthController(
       gateway: _gateway,
       api: _api,
@@ -97,6 +133,9 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     if (uid != null) {
       unawaited(_repository.reconcileSessionOwner(uid));
       unawaited(_workOrdersRepository.reconcileSessionOwner(uid));
+      unawaited(_safetyRepository.reconcileSessionOwner(uid));
+      unawaited(_permitsRepository.reconcileSessionOwner(uid));
+      unawaited(_permitsRepository.refreshAssignedFromNetwork(uid));
       // Best-effort, so a field inspector who was online earlier today still
       // has checklist templates cached for fully-offline auto-selection
       // (Phase 7.3) even if they open the app in airplane mode next.
@@ -110,6 +149,9 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
       _sync.kick();
       _mediaWorker.kick();
       _workOrderSync.kick();
+      _safetySync.kick();
+      _safetyEvidenceWorker.kick();
+      _permitSync.kick();
     }
   }
 
@@ -120,6 +162,10 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
     _sync.dispose();
     _mediaWorker.dispose();
     _workOrderSync.dispose();
+    _safetySync.dispose();
+    _safetyEvidenceWorker.dispose();
+    _permitSync.dispose();
+    _safetyEvidenceRepository.dispose();
     _auth.dispose();
     _theme.dispose();
     unawaited(_db.close());
@@ -161,7 +207,19 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
                 child: WorkOrderSyncProvider(
                   engine: _workOrderSync,
                   repository: _workOrdersRepository,
-                  child: child!,
+                  child: SafetySyncProvider(
+                    engine: _safetySync,
+                    repository: _safetyRepository,
+                    child: SafetyEvidenceProvider(
+                      worker: _safetyEvidenceWorker,
+                      repository: _safetyEvidenceRepository,
+                      child: PermitSyncProvider(
+                        engine: _permitSync,
+                        repository: _permitsRepository,
+                        child: child!,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

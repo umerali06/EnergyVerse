@@ -264,7 +264,8 @@ class TimeSeriesChart extends StatelessWidget {
 /// breakdown) rather than assumed by the chart, since the right palette is
 /// domain-specific.
 class DonutSlice {
-  const DonutSlice({required this.label, required this.value, required this.color});
+  const DonutSlice(
+      {required this.label, required this.value, required this.color});
 
   final String label;
   final int value;
@@ -345,7 +346,8 @@ class DonutChart extends StatelessWidget {
                       Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(color: slice.color, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                            color: slice.color, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: DsSpacing.s2),
                       Text('${slice.label} (${slice.value})'),

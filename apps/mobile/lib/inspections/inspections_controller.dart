@@ -12,21 +12,29 @@ import 'local_inspections_repository.dart';
 /// cache (that's a server-list concept); the list shows everything this
 /// device currently has cached for the given filters.
 class InspectionsController extends ChangeNotifier {
+  static List<LocalInspectionRecord>? _staticCachedItems;
+
   InspectionsController({
     required LocalInspectionsRepository repository,
     String? initialAssetId,
     String? initialStatus,
-  }) : _repository = repository,
-       assetId = initialAssetId,
-       status = initialStatus;
+  })  : _repository = repository,
+        assetId = initialAssetId,
+        status = initialStatus {
+    if (_staticCachedItems != null) {
+      items = _staticCachedItems!;
+      listStatus = LoadStatus.ready;
+    }
+  }
 
   final LocalInspectionsRepository _repository;
   StreamSubscription<List<LocalInspectionRecord>>? _subscription;
   int _generation = 0;
   bool _disposed = false;
 
-  LoadStatus listStatus = LoadStatus.loading;
-  List<LocalInspectionRecord> items = const [];
+  late LoadStatus listStatus =
+      _staticCachedItems != null ? LoadStatus.ready : LoadStatus.loading;
+  List<LocalInspectionRecord> items = _staticCachedItems ?? const [];
 
   String? assetId;
   String? status;
@@ -48,21 +56,25 @@ class InspectionsController extends ChangeNotifier {
   Future<void> _load() async {
     final generation = ++_generation;
     unawaited(_subscription?.cancel());
-    listStatus = LoadStatus.loading;
-    items = const [];
-    _notify();
+    if (items.isEmpty) {
+      listStatus = LoadStatus.loading;
+      _notify();
+    }
     _subscription = _repository
         .watchInspections(assetId: assetId, status: status)
         .listen((records) {
-          if (generation != _generation) return;
-          items = records;
-          listStatus = LoadStatus.ready;
-          _notify();
-        }, onError: (_) {
-          if (generation != _generation) return;
-          listStatus = LoadStatus.error;
-          _notify();
-        });
+      if (generation != _generation) return;
+      items = records;
+      _staticCachedItems = records;
+      listStatus = LoadStatus.ready;
+      _notify();
+    }, onError: (_) {
+      if (generation != _generation) return;
+      if (items.isEmpty) {
+        listStatus = LoadStatus.error;
+      }
+      _notify();
+    });
     unawaited(_repository.refreshFromNetwork(assetId: assetId, status: status));
   }
 

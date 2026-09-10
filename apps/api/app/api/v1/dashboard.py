@@ -17,11 +17,17 @@ from app.models.api import (
     DashboardActivitySeries,
     DashboardSeriesPoint,
     DashboardSummary,
+    PermitDashboardSummary,
+    ReportDashboardSummary,
+    SafetyDashboardSummary,
     error_responses,
 )
 from app.models.base import CompanyScope, utc_now
 from app.models.entities import CurrentUser
+from app.permits.service import PermitService, get_permit_service
 from app.rbac.dependencies import require_permission
+from app.reports.service import GeneratedReportService, get_generated_report_service
+from app.safety_reports.service import SafetyReportService, get_safety_report_service
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
@@ -34,6 +40,9 @@ _dashboard_access = require_permission("reports.read")
 # holder should see asset data) -- the pluggable widget framework's per-widget
 # permission gate, not the whole-dashboard gate above (Phase 4.4).
 _assets_kpi_access = require_permission("assets.read")
+_safety_kpi_access = require_permission("safety.read")
+_permits_kpi_access = require_permission("permits.read")
+_reports_kpi_access = require_permission("reports.read")
 
 SUPPORTED_WINDOWS = (7, 30, 90)
 
@@ -107,6 +116,49 @@ async def dashboard_assets_summary(
     return await service.get_dashboard_summary(scope)
 
 
+@router.get(
+    "/safety-summary",
+    response_model=SafetyDashboardSummary,
+    operation_id="get_dashboard_safety_summary",
+    responses=error_responses(401, 403, 500),
+)
+async def dashboard_safety_summary(
+    current_user: Annotated[CurrentUser, Depends(_safety_kpi_access)],
+    service: Annotated[SafetyReportService, Depends(get_safety_report_service)],
+) -> SafetyDashboardSummary:
+    scope = CompanyScope(company_id=current_user.company_id)
+    return await service.get_dashboard_summary(scope)
+
+
+@router.get(
+    "/permits-summary",
+    response_model=PermitDashboardSummary,
+    operation_id="get_dashboard_permits_summary",
+    responses=error_responses(401, 403, 500),
+)
+async def dashboard_permits_summary(
+    current_user: Annotated[CurrentUser, Depends(_permits_kpi_access)],
+    service: Annotated[PermitService, Depends(get_permit_service)],
+) -> PermitDashboardSummary:
+    scope = CompanyScope(company_id=current_user.company_id)
+    return await service.get_dashboard_summary(scope)
+
+
+@router.get(
+    "/reports-summary",
+    response_model=ReportDashboardSummary,
+    operation_id="get_dashboard_reports_summary",
+    responses=error_responses(401, 403, 500),
+)
+async def dashboard_reports_summary(
+    current_user: Annotated[CurrentUser, Depends(_reports_kpi_access)],
+    service: Annotated[GeneratedReportService, Depends(get_generated_report_service)],
+) -> ReportDashboardSummary:
+    scope = CompanyScope(company_id=current_user.company_id)
+    return await service.get_dashboard_summary(scope)
+
+
+
 def _encode_cursor(created_at: datetime, event_id: str) -> str:
     # base64url keeps the cursor opaque and URL-safe (isoformat contains "+").
     raw = f"{created_at.isoformat()}~{event_id}"
@@ -139,17 +191,13 @@ async def dashboard_activity(
 ) -> DashboardActivityPage:
     scope = CompanyScope(company_id=current_user.company_id)
     now = utc_now()
-    events = await AuditLogRepository().list_since(
-        scope, _window_start(now, 90), MAX_WINDOW_EVENTS
-    )
+    events = await AuditLogRepository().list_since(scope, _window_start(now, 90), MAX_WINDOW_EVENTS)
     if action:
         events = [event for event in events if event.action == action]
     if cursor:
         after_time, after_id = _decode_cursor(cursor)
         events = [
-            event
-            for event in events
-            if (event.created_at, event.id) < (after_time, after_id)
+            event for event in events if (event.created_at, event.id) < (after_time, after_id)
         ]
     page = events[:limit]
     users = await UserRepository().list(scope)
@@ -167,9 +215,7 @@ async def dashboard_activity(
         for event in page
     ]
     next_cursor = (
-        _encode_cursor(page[-1].created_at, page[-1].id)
-        if len(events) > limit and page
-        else None
+        _encode_cursor(page[-1].created_at, page[-1].id) if len(events) > limit and page else None
     )
     return DashboardActivityPage(items=items, next_cursor=next_cursor)
 
@@ -198,7 +244,5 @@ async def dashboard_activity_series(
     points = []
     for offset in range(window):
         day = start + timedelta(days=offset)
-        points.append(
-            DashboardSeriesPoint(date=day, count=counts.get(day.isoformat(), 0))
-        )
+        points.append(DashboardSeriesPoint(date=day, count=counts.get(day.isoformat(), 0)))
     return DashboardActivitySeries(window_days=window, points=points)

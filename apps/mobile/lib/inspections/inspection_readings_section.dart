@@ -12,8 +12,9 @@ import '../sync/sync_engine.dart';
 /// display label (`Excellent`) -- every readings enum's wire value already
 /// reads correctly capitalized/as-is, so this is purely a display concern,
 /// never re-fed back into `valueOf`.
-String _label(String dartEnumName) =>
-    dartEnumName.isEmpty ? dartEnumName : dartEnumName[0].toUpperCase() + dartEnumName.substring(1);
+String _label(String dartEnumName) => dartEnumName.isEmpty
+    ? dartEnumName
+    : dartEnumName[0].toUpperCase() + dartEnumName.substring(1);
 
 /// Maps a reading's condition onto the same 3-state health severity the
 /// asset itself uses (spec section 9 -> 4.1 `current_status`, Phase 7.7) so
@@ -34,7 +35,13 @@ AppStatus appStatusForReadingsCondition(String conditionDartName) {
   }
 }
 
-const List<String> _conditions = ['excellent', 'good', 'fair', 'poor', 'critical'];
+const List<String> _conditions = [
+  'excellent',
+  'good',
+  'fair',
+  'poor',
+  'critical'
+];
 const List<String> _operationalStatuses = ['running', 'stopped', 'degraded'];
 const List<String> _priorityLevels = ['low', 'medium', 'high', 'critical'];
 
@@ -60,7 +67,8 @@ class InspectionReadingsSection extends StatefulWidget {
   final bool editable;
 
   @override
-  State<InspectionReadingsSection> createState() => _InspectionReadingsSectionState();
+  State<InspectionReadingsSection> createState() =>
+      _InspectionReadingsSectionState();
 }
 
 class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
@@ -86,8 +94,10 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
     _leakObserved = readings?.leakObserved;
     _temperatureController =
         TextEditingController(text: readings?.temperatureC?.toString() ?? '');
-    _pressureController = TextEditingController(text: readings?.pressureBar?.toString() ?? '');
-    _noiseController = TextEditingController(text: readings?.noiseLevelDb?.toString() ?? '');
+    _pressureController =
+        TextEditingController(text: readings?.pressureBar?.toString() ?? '');
+    _noiseController =
+        TextEditingController(text: readings?.noiseLevelDb?.toString() ?? '');
     _vibrationController =
         TextEditingController(text: readings?.vibrationObservation ?? '');
     _commentsController = TextEditingController(text: readings?.comments ?? '');
@@ -120,21 +130,26 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
         ..temperatureC = num.tryParse(_temperatureController.text.trim())
         ..pressureBar = num.tryParse(_pressureController.text.trim())
         ..noiseLevelDb = num.tryParse(_noiseController.text.trim())
-        ..vibrationObservation =
-            _vibrationController.text.trim().isEmpty ? null : _vibrationController.text.trim()
+        ..vibrationObservation = _vibrationController.text.trim().isEmpty
+            ? null
+            : _vibrationController.text.trim()
         ..leakObserved = _leakObserved
         ..operationalStatus = _operationalStatus == null
             ? null
             : ReadingsInputOperationalStatusEnum.valueOf(_operationalStatus!)
-        ..comments = _commentsController.text.trim().isEmpty ? null : _commentsController.text.trim()
+        ..comments = _commentsController.text.trim().isEmpty
+            ? null
+            : _commentsController.text.trim()
         ..recommendations = _recommendationsController.text.trim().isEmpty
             ? null
             : _recommendationsController.text.trim()
-        ..priorityLevel =
-            _priorityLevel == null ? null : ReadingsInputPriorityLevelEnum.valueOf(_priorityLevel!),
+        ..priorityLevel = _priorityLevel == null
+            ? null
+            : ReadingsInputPriorityLevelEnum.valueOf(_priorityLevel!),
     );
     unawaited(
-      SyncProvider.repositoryOf(context).updateInspection(widget.inspectionId, readings: input),
+      SyncProvider.repositoryOf(context)
+          .updateInspection(widget.inspectionId, readings: input),
     );
   }
 
@@ -172,7 +187,9 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('READINGS', style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
+            Text('READINGS',
+                style: TextStyle(
+                    color: context.semantic.textMuted, letterSpacing: 1)),
             if (condition != null)
               StatusPill(
                 label: _label(condition),
@@ -193,7 +210,8 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                   label: 'Condition',
                   items: [
                     for (final value in _conditions)
-                      DropdownMenuItem(value: value, child: Text(_label(value))),
+                      DropdownMenuItem(
+                          value: value, child: Text(_label(value))),
                   ],
                   value: condition,
                   onChanged: _setCondition,
@@ -217,7 +235,8 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                         key: const Key('readings-pressure'),
                         label: 'Pressure (bar)',
                         controller: _pressureController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         onChanged: (_) => _saveDebounced(),
                       ),
                     ),
@@ -228,7 +247,8 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                   key: const Key('readings-noise'),
                   label: 'Noise level (dB)',
                   controller: _noiseController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => _saveDebounced(),
                 ),
                 const SizedBox(height: DsSpacing.s3),
@@ -239,7 +259,8 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                   onChanged: (_) => _saveDebounced(),
                 ),
                 const SizedBox(height: DsSpacing.s3),
-                Text('Leak observed?', style: Theme.of(context).textTheme.bodyMedium),
+                Text('Leak observed?',
+                    style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: DsSpacing.s1),
                 Row(
                   children: [
@@ -247,8 +268,9 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                       child: AppButton(
                         key: const Key('readings-leak-no'),
                         label: 'No leak',
-                        variant:
-                            _leakObserved == false ? AppButtonVariant.primary : AppButtonVariant.ghost,
+                        variant: _leakObserved == false
+                            ? AppButtonVariant.primary
+                            : AppButtonVariant.ghost,
                         onPressed: () => _setLeakObserved(false),
                       ),
                     ),
@@ -257,8 +279,9 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                       child: AppButton(
                         key: const Key('readings-leak-yes'),
                         label: 'Leak observed',
-                        variant:
-                            _leakObserved == true ? AppButtonVariant.danger : AppButtonVariant.ghost,
+                        variant: _leakObserved == true
+                            ? AppButtonVariant.danger
+                            : AppButtonVariant.ghost,
                         onPressed: () => _setLeakObserved(true),
                       ),
                     ),
@@ -271,7 +294,8 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Not set')),
                     for (final value in _operationalStatuses)
-                      DropdownMenuItem(value: value, child: Text(_label(value))),
+                      DropdownMenuItem(
+                          value: value, child: Text(_label(value))),
                   ],
                   value: _operationalStatus,
                   onChanged: _setOperationalStatus,
@@ -283,7 +307,8 @@ class _InspectionReadingsSectionState extends State<InspectionReadingsSection> {
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Not set')),
                     for (final value in _priorityLevels)
-                      DropdownMenuItem(value: value, child: Text(_label(value))),
+                      DropdownMenuItem(
+                          value: value, child: Text(_label(value))),
                   ],
                   value: _priorityLevel,
                   onChanged: _setPriorityLevel,
@@ -323,33 +348,46 @@ class _ReadingsReadOnly extends StatelessWidget {
     if (readings == null) {
       return const EmptyState(
         title: 'No readings recorded',
-        description: 'No manual status readings were logged for this inspection.',
+        description:
+            'No manual status readings were logged for this inspection.',
       );
     }
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReadOnlyRow(label: 'Condition', value: _label(readings.condition.name)),
+          _ReadOnlyRow(
+              label: 'Condition', value: _label(readings.condition.name)),
           if (readings.temperatureC != null)
-            _ReadOnlyRow(label: 'Temperature', value: '${readings.temperatureC} °C'),
+            _ReadOnlyRow(
+                label: 'Temperature', value: '${readings.temperatureC} °C'),
           if (readings.pressureBar != null)
-            _ReadOnlyRow(label: 'Pressure', value: '${readings.pressureBar} bar'),
+            _ReadOnlyRow(
+                label: 'Pressure', value: '${readings.pressureBar} bar'),
           if (readings.noiseLevelDb != null)
-            _ReadOnlyRow(label: 'Noise level', value: '${readings.noiseLevelDb} dB'),
-          if (readings.vibrationObservation != null && readings.vibrationObservation!.isNotEmpty)
-            _ReadOnlyRow(label: 'Vibration', value: readings.vibrationObservation!),
+            _ReadOnlyRow(
+                label: 'Noise level', value: '${readings.noiseLevelDb} dB'),
+          if (readings.vibrationObservation != null &&
+              readings.vibrationObservation!.isNotEmpty)
+            _ReadOnlyRow(
+                label: 'Vibration', value: readings.vibrationObservation!),
           if (readings.leakObserved != null)
-            _ReadOnlyRow(label: 'Leak observed', value: readings.leakObserved! ? 'Yes' : 'No'),
+            _ReadOnlyRow(
+                label: 'Leak observed',
+                value: readings.leakObserved! ? 'Yes' : 'No'),
           if (readings.operationalStatus != null)
             _ReadOnlyRow(
-                label: 'Operational status', value: _label(readings.operationalStatus!.name)),
+                label: 'Operational status',
+                value: _label(readings.operationalStatus!.name)),
           if (readings.priorityLevel != null)
-            _ReadOnlyRow(label: 'Priority', value: _label(readings.priorityLevel!.name)),
+            _ReadOnlyRow(
+                label: 'Priority', value: _label(readings.priorityLevel!.name)),
           if (readings.comments != null && readings.comments!.isNotEmpty)
             _ReadOnlyRow(label: 'Comments', value: readings.comments!),
-          if (readings.recommendations != null && readings.recommendations!.isNotEmpty)
-            _ReadOnlyRow(label: 'Recommendations', value: readings.recommendations!),
+          if (readings.recommendations != null &&
+              readings.recommendations!.isNotEmpty)
+            _ReadOnlyRow(
+                label: 'Recommendations', value: readings.recommendations!),
         ],
       ),
     );
@@ -376,7 +414,10 @@ class _ReadOnlyRow extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],

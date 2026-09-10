@@ -69,9 +69,7 @@ class InspectionRepository(TenantRepository[Inspection]):
                 raise PermissionError("Inspection ID belongs to another company")
             current = self.model_type.model_validate(existing_data)
             payload_values = payload.model_dump()
-            if all(
-                getattr(current, field) == payload_values[field] for field in IDENTITY_FIELDS
-            ):
+            if all(getattr(current, field) == payload_values[field] for field in IDENTITY_FIELDS):
                 return current, False
             raise ValueError("inspection already exists with different data")
 
@@ -585,8 +583,7 @@ class InspectionRepository(TenantRepository[Inspection]):
 
         updated_measurement = ArMeasurement.model_validate({**existing.model_dump(), **changes})
         new_measurements = [
-            updated_measurement if m.id == measurement_id else m
-            for m in current.ar_measurements
+            updated_measurement if m.id == measurement_id else m for m in current.ar_measurements
         ]
         await self._collection.document(inspection_id).update(
             {

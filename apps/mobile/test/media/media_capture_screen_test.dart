@@ -46,9 +46,11 @@ Future<void> pumpCaptureScreen(WidgetTester tester) async {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                final result = await Navigator.of(context).push<MediaCaptureResult>(
+                final result =
+                    await Navigator.of(context).push<MediaCaptureResult>(
                   MaterialPageRoute(
-                    builder: (_) => const MediaCaptureScreen(captureBuilder: fakeCaptureBuilder),
+                    builder: (_) => const MediaCaptureScreen(
+                        captureBuilder: fakeCaptureBuilder),
                   ),
                 );
                 capturedResult = result;
@@ -61,6 +63,36 @@ Future<void> pumpCaptureScreen(WidgetTester tester) async {
     ),
   );
   await tester.tap(find.text('Open capture'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> pumpPhotoCaptureScreen(WidgetTester tester) async {
+  await tester.pumpWidget(
+    AppThemeScope(
+      controller: AppThemeController(),
+      child: MaterialApp(
+        theme: AppThemes.dark,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                capturedResult =
+                    await Navigator.of(context).push<MediaCaptureResult>(
+                  MaterialPageRoute(
+                    builder: (_) => const PhotoCameraCaptureScreen(
+                      captureBuilder: fakeCaptureBuilder,
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open photo camera'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('Open photo camera'));
   await tester.pumpAndSettle();
 }
 
@@ -92,9 +124,41 @@ void main() {
         "Couldn't use the camera. Choose a photo/video from your gallery below.",
       );
     });
+
+    test('maps browser permission denial and busy-camera failures', () {
+      expect(
+        cameraCaptureErrorMessage(Exception('NotAllowedError')),
+        contains('denied'),
+      );
+      expect(
+        cameraCaptureErrorMessage(Exception('NotReadableError')),
+        contains('busy'),
+      );
+    });
+
+    test('maps web TypeError and SecurityError failures specifically', () {
+      expect(
+        cameraCaptureErrorMessage(Exception('TypeError: Failed to execute getUserMedia')),
+        contains('web'),
+      );
+      expect(
+        cameraCaptureErrorMessage(Exception('SecurityError')),
+        contains('HTTPS'),
+      );
+    });
+
+    test('gives photo-only recovery guidance without mentioning gallery', () {
+      final msg = cameraCaptureErrorMessage(
+        Exception('CameraAccessDenied'),
+        allowVideo: false,
+      );
+      expect(msg, contains('browser or device settings'));
+      expect(msg.contains('gallery'), isFalse);
+    });
   });
 
-  testWidgets('renders the capture slot and gallery fallback buttons', (tester) async {
+  testWidgets('renders the capture slot and gallery fallback buttons',
+      (tester) async {
     await pumpCaptureScreen(tester);
 
     expect(find.text('Simulate photo capture'), findsOneWidget);
@@ -102,7 +166,8 @@ void main() {
     expect(find.text('Video from gallery'), findsOneWidget);
   });
 
-  testWidgets('a simulated capture pops the screen with the MediaCaptureResult', (tester) async {
+  testWidgets('a simulated capture pops the screen with the MediaCaptureResult',
+      (tester) async {
     await pumpCaptureScreen(tester);
 
     await tester.tap(find.text('Simulate photo capture'));
@@ -110,15 +175,32 @@ void main() {
 
     expect(capturedResult?.kind, 'photo');
     expect(capturedResult?.path, '/tmp/photo.jpg');
-    expect(find.text('Open capture'), findsOneWidget); // back on the host screen
+    expect(
+        find.text('Open capture'), findsOneWidget); // back on the host screen
   });
 
-  testWidgets('renders whatever error the injected capture slot reports', (tester) async {
+  testWidgets('renders whatever error the injected capture slot reports',
+      (tester) async {
     await pumpCaptureScreen(tester);
 
     await tester.tap(find.text('Simulate camera error'));
     await tester.pump();
 
     expect(find.text('Camera access was denied.'), findsOneWidget);
+  });
+
+  testWidgets('photo-only camera returns a shutter capture without gallery UI',
+      (tester) async {
+    await pumpPhotoCaptureScreen(tester);
+
+    expect(find.text('Take photo'), findsOneWidget);
+    expect(find.text('Photo from gallery'), findsNothing);
+    expect(find.text('Video from gallery'), findsNothing);
+
+    await tester.tap(find.text('Simulate photo capture'));
+    await tester.pumpAndSettle();
+
+    expect(capturedResult?.kind, 'photo');
+    expect(capturedResult?.filename, 'photo.jpg');
   });
 }

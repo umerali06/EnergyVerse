@@ -3,19 +3,25 @@ import {
   AssetsApi,
   AuditApi,
   AuthApi,
+  BillingApi,
   ChecklistTemplatesApi,
   CompanyApi,
   Configuration,
   DashboardApi,
+  DocumentsApi,
   FacilitiesApi,
   FetchError,
+  GeneratedReportsApi,
   InspectionsApi,
   PermissionsApi,
+  PermitTemplatesApi,
+  PermitsApi,
   PlatformApi,
   QrApi,
   RbacDemoApi,
   ResponseError,
   RolesApi,
+  SafetyReportsApi,
   SystemApi,
   UsersApi,
   WorkOrdersApi,
@@ -34,15 +40,35 @@ import {
   type ChecklistTemplateDetail,
   type ChecklistTemplateListPage,
   type CompanyProfile,
+  type CreateGeneratedReportRequest,
   type CompleteInspectionRequest,
   type CompanyRegistrationRequest,
   type CompanyRegistrationResponse,
   type CreateAssetRequest,
   type CreateChecklistTemplateRequest,
   type CreateInspectionRequest,
+  type CreatePermitTemplateRequest,
+  type CreatePermitRequest,
+  type ActivatePermitRequest,
+  type ClosePermitRequest,
+  type ControlPermitRequest,
+  type DecidePermitApprovalRequest,
   type CreateRoleRequest,
+  type CreateSafetyReportRequest,
+  type CreateCorrectiveActionRequest,
+  type AssignSafetyReportRequest,
+  type TransitionSafetyReportRequest,
+  type UpdateCorrectiveActionRequest,
+  type CancelCorrectiveActionRequest,
   type CreateWorkOrderRequest,
   type CurrentUser,
+  type CreateDocumentRequest,
+  type DocumentDetail,
+  type DocumentListPage,
+  type BillingCatalogResponse,
+  type CheckoutSessionRequest,
+  type CheckoutSessionResponse,
+  type SubscriptionResponse,
   type DashboardActivityPage,
   type DashboardActivitySeries,
   type DashboardSummary,
@@ -50,11 +76,25 @@ import {
   type FacilityDetail,
   type FacilityListPage,
   type HealthResponse,
+  type GeneratedReportExportResponse,
+  type GeneratedReportExportResponseFormatEnum,
+  type GeneratedReportListPage,
+  type GeneratedReportDetail,
+  type GeneratedReportDeleted,
+  type UpdateGeneratedReportRequest,
   type InspectionDeleted,
   type InspectionDetail,
   type InspectionListPage,
   type InviteUserRequest,
   type PermissionCatalog,
+  type PermitTemplateDeleted,
+  type PermitTemplateDetail,
+  type PermitTemplateListPage,
+  type PermitDetail,
+  type PermitDashboardSummary,
+  type PermitListPage,
+  type ResumePermitRequest,
+  type SubmitPermitRequest,
   type PlatformCompanyDetail,
   type PlatformCompanyPage,
   type UpdateAssetRequest,
@@ -63,10 +103,14 @@ import {
   type RoleDeleted,
   type RoleDetail,
   type RoleList,
+  type SafetyReportDetail,
+  type SafetyDashboardSummary,
+  type SafetyReportListPage,
   type UpdateChecklistTemplateRequest,
   type UpdateCompanyRequest,
   type UpdateCompanyStatusRequest,
   type UpdateInspectionRequest,
+  type UpdatePermitTemplateRequest,
   type UpdatePlatformCompanyRequest,
   type UpdateRoleRequest,
   type UpdateUserRequest,
@@ -195,6 +239,20 @@ export type ListChecklistTemplatesOptions = {
   limit?: number;
 };
 
+export type ListPermitTemplatesOptions = {
+  permitType?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export type ListPermitsOptions = {
+  permitType?: string;
+  facilityId?: string;
+  workerId?: string;
+  cursor?: string;
+  limit?: number;
+};
+
 export type ListWorkOrdersOptions = {
   assetId?: string;
   facilityId?: string;
@@ -204,25 +262,56 @@ export type ListWorkOrdersOptions = {
   limit?: number;
 };
 
+export type ListSafetyReportsOptions = {
+  status?: string;
+  category?: string;
+  severity?: string;
+  reporterId?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export type ListGeneratedReportsOptions = {
+  reportType?: string;
+  status?: string;
+  cursor?: string;
+  limit?: number;
+};
+
 function toDate(value?: string): Date | undefined {
   return value ? new Date(value) : undefined;
 }
+
+export type ListDocumentsOptions = {
+  category?: string | null;
+  facilityId?: string | null;
+  status?: string | null;
+  search?: string | null;
+  cursor?: string | null;
+  limit?: number;
+};
 
 export class FevApiClient {
   private readonly areas: AreasApi;
   private readonly assets: AssetsApi;
   private readonly audit: AuditApi;
   private readonly auth: AuthApi;
+  private readonly billing: BillingApi;
   private readonly checklistTemplates: ChecklistTemplatesApi;
   private readonly company: CompanyApi;
   private readonly dashboard: DashboardApi;
+  private readonly documents: DocumentsApi;
   private readonly facilities: FacilitiesApi;
+  private readonly generatedReports: GeneratedReportsApi;
   private readonly inspections: InspectionsApi;
   private readonly permissions: PermissionsApi;
+  private readonly permitTemplates: PermitTemplatesApi;
+  private readonly permits: PermitsApi;
   private readonly platform: PlatformApi;
   private readonly qr: QrApi;
   private readonly rbacDemo: RbacDemoApi;
   private readonly roles: RolesApi;
+  private readonly safetyReports: SafetyReportsApi;
   private readonly system: SystemApi;
   private readonly users: UsersApi;
   private readonly workOrders: WorkOrdersApi;
@@ -241,16 +330,22 @@ export class FevApiClient {
     this.assets = new AssetsApi(configuration);
     this.audit = new AuditApi(configuration);
     this.auth = new AuthApi(configuration);
+    this.billing = new BillingApi(configuration);
     this.checklistTemplates = new ChecklistTemplatesApi(configuration);
     this.company = new CompanyApi(configuration);
     this.dashboard = new DashboardApi(configuration);
+    this.documents = new DocumentsApi(configuration);
     this.facilities = new FacilitiesApi(configuration);
+    this.generatedReports = new GeneratedReportsApi(configuration);
     this.inspections = new InspectionsApi(configuration);
     this.permissions = new PermissionsApi(configuration);
+    this.permitTemplates = new PermitTemplatesApi(configuration);
+    this.permits = new PermitsApi(configuration);
     this.platform = new PlatformApi(configuration);
     this.qr = new QrApi(configuration);
     this.rbacDemo = new RbacDemoApi(configuration);
     this.roles = new RolesApi(configuration);
+    this.safetyReports = new SafetyReportsApi(configuration);
     this.system = new SystemApi(configuration);
     this.users = new UsersApi(configuration);
     this.workOrders = new WorkOrdersApi(configuration);
@@ -265,6 +360,127 @@ export class FevApiClient {
 
   getCurrentUser(signal?: AbortSignal): Promise<CurrentUser> {
     return this.execute(() => this.auth.getCurrentUser(signal ? { signal } : undefined));
+  }
+
+  /** Public: the pricing page and signup plan picker read the same catalog the
+   * API enforces against, so a client can never offer a tier the server will
+   * not honour. */
+  getBillingCatalog(signal?: AbortSignal): Promise<BillingCatalogResponse> {
+    return this.execute(() => this.billing.getBillingCatalog(signal ? { signal } : undefined));
+  }
+
+  /** The authoritative feature list for the signed-in company. The shell
+   * decides which modules to render from this, never from the tier name. */
+  getSubscription(signal?: AbortSignal): Promise<SubscriptionResponse> {
+    return this.execute(() => this.billing.getSubscription(signal ? { signal } : undefined));
+  }
+
+  /** Phase 11 documents. The page and its data hook shipped without these,
+   * so `apiClient.listDocuments` was undefined and the list rendered its error
+   * state on every load. */
+  listDocuments(
+    options: ListDocumentsOptions = {},
+    signal?: AbortSignal,
+  ): Promise<DocumentListPage> {
+    return this.execute(() => this.documents.listDocuments(options, signal ? { signal } : undefined));
+  }
+
+  createDocument(
+    body: CreateDocumentRequest,
+    signal?: AbortSignal,
+  ): Promise<DocumentDetail> {
+    return this.execute(() =>
+      this.documents.createDocument({ createDocumentRequest: body }, signal ? { signal } : undefined),
+    );
+  }
+
+  createCheckoutSession(
+    body: CheckoutSessionRequest,
+    signal?: AbortSignal,
+  ): Promise<CheckoutSessionResponse> {
+    return this.execute(() =>
+      this.billing.createCheckoutSession(
+        { checkoutSessionRequest: body },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  listGeneratedReports(
+    options: ListGeneratedReportsOptions = {},
+    signal?: AbortSignal,
+  ): Promise<GeneratedReportListPage> {
+    return this.execute(() =>
+      this.generatedReports.listGeneratedReports(options, signal ? { signal } : undefined),
+    );
+  }
+
+  exportGeneratedReport(
+    reportId: string,
+    format: GeneratedReportExportResponseFormatEnum,
+    signal?: AbortSignal,
+  ): Promise<GeneratedReportExportResponse> {
+    return this.execute(() =>
+      this.generatedReports.exportGeneratedReport(
+        { reportId, format },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  generateReport(
+    request: CreateGeneratedReportRequest,
+    signal?: AbortSignal,
+  ): Promise<GeneratedReportDetail> {
+    return this.execute(() =>
+      this.generatedReports.generateReport(
+        { createGeneratedReportRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getGeneratedReport(reportId: string, signal?: AbortSignal): Promise<GeneratedReportDetail> {
+    return this.execute(() =>
+      this.generatedReports.getGeneratedReport({ reportId }, signal ? { signal } : undefined),
+    );
+  }
+
+  updateGeneratedReport(
+    reportId: string,
+    request: UpdateGeneratedReportRequest,
+    signal?: AbortSignal,
+  ): Promise<GeneratedReportDetail> {
+    return this.execute(() =>
+      this.generatedReports.updateGeneratedReport(
+        { reportId, updateGeneratedReportRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  regenerateGeneratedReport(reportId: string, expectedRevision: number, signal?: AbortSignal): Promise<GeneratedReportDetail> {
+    return this.execute(() =>
+      this.generatedReports.regenerateGeneratedReport(
+        { reportId, regenerateGeneratedReportRequest: { expectedRevision } },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  finalizeGeneratedReport(reportId: string, expectedRevision: number, signal?: AbortSignal): Promise<GeneratedReportDetail> {
+    return this.execute(() =>
+      this.generatedReports.finalizeGeneratedReport(
+        { reportId, finalizeGeneratedReportRequest: { expectedRevision, finalizationAttestation: true } },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  deleteGeneratedReport(reportId: string, signal?: AbortSignal): Promise<GeneratedReportDeleted> {
+    return this.execute(() =>
+      this.generatedReports.deleteGeneratedReport({ reportId }, signal ? { signal } : undefined),
+    );
   }
 
   getRbacDemoSingle(signal?: AbortSignal): Promise<DemoGateResponse> {
@@ -300,6 +516,18 @@ export class FevApiClient {
     );
   }
 
+  getDashboardSafetySummary(signal?: AbortSignal): Promise<SafetyDashboardSummary> {
+    return this.execute(() =>
+      this.dashboard.getDashboardSafetySummary(signal ? { signal } : undefined),
+    );
+  }
+
+  getDashboardPermitsSummary(signal?: AbortSignal): Promise<PermitDashboardSummary> {
+    return this.execute(() =>
+      this.dashboard.getDashboardPermitsSummary(signal ? { signal } : undefined),
+    );
+  }
+
   getDashboardActivity(
     options: { limit?: number; cursor?: string; action?: string } = {},
     signal?: AbortSignal,
@@ -317,10 +545,7 @@ export class FevApiClient {
     signal?: AbortSignal,
   ): Promise<DashboardActivitySeries> {
     return this.execute(() =>
-      this.dashboard.getDashboardActivitySeries(
-        { window },
-        signal ? { signal } : undefined,
-      ),
+      this.dashboard.getDashboardActivitySeries({ window }, signal ? { signal } : undefined),
     );
   }
 
@@ -341,9 +566,7 @@ export class FevApiClient {
   }
 
   getUser(userId: string, signal?: AbortSignal): Promise<UserDetail> {
-    return this.execute(() =>
-      this.users.getUser({ userId }, signal ? { signal } : undefined),
-    );
+    return this.execute(() => this.users.getUser({ userId }, signal ? { signal } : undefined));
   }
 
   listAssets(options: ListAssetsOptions = {}, signal?: AbortSignal): Promise<AssetListPage> {
@@ -366,9 +589,7 @@ export class FevApiClient {
   }
 
   getAsset(assetId: string, signal?: AbortSignal): Promise<AssetDetail> {
-    return this.execute(() =>
-      this.assets.getAsset({ assetId }, signal ? { signal } : undefined),
-    );
+    return this.execute(() => this.assets.getAsset({ assetId }, signal ? { signal } : undefined));
   }
 
   getAssetHistory(assetId: string, signal?: AbortSignal): Promise<AssetHistoryPage> {
@@ -379,10 +600,7 @@ export class FevApiClient {
 
   createAsset(request: CreateAssetRequest, signal?: AbortSignal): Promise<AssetDetail> {
     return this.execute(() =>
-      this.assets.createAsset(
-        { createAssetRequest: request },
-        signal ? { signal } : undefined,
-      ),
+      this.assets.createAsset({ createAssetRequest: request }, signal ? { signal } : undefined),
     );
   }
 
@@ -406,23 +624,13 @@ export class FevApiClient {
     signal?: AbortSignal,
   ): Promise<AssetDetail> {
     return this.execute(() =>
-      this.assets.uploadAssetMedia(
-        { assetId, kind, file },
-        signal ? { signal } : undefined,
-      ),
+      this.assets.uploadAssetMedia({ assetId, kind, file }, signal ? { signal } : undefined),
     );
   }
 
-  deleteAssetMedia(
-    assetId: string,
-    mediaId: string,
-    signal?: AbortSignal,
-  ): Promise<AssetDetail> {
+  deleteAssetMedia(assetId: string, mediaId: string, signal?: AbortSignal): Promise<AssetDetail> {
     return this.execute(() =>
-      this.assets.deleteAssetMedia(
-        { assetId, mediaId },
-        signal ? { signal } : undefined,
-      ),
+      this.assets.deleteAssetMedia({ assetId, mediaId }, signal ? { signal } : undefined),
     );
   }
 
@@ -433,9 +641,7 @@ export class FevApiClient {
   }
 
   resolveQrCode(code: string, signal?: AbortSignal): Promise<QrScanResult> {
-    return this.execute(() =>
-      this.qr.resolveQrCode({ code }, signal ? { signal } : undefined),
-    );
+    return this.execute(() => this.qr.resolveQrCode({ code }, signal ? { signal } : undefined));
   }
 
   listFacilities(
@@ -478,9 +684,7 @@ export class FevApiClient {
   }
 
   getArea(areaId: string, signal?: AbortSignal): Promise<AreaDetail> {
-    return this.execute(() =>
-      this.areas.getArea({ areaId }, signal ? { signal } : undefined),
-    );
+    return this.execute(() => this.areas.getArea({ areaId }, signal ? { signal } : undefined));
   }
 
   listInspections(
@@ -591,15 +795,9 @@ export class FevApiClient {
     );
   }
 
-  getChecklistTemplate(
-    templateId: string,
-    signal?: AbortSignal,
-  ): Promise<ChecklistTemplateDetail> {
+  getChecklistTemplate(templateId: string, signal?: AbortSignal): Promise<ChecklistTemplateDetail> {
     return this.execute(() =>
-      this.checklistTemplates.getChecklistTemplate(
-        { templateId },
-        signal ? { signal } : undefined,
-      ),
+      this.checklistTemplates.getChecklistTemplate({ templateId }, signal ? { signal } : undefined),
     );
   }
 
@@ -640,6 +838,173 @@ export class FevApiClient {
     );
   }
 
+  listPermitTemplates(
+    options: ListPermitTemplatesOptions = {},
+    signal?: AbortSignal,
+  ): Promise<PermitTemplateListPage> {
+    return this.execute(() =>
+      this.permitTemplates.listPermitTemplates(
+        { permitType: options.permitType, cursor: options.cursor, limit: options.limit },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getPermitTemplate(templateId: string, signal?: AbortSignal): Promise<PermitTemplateDetail> {
+    return this.execute(() =>
+      this.permitTemplates.getPermitTemplate({ templateId }, signal ? { signal } : undefined),
+    );
+  }
+
+  createPermitTemplate(
+    request: CreatePermitTemplateRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitTemplateDetail> {
+    return this.execute(() =>
+      this.permitTemplates.createPermitTemplate(
+        { createPermitTemplateRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  updatePermitTemplate(
+    templateId: string,
+    request: UpdatePermitTemplateRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitTemplateDetail> {
+    return this.execute(() =>
+      this.permitTemplates.updatePermitTemplate(
+        { templateId, updatePermitTemplateRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  deletePermitTemplate(templateId: string, signal?: AbortSignal): Promise<PermitTemplateDeleted> {
+    return this.execute(() =>
+      this.permitTemplates.deletePermitTemplate({ templateId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listPermits(options: ListPermitsOptions = {}, signal?: AbortSignal): Promise<PermitListPage> {
+    return this.execute(() =>
+      this.permits.listPermits(
+        {
+          permitType: options.permitType,
+          facilityId: options.facilityId,
+          workerId: options.workerId,
+          cursor: options.cursor,
+          limit: options.limit,
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getPermit(permitId: string, signal?: AbortSignal): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.getPermit({ permitId }, signal ? { signal } : undefined),
+    );
+  }
+
+  createPermit(request: CreatePermitRequest, signal?: AbortSignal): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.createPermit({ createPermitRequest: request }, signal ? { signal } : undefined),
+    );
+  }
+
+  submitPermit(
+    permitId: string,
+    request: SubmitPermitRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.submitPermit(
+        { permitId, submitPermitRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  decidePermitApproval(
+    permitId: string,
+    request: DecidePermitApprovalRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.decidePermitApproval(
+        { permitId, decidePermitApprovalRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  activatePermit(
+    permitId: string,
+    request: ActivatePermitRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.activatePermit(
+        { permitId, activatePermitRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  suspendPermit(
+    permitId: string,
+    request: ControlPermitRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.suspendPermit(
+        { permitId, controlPermitRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  resumePermit(
+    permitId: string,
+    request: ResumePermitRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.resumePermit(
+        { permitId, resumePermitRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  revokePermit(
+    permitId: string,
+    request: ControlPermitRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.revokePermit(
+        { permitId, controlPermitRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  closePermit(
+    permitId: string,
+    request: ClosePermitRequest,
+    signal?: AbortSignal,
+  ): Promise<PermitDetail> {
+    return this.execute(() =>
+      this.permits.closePermit(
+        { permitId, closePermitRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
   listWorkOrders(
     options: ListWorkOrdersOptions = {},
     signal?: AbortSignal,
@@ -665,10 +1030,7 @@ export class FevApiClient {
     );
   }
 
-  createWorkOrder(
-    request: CreateWorkOrderRequest,
-    signal?: AbortSignal,
-  ): Promise<WorkOrderDetail> {
+  createWorkOrder(request: CreateWorkOrderRequest, signal?: AbortSignal): Promise<WorkOrderDetail> {
     return this.execute(() =>
       this.workOrders.createWorkOrder(
         { createWorkOrderRequest: request },
@@ -705,6 +1067,133 @@ export class FevApiClient {
   deleteWorkOrder(workOrderId: string, signal?: AbortSignal): Promise<WorkOrderDeleted> {
     return this.execute(() =>
       this.workOrders.deleteWorkOrder({ workOrderId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listSafetyReports(
+    options: ListSafetyReportsOptions = {},
+    signal?: AbortSignal,
+  ): Promise<SafetyReportListPage> {
+    return this.execute(() =>
+      this.safetyReports.listSafetyReports(options, signal ? { signal } : undefined),
+    );
+  }
+
+  getSafetyReport(reportId: string, signal?: AbortSignal): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.getSafetyReport({ reportId }, signal ? { signal } : undefined),
+    );
+  }
+
+  createSafetyReport(
+    request: CreateSafetyReportRequest,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.createSafetyReport(
+        { createSafetyReportRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  assignSafetyReport(
+    reportId: string,
+    request: AssignSafetyReportRequest,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.assignSafetyReport(
+        { reportId, assignSafetyReportRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  transitionSafetyReport(
+    reportId: string,
+    request: TransitionSafetyReportRequest,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.transitionSafetyReport(
+        { reportId, transitionSafetyReportRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  closeSafetyReport(reportId: string, signal?: AbortSignal): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.closeSafetyReport({ reportId }, signal ? { signal } : undefined),
+    );
+  }
+
+  uploadSafetyEvidence(
+    reportId: string,
+    kind: "photo" | "video",
+    file: Blob,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.uploadSafetyEvidence(
+        { reportId, kind, file },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  deleteSafetyEvidence(
+    reportId: string,
+    evidenceId: string,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.deleteSafetyEvidence(
+        { reportId, evidenceId },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  createCorrectiveAction(
+    reportId: string,
+    request: CreateCorrectiveActionRequest,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.createCorrectiveAction(
+        { reportId, createCorrectiveActionRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  updateCorrectiveAction(
+    reportId: string,
+    actionId: string,
+    request: UpdateCorrectiveActionRequest,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.updateCorrectiveAction(
+        { reportId, actionId, updateCorrectiveActionRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  cancelCorrectiveAction(
+    reportId: string,
+    actionId: string,
+    request: CancelCorrectiveActionRequest,
+    signal?: AbortSignal,
+  ): Promise<SafetyReportDetail> {
+    return this.execute(() =>
+      this.safetyReports.cancelCorrectiveAction(
+        { reportId, actionId, cancelCorrectiveActionRequest: request },
+        signal ? { signal } : undefined,
+      ),
     );
   }
 
@@ -745,9 +1234,7 @@ export class FevApiClient {
   }
 
   getRole(roleId: string, signal?: AbortSignal): Promise<RoleDetail> {
-    return this.execute(() =>
-      this.roles.getRole({ roleId }, signal ? { signal } : undefined),
-    );
+    return this.execute(() => this.roles.getRole({ roleId }, signal ? { signal } : undefined));
   }
 
   createRole(request: CreateRoleRequest, signal?: AbortSignal): Promise<RoleDetail> {
@@ -770,9 +1257,7 @@ export class FevApiClient {
   }
 
   deleteRole(roleId: string, signal?: AbortSignal): Promise<RoleDeleted> {
-    return this.execute(() =>
-      this.roles.deleteRole({ roleId }, signal ? { signal } : undefined),
-    );
+    return this.execute(() => this.roles.deleteRole({ roleId }, signal ? { signal } : undefined));
   }
 
   listPermissionCatalog(signal?: AbortSignal): Promise<PermissionCatalog> {
@@ -804,10 +1289,7 @@ export class FevApiClient {
     return this.execute(() => this.company.removeCompanyLogo(signal ? { signal } : undefined));
   }
 
-  listAuditLogs(
-    options: ListAuditLogsOptions = {},
-    signal?: AbortSignal,
-  ): Promise<AuditLogPage> {
+  listAuditLogs(options: ListAuditLogsOptions = {}, signal?: AbortSignal): Promise<AuditLogPage> {
     return this.execute(() =>
       this.audit.listAuditLogs(
         {
@@ -898,9 +1380,7 @@ export class FevApiClient {
   }
 
   getPlatformStats(signal?: AbortSignal): Promise<PlatformStats> {
-    return this.execute(() =>
-      this.platform.getPlatformStats(signal ? { signal } : undefined),
-    );
+    return this.execute(() => this.platform.getPlatformStats(signal ? { signal } : undefined));
   }
 
   private async execute<T>(request: () => Promise<T>): Promise<T> {

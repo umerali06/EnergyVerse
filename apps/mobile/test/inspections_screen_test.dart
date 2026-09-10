@@ -7,6 +7,7 @@ import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/subscription_fixtures.dart';
 
 const session = AuthSession(
   uid: 'demo-acme-field_inspector',
@@ -19,7 +20,8 @@ const roleMatrix = <String, List<String>>{
   'executive': ['reports.read'],
 };
 
-CurrentUser identityFor(String roleKey, List<String> permissions) => CurrentUser(
+CurrentUser identityFor(String roleKey, List<String> permissions) =>
+    CurrentUser(
       (builder) => builder
         ..uid = 'demo-acme-field_inspector'
         ..email = 'field_inspector@acme.example.invalid'
@@ -51,7 +53,8 @@ InspectionListItem _inspectionItemFixture({
   );
 }
 
-InspectionListPage _pageFixture({List<InspectionListItem>? items, String? nextCursor}) =>
+InspectionListPage _pageFixture(
+        {List<InspectionListItem>? items, String? nextCursor}) =>
     InspectionListPage((b) => b
       ..items.addAll(items ?? [_inspectionItemFixture()])
       ..nextCursor = nextCursor);
@@ -87,24 +90,32 @@ typedef GetInspectionsFn = Future<InspectionListPage> Function({
   int limit,
 });
 
-typedef GetInspectionFn = Future<InspectionDetail> Function(String inspectionId);
+typedef GetInspectionFn = Future<InspectionDetail> Function(
+    String inspectionId);
 
 class FakeApi implements ApiContract {
-  FakeApi(this.identity, {GetInspectionsFn? getInspections, GetInspectionFn? getInspection})
-      : _getInspections = getInspections ?? (({
-          String? assetId,
-          String? facilityId,
-          String? status,
-          String? inspectorId,
-          String? cursor,
-          int limit = 25,
-        }) async =>
-            _pageFixture()),
-        _getInspection = getInspection ?? ((id) async => _inspectionDetailFixture(id: id));
+  FakeApi(this.identity,
+      {GetInspectionsFn? getInspections, GetInspectionFn? getInspection})
+      : _getInspections = getInspections ??
+            (({
+              String? assetId,
+              String? facilityId,
+              String? status,
+              String? inspectorId,
+              String? cursor,
+              int limit = 25,
+            }) async =>
+                _pageFixture()),
+        _getInspection =
+            getInspection ?? ((id) async => _inspectionDetailFixture(id: id));
 
   final CurrentUser identity;
   final GetInspectionsFn _getInspections;
   final GetInspectionFn _getInspection;
+
+  @override
+  Future<SubscriptionResponse> getSubscription() async =>
+      subscriptionResponseFixture();
 
   @override
   Future<CurrentUser> getCurrentUser() async => identity;
@@ -122,7 +133,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardSummary> getDashboardSummary({int window = 30}) => throw UnimplementedError();
+  Future<DashboardSummary> getDashboardSummary({int window = 30}) =>
+      throw UnimplementedError();
 
   @override
   Future<DashboardActivityPage> getDashboardActivity({
@@ -133,11 +145,17 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) =>
       throw UnimplementedError();
 
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() => throw UnimplementedError();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() =>
+      throw UnimplementedError();
 
   @override
   Future<UserListPage> getUsers({
@@ -176,7 +194,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
 
   @override
@@ -197,7 +216,8 @@ class FakeApi implements ApiContract {
   Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      throw UnimplementedError();
 
   @override
   Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
@@ -213,7 +233,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
 
   @override
   Future<AreaListPage> getAreas({
@@ -247,7 +268,8 @@ class FakeApi implements ApiContract {
       );
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => _getInspection(inspectionId);
+  Future<InspectionDetail> getInspection(String inspectionId) =>
+      _getInspection(inspectionId);
 
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
@@ -261,7 +283,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> startInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> completeInspection(
@@ -271,7 +294,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> cancelInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
@@ -296,7 +320,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> detachInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -315,7 +340,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) =>
+  Future<InspectionDetail> detachInspectionVoiceNote(
+          String inspectionId, String voiceNoteId) =>
       throw UnimplementedError();
 
   @override
@@ -334,7 +360,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) =>
+  Future<InspectionDetail> deleteInspectionAnnotation(
+          String inspectionId, String annotationId) =>
       throw UnimplementedError();
 
   @override
@@ -358,11 +385,13 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> analyzeInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> analyzeInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> reviewInspectionAiAnalysis(String inspectionId, String analysisId) =>
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+          String inspectionId, String analysisId) =>
       throw UnimplementedError();
 
   @override
@@ -450,9 +479,14 @@ class FakeGateway implements AuthGateway {
   Future<void> signOut() async {}
 }
 
-Future<void> pumpInspections(WidgetTester tester, {required FakeApi api}) async {
+Future<void> pumpInspections(WidgetTester tester,
+    {required FakeApi api}) async {
   await tester.pumpWidget(
-    FevApp(api: api, authGateway: FakeGateway(), initialRoute: AppRoutes.inspections, database: AppDatabase(NativeDatabase.memory())),
+    FevApp(
+        api: api,
+        authGateway: FakeGateway(),
+        initialRoute: AppRoutes.inspections,
+        database: AppDatabase(NativeDatabase.memory())),
   );
   await tester.pump();
 }
@@ -469,8 +503,10 @@ Future<void> disposeApp(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('shows loading then renders real tenant inspections', (tester) async {
-    final api = FakeApi(identityFor('field_inspector', roleMatrix['field_inspector']!));
+  testWidgets('shows loading then renders real tenant inspections',
+      (tester) async {
+    final api =
+        FakeApi(identityFor('field_inspector', roleMatrix['field_inspector']!));
     await pumpInspections(tester, api: api);
     await tester.pumpAndSettle();
 
@@ -478,10 +514,17 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('shows an honest empty state when no inspections match', (tester) async {
+  testWidgets('shows an honest empty state when no inspections match',
+      (tester) async {
     final api = FakeApi(
       identityFor('field_inspector', roleMatrix['field_inspector']!),
-      getInspections: ({assetId, facilityId, status, inspectorId, cursor, limit = 25}) async =>
+      getInspections: (
+              {assetId,
+              facilityId,
+              status,
+              inspectorId,
+              cursor,
+              limit = 25}) async =>
           _pageFixture(items: const []),
     );
     await pumpInspections(tester, api: api);
@@ -495,7 +538,13 @@ void main() {
     final calls = <String?>[];
     final api = FakeApi(
       identityFor('field_inspector', roleMatrix['field_inspector']!),
-      getInspections: ({assetId, facilityId, status, inspectorId, cursor, limit = 25}) async {
+      getInspections: (
+          {assetId,
+          facilityId,
+          status,
+          inspectorId,
+          cursor,
+          limit = 25}) async {
         calls.add(status);
         return _pageFixture();
       },
@@ -512,7 +561,9 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('renders the honest 403 screen for a role without inspections.read', (tester) async {
+  testWidgets(
+      'renders the honest 403 screen for a role without inspections.read',
+      (tester) async {
     final api = FakeApi(identityFor('executive', roleMatrix['executive']!));
     await pumpInspections(tester, api: api);
     await tester.pumpAndSettle();

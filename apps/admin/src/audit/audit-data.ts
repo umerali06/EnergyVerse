@@ -43,67 +43,54 @@ function defaultFilters(): AuditLogFilters {
  * through the single FevApiClient instance AuthProvider owns, mirroring the
  * Phase 2.2 dashboard and 3.1 users data-fetching hooks.
  */
+import { useCachedQuery } from "@/cache/cache-context";
+
 export function useAuditLogData() {
   const { apiClient, currentUser } = useAuth();
   const [filters, setFilters] = useState<AuditLogFilters>(defaultFilters);
-  const [list, setList] = useState<{
-    status: AsyncStatus;
-    items: AuditLogEntry[];
-    nextCursor: string | null;
-    loadingMore: boolean;
-    truncated: boolean;
-  }>({ status: "loading", items: [], nextCursor: null, loadingMore: false, truncated: false });
-  const [facets, setFacets] = useState<{
-    status: AsyncStatus;
-    actions: string[];
-    targetTypes: string[];
-  }>({ status: "loading", actions: [], targetTypes: [] });
-  const [actors, setActors] = useState<{ status: AsyncStatus; items: UserListItem[] }>({
-    status: "loading",
-    items: [],
-  });
+  const [extraItems, setExtraItems] = useState<AuditLogEntry[]>([]);
+  const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const requestId = useRef(0);
-  const facetsRequestId = useRef(0);
+  const filterKey = JSON.stringify(filters);
 
-  const fetchList = useCallback(
-    async (current: AuditLogFilters) => {
-      const id = ++requestId.current;
-      setList({ status: "loading", items: [], nextCursor: null, loadingMore: false, truncated: false });
-      try {
-        const page = await apiClient.listAuditLogs({
-          fromDate: current.fromDate || undefined,
-          toDate: current.toDate || undefined,
-          actorUid: current.actorUid ?? undefined,
-          action: current.action ?? undefined,
-          targetType: current.targetType ?? undefined,
-          q: current.q.trim() || undefined,
-          limit: PAGE_SIZE,
-        });
-        if (requestId.current === id) {
-          setList({
-            status: "ready",
-            items: page.items,
-            nextCursor: page.nextCursor ?? null,
-            loadingMore: false,
-            truncated: page.truncated,
-          });
-        }
-      } catch {
-        // FevApiClient already surfaced the unified-envelope toast; this
-        // local state just drives the retry-capable error UI.
-        if (requestId.current === id) {
-          setList({ status: "error", items: [], nextCursor: null, loadingMore: false, truncated: false });
-        }
-      }
-    },
-    [apiClient],
+  const auditLogsQuery = useCachedQuery<{ items: AuditLogEntry[]; nextCursor: string | null; truncated: boolean }>(
+    `audit:list:${filterKey}`,
+    () =>
+      apiClient.listAuditLogs({
+        fromDate: filters.fromDate || undefined,
+        toDate: filters.toDate || undefined,
+        actorUid: filters.actorUid ?? undefined,
+        action: filters.action ?? undefined,
+        targetType: filters.targetType ?? undefined,
+        q: filters.q.trim() || undefined,
+        limit: PAGE_SIZE,
+      }),
   );
 
+  const facetsQuery = useCachedQuery<{ actions: string[]; targetTypes: string[] }>(
+    `audit:facets:${filters.fromDate}:${filters.toDate}`,
+    () =>
+      apiClient.getAuditLogFacets({
+        fromDate: filters.fromDate || undefined,
+        toDate: filters.toDate || undefined,
+      }),
+  );
+
+  const actorsQuery = useCachedQuery<{ items: UserListItem[] }>(
+    "users:actors:100",
+    () => apiClient.listUsers({ limit: ACTOR_DIRECTORY_LIMIT, sort: "name" }),
+  );
+
+  const currentNextCursor =
+    extraNextCursor !== undefined
+      ? extraNextCursor
+      : (auditLogsQuery.data?.nextCursor ?? null);
+
   const loadMore = useCallback(async () => {
-    const cursor = list.nextCursor;
-    if (!cursor || list.loadingMore) return;
-    setList((current) => ({ ...current, loadingMore: true }));
+    const cursor = currentNextCursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
     try {
       const page = await apiClient.listAuditLogs({
         fromDate: filters.fromDate || undefined,
@@ -115,60 +102,29 @@ export function useAuditLogData() {
         cursor,
         limit: PAGE_SIZE,
       });
-      setList((current) => ({
-        status: "ready",
-        items: [...current.items, ...page.items],
-        nextCursor: page.nextCursor ?? null,
-        loadingMore: false,
-        truncated: current.truncated || page.truncated,
-      }));
+      setExtraItems((prev) => [...prev, ...page.items]);
+      setExtraNextCursor(page.nextCursor ?? null);
     } catch {
-      setList((current) => ({ ...current, loadingMore: false }));
+      // Toast handles error
+    } finally {
+      setLoadingMore(false);
     }
-  }, [apiClient, filters, list.loadingMore, list.nextCursor]);
+  }, [apiClient, filters, currentNextCursor, loadingMore]);
 
-  const fetchFacets = useCallback(
-    async (fromDate: string, toDate: string) => {
-      const id = ++facetsRequestId.current;
-      setFacets({ status: "loading", actions: [], targetTypes: [] });
-      try {
-        const result = await apiClient.getAuditLogFacets({
-          fromDate: fromDate || undefined,
-          toDate: toDate || undefined,
-        });
-        if (facetsRequestId.current === id) {
-          setFacets({ status: "ready", actions: result.actions, targetTypes: result.targetTypes });
-        }
-      } catch {
-        if (facetsRequestId.current === id) setFacets({ status: "error", actions: [], targetTypes: [] });
-      }
+  const setFilter = useCallback(
+    <K extends keyof AuditLogFilters>(key: K, value: AuditLogFilters[K]) => {
+      setExtraItems([]);
+      setExtraNextCursor(undefined);
+      setFilters((current) => ({ ...current, [key]: value }));
     },
-    [apiClient],
+    [],
   );
 
-  const fetchActors = useCallback(async () => {
-    setActors({ status: "loading", items: [] });
-    try {
-      const page = await apiClient.listUsers({ limit: ACTOR_DIRECTORY_LIMIT, sort: "name" });
-      setActors({ status: "ready", items: page.items });
-    } catch {
-      setActors({ status: "error", items: [] });
-    }
-  }, [apiClient]);
-
-  useEffect(() => {
-    void fetchList(filters);
-  }, [fetchList, filters]);
-
-  useEffect(() => {
-    void fetchFacets(filters.fromDate, filters.toDate);
-  }, [fetchFacets, filters.fromDate, filters.toDate]);
-
-  useEffect(() => {
-    void fetchActors();
-  }, [fetchActors]);
-
-  const retry = useCallback(() => void fetchList(filters), [fetchList, filters]);
+  const clearFilters = useCallback(() => {
+    setExtraItems([]);
+    setExtraNextCursor(undefined);
+    setFilters((current) => ({ ...defaultFilters(), fromDate: current.fromDate, toDate: current.toDate }));
+  }, []);
 
   const exportCsv = useCallback(
     () =>
@@ -183,27 +139,47 @@ export function useAuditLogData() {
     [apiClient, filters],
   );
 
-  const setFilter = useCallback(
-    <K extends keyof AuditLogFilters>(key: K, value: AuditLogFilters[K]) => {
-      setFilters((current) => ({ ...current, [key]: value }));
-    },
-    [],
-  );
+  const listStatus: AsyncStatus = auditLogsQuery.loading
+    ? "loading"
+    : auditLogsQuery.error
+      ? "error"
+      : "ready";
+  const facetsStatus: AsyncStatus = facetsQuery.loading
+    ? "loading"
+    : facetsQuery.error
+      ? "error"
+      : "ready";
+  const actorsStatus: AsyncStatus = actorsQuery.loading
+    ? "loading"
+    : actorsQuery.error
+      ? "error"
+      : "ready";
 
-  const clearFilters = useCallback(() => {
-    setFilters((current) => ({ ...defaultFilters(), fromDate: current.fromDate, toDate: current.toDate }));
-  }, []);
+  const allItems = [...(auditLogsQuery.data?.items ?? []), ...extraItems];
 
   return {
     filters,
     setFilter,
     clearFilters,
-    list,
-    retry,
+    list: {
+      status: listStatus,
+      items: allItems,
+      nextCursor: currentNextCursor,
+      loadingMore,
+      truncated: auditLogsQuery.data?.truncated ?? false,
+    },
+    retry: auditLogsQuery.refetch,
     loadMore,
     exportCsv,
-    facets,
-    actors,
+    facets: {
+      status: facetsStatus,
+      actions: facetsQuery.data?.actions ?? [],
+      targetTypes: facetsQuery.data?.targetTypes ?? [],
+    },
+    actors: {
+      status: actorsStatus,
+      items: actorsQuery.data?.items ?? [],
+    },
     timeZone: currentUser?.companyTimezone,
     locale: currentUser?.companyLocale,
   };

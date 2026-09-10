@@ -17,7 +17,9 @@ Widget _wrap(List<String> permissions, Widget child) {
 void main() {
   setUp(resetDashboardWidgetRegistryForTests);
 
-  testWidgets('filters registered widgets by the viewer\'s permission, table-driven across roles', (
+  testWidgets(
+      'filters registered widgets by the viewer\'s permission, table-driven across roles',
+      (
     tester,
   ) async {
     registerDashboardWidget(
@@ -68,7 +70,8 @@ void main() {
     }
   });
 
-  testWidgets('renders nothing when no registered widget is permitted', (tester) async {
+  testWidgets('renders nothing when no registered widget is permitted',
+      (tester) async {
     registerDashboardWidget(
       DashboardWidgetSpec(
         id: 'test.gated',
@@ -77,7 +80,8 @@ void main() {
         builder: (context) => const Text('gated content'),
       ),
     );
-    await tester.pumpWidget(_wrap(['assets.read'], const DashboardWidgetGrid()));
+    await tester
+        .pumpWidget(_wrap(['assets.read'], const DashboardWidgetGrid()));
     expect(find.byKey(const Key('dashboard-widget-grid')), findsNothing);
   });
 
@@ -93,17 +97,21 @@ void main() {
     );
 
     await tester.pumpWidget(
-      _wrap(['assets.read'], const DashboardWidgetGrid(subscriptionTier: 'starter')),
+      _wrap(['assets.read'],
+          const DashboardWidgetGrid(subscriptionTier: 'starter')),
     );
     expect(find.text('enterprise-only content'), findsNothing);
 
     await tester.pumpWidget(
-      _wrap(['assets.read'], const DashboardWidgetGrid(subscriptionTier: 'enterprise')),
+      _wrap(['assets.read'],
+          const DashboardWidgetGrid(subscriptionTier: 'enterprise')),
     );
     expect(find.text('enterprise-only content'), findsOneWidget);
   });
 
-  testWidgets('isolates a widget that throws during build, without breaking its siblings', (
+  testWidgets(
+      'isolates a widget that throws during build, without breaking its siblings',
+      (
     tester,
   ) async {
     registerDashboardWidget(
@@ -123,7 +131,8 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(_wrap(['assets.read'], const DashboardWidgetGrid()));
+    await tester
+        .pumpWidget(_wrap(['assets.read'], const DashboardWidgetGrid()));
 
     expect(find.text("Couldn't load this widget."), findsOneWidget);
     expect(find.text('healthy widget content'), findsOneWidget);

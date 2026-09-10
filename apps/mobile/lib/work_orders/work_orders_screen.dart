@@ -17,16 +17,21 @@ import 'work_orders_controller.dart';
 /// helpers.
 AppStatus workOrderStatusFor(String status) => switch (status) {
       'open' || 'assigned' => AppStatus.info,
-      'in_progress' || 'pending_review' => AppStatus.warning,
+      'in_progress' || 'inProgress' || 'pending_review' || 'pendingReview' => AppStatus.warning,
       'closed' => AppStatus.healthy,
       'cancelled' => AppStatus.critical,
       _ => AppStatus.info,
     };
 
-String workOrderStatusLabel(String status) => status
-    .split('_')
-    .map((word) => word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
-    .join(' ');
+String workOrderStatusLabel(String status) => switch (status) {
+      'inProgress' || 'in_progress' => 'In Progress',
+      'pendingReview' || 'pending_review' => 'Pending Review',
+      _ => status
+          .split('_')
+          .map((word) =>
+              word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
+          .join(' '),
+    };
 
 AppStatus workOrderPriorityFor(String priority) => switch (priority) {
       'low' => AppStatus.healthy,
@@ -35,8 +40,9 @@ AppStatus workOrderPriorityFor(String priority) => switch (priority) {
       _ => AppStatus.critical,
     };
 
-String workOrderPriorityLabel(String priority) =>
-    priority.isEmpty ? priority : priority[0].toUpperCase() + priority.substring(1);
+String workOrderPriorityLabel(String priority) => priority.isEmpty
+    ? priority
+    : priority[0].toUpperCase() + priority.substring(1);
 
 /// Work order directory. Defaults to "assigned to me" (the field
 /// technician's primary use of this screen); a toggle switches to every
@@ -97,8 +103,10 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Work Orders', style: Theme.of(context).textTheme.headlineMedium),
-                _PendingOutboxIndicator(key: const Key('work-order-pending-outbox')),
+                Text('Work Orders',
+                    style: Theme.of(context).textTheme.headlineMedium),
+                _PendingOutboxIndicator(
+                    key: const Key('work-order-pending-outbox')),
               ],
             ),
             const SizedBox(height: DsSpacing.s2),
@@ -112,13 +120,19 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
                 Expanded(
                   child: AppSelect<String?>(
                     items: const [
-                      DropdownMenuItem(value: null, child: Text('All statuses')),
+                      DropdownMenuItem(
+                          value: null, child: Text('All statuses')),
                       DropdownMenuItem(value: 'open', child: Text('Open')),
-                      DropdownMenuItem(value: 'assigned', child: Text('Assigned')),
-                      DropdownMenuItem(value: 'in_progress', child: Text('In progress')),
-                      DropdownMenuItem(value: 'pending_review', child: Text('Pending review')),
+                      DropdownMenuItem(
+                          value: 'assigned', child: Text('Assigned')),
+                      DropdownMenuItem(
+                          value: 'in_progress', child: Text('In progress')),
+                      DropdownMenuItem(
+                          value: 'pending_review',
+                          child: Text('Pending review')),
                       DropdownMenuItem(value: 'closed', child: Text('Closed')),
-                      DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
+                      DropdownMenuItem(
+                          value: 'cancelled', child: Text('Cancelled')),
                     ],
                     label: 'Status',
                     onChanged: controller.setStatusFilter,
@@ -151,7 +165,8 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
                   onPressed: controller.retry,
                   variant: AppButtonVariant.ghost,
                 ),
-                description: "Couldn't load work orders. Check your connection and try again.",
+                description:
+                    "Couldn't load work orders. Check your connection and try again.",
                 title: 'Something went wrong',
               )
             else if (controller.items.isEmpty)
@@ -197,7 +212,8 @@ class _PendingOutboxIndicator extends StatelessWidget {
 }
 
 class _WorkOrderRow extends StatelessWidget {
-  const _WorkOrderRow({required this.workOrder, required this.onTap, super.key});
+  const _WorkOrderRow(
+      {required this.workOrder, required this.onTap, super.key});
 
   final LocalWorkOrderRecord workOrder;
   final VoidCallback onTap;
@@ -217,7 +233,8 @@ class _WorkOrderRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(row.title, style: Theme.of(context).textTheme.titleMedium),
+                    Text(row.title,
+                        style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: DsSpacing.s2),
                     Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -232,11 +249,14 @@ class _WorkOrderRow extends StatelessWidget {
                           status: workOrderStatusFor(row.status),
                         ),
                         if (row.syncState == 'pending_sync')
-                          const StatusPill(label: 'Pending sync', status: AppStatus.info),
+                          const StatusPill(
+                              label: 'Pending sync', status: AppStatus.info),
                         if (row.syncState == 'conflict')
-                          const StatusPill(label: 'Conflict', status: AppStatus.critical),
+                          const StatusPill(
+                              label: 'Conflict', status: AppStatus.critical),
                         if (row.syncState == 'error')
-                          const StatusPill(label: 'Sync error', status: AppStatus.critical),
+                          const StatusPill(
+                              label: 'Sync error', status: AppStatus.critical),
                       ],
                     ),
                   ],

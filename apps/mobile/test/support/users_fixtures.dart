@@ -21,7 +21,8 @@ UserListItem userListItemFixture({
       ..roleName = roleName
       ..status = status
       ..createdAt = DateTime.utc(2026, 1, 1)
-      ..updatedAt = updatedAt ?? DateTime.now().subtract(const Duration(minutes: 5)),
+      ..updatedAt =
+          updatedAt ?? DateTime.now().subtract(const Duration(minutes: 5)),
   );
 }
 

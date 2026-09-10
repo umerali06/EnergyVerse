@@ -270,6 +270,114 @@ class WorkOrderOutbox extends Table {
   DateTimeColumn get nextAttemptAt => dateTime().nullable()();
 }
 
+/// Durable cache for assigned permits. The complete generated PermitDetail is
+/// retained as JSON so immutable safety snapshots and future additive fields
+/// remain available offline without a lossy local projection.
+class LocalPermits extends Table {
+  TextColumn get id => text()();
+  TextColumn get permitNumber => text()();
+  TextColumn get title => text()();
+  TextColumn get permitType => text()();
+  TextColumn get facilityId => text()();
+  TextColumn get status => text()();
+  IntColumn get revision => integer()();
+  DateTimeColumn get validFrom => dateTime()();
+  DateTimeColumn get validUntil => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get detailJson => text()();
+  TextColumn get syncState => text().withDefault(const Constant('synced'))();
+  TextColumn get errorMessage => text().nullable()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get conflictServerSnapshot => text().nullable()();
+  TextColumn get pendingAcknowledgementJson => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Permit acknowledgements are the only offline permit mutation. Approval and
+/// activation stay online-only, so they never enter this queue.
+class PermitOutbox extends Table {
+  IntColumn get sequence => integer().autoIncrement()();
+  TextColumn get id => text().unique()();
+  TextColumn get permitId => text()();
+  TextColumn get mutationType => text()();
+  TextColumn get payload => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+}
+
+/// Durable safety-report cache. Client-generated UUIDs make offline create
+/// replay idempotent once connectivity returns.
+class LocalSafetyReports extends Table {
+  TextColumn get id => text()();
+  TextColumn get category => text()();
+  TextColumn get severity => text()();
+  TextColumn get title => text()();
+  TextColumn get description => text()();
+  DateTimeColumn get occurredAt => dateTime()();
+  RealColumn get gpsLat => real().nullable()();
+  RealColumn get gpsLng => real().nullable()();
+  TextColumn get reporterId => text()();
+  TextColumn get status => text().withDefault(const Constant('reported'))();
+  TextColumn get assignedManagerId => text().nullable()();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get evidence => text().withDefault(const Constant('[]'))();
+  TextColumn get correctiveActions =>
+      text().withDefault(const Constant('[]'))();
+  TextColumn get syncState =>
+      text().withDefault(const Constant('local_only'))();
+  TextColumn get errorMessage => text().nullable()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get conflictServerSnapshot => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Lightweight safety mutations. Binary evidence deliberately gets its own
+/// queue so a large video can never block report-record synchronization.
+class SafetyOutbox extends Table {
+  IntColumn get sequence => integer().autoIncrement()();
+  TextColumn get id => text().unique()();
+  TextColumn get reportId => text()();
+  TextColumn get targetId => text().nullable()();
+  TextColumn get mutationType => text()();
+  TextColumn get payload => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+}
+
+/// Binary evidence queue. File bytes remain on durable device storage until
+/// the server-mediated private upload succeeds; retries never block the
+/// lightweight [SafetyOutbox].
+class SafetyEvidenceQueue extends Table {
+  TextColumn get localId => text()();
+  TextColumn get reportId => text()();
+  TextColumn get kind => text()();
+  TextColumn get localFilePath => text()();
+  TextColumn get filename => text()();
+  TextColumn get contentType => text()();
+  IntColumn get sizeBytes => integer()();
+  TextColumn get state => text().withDefault(const Constant('pending'))();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
 /// The pending MEDIA-upload queue (Phase 7.4) -- deliberately SEPARATE from
 /// [Outbox]: media bytes are heavy (a video can be hundreds of MB) and must
 /// never share a drain loop with the lightweight inspection-record

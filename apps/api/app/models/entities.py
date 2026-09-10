@@ -18,6 +18,17 @@ class Company(GlobalDoc):
     contact_phone: str | None = None
     logo_path: str | None = None
     created_by: str | None = None
+    # --- Phase 13 subscription state (D-090) -----------------------------
+    # `subscription_tier` above names the plan; these carry whether it is paid
+    # for. Defaulted so every company document written before Phase 13 still
+    # loads: an existing row reads as `incomplete`, which grants no features
+    # until a checkout completes or a platform admin assigns a tier.
+    subscription_status: str = "incomplete"
+    billing_interval: str | None = None
+    trial_ends_at: datetime | None = None
+    current_period_end: datetime | None = None
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
 
 
 class CompanyCreate(StrictModel):
@@ -25,6 +36,7 @@ class CompanyCreate(StrictModel):
     name: str
     status: str
     subscription_tier: str
+    subscription_status: str = "incomplete"
 
 
 class CompanyUpdate(StrictModel):
@@ -37,6 +49,12 @@ class CompanyUpdate(StrictModel):
     contact_email: str | None = None
     contact_phone: str | None = None
     logo_path: str | None = None
+    subscription_status: str | None = None
+    billing_interval: str | None = None
+    trial_ends_at: datetime | None = None
+    current_period_end: datetime | None = None
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
 
 
 class User(TenantDoc):
@@ -249,8 +267,6 @@ class AssetUpdate(StrictModel):
     current_status: Literal["Healthy", "Warning", "Critical"] | None = None
 
 
-
-
 class ChecklistTemplateItem(StrictModel):
     id: str
     label: str = Field(min_length=1, max_length=200)
@@ -336,18 +352,21 @@ class Annotation(StrictModel):
     shape: Literal["freehand", "rectangle", "circle", "arrow", "point"]
     points: list[AnnotationPoint] = Field(min_length=1)
     color: str = Field(min_length=1, max_length=20)
-    damage_type: Literal[
-        "corrosion",
-        "rust",
-        "crack",
-        "surface_damage",
-        "paint_deterioration",
-        "missing_bolt",
-        "broken_component",
-        "leak",
-        "wear",
-        "other",
-    ] | None = None
+    damage_type: (
+        Literal[
+            "corrosion",
+            "rust",
+            "crack",
+            "surface_damage",
+            "paint_deterioration",
+            "missing_bolt",
+            "broken_component",
+            "leak",
+            "wear",
+            "other",
+        ]
+        | None
+    ) = None
     note: str | None = Field(default=None, max_length=1000)
     source: Literal["manual", "ai"] = "manual"
     confidence: float | None = Field(default=None, ge=0, le=1)
@@ -569,6 +588,174 @@ class InspectionUpdate(StrictModel):
     readings: Readings | None = None
 
 
+PermitType = Literal[
+    "hot_work",
+    "confined_space",
+    "electrical_isolation_loto",
+    "excavation",
+    "working_at_height",
+    "general_maintenance",
+]
+
+
+class PermitChecklistTemplateItem(StrictModel):
+    id: str
+    label: str = Field(min_length=1, max_length=300)
+    required: bool = True
+    help_text: str | None = Field(default=None, max_length=1000)
+
+
+class PermitApprovalTemplateStep(StrictModel):
+    id: str
+    label: str = Field(min_length=1, max_length=200)
+    approver_role_id: str
+    required: bool = True
+
+
+class PermitTemplate(TenantDoc):
+    id: str
+    name: str = Field(min_length=1, max_length=200)
+    permit_type: PermitType
+    description: str | None = Field(default=None, max_length=2000)
+    checklist_items: list[PermitChecklistTemplateItem] = Field(min_length=1)
+    approval_steps: list[PermitApprovalTemplateStep] = Field(min_length=1)
+    version: int = 1
+    deleted_at: datetime | None = None
+
+
+class PermitTemplateCreate(StrictModel):
+    id: str
+    name: str = Field(min_length=1, max_length=200)
+    permit_type: PermitType
+    description: str | None = Field(default=None, max_length=2000)
+    checklist_items: list[PermitChecklistTemplateItem] = Field(min_length=1)
+    approval_steps: list[PermitApprovalTemplateStep] = Field(min_length=1)
+
+
+PermitRiskBand = Literal["low", "medium", "high", "critical"]
+
+
+class PermitRiskAssessmentItem(StrictModel):
+    id: str
+    hazard: str = Field(min_length=1, max_length=500)
+    persons_at_risk: str = Field(min_length=1, max_length=500)
+    initial_likelihood: int = Field(ge=1, le=5)
+    initial_severity: int = Field(ge=1, le=5)
+    initial_score: int = Field(ge=1, le=25)
+    initial_band: PermitRiskBand
+    controls: str = Field(min_length=1, max_length=2000)
+    residual_likelihood: int = Field(ge=1, le=5)
+    residual_severity: int = Field(ge=1, le=5)
+    residual_score: int = Field(ge=1, le=25)
+    residual_band: PermitRiskBand
+
+
+class PermitChecklistSnapshotItem(StrictModel):
+    id: str
+    template_item_id: str
+    label: str
+    required: bool
+    help_text: str | None = None
+    completed: bool = False
+    completed_by: str | None = None
+    completed_at: datetime | None = None
+
+
+class PermitApprovalSnapshotStep(StrictModel):
+    id: str
+    template_step_id: str
+    label: str
+    approver_role_id: str
+    required: bool
+    status: Literal["pending", "approved", "rejected"] = "pending"
+    signed_by: str | None = None
+    signed_at: datetime | None = None
+    rejection_reason: str | None = None
+
+
+class PermitDigitalSignature(StrictModel):
+    signer_id: str
+    signed_at: datetime
+    meaning: str
+
+
+class PermitWorkerAcknowledgement(StrictModel):
+    worker_id: str
+    client_mutation_id: str
+    client_signed_at: datetime
+    received_at: datetime
+    signed_at: datetime
+    device_id: str | None = None
+    meaning: str
+
+
+class Permit(TenantDoc):
+    id: str
+    permit_number: str
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=3000)
+    permit_type: PermitType
+    status: Literal[
+        "draft",
+        "pending_approval",
+        "pending_signatures",
+        "active",
+        "closed",
+        "expired",
+        "suspended",
+        "revoked",
+    ] = "draft"
+    facility_id: str
+    area_id: str | None = None
+    asset_id: str | None = None
+    valid_from: datetime
+    valid_until: datetime
+    template_id: str
+    template_name: str
+    template_version: int = Field(ge=1)
+    checklist_snapshot: list[PermitChecklistSnapshotItem] = Field(min_length=1)
+    approval_snapshot: list[PermitApprovalSnapshotStep] = Field(min_length=1)
+    risk_assessment: list[PermitRiskAssessmentItem] = Field(min_length=1)
+    worker_ids: list[str] = Field(min_length=1)
+    issuer_signature: PermitDigitalSignature | None = None
+    submitted_at: datetime | None = None
+    worker_acknowledgements: list[PermitWorkerAcknowledgement] = Field(default_factory=list)
+    activated_by: str | None = None
+    activated_at: datetime | None = None
+    suspended_by: str | None = None
+    suspended_at: datetime | None = None
+    suspension_reason: str | None = None
+    revoked_by: str | None = None
+    revoked_at: datetime | None = None
+    revocation_reason: str | None = None
+    closed_by: str | None = None
+    closed_at: datetime | None = None
+    closeout_notes: str | None = None
+    expired_at: datetime | None = None
+    revision: int = Field(default=1, ge=1)
+    deleted_at: datetime | None = None
+
+
+class PermitCreate(StrictModel):
+    id: str
+    permit_number: str
+    title: str
+    description: str
+    permit_type: PermitType
+    facility_id: str
+    area_id: str | None = None
+    asset_id: str | None = None
+    valid_from: datetime
+    valid_until: datetime
+    template_id: str
+    template_name: str
+    template_version: int
+    checklist_snapshot: list[PermitChecklistSnapshotItem]
+    approval_snapshot: list[PermitApprovalSnapshotStep]
+    risk_assessment: list[PermitRiskAssessmentItem]
+    worker_ids: list[str]
+
+
 class WorkOrder(TenantDoc):
     """A maintenance work order raised against an asset (spec section 12,
     Phase 8.1). Lifecycle: `open -> assigned -> in_progress ->
@@ -589,9 +776,9 @@ class WorkOrder(TenantDoc):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     priority: Literal["low", "medium", "high", "critical"] = "medium"
-    status: Literal[
-        "open", "assigned", "in_progress", "pending_review", "closed", "cancelled"
-    ] = "open"
+    status: Literal["open", "assigned", "in_progress", "pending_review", "closed", "cancelled"] = (
+        "open"
+    )
     source_inspection_id: str | None = None
     technician_id: str | None = None
     assigned_by: str | None = None
@@ -621,6 +808,154 @@ class WorkOrderCreate(StrictModel):
     source_inspection_id: str | None = None
 
 
+class SafetyEvidence(StrictModel):
+    id: str
+    path: str
+    filename: str
+    kind: Literal["photo", "video"]
+    content_type: str
+    size: int
+    uploaded_by: str
+    uploaded_at: datetime
+
+
+class CorrectiveAction(StrictModel):
+    id: str
+    description: str = Field(min_length=1, max_length=2000)
+    assignee_id: str
+    due_date: datetime
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    status: Literal["open", "in_progress", "completed", "cancelled"] = "open"
+    completion_notes: str | None = Field(default=None, max_length=2000)
+    cancellation_reason: str | None = Field(default=None, max_length=1000)
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    completed_by: str | None = None
+    cancelled_at: datetime | None = None
+    cancelled_by: str | None = None
+
+
+class SafetyReport(TenantDoc):
+    """Tenant-scoped safety incident (source brief section 10, D-068)."""
+
+    id: str
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=5000)
+    category: Literal[
+        "near_miss",
+        "unsafe_condition",
+        "unsafe_behavior",
+        "fire",
+        "gas_leak",
+        "chemical_spill",
+        "environmental_incident",
+        "equipment_failure",
+        "injury",
+    ]
+    severity: Literal["low", "medium", "high", "critical"]
+    status: Literal[
+        "reported", "under_review", "corrective_action", "resolved", "closed", "cancelled"
+    ] = "reported"
+    reporter_id: str
+    occurred_at: datetime
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
+    assigned_manager_id: str | None = None
+    assigned_at: datetime | None = None
+    resolved_at: datetime | None = None
+    closed_at: datetime | None = None
+    closed_by: str | None = None
+    cancelled_at: datetime | None = None
+    revision: int = 1
+    deleted_at: datetime | None = None
+    evidence: list[SafetyEvidence] = Field(default_factory=list)
+    corrective_actions: list[CorrectiveAction] = Field(default_factory=list)
+
+
+class SafetyReportCreate(StrictModel):
+    id: str
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=5000)
+    category: Literal[
+        "near_miss",
+        "unsafe_condition",
+        "unsafe_behavior",
+        "fire",
+        "gas_leak",
+        "chemical_spill",
+        "environmental_incident",
+        "equipment_failure",
+        "injury",
+    ]
+    severity: Literal["low", "medium", "high", "critical"]
+    reporter_id: str
+    occurred_at: datetime
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
+
+
+ReportType = Literal[
+    "inspection",
+    "maintenance",
+    "safety",
+    "executive_summary",
+    "asset_health",
+]
+
+
+class ReportNarrative(StrictModel):
+    """Advisory AI-authored prose stored separately from the immutable source snapshot."""
+
+    summary: str = Field(min_length=1, max_length=10000)
+    findings: list[str] = Field(default_factory=list, max_length=100)
+    recommendations: list[str] = Field(default_factory=list, max_length=100)
+    risk_score: float | None = Field(default=None, ge=0, le=100)
+
+
+class ReportExport(StrictModel):
+    format: Literal["pdf", "docx", "xlsx"]
+    path: str
+    filename: str
+    content_type: str
+    size: int = Field(gt=0)
+    generated_by: str
+    generated_at: datetime
+
+
+class GeneratedReport(TenantDoc):
+    """Tenant-owned report draft/finalized snapshot (Phase 9, D-083)."""
+
+    id: str
+    report_type: ReportType
+    source_id: str | None = None
+    title: str = Field(min_length=1, max_length=200)
+    status: Literal["draft", "finalized"] = "draft"
+    source_snapshot: dict[str, Any]
+    source_revision: int | None = None
+    narrative: ReportNarrative
+    ai_model: str
+    finalized_by: str | None = None
+    finalized_at: datetime | None = None
+    finalization_attestation: bool = False
+    exports: list[ReportExport] = Field(default_factory=list)
+    revision: int = Field(default=1, ge=1)
+    deleted_at: datetime | None = None
+
+
+class GeneratedReportCreate(StrictModel):
+    id: str
+    report_type: ReportType
+    source_id: str | None = None
+    title: str
+    source_snapshot: dict[str, Any]
+    source_revision: int | None = None
+    narrative: ReportNarrative
+    ai_model: str
+
+
 class AuditLog(AppendOnlyDoc):
     id: str
     company_id: str
@@ -628,6 +963,58 @@ class AuditLog(AppendOnlyDoc):
     target_type: str
     target_id: str
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+DocumentCategory = Literal["sop", "manual", "safety_policy", "certificate", "drawing", "report"]
+DocumentFileFormat = Literal["pdf", "docx", "png", "xlsx", "txt"]
+DocumentStatus = Literal["active", "archived", "under_review"]
+
+
+class Document(TenantDoc):
+    id: str
+    title: str = Field(min_length=1, max_length=200)
+    document_code: str = Field(min_length=1, max_length=100)
+    category: DocumentCategory
+    description: str | None = Field(default=None, max_length=2000)
+    facility_id: str | None = None
+    asset_id: str | None = None
+    file_path: str
+    filename: str
+    file_format: DocumentFileFormat = "pdf"
+    file_size_bytes: int = Field(ge=0)
+    version: int = Field(default=1, ge=1)
+    status: DocumentStatus = "active"
+    tags: list[str] = Field(default_factory=list)
+    download_url: str | None = None
+    created_by: str
+    deleted_at: datetime | None = None
+
+
+class DocumentCreate(StrictModel):
+    id: str
+    title: str = Field(min_length=1, max_length=200)
+    document_code: str = Field(min_length=1, max_length=100)
+    category: DocumentCategory
+    description: str | None = Field(default=None, max_length=2000)
+    facility_id: str | None = None
+    asset_id: str | None = None
+    file_path: str
+    filename: str
+    file_format: DocumentFileFormat = "pdf"
+    file_size_bytes: int = Field(ge=0)
+    status: DocumentStatus = "active"
+    tags: list[str] = Field(default_factory=list)
+
+
+class DocumentUpdate(StrictModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    document_code: str | None = Field(default=None, min_length=1, max_length=100)
+    category: DocumentCategory | None = None
+    description: str | None = Field(default=None, max_length=2000)
+    facility_id: str | None = None
+    asset_id: str | None = None
+    status: DocumentStatus | None = None
+    tags: list[str] | None = None
 
 
 class AuditEvent(StrictModel):
@@ -652,6 +1039,7 @@ class SeedCounts(StrictModel):
     checklist_templates: int
     inspections: int
     work_orders: int
+    documents: int
 
 
 class CurrentUser(StrictModel):

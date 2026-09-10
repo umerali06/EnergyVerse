@@ -3,6 +3,7 @@ import asyncio
 from app.db.repositories.areas import AreaRepository
 from app.db.repositories.assets import AssetRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
+from app.db.repositories.documents import DocumentRepository
 from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.inspections import InspectionRepository
 from app.db.repositories.permissions import PermissionRepository
@@ -30,6 +31,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "checklist_templates.read",
             "checklist_templates.write",
             "permits.read",
+            "permits.write",
             "permits.approve",
             "work_orders.read",
             "work_orders.write",
@@ -38,6 +40,9 @@ EXPECTED_ROLE_PERMISSIONS = {
             "reports.generate",
             "safety.read",
             "safety.write",
+            "safety.close",
+            "documents.read",
+            "documents.write",
             "users.manage",
             "roles.manage",
             "company.settings",
@@ -58,6 +63,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "checklist_templates.read",
             "checklist_templates.write",
             "permits.read",
+            "permits.write",
             "permits.approve",
             "work_orders.read",
             "work_orders.write",
@@ -66,6 +72,9 @@ EXPECTED_ROLE_PERMISSIONS = {
             "reports.generate",
             "safety.read",
             "safety.write",
+            "safety.close",
+            "documents.read",
+            "documents.write",
             "users.manage",
             "roles.manage",
             "company.settings",
@@ -84,12 +93,16 @@ EXPECTED_ROLE_PERMISSIONS = {
             "checklist_templates.read",
             "checklist_templates.write",
             "permits.read",
+            "permits.write",
+            "permits.approve",
             "work_orders.read",
             "work_orders.write",
             "work_orders.close",
             "reports.read",
             "reports.generate",
             "safety.read",
+            "documents.read",
+            "documents.write",
         }
     ),
     "field_inspector": frozenset(
@@ -106,6 +119,8 @@ EXPECTED_ROLE_PERMISSIONS = {
             "reports.generate",
             "safety.read",
             "safety.write",
+            "documents.read",
+            "documents.write",
         }
     ),
     "maintenance_technician": frozenset(
@@ -120,6 +135,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "work_orders.write",
             "reports.read",
             "safety.read",
+            "documents.read",
         }
     ),
     "hse_manager": frozenset(
@@ -130,12 +146,16 @@ EXPECTED_ROLE_PERMISSIONS = {
             "inspections.read",
             "checklist_templates.read",
             "permits.read",
+            "permits.write",
             "permits.approve",
             "work_orders.read",
             "reports.read",
             "reports.generate",
             "safety.read",
             "safety.write",
+            "safety.close",
+            "documents.read",
+            "documents.write",
             "audit.read",
         }
     ),
@@ -150,6 +170,7 @@ EXPECTED_ROLE_PERMISSIONS = {
             "work_orders.read",
             "reports.read",
             "safety.read",
+            "documents.read",
             "audit.read",
         }
     ),
@@ -163,10 +184,11 @@ def test_permission_catalog_is_exact() -> None:
         "assets": {"assets.read", "assets.write"},
         "inspections": {"inspections.read", "inspections.write"},
         "checklist_templates": {"checklist_templates.read", "checklist_templates.write"},
-        "permits": {"permits.read", "permits.approve"},
+        "permits": {"permits.read", "permits.write", "permits.approve"},
         "work_orders": {"work_orders.read", "work_orders.write", "work_orders.close"},
         "reports": {"reports.read", "reports.generate"},
-        "safety": {"safety.read", "safety.write"},
+        "safety": {"safety.read", "safety.write", "safety.close"},
+        "documents": {"documents.read", "documents.write"},
         "users": {"users.manage"},
         "roles": {"roles.manage"},
         "company": {"company.settings"},
@@ -178,7 +200,7 @@ def test_permission_catalog_is_exact() -> None:
         for group in grouped
     }
     assert actual == grouped
-    assert len(PERMISSION_CATALOG) == 24
+    assert len(PERMISSION_CATALOG) == 28
 
 
 def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
@@ -194,7 +216,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first == second
         assert client.counts() == counts_after_first
         assert first.companies == 2
-        assert first.permissions == 24
+        assert first.permissions == 28
         assert first.roles == 8
         assert first.role_permissions == expected_mappings
         assert first.users == 8
@@ -204,6 +226,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first.checklist_templates == 3
         assert first.inspections == 3
         assert first.work_orders == 5
+        assert first.documents == 4
         assert set(client.counts()) == {
             "audit_logs",
             "companies",
@@ -217,6 +240,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "checklist_templates",
             "inspections",
             "work_orders",
+            "documents",
         }
 
         company = client.documents("companies")[ACME_COMPANY_ID]
@@ -240,6 +264,14 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "created_at",
             "updated_at",
             "created_by",
+            # Phase 13 subscription state (D-090). `subscription_tier` names the
+            # plan; these record whether it is paid for.
+            "subscription_status",
+            "billing_interval",
+            "trial_ends_at",
+            "current_period_end",
+            "stripe_customer_id",
+            "stripe_subscription_id",
         }
         assert set(permission) == {
             "id",
@@ -359,6 +391,7 @@ def test_company_a_query_never_returns_company_b_documents() -> None:
         checklist_templates = ChecklistTemplateRepository(client)  # type: ignore[arg-type]
         inspections = InspectionRepository(client)  # type: ignore[arg-type]
         work_orders = WorkOrderRepository(client)  # type: ignore[arg-type]
+        documents = DocumentRepository(client)  # type: ignore[arg-type]
 
         assert len(await facilities.list(acme)) == 2
         assert len(await areas.list(acme)) == 4
@@ -366,12 +399,14 @@ def test_company_a_query_never_returns_company_b_documents() -> None:
         assert len(await checklist_templates.list(acme)) == 3
         assert len(await inspections.list(acme)) == 3
         assert len(await work_orders.list(acme)) == 5
+        assert len(await documents.list(acme)) == 4
         assert await facilities.list(second) == []
         assert await areas.list(second) == []
         assert await assets.list(second) == []
         assert await checklist_templates.list(second) == []
         assert await inspections.list(second) == []
         assert await work_orders.list(second) == []
+        assert await documents.list(second) == []
 
     asyncio.run(scenario())
 

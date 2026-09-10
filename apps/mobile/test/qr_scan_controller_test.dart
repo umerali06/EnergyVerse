@@ -12,11 +12,13 @@ void main() {
     });
 
     test('extracts the trailing path segment from a deep-link URL', () {
-      expect(extractQrCode('https://app.example.com/qr/qr-code-1'), 'qr-code-1');
+      expect(
+          extractQrCode('https://app.example.com/qr/qr-code-1'), 'qr-code-1');
     });
 
     test('trims whitespace and a trailing slash', () {
-      expect(extractQrCode('  https://app.example.com/qr/qr-code-1/  '), 'qr-code-1');
+      expect(extractQrCode('  https://app.example.com/qr/qr-code-1/  '),
+          'qr-code-1');
     });
   });
 

@@ -51,7 +51,8 @@ class MediaQueueRecord {
 
   /// Only ever set for `kind == 'audio'` (Phase 7.6).
   int? get durationMs => row.durationMs;
-  MediaUploadState get uploadState => MediaUploadState.fromWire(row.uploadState);
+  MediaUploadState get uploadState =>
+      MediaUploadState.fromWire(row.uploadState);
   int get uploadedBytes => row.uploadedBytes;
   int get attempts => row.attempts;
   String? get lastError => row.lastError;
@@ -97,7 +98,8 @@ String inspectionVoiceNoteStoragePath({
 /// (see its own constructor doc) -- a plain listener list `MediaUploadWorker`
 /// and the gallery UI can observe without holding a live Drift stream open.
 class LocalMediaRepository extends ChangeNotifier {
-  LocalMediaRepository({required AppDatabase db, Uuid? uuid, MediaUploader? uploader})
+  LocalMediaRepository(
+      {required AppDatabase db, Uuid? uuid, MediaUploader? uploader})
       : _db = db,
         _uuid = uuid ?? const Uuid(),
         _uploader = uploader ?? FirebaseMediaUploader();
@@ -195,14 +197,17 @@ class LocalMediaRepository extends ChangeNotifier {
   /// media item has synced (no `MediaQueue` row left), retagging goes
   /// through `LocalInspectionsRepository.enqueueEditMedia` instead.
   Future<void> setBeforeAfterTag(String localId, String? tag) async {
-    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId))).write(
+    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .write(
       MediaQueueCompanion(beforeAfterTag: drift.Value(tag)),
     );
     notifyListeners();
   }
 
-  Future<void> setChecklistItemId(String localId, String? checklistItemId) async {
-    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId))).write(
+  Future<void> setChecklistItemId(
+      String localId, String? checklistItemId) async {
+    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .write(
       MediaQueueCompanion(checklistItemId: drift.Value(checklistItemId)),
     );
     notifyListeners();
@@ -213,7 +218,8 @@ class LocalMediaRepository extends ChangeNotifier {
   /// local file, and drops the row. Never touches the outbox -- nothing was
   /// ever registered server-side for a row still in `MediaQueue`.
   Future<void> removeBeforeSync(String localId) async {
-    final row = await (_db.select(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+    final row = await (_db.select(_db.mediaQueue)
+          ..where((t) => t.localId.equals(localId)))
         .getSingleOrNull();
     if (row == null) return;
 
@@ -239,7 +245,8 @@ class LocalMediaRepository extends ChangeNotifier {
     } catch (_) {
       // Best-effort local cleanup.
     }
-    await (_db.delete(_db.mediaQueue)..where((t) => t.localId.equals(localId))).go();
+    await (_db.delete(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .go();
     notifyListeners();
   }
 
@@ -268,10 +275,14 @@ class LocalMediaRepository extends ChangeNotifier {
       ..orderBy([(t) => drift.OrderingTerm.asc(t.createdAt)]);
     if (bypassBackoff) {
       query.where(
-        (t) => t.nextAttemptAt.isNull() | t.nextAttemptAt.isSmallerThanValue(pausedSentinel),
+        (t) =>
+            t.nextAttemptAt.isNull() |
+            t.nextAttemptAt.isSmallerThanValue(pausedSentinel),
       );
     } else {
-      query.where((t) => t.nextAttemptAt.isNull() | t.nextAttemptAt.isSmallerOrEqualValue(now));
+      query.where((t) =>
+          t.nextAttemptAt.isNull() |
+          t.nextAttemptAt.isSmallerOrEqualValue(now));
     }
     final rows = await query.get();
     return rows.map(MediaQueueRecord.new).toList();
@@ -280,7 +291,8 @@ class LocalMediaRepository extends ChangeNotifier {
   /// Clears backoff/pause so the next drain pass picks this row up
   /// immediately -- mirrors `LocalInspectionsRepository.retryOutboxItem`.
   Future<void> retryMediaItem(String localId) async {
-    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId))).write(
+    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .write(
       const MediaQueueCompanion(nextAttemptAt: drift.Value(null)),
     );
     notifyListeners();
@@ -291,7 +303,8 @@ class LocalMediaRepository extends ChangeNotifier {
   }
 
   Future<void> markUploading(String localId, int uploadedBytes) async {
-    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId))).write(
+    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .write(
       MediaQueueCompanion(
         uploadState: drift.Value(MediaUploadState.uploading.wireValue),
         uploadedBytes: drift.Value(uploadedBytes),
@@ -302,8 +315,10 @@ class LocalMediaRepository extends ChangeNotifier {
 
   Future<void> markUploaded(String localId) async {
     _activeUploads.remove(localId);
-    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId))).write(
-      MediaQueueCompanion(uploadState: drift.Value(MediaUploadState.uploaded.wireValue)),
+    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .write(
+      MediaQueueCompanion(
+          uploadState: drift.Value(MediaUploadState.uploaded.wireValue)),
     );
     notifyListeners();
   }
@@ -314,9 +329,11 @@ class LocalMediaRepository extends ChangeNotifier {
     required DateTime nextAttemptAt,
   }) async {
     _activeUploads.remove(localId);
-    final row =
-        await (_db.select(_db.mediaQueue)..where((t) => t.localId.equals(localId))).getSingle();
-    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId))).write(
+    final row = await (_db.select(_db.mediaQueue)
+          ..where((t) => t.localId.equals(localId)))
+        .getSingle();
+    await (_db.update(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .write(
       MediaQueueCompanion(
         uploadState: drift.Value(MediaUploadState.failed.wireValue),
         attempts: drift.Value(row.attempts + 1),
@@ -333,7 +350,8 @@ class LocalMediaRepository extends ChangeNotifier {
   /// deleted rather than marked `referenced` and kept around.
   Future<void> markReferenced(String localId) async {
     _activeUploads.remove(localId);
-    await (_db.delete(_db.mediaQueue)..where((t) => t.localId.equals(localId))).go();
+    await (_db.delete(_db.mediaQueue)..where((t) => t.localId.equals(localId)))
+        .go();
     notifyListeners();
   }
 }

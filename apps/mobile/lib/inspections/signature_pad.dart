@@ -17,7 +17,10 @@ class SignaturePadController extends ChangeNotifier {
   List<List<Offset>> get strokes => _strokes;
 
   void startStroke(Offset normalizedPoint) {
-    _strokes = [..._strokes, [normalizedPoint]];
+    _strokes = [
+      ..._strokes,
+      [normalizedPoint]
+    ];
     notifyListeners();
   }
 
@@ -112,8 +115,8 @@ class _SignaturePadState extends State<SignaturePad> {
                 behavior: HitTestBehavior.opaque,
                 onPanStart: (details) => widget.controller
                     .startStroke(_clampNormalized(details.localPosition, size)),
-                onPanUpdate: (details) => widget.controller
-                    .extendStroke(_clampNormalized(details.localPosition, size)),
+                onPanUpdate: (details) => widget.controller.extendStroke(
+                    _clampNormalized(details.localPosition, size)),
                 child: CustomPaint(
                   key: const Key('signature-pad-canvas'),
                   size: size,
@@ -177,7 +180,8 @@ class _SignaturePainter extends CustomPainter {
           .toList();
       if (pixelPoints.length < 2) {
         if (pixelPoints.isNotEmpty) {
-          canvas.drawCircle(pixelPoints.first, 1.5, paint..style = PaintingStyle.fill);
+          canvas.drawCircle(
+              pixelPoints.first, 1.5, paint..style = PaintingStyle.fill);
         }
         continue;
       }

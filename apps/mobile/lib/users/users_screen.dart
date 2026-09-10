@@ -11,9 +11,11 @@ import 'users_controller.dart';
 
 String _initials(String email) {
   final name = email.split('@').first;
-  final parts = name.split(RegExp(r'[._-]+')).where((part) => part.isNotEmpty).toList();
+  final parts =
+      name.split(RegExp(r'[._-]+')).where((part) => part.isNotEmpty).toList();
   final first = parts.isNotEmpty ? parts.first[0] : '?';
-  final second = parts.length > 1 ? parts[1][0] : (name.length > 1 ? name[1] : '');
+  final second =
+      parts.length > 1 ? parts[1][0] : (name.length > 1 ? name[1] : '');
   return '$first$second'.toUpperCase();
 }
 
@@ -87,7 +89,8 @@ class _UsersScreenState extends State<UsersScreen> {
                   items: const [
                     DropdownMenuItem(value: null, child: Text('All statuses')),
                     DropdownMenuItem(value: 'active', child: Text('Active')),
-                    DropdownMenuItem(value: 'inactive', child: Text('Inactive')),
+                    DropdownMenuItem(
+                        value: 'inactive', child: Text('Inactive')),
                   ],
                   label: 'Status',
                   onChanged: (value) => controller.setStatusFilter(value),
@@ -100,8 +103,10 @@ class _UsersScreenState extends State<UsersScreen> {
                   items: const [
                     DropdownMenuItem(value: 'name', child: Text('Name (A–Z)')),
                     DropdownMenuItem(value: '-name', child: Text('Name (Z–A)')),
-                    DropdownMenuItem(value: '-created_at', child: Text('Newest first')),
-                    DropdownMenuItem(value: 'created_at', child: Text('Oldest first')),
+                    DropdownMenuItem(
+                        value: '-created_at', child: Text('Newest first')),
+                    DropdownMenuItem(
+                        value: 'created_at', child: Text('Oldest first')),
                   ],
                   label: 'Sort',
                   onChanged: (value) {
@@ -126,7 +131,8 @@ class _UsersScreenState extends State<UsersScreen> {
                 onPressed: controller.retry,
                 variant: AppButtonVariant.ghost,
               ),
-              description: "Couldn't load users. Check your connection and try again.",
+              description:
+                  "Couldn't load users. Check your connection and try again.",
               title: 'Something went wrong',
             )
           else if (controller.items.isEmpty)
@@ -184,7 +190,8 @@ class _UserRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user.displayName, style: Theme.of(context).textTheme.titleMedium),
+                    Text(user.displayName,
+                        style: Theme.of(context).textTheme.titleMedium),
                     Text(
                       user.email,
                       style: TextStyle(
@@ -245,19 +252,16 @@ class _UserDetailBodyState extends State<_UserDetailBody> {
   void initState() {
     super.initState();
     void load() {
-      widget.controller
-          .getUser(widget.userId)
-          .then((result) {
-            if (!mounted) return;
-            setState(() {
-              _detail = result;
-              _status = LoadStatus.ready;
-            });
-          })
-          .catchError((_) {
-            if (!mounted) return;
-            setState(() => _status = LoadStatus.error);
-          });
+      widget.controller.getUser(widget.userId).then((result) {
+        if (!mounted) return;
+        setState(() {
+          _detail = result;
+          _status = LoadStatus.ready;
+        });
+      }).catchError((_) {
+        if (!mounted) return;
+        setState(() => _status = LoadStatus.error);
+      });
     }
 
     load();
@@ -299,7 +303,9 @@ class _UserDetailBodyState extends State<_UserDetailBody> {
             AppBadge(label: detail.roleName),
             StatusPill(
               label: detail.status,
-              status: detail.status == 'active' ? AppStatus.healthy : AppStatus.critical,
+              status: detail.status == 'active'
+                  ? AppStatus.healthy
+                  : AppStatus.critical,
             ),
           ],
         ),
@@ -308,13 +314,19 @@ class _UserDetailBodyState extends State<_UserDetailBody> {
           'EFFECTIVE PERMISSIONS',
           style: Theme.of(
             context,
-          ).textTheme.labelSmall?.copyWith(color: context.semantic.textMuted, letterSpacing: 1),
+          )
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: context.semantic.textMuted, letterSpacing: 1),
         ),
         const SizedBox(height: DsSpacing.s2),
         Wrap(
           spacing: DsSpacing.s2,
           runSpacing: DsSpacing.s2,
-          children: [for (final permission in detail.permissions) AppBadge(label: permission)],
+          children: [
+            for (final permission in detail.permissions)
+              AppBadge(label: permission)
+          ],
         ),
         const SizedBox(height: DsSpacing.s4),
       ],

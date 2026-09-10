@@ -59,6 +59,13 @@ def _response(
     )
     response_headers = dict(headers or {})
     response_headers[REQUEST_ID_HEADER] = request_id
+    origin = request.headers.get("origin")
+    if origin:
+        response_headers["Access-Control-Allow-Origin"] = origin
+        response_headers["Access-Control-Allow-Credentials"] = "true"
+        response_headers["Access-Control-Allow-Headers"] = "*"
+        response_headers["Access-Control-Allow-Methods"] = "*"
+
     return JSONResponse(
         status_code=status_code,
         content=jsonable_encoder(envelope.model_dump(exclude_none=True)),

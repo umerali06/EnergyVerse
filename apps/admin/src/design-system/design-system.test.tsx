@@ -142,11 +142,11 @@ describe("admin design system", () => {
       </ThemeProvider>,
     );
 
-    await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dark"));
-    await user.click(screen.getByRole("button", { name: "Switch to light theme" }));
-    expect(document.documentElement.dataset.theme).toBe("light");
-    expect(document.documentElement).not.toHaveClass("dark");
-    expect(window.localStorage.getItem("fev-theme")).toBe("light");
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe("light"));
+    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement).toHaveClass("dark");
+    expect(window.localStorage.getItem("fev-theme")).toBe("dark");
   });
 
   it("provides keyboard focus and ARIA for interactive controls", async () => {

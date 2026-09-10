@@ -96,14 +96,10 @@ class WorkOrderService:
         self._work_orders = work_orders
         self._assets = assets
 
-    async def _active_work_order(
-        self, scope: CompanyScope, work_order_id: str
-    ) -> WorkOrder:
+    async def _active_work_order(self, scope: CompanyScope, work_order_id: str) -> WorkOrder:
         work_order = await self._work_orders.get(scope, work_order_id)
         if work_order is None or work_order.deleted_at is not None:
-            raise WorkOrderServiceError(
-                404, "work_order_not_found", "Work order was not found"
-            )
+            raise WorkOrderServiceError(404, "work_order_not_found", "Work order was not found")
         return work_order
 
     async def create_work_order(
@@ -181,9 +177,7 @@ class WorkOrderService:
         next_cursor = _encode_cursor(page[-1].id) if len(work_orders) > limit and page else None
         return WorkOrderListPage(items=items, next_cursor=next_cursor)
 
-    async def get_work_order(
-        self, scope: CompanyScope, work_order_id: str
-    ) -> WorkOrderDetail:
+    async def get_work_order(self, scope: CompanyScope, work_order_id: str) -> WorkOrderDetail:
         work_order = await self._active_work_order(scope, work_order_id)
         return _to_detail(work_order)
 
@@ -280,8 +274,7 @@ class WorkOrderService:
             raise WorkOrderServiceError(
                 409,
                 "invalid_transition",
-                "Work order cannot be submitted for review from status "
-                f"'{error.current.status}'",
+                f"Work order cannot be submitted for review from status '{error.current.status}'",
             ) from error
         return _to_detail(work_order)
 

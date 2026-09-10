@@ -29,31 +29,36 @@ class AppButton extends StatefulWidget {
 class _AppButtonState extends State<AppButton> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (!mounted) return;
+    setState(() => _pressed = value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !widget.loading;
     final colors = Theme.of(context).colorScheme;
     final (background, foreground, border) = switch (widget.variant) {
       AppButtonVariant.primary => (
-        DsColors.primary500,
-        Colors.white,
-        Colors.transparent,
-      ),
+          DsColors.primary500,
+          Colors.white,
+          Colors.transparent,
+        ),
       AppButtonVariant.accent => (
-        DsColors.accent500,
-        DsColors.primary900,
-        Colors.transparent,
-      ),
+          DsColors.accent500,
+          DsColors.primary900,
+          Colors.transparent,
+        ),
       AppButtonVariant.ghost => (
-        Colors.transparent,
-        colors.onSurface,
-        context.semantic.border,
-      ),
+          Colors.transparent,
+          colors.onSurface,
+          context.semantic.border,
+        ),
       AppButtonVariant.danger => (
-        DsColors.statusCritical,
-        Colors.white,
-        Colors.transparent,
-      ),
+          DsColors.statusCritical,
+          Colors.white,
+          Colors.transparent,
+        ),
     };
     final style = ElevatedButton.styleFrom(
       backgroundColor: background,
@@ -82,11 +87,9 @@ class _AppButtonState extends State<AppButton> {
       enabled: enabled,
       label: widget.loading ? '${widget.label}, loading' : widget.label,
       child: Listener(
-        onPointerDown: enabled ? (_) => setState(() => _pressed = true) : null,
-        onPointerUp: enabled ? (_) => setState(() => _pressed = false) : null,
-        onPointerCancel: enabled
-            ? (_) => setState(() => _pressed = false)
-            : null,
+        onPointerDown: enabled ? (_) => _setPressed(true) : null,
+        onPointerUp: enabled ? (_) => _setPressed(false) : null,
+        onPointerCancel: enabled ? (_) => _setPressed(false) : null,
         child: AnimatedScale(
           duration: motionDuration(context, DsMotion.fast),
           curve: DsMotion.standard,
@@ -173,6 +176,7 @@ class AppSelect<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
+      isExpanded: true,
       decoration: InputDecoration(labelText: label),
       items: items,
       onChanged: onChanged,
@@ -191,9 +195,113 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
+      child: Container(
+        width: double.infinity,
         padding: padding ?? const EdgeInsets.all(DsSpacing.s4),
         child: child,
+      ),
+    );
+  }
+}
+
+class AppStatCard extends StatelessWidget {
+  const AppStatCard({
+    required this.label,
+    required this.value,
+    this.loading = false,
+    this.error = false,
+    this.icon,
+    this.onTap,
+    this.onRetry,
+    this.emphasis = false,
+    super.key,
+  });
+
+  final String label;
+  final String? value;
+  final bool loading;
+  final bool error;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final VoidCallback? onRetry;
+  final bool emphasis;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = emphasis
+        ? (dark ? DsColors.statusSoftCritical : DsColors.statusStrongCritical)
+        : DsColors.primary400;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: (!loading && !error) ? onTap : null,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(DsSpacing.s4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontFamily: DsTypography.mono,
+                        fontSize: DsTypography.sizeCaption,
+                        color: context.semantic.textMuted,
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (icon != null) ...[
+                    const SizedBox(width: DsSpacing.s2),
+                    Container(
+                      padding: const EdgeInsets.all(DsSpacing.s2),
+                      decoration: BoxDecoration(
+                        color: accentColor.withAlpha(24),
+                        borderRadius: BorderRadius.circular(DsRadius.sm),
+                      ),
+                      child: Icon(icon, size: 18, color: accentColor),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: DsSpacing.s3),
+              if (loading)
+                const SizedBox(
+                  height: 28,
+                  child: AppSkeleton(width: 54, height: 26),
+                )
+              else if (error)
+                TextButton(
+                  onPressed: onRetry,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Retry'),
+                )
+              else
+                Text(
+                  value ?? '0',
+                  style: TextStyle(
+                    fontFamily: DsTypography.mono,
+                    fontSize: DsTypography.sizeH2,
+                    fontWeight: FontWeight.w700,
+                    color: emphasis ? accentColor : null,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -203,21 +311,24 @@ enum AppStatus { healthy, warning, critical, info }
 
 extension on AppStatus {
   Color get color => switch (this) {
-    AppStatus.healthy => DsColors.statusSuccess,
-    AppStatus.warning => DsColors.statusWarning,
-    AppStatus.critical => DsColors.statusCritical,
-    AppStatus.info => DsColors.statusInfo,
-  };
+        AppStatus.healthy => DsColors.statusSuccess,
+        AppStatus.warning => DsColors.statusWarning,
+        AppStatus.critical => DsColors.statusCritical,
+        AppStatus.info => DsColors.statusInfo,
+      };
 
   /// WCAG-safe text color per brightness: deep variants on light surfaces,
   /// a brightened critical on dark ones.
   Color textColor(bool dark) => switch (this) {
-    AppStatus.healthy => dark ? DsColors.statusSoftSuccess : DsColors.statusStrongSuccess,
-    AppStatus.warning => dark ? DsColors.statusSoftWarning : DsColors.statusStrongWarning,
-    AppStatus.critical =>
-      dark ? DsColors.statusSoftCritical : DsColors.statusStrongCritical,
-    AppStatus.info => dark ? DsColors.statusSoftInfo : DsColors.statusStrongInfo,
-  };
+        AppStatus.healthy =>
+          dark ? DsColors.statusSoftSuccess : DsColors.statusStrongSuccess,
+        AppStatus.warning =>
+          dark ? DsColors.statusSoftWarning : DsColors.statusStrongWarning,
+        AppStatus.critical =>
+          dark ? DsColors.statusSoftCritical : DsColors.statusStrongCritical,
+        AppStatus.info =>
+          dark ? DsColors.statusSoftInfo : DsColors.statusStrongInfo,
+      };
 }
 
 class StatusPill extends StatelessWidget {
@@ -255,9 +366,9 @@ class StatusPill extends StatelessWidget {
               Text(
                 label.toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                ),
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ],
           ),
@@ -331,16 +442,17 @@ Future<T?> showAppModal<T>(
   BuildContext context, {
   required String title,
   required Widget child,
-}) => showModalBottomSheet<T>(
-  context: context,
-  isScrollControlled: true,
-  showDragHandle: false,
-  backgroundColor: Theme.of(context).colorScheme.surface,
-  shape: const RoundedRectangleBorder(
-    borderRadius: BorderRadius.vertical(top: Radius.circular(DsRadius.xl2)),
-  ),
-  builder: (_) => AppModal(title: title, child: child),
-);
+}) =>
+    showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: false,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(DsRadius.xl2)),
+      ),
+      builder: (_) => AppModal(title: title, child: child),
+    );
 
 void showAppToast(
   BuildContext context,

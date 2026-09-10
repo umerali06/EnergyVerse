@@ -17,6 +17,7 @@ class NavDestination {
     required this.icon,
     required this.route,
     this.requiredPermission,
+    this.requiredFeature,
     this.comingSoon = false,
     this.primary = false,
   });
@@ -25,6 +26,14 @@ class NavDestination {
   final IconData icon;
   final String route;
   final String? requiredPermission;
+
+  /// Entitlement key the company's plan must include (Phase 13, D-093).
+  ///
+  /// Independent of [requiredPermission]: a Company Admin holds
+  /// `work_orders.read` on every tier, but a Starter tenant has no work-order
+  /// module at all, so the destination is hidden rather than shown and then
+  /// refused with a 402. Destinations without one belong to every paid plan.
+  final String? requiredFeature;
 
   /// Module exists on the roadmap but its screen is not built yet.
   final bool comingSoon;
@@ -39,6 +48,7 @@ class AppNav {
   static const assets = '/assets';
   static const inspections = '/inspections';
   static const workOrders = '/work-orders';
+  static const digitalTwin = '/digital-twin';
   static const permits = '/permits';
   static const safety = '/safety';
   static const reports = '/reports';
@@ -60,6 +70,7 @@ class AppNav {
       icon: Icons.inventory_2_outlined,
       route: assets,
       requiredPermission: 'assets.read',
+      requiredFeature: 'assets',
       primary: true,
     ),
     NavDestination(
@@ -67,6 +78,7 @@ class AppNav {
       icon: Icons.build_outlined,
       route: workOrders,
       requiredPermission: 'work_orders.read',
+      requiredFeature: 'work_orders',
       primary: true,
     ),
     NavDestination(
@@ -74,33 +86,41 @@ class AppNav {
       icon: Icons.fact_check_outlined,
       route: inspections,
       requiredPermission: 'inspections.read',
+      requiredFeature: 'inspections',
+    ),
+    NavDestination(
+      label: '3D Digital Twin',
+      icon: Icons.view_in_ar_outlined,
+      route: digitalTwin,
+      requiredPermission: 'facilities.read',
+      requiredFeature: 'digital_twin',
     ),
     NavDestination(
       label: 'Permits',
       icon: Icons.description_outlined,
       route: permits,
       requiredPermission: 'permits.read',
-      comingSoon: true,
+      requiredFeature: 'permits',
     ),
     NavDestination(
       label: 'Safety',
       icon: Icons.health_and_safety_outlined,
       route: safety,
       requiredPermission: 'safety.read',
-      comingSoon: true,
+      requiredFeature: 'safety_reports',
     ),
     NavDestination(
       label: 'Reports',
       icon: Icons.insert_chart_outlined,
       route: reports,
       requiredPermission: 'reports.read',
-      comingSoon: true,
+      requiredFeature: 'reports',
     ),
     NavDestination(
       label: 'Documents',
       icon: Icons.folder_outlined,
       route: documents,
-      comingSoon: true,
+      requiredFeature: 'documents',
     ),
     NavDestination(
       label: 'Users',
@@ -128,27 +148,42 @@ class AppNav {
     ),
   ];
 
-  static List<NavDestination> visible(bool Function(String permission) can) {
+  /// Always allow: the default for callers that predate plan gating.
+  static bool _anyFeature(String? feature) => true;
+
+  /// Destinations passing *both* gates: the person's permissions and the
+  /// company's plan. Neither implies the other (D-093).
+  static List<NavDestination> visible(
+    bool Function(String permission) can, [
+    bool Function(String? feature) hasFeature = _anyFeature,
+  ]) {
     return destinations
         .where(
           (destination) =>
-              destination.requiredPermission == null ||
-              can(destination.requiredPermission!),
+              (destination.requiredPermission == null ||
+                  can(destination.requiredPermission!)) &&
+              hasFeature(destination.requiredFeature),
         )
         .toList();
   }
 
-  /// Bottom-bar items: the permitted primary destinations.
+  /// Bottom-bar items: the permitted, entitled primary destinations.
   static List<NavDestination> primaryDestinations(
-    bool Function(String permission) can,
-  ) =>
-      visible(can).where((destination) => destination.primary).toList();
+    bool Function(String permission) can, [
+    bool Function(String? feature) hasFeature = _anyFeature,
+  ]) =>
+      visible(can, hasFeature)
+          .where((destination) => destination.primary)
+          .toList();
 
-  /// "More"-sheet items: every permitted secondary destination.
+  /// "More"-sheet items: every permitted, entitled secondary destination.
   static List<NavDestination> secondaryDestinations(
-    bool Function(String permission) can,
-  ) =>
-      visible(can).where((destination) => !destination.primary).toList();
+    bool Function(String permission) can, [
+    bool Function(String? feature) hasFeature = _anyFeature,
+  ]) =>
+      visible(can, hasFeature)
+          .where((destination) => !destination.primary)
+          .toList();
 
   static NavDestination? byRoute(String route) {
     for (final destination in destinations) {

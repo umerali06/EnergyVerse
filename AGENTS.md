@@ -36,15 +36,13 @@ Later product sequencing: basic VR training, notifications, global search, docum
 
 Flutter for mobile/web field clients; React/Next.js admin; Three.js web 3D; Unity VR and where AR requires it; Claude API plus computer vision; ARCore/ARKit/Flutter AR plugin; Google Maps; FCM push; SES or SendGrid email; Firebase Storage or AWS S3 object storage.
 
-## Blocking Decisions
+## Locked Foundation Decisions
 
-Do not begin Phase 0 coding until the product owner confirms all three:
-
-1. Backend: NestJS or FastAPI.
-2. Database: Firestore or PostgreSQL, explicitly resolving the source brief’s “not PostgreSQL” statement; also determine whether AI embeddings need a separate vector store.
-3. Authentication: Firebase Auth or custom, while keeping token/session issuance provider-agnostic for later enterprise SSO/SAML/OIDC.
-
-See `DECISIONS.md` for current state. Do not assume an answer.
+The former Phase 0 blockers are resolved and locked: FastAPI (D-001), Firebase
+Firestore with no separate MVP vector store (D-002), and Firebase Authentication
+behind a provider-neutral verification boundary (D-003/D-007). Server-mediated
+Firebase Storage is locked by D-027. See `DECISIONS.md` for the authoritative
+record; do not reopen or silently change these choices.
 
 ## Working Protocol
 
@@ -58,6 +56,12 @@ See `DECISIONS.md` for current state. Do not assume an answer.
 
 ## Current State
 
-Phase 0.1 — Project bootstrap and persistent context setup: **In progress**.
+Phases 0–10 are complete through Static Digital Twin / 3D Facility View.
 
-Do not begin Phase 0.2 unless explicitly directed after Phase 0.1 is reviewed.
+Phase 9 (AI Report Generation) is COMPLETE across all 5 subphases (9.1 policy, 9.2 backend, 9.3 exports, 9.4 admin & mobile workflows, 9.5 dashboard KPI & full regression).
+
+Phase 10 (Static Digital Twin / 3D Facility View) is COMPLETE across all 4 subphases:
+- 10.1: 3D Scene & Hotspot Data Contract and Backend Foundation (`GET`/`PUT` `/api/v1/facilities/{id}/3d-scene`)
+- 10.2: Admin Three.js Web 3D Viewport & Dynamic Facility Page
+- 10.3: Mobile Client 3D Digital Twin Experience (`DigitalTwinScreen` + route)
+- 10.4: Dashboard Integration & Full Multi-Suite System Regression (438 API pytest tests, 212 admin vitest tests, 283 mobile flutter tests passed 100%).

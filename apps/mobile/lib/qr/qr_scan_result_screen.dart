@@ -49,7 +49,8 @@ class _QrScanResultScreenState extends State<QrScanResultScreen> {
   Future<void> _startInspection() async {
     setState(() => _startingInspection = true);
     try {
-      final repository = widget.repository ?? SyncProvider.repositoryOf(context);
+      final repository =
+          widget.repository ?? SyncProvider.repositoryOf(context);
       final inspectorId =
           widget.inspectorId ?? AuthProvider.of(context).currentUser?.uid ?? '';
       final position = await captureCurrentPosition();
@@ -68,7 +69,8 @@ class _QrScanResultScreenState extends State<QrScanResultScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't start the inspection. Please try again.")),
+        const SnackBar(
+            content: Text("Couldn't start the inspection. Please try again.")),
       );
     } finally {
       if (mounted) setState(() => _startingInspection = false);
@@ -110,11 +112,14 @@ class _QrScanResultScreenState extends State<QrScanResultScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Asset info', style: Theme.of(context).textTheme.titleMedium),
+                Text('Asset info',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: DsSpacing.s3),
-                _InfoRow(label: 'Manufacturer', value: asset.manufacturer ?? '—'),
+                _InfoRow(
+                    label: 'Manufacturer', value: asset.manufacturer ?? '—'),
                 _InfoRow(label: 'Model', value: asset.model ?? '—'),
-                _InfoRow(label: 'Serial number', value: asset.serialNumber ?? '—'),
+                _InfoRow(
+                    label: 'Serial number', value: asset.serialNumber ?? '—'),
                 _InfoRow(label: 'Media attached', value: '$mediaCount'),
               ],
             ),
@@ -122,12 +127,13 @@ class _QrScanResultScreenState extends State<QrScanResultScreen> {
           const SizedBox(height: DsSpacing.s4),
           const EmptyState(
             title: 'No maintenance history yet',
-            description: 'Maintenance history will appear here once Phase 11 lands.',
+            description:
+                'No maintenance history has been recorded for this asset yet.',
           ),
           const SizedBox(height: DsSpacing.s4),
           const EmptyState(
             title: 'No open work orders',
-            description: 'Work orders will appear here once Phase 11 lands.',
+            description: 'No open work orders recorded for this asset.',
           ),
           const SizedBox(height: DsSpacing.s5),
           AppButton(

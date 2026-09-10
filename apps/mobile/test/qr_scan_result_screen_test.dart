@@ -36,7 +36,8 @@ Future<void> pumpResultScreen(
           if (settings.name == '/inspections/detail') {
             final inspectionId = settings.arguments as String;
             return MaterialPageRoute<void>(
-              builder: (_) => Scaffold(body: Text('Inspection detail: $inspectionId')),
+              builder: (_) =>
+                  Scaffold(body: Text('Inspection detail: $inspectionId')),
             );
           }
           return null;
@@ -48,7 +49,9 @@ Future<void> pumpResultScreen(
 }
 
 void main() {
-  testWidgets('renders asset info/status and the reserved honest-empty sections', (tester) async {
+  testWidgets(
+      'renders asset info/status and the reserved honest-empty sections',
+      (tester) async {
     final result = qrScanResultFixture(
       asset: assetDetailFixture(assetTag: 'PMP-001', name: 'Feed Pump'),
     );
@@ -70,7 +73,8 @@ void main() {
   testWidgets(
     '"Start Inspection" writes a local draft instantly and lands on the detail screen',
     (tester) async {
-      final result = qrScanResultFixture(asset: assetDetailFixture(id: 'asset-1'));
+      final result =
+          qrScanResultFixture(asset: assetDetailFixture(id: 'asset-1'));
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
       final repository = LocalInspectionsRepository(
@@ -98,7 +102,8 @@ void main() {
       // sees this column, it already knows the category via asset_id.
       expect(created.single.assetCategory, 'Pump');
       expect(created.single.syncState, LocalSyncState.localOnly.wireValue);
-      expect(find.text('Inspection detail: ${created.single.id}'), findsOneWidget);
+      expect(
+          find.text('Inspection detail: ${created.single.id}'), findsOneWidget);
     },
   );
 

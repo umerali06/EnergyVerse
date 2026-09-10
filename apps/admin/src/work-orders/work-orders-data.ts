@@ -44,68 +44,61 @@ const DEFAULT_FILTERS: WorkOrderFilters = {
  * `useAssetsData` hook. `initialFilters` seeds filter state once on mount
  * (e.g. the asset-detail Work Orders tab scoping the list to one asset).
  */
+import { useCachedQuery } from "@/cache/cache-context";
+
 export function useWorkOrdersData(initialFilters: Partial<WorkOrderFilters> = {}) {
   const { apiClient } = useAuth();
   const [filters, setFilters] = useState<WorkOrderFilters>({
     ...DEFAULT_FILTERS,
     ...initialFilters,
   });
-  const [list, setList] = useState<{
-    status: AsyncStatus;
-    items: WorkOrderListItem[];
-    nextCursor: string | null;
-    loadingMore: boolean;
-  }>({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-  const [assets, setAssets] = useState<{ status: AsyncStatus; items: AssetListItem[] }>({
-    status: "loading",
-    items: [],
-  });
-  const [facilities, setFacilities] = useState<{ status: AsyncStatus; items: FacilityDetail[] }>({
-    status: "loading",
-    items: [],
-  });
-  const [technicians, setTechnicians] = useState<{ status: AsyncStatus; items: UserListItem[] }>({
-    status: "loading",
-    items: [],
+  const [extraItems, setExtraItems] = useState<WorkOrderListItem[]>([]);
+  const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const filterKey = JSON.stringify({
+    assetId: filters.assetId,
+    facilityId: filters.facilityId,
+    status: filters.status,
+    technicianId: filters.technicianId,
   });
 
-  const requestId = useRef(0);
-
-  const fetchWorkOrders = useCallback(
-    async (current: WorkOrderFilters) => {
-      const id = ++requestId.current;
-      setList({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-      try {
-        const page = await apiClient.listWorkOrders({
-          assetId: current.assetId ?? undefined,
-          facilityId: current.facilityId ?? undefined,
-          status: current.status ?? undefined,
-          technicianId: current.technicianId ?? undefined,
-          limit: PAGE_SIZE,
-        });
-        if (requestId.current === id) {
-          setList({
-            status: "ready",
-            items: page.items,
-            nextCursor: page.nextCursor ?? null,
-            loadingMore: false,
-          });
-        }
-      } catch {
-        // FevApiClient already surfaced the unified-envelope toast; this
-        // local state just drives the retry-capable error UI.
-        if (requestId.current === id) {
-          setList({ status: "error", items: [], nextCursor: null, loadingMore: false });
-        }
-      }
-    },
-    [apiClient],
+  const workOrdersQuery = useCachedQuery<{ items: WorkOrderListItem[]; nextCursor: string | null }>(
+    `work-orders:list:${filterKey}`,
+    () =>
+      apiClient.listWorkOrders({
+        assetId: filters.assetId ?? undefined,
+        facilityId: filters.facilityId ?? undefined,
+        status: filters.status ?? undefined,
+        technicianId: filters.technicianId ?? undefined,
+        limit: PAGE_SIZE,
+      }),
   );
 
+  const assetsQuery = useCachedQuery<{ items: AssetListItem[] }>(
+    "assets:lookup:100",
+    () => apiClient.listAssets({ limit: LOOKUP_LIMIT, sort: "name" }),
+  );
+
+  const facilitiesQuery = useCachedQuery<{ items: FacilityDetail[] }>(
+    "facilities:lookup:100",
+    () => apiClient.listFacilities({ limit: LOOKUP_LIMIT, sort: "name" }),
+  );
+
+  const techniciansQuery = useCachedQuery<{ items: UserListItem[] }>(
+    "users:technicians:100",
+    () => apiClient.listUsers({ limit: LOOKUP_LIMIT, sort: "name" }),
+  );
+
+  const currentNextCursor =
+    extraNextCursor !== undefined
+      ? extraNextCursor
+      : (workOrdersQuery.data?.nextCursor ?? null);
+
   const loadMore = useCallback(async () => {
-    const cursor = list.nextCursor;
-    if (!cursor || list.loadingMore) return;
-    setList((current) => ({ ...current, loadingMore: true }));
+    const cursor = currentNextCursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
     try {
       const page = await apiClient.listWorkOrders({
         assetId: filters.assetId ?? undefined,
@@ -115,78 +108,52 @@ export function useWorkOrdersData(initialFilters: Partial<WorkOrderFilters> = {}
         cursor,
         limit: PAGE_SIZE,
       });
-      setList((current) => ({
-        status: "ready",
-        items: [...current.items, ...page.items],
-        nextCursor: page.nextCursor ?? null,
-        loadingMore: false,
-      }));
+      setExtraItems((prev) => [...prev, ...page.items]);
+      setExtraNextCursor(page.nextCursor ?? null);
     } catch {
-      setList((current) => ({ ...current, loadingMore: false }));
+      // Handled by toast
+    } finally {
+      setLoadingMore(false);
     }
-  }, [apiClient, filters, list.loadingMore, list.nextCursor]);
-
-  const fetchAssets = useCallback(async () => {
-    setAssets({ status: "loading", items: [] });
-    try {
-      const page = await apiClient.listAssets({ limit: LOOKUP_LIMIT, sort: "name" });
-      setAssets({ status: "ready", items: page.items });
-    } catch {
-      setAssets({ status: "error", items: [] });
-    }
-  }, [apiClient]);
-
-  const fetchFacilities = useCallback(async () => {
-    setFacilities({ status: "loading", items: [] });
-    try {
-      const page = await apiClient.listFacilities({ limit: LOOKUP_LIMIT, sort: "name" });
-      setFacilities({ status: "ready", items: page.items });
-    } catch {
-      setFacilities({ status: "error", items: [] });
-    }
-  }, [apiClient]);
-
-  const fetchTechnicians = useCallback(async () => {
-    setTechnicians({ status: "loading", items: [] });
-    try {
-      const page = await apiClient.listUsers({ limit: LOOKUP_LIMIT, sort: "name" });
-      setTechnicians({ status: "ready", items: page.items });
-    } catch {
-      setTechnicians({ status: "error", items: [] });
-    }
-  }, [apiClient]);
-
-  useEffect(() => {
-    void fetchWorkOrders(filters);
-    // `filters.priority` deliberately excluded: it has no server-side query
-    // param (see the type above), so toggling it must not trigger a
-    // redundant network request -- work-orders-page.tsx applies it as a
-    // client-side filter over whatever page is already loaded.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchWorkOrders, filters.status, filters.assetId, filters.facilityId, filters.technicianId]);
-
-  useEffect(() => {
-    void fetchAssets();
-  }, [fetchAssets]);
-
-  useEffect(() => {
-    void fetchFacilities();
-  }, [fetchFacilities]);
-
-  useEffect(() => {
-    void fetchTechnicians();
-  }, [fetchTechnicians]);
-
-  const retry = useCallback(() => void fetchWorkOrders(filters), [fetchWorkOrders, filters]);
+  }, [apiClient, filters, currentNextCursor, loadingMore]);
 
   const setFilter = useCallback(
     <K extends keyof WorkOrderFilters>(key: K, value: WorkOrderFilters[K]) => {
+      setExtraItems([]);
+      setExtraNextCursor(undefined);
       setFilters((current) => ({ ...current, [key]: value }));
     },
     [],
   );
 
-  const clearFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
+  const clearFilters = useCallback(() => {
+    setExtraItems([]);
+    setExtraNextCursor(undefined);
+    setFilters(DEFAULT_FILTERS);
+  }, []);
+
+  const listStatus: AsyncStatus = workOrdersQuery.loading
+    ? "loading"
+    : workOrdersQuery.error
+      ? "error"
+      : "ready";
+  const assetsStatus: AsyncStatus = assetsQuery.loading
+    ? "loading"
+    : assetsQuery.error
+      ? "error"
+      : "ready";
+  const facilitiesStatus: AsyncStatus = facilitiesQuery.loading
+    ? "loading"
+    : facilitiesQuery.error
+      ? "error"
+      : "ready";
+  const techniciansStatus: AsyncStatus = techniciansQuery.loading
+    ? "loading"
+    : techniciansQuery.error
+      ? "error"
+      : "ready";
+
+  const allItems = [...(workOrdersQuery.data?.items ?? []), ...extraItems];
 
   const getWorkOrder = useCallback(
     (workOrderId: string): Promise<WorkOrderDetail> => apiClient.getWorkOrder(workOrderId),
@@ -224,12 +191,26 @@ export function useWorkOrdersData(initialFilters: Partial<WorkOrderFilters> = {}
     filters,
     setFilter,
     clearFilters,
-    list,
-    retry,
+    list: {
+      status: listStatus,
+      items: allItems,
+      nextCursor: currentNextCursor,
+      loadingMore,
+    },
+    retry: workOrdersQuery.refetch,
     loadMore,
-    assets,
-    facilities,
-    technicians,
+    assets: {
+      status: assetsStatus,
+      items: assetsQuery.data?.items ?? [],
+    },
+    facilities: {
+      status: facilitiesStatus,
+      items: facilitiesQuery.data?.items ?? [],
+    },
+    technicians: {
+      status: techniciansStatus,
+      items: techniciansQuery.data?.items ?? [],
+    },
     getWorkOrder,
     createWorkOrder,
     assignWorkOrder,

@@ -3,7 +3,8 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
 
-import { Button, Card, Logo, MotionSection, Spinner, StatusPill } from "@/design-system";
+import { Button, Card, Logo, LogoLoader, MotionSection, Spinner, StatusPill } from "@/design-system";
+import { APP_HOME, SIGNUP_BILLING } from "@/navigation/routes";
 
 import { useAuth } from "./auth-context";
 import { PermissionProvider, usePermissions } from "./permissions";
@@ -19,7 +20,7 @@ export function safeInternalPath(raw: string | null | undefined): string | null 
 
 export function loginPathFor(pathname: string, search?: string): string {
   const destination = `${pathname}${search ? `?${search}` : ""}`;
-  if (destination === "/" || !safeInternalPath(destination)) return "/login";
+  if (destination === APP_HOME || !safeInternalPath(destination)) return "/login";
   return `/login?next=${encodeURIComponent(destination)}`;
 }
 
@@ -29,17 +30,22 @@ export function SplashScreen({ label = "Restoring session" }: { label?: string }
       className="grid min-h-screen place-items-center bg-background p-6"
       data-testid="auth-splash"
     >
-      <div className="grid place-items-center gap-5">
-        <Logo decorative height={34} variant="mark" />
-        <Spinner label={label} />
-      </div>
+      <LogoLoader label={label} />
     </main>
   );
 }
 
+/** Preserves the plan a visitor picked on the pricing page across registration,
+ * so step 2 opens on that tier instead of resetting to the entry plan. */
+function useBillingStepPath(): string {
+  const params = useSearchParams();
+  const plan = params.get("plan");
+  return plan ? `${SIGNUP_BILLING}?plan=${encodeURIComponent(plan)}` : SIGNUP_BILLING;
+}
+
 function useNextDestination(): string {
   const params = useSearchParams();
-  return safeInternalPath(params.get("next")) ?? "/";
+  return safeInternalPath(params.get("next")) ?? APP_HOME;
 }
 
 /** Wraps protected routes: splash while restoring, login redirect (preserving the
@@ -71,25 +77,56 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 /** Wraps login/signup/forgot-password: already-authenticated users are sent to
- * their intended destination (or Home); unverified users to the verify screen. */
+ * their intended destination (or Home); unverified users to the billing step.
+ *
+ * An unverified user goes to `SIGNUP_BILLING` rather than straight to
+ * `/verify-email` because paying is the next step in the funnel (D-092) and a
+ * company created seconds ago has no subscription. That page forwards to
+ * `/verify-email` as soon as one exists, so a returning unverified user with an
+ * active plan still lands in the right place — one extra hop, self-correcting,
+ * and no race against this redirect. */
 export function PublicOnly({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const router = useRouter();
   const destination = useNextDestination();
+  const billingStep = useBillingStepPath();
 
   useEffect(() => {
     if (auth.status === "authenticated") {
       router.replace(destination);
     } else if (auth.status === "verificationRequired") {
-      router.replace("/verify-email");
+      router.replace(billingStep);
     }
-  }, [auth.status, destination, router]);
+  }, [auth.status, billingStep, destination, router]);
 
   if (auth.status === "restoring" || auth.status === "authenticated") {
     return <SplashScreen />;
   }
   if (auth.status === "verificationRequired") return <SplashScreen />;
   return children;
+}
+
+/** Wraps the billing steps that sit between registration and a usable account.
+ *
+ * Admits anyone whose account exists — `authenticated` *or* still unverified —
+ * because checkout deliberately precedes email verification (D-092). Only a
+ * signed-out visitor is pushed back to the details form. */
+export function RequireAccount({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (auth.status === "signedOut") router.replace("/signup");
+  }, [auth.status, router]);
+
+  if (
+    auth.status === "authenticated" ||
+    auth.status === "verificationRequired" ||
+    auth.status === "checkingVerification"
+  ) {
+    return children;
+  }
+  return <SplashScreen label="Preparing your workspace" />;
 }
 
 /** Wraps the verify-email route: only reachable while verification is pending. */
@@ -101,7 +138,7 @@ export function VerifyEmailGate({ children }: { children: ReactNode }) {
     if (auth.status === "signedOut") {
       router.replace("/login");
     } else if (auth.status === "authenticated") {
-      router.replace("/");
+      router.replace(APP_HOME);
     }
   }, [auth.status, router]);
 
@@ -156,7 +193,7 @@ export function NoAccessScreen({
             . If you believe this is a mistake, contact your company admin.
           </p>
           <div className="mt-7 grid gap-3">
-            <Button onClick={() => router.replace("/")}>Back to Home</Button>
+            <Button onClick={() => router.replace(APP_HOME)}>Back to Home</Button>
           </div>
         </Card>
       </MotionSection>

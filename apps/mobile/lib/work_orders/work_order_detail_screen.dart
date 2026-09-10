@@ -10,7 +10,11 @@ import '../design_system/tokens_generated.dart';
 import 'local_work_orders_repository.dart';
 import 'work_order_sync_engine.dart';
 import 'work_orders_screen.dart'
-    show workOrderPriorityFor, workOrderPriorityLabel, workOrderStatusFor, workOrderStatusLabel;
+    show
+        workOrderPriorityFor,
+        workOrderPriorityLabel,
+        workOrderStatusFor,
+        workOrderStatusLabel;
 
 /// Offline-first work order detail (pushed route) -- reads from the local
 /// cache reactively, kicks a best-effort background network refresh, and
@@ -141,9 +145,11 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
             .addPostFrameCallback((_) => _maybeShowConflictSheet(workOrder));
 
         final row = workOrder.row;
-        final isAssignedToMe = currentUid != null && row.technicianId == currentUid;
+        final isAssignedToMe =
+            currentUid != null && row.technicianId == currentUid;
         final canAccept = isAssignedToMe && row.status == 'assigned';
-        final canSubmitForReview = isAssignedToMe && row.status == 'in_progress';
+        final canSubmitForReview =
+            isAssignedToMe && row.status == 'in_progress';
         final hasCompletionDetails =
             row.status == 'pending_review' || row.status == 'closed';
 
@@ -165,20 +171,24 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                   status: workOrderPriorityFor(row.priority),
                 ),
                 if (row.syncState == 'pending_sync')
-                  const StatusPill(label: 'Pending sync', status: AppStatus.info),
+                  const StatusPill(
+                      label: 'Pending sync', status: AppStatus.info),
                 if (row.syncState == 'conflict')
                   InkWell(
                     key: const Key('sync-state-badge'),
                     onTap: () => _showConflictSheet(workOrder),
-                    child: const StatusPill(label: 'Conflict', status: AppStatus.critical),
+                    child: const StatusPill(
+                        label: 'Conflict', status: AppStatus.critical),
                   ),
                 if (row.syncState == 'error')
-                  const StatusPill(label: 'Sync error', status: AppStatus.critical),
+                  const StatusPill(
+                      label: 'Sync error', status: AppStatus.critical),
               ],
             ),
             if (row.syncState == 'error' && row.errorMessage != null) ...[
               const SizedBox(height: DsSpacing.s3),
-              Text(row.errorMessage!, style: TextStyle(color: context.semantic.textMuted)),
+              Text(row.errorMessage!,
+                  style: TextStyle(color: context.semantic.textMuted)),
             ],
             const SizedBox(height: DsSpacing.s5),
             AppCard(
@@ -188,23 +198,29 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                   _InfoRow(label: 'Asset', value: row.assetId),
                   _InfoRow(
                     label: 'Due date',
-                    value: row.dueDate != null ? formatCompanyDateTime(row.dueDate!) : '—',
+                    value: row.dueDate != null
+                        ? formatCompanyDateTime(row.dueDate!)
+                        : '—',
                   ),
-                  _InfoRow(label: 'Technician', value: row.technicianId ?? 'Unassigned'),
+                  _InfoRow(
+                      label: 'Technician',
+                      value: row.technicianId ?? 'Unassigned'),
                 ],
               ),
             ),
             if (row.description != null && row.description!.isNotEmpty) ...[
               const SizedBox(height: DsSpacing.s4),
               Text('DESCRIPTION',
-                  style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
+                  style: TextStyle(
+                      color: context.semantic.textMuted, letterSpacing: 1)),
               const SizedBox(height: DsSpacing.s1),
               Text(row.description!),
             ],
             if (hasCompletionDetails) ...[
               const SizedBox(height: DsSpacing.s5),
               Text('COMPLETION DETAILS',
-                  style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
+                  style: TextStyle(
+                      color: context.semantic.textMuted, letterSpacing: 1)),
               const SizedBox(height: DsSpacing.s2),
               AppCard(
                 child: Column(
@@ -212,7 +228,9 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                   children: [
                     _InfoRow(
                       label: 'Labor hours',
-                      value: row.laborHours != null ? row.laborHours!.toString() : '—',
+                      value: row.laborHours != null
+                          ? row.laborHours!.toString()
+                          : '—',
                     ),
                     _InfoRow(
                       label: 'Materials used',
@@ -220,7 +238,8 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                           ? '—'
                           : workOrder.materialsUsed.join(', '),
                     ),
-                    if (row.completionNotes != null && row.completionNotes!.isNotEmpty)
+                    if (row.completionNotes != null &&
+                        row.completionNotes!.isNotEmpty)
                       _InfoRow(label: 'Notes', value: row.completionNotes!),
                   ],
                 ),
@@ -300,7 +319,8 @@ class _SubmitForReviewSheetState extends State<_SubmitForReviewSheet> {
   @override
   void initState() {
     super.initState();
-    _notesController = TextEditingController(text: widget.workOrder.row.completionNotes);
+    _notesController =
+        TextEditingController(text: widget.workOrder.row.completionNotes);
     _laborController = TextEditingController(
       text: widget.workOrder.row.laborHours?.toString() ?? '',
     );
@@ -380,7 +400,8 @@ class _SubmitForReviewSheetState extends State<_SubmitForReviewSheet> {
 }
 
 class _ConflictSheetBody extends StatelessWidget {
-  const _ConflictSheetBody({required this.onKeepMine, required this.onUseServer});
+  const _ConflictSheetBody(
+      {required this.onKeepMine, required this.onUseServer});
 
   final VoidCallback onKeepMine;
   final VoidCallback onUseServer;

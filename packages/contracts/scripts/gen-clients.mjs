@@ -105,4 +105,55 @@ function normalizeGeneratedText(directory) {
 
 normalizeGeneratedText(path.join(packageRoot, "generated"));
 
+/**
+ * Strip the `...value` spread that openapi-generator emits in `*ToJSON` for
+ * schemas declaring `additionalProperties: false`.
+ *
+ * The generator reads that keyword as "this model carries extra properties" and
+ * passes the source object through verbatim, so the request body ends up with
+ * both the wire names and the camelCase originals:
+ *
+ *     { companyName: "x", company_name: "x", ... }
+ *
+ * `additionalProperties: false` comes from the API's `StrictModel`
+ * (`extra="forbid"`), so the server rejects those camelCase duplicates with a
+ * 422 — meaning the strictest models were the only ones whose client could not
+ * talk to them. It broke `POST /api/v1/auth/register` outright.
+ *
+ * The declared properties are exactly what should be sent, so removing the
+ * spread is what the schema already says. Done here rather than by hand
+ * because the clients are regenerated.
+ */
+function dropAdditionalPropertySpread(directory) {
+  let patched = 0;
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      patched += dropAdditionalPropertySpread(target);
+      continue;
+    }
+    if (!entry.isFile() || path.extname(entry.name) !== ".ts") continue;
+    const source = readFileSync(target, "utf8");
+    if (!source.includes("...value,")) continue;
+    // Line-based rather than a regex so the intent stays obvious: the
+    // generator always emits the spread on a line of its own.
+    const lines = source.split("\n");
+    const kept = lines.filter((line) => line.trim() !== "...value,");
+    if (kept.length === lines.length) continue;
+    const cleaned = kept.join("\n");
+    writeFileSync(target, cleaned, "utf8");
+    patched += 1;
+  }
+  return patched;
+}
+
+const spreadsRemoved = dropAdditionalPropertySpread(
+  path.join(packageRoot, "generated", "typescript-fetch", "src"),
+);
+if (spreadsRemoved > 0) {
+  console.log(
+    `Removed the additionalProperties spread from ${spreadsRemoved} TypeScript model(s).`,
+  );
+}
+
 console.log("Generated pinned TypeScript Fetch and Dart Dio clients.");

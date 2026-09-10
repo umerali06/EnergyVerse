@@ -45,7 +45,8 @@ class FakeGateway implements AuthGateway {
 /// A scanner-slot stand-in with a button that simulates a detected code --
 /// live camera scanning can't run in CI, so every widget test exercises this
 /// instead of the real `MobileScanner` (verified on a physical device by hand).
-Widget fakeScannerBuilder(BuildContext context, void Function(String code) onDetected) {
+Widget fakeScannerBuilder(
+    BuildContext context, void Function(String code) onDetected) {
   return Center(
     child: ElevatedButton(
       onPressed: () => onDetected('https://app.example.com/qr/qr-code-1'),
@@ -59,7 +60,9 @@ Future<void> pumpScanScreen(
   FakeQrApi api, {
   Widget Function(BuildContext, void Function(String))? scannerBuilder,
 }) async {
-  final auth = AuthController(gateway: FakeGateway(), api: api, feedback: (_) {})..start();
+  final auth =
+      AuthController(gateway: FakeGateway(), api: api, feedback: (_) {})
+        ..start();
   addTearDown(auth.dispose);
   await tester.pumpWidget(
     AppThemeScope(
@@ -69,7 +72,8 @@ Future<void> pumpScanScreen(
         home: Scaffold(
           body: AuthProvider(
             controller: auth,
-            child: QrScanScreen(scannerBuilder: scannerBuilder ?? fakeScannerBuilder),
+            child: QrScanScreen(
+                scannerBuilder: scannerBuilder ?? fakeScannerBuilder),
           ),
         ),
       ),
@@ -102,8 +106,10 @@ void main() {
     });
   });
 
-  testWidgets('renders the scanner slot and manual entry fallback', (tester) async {
-    final api = FakeQrApi(resolveQrCode: (code) async => throw UnimplementedError());
+  testWidgets('renders the scanner slot and manual entry fallback',
+      (tester) async {
+    final api =
+        FakeQrApi(resolveQrCode: (code) async => throw UnimplementedError());
     await pumpScanScreen(tester, api);
 
     expect(find.text('Simulate scan'), findsOneWidget);
@@ -111,7 +117,8 @@ void main() {
     expect(find.text('Look up code'), findsOneWidget);
   });
 
-  testWidgets('manual entry resolves through the same controller as a camera detect', (
+  testWidgets(
+      'manual entry resolves through the same controller as a camera detect', (
     tester,
   ) async {
     String? received;
@@ -134,14 +141,16 @@ void main() {
     expect(received, 'qr-code-1');
 
     gate.completeError(
-      const ApiException(code: 'qr_code_not_found', message: 'not found', statusCode: 404),
+      const ApiException(
+          code: 'qr_code_not_found', message: 'not found', statusCode: 404),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Code not found'), findsOneWidget);
   });
 
-  testWidgets('a simulated camera detection resolves and shows a network error state', (
+  testWidgets(
+      'a simulated camera detection resolves and shows a network error state', (
     tester,
   ) async {
     final api = FakeQrApi(
@@ -156,24 +165,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text("Couldn't reach the network. Check your connection and try again."),
+      find.text(
+          "Couldn't reach the network. Check your connection and try again."),
       findsOneWidget,
     );
   });
 
-  testWidgets('renders whatever the injected scanner slot shows for a camera failure', (
+  testWidgets(
+      'renders whatever the injected scanner slot shows for a camera failure', (
     tester,
   ) async {
-    final api = FakeQrApi(resolveQrCode: (code) async => throw UnimplementedError());
+    final api =
+        FakeQrApi(resolveQrCode: (code) async => throw UnimplementedError());
     await pumpScanScreen(
       tester,
       api,
-      scannerBuilder: (context, onDetected) =>
-          Center(child: Text(cameraErrorMessage(MobileScannerErrorCode.permissionDenied))),
+      scannerBuilder: (context, onDetected) => Center(
+          child: Text(
+              cameraErrorMessage(MobileScannerErrorCode.permissionDenied))),
     );
 
     expect(
-      find.text('Camera access was denied. Enable it in system settings, or use manual entry below.'),
+      find.text(
+          'Camera access was denied. Enable it in system settings, or use manual entry below.'),
       findsOneWidget,
     );
   });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../auth/auth_controller.dart';
 import '../auth/permissions.dart';
+import '../billing/subscription_controller.dart';
 import '../design_system/logo.dart';
 import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
@@ -78,8 +79,14 @@ class AppShellScaffold extends StatelessWidget {
     final permissions = PermissionProvider.of(context);
     final theme = AppThemeScope.of(context);
     final user = auth.currentUser;
-    final primary = AppNav.primaryDestinations(permissions.can);
-    final secondary = AppNav.secondaryDestinations(permissions.can);
+    // Both gates: the person's permissions and the company's plan. A Starter
+    // tenant's Company Admin holds work_orders.read and still must not see the
+    // module, so the plan is filtered here too (D-093). Outside the
+    // authenticated shell there is no scope, and everything stays visible.
+    final subscription = SubscriptionScope.maybeOf(context);
+    final hasFeature = subscription?.hasFeature ?? (String? feature) => true;
+    final primary = AppNav.primaryDestinations(permissions.can, hasFeature);
+    final secondary = AppNav.secondaryDestinations(permissions.can, hasFeature);
     final title = AppNav.byRoute(currentRoute)?.label ??
         (currentRoute == '/rbac-demo' ? 'Assets demo' : 'Not found');
 
@@ -223,9 +230,8 @@ class AppShellScaffold extends StatelessWidget {
     final parts =
         name.split(RegExp(r'[._-]+')).where((part) => part.isNotEmpty).toList();
     final first = parts.isNotEmpty ? parts.first[0] : '?';
-    final second = parts.length > 1
-        ? parts[1][0]
-        : (name.length > 1 ? name[1] : '');
+    final second =
+        parts.length > 1 ? parts[1][0] : (name.length > 1 ? name[1] : '');
     return '$first$second'.toUpperCase();
   }
 
@@ -261,7 +267,8 @@ class _SyncStatusBanner extends StatelessWidget {
             ? "Offline — changes will sync when you're back online"
             : 'Syncing $pending pending change${pending == 1 ? '' : 's'}';
         return Padding(
-          padding: const EdgeInsets.fromLTRB(DsSpacing.s4, DsSpacing.s2, DsSpacing.s4, 0),
+          padding: const EdgeInsets.fromLTRB(
+              DsSpacing.s4, DsSpacing.s2, DsSpacing.s4, 0),
           child: Align(
             alignment: Alignment.centerLeft,
             child: StatusPill(
@@ -298,7 +305,8 @@ class ComingSoonScreen extends StatelessWidget {
               children: [
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: StatusPill(label: 'On the roadmap', status: AppStatus.info),
+                  child: StatusPill(
+                      label: 'On the roadmap', status: AppStatus.info),
                 ),
                 const SizedBox(height: DsSpacing.s4),
                 Text(

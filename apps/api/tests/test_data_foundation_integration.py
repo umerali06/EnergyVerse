@@ -23,6 +23,7 @@ has_real_credentials = bool(
 @pytest.mark.skipif(not has_real_credentials, reason="Firebase credentials are not configured")
 def test_real_seeded_tenants_are_isolated_and_roles_resolve() -> None:
     reset_firestore_client_for_testing()
+
     async def scenario() -> None:
         client = get_firestore_client()
         users = UserRepository(client)

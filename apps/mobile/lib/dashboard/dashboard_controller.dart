@@ -15,7 +15,26 @@ const activityPageSize = 20;
 /// field here is either null (not loaded / errored) or a value that came
 /// back from the API.
 class DashboardController extends ChangeNotifier {
-  DashboardController({required ApiContract api}) : _api = api;
+  static DashboardSummary? _staticCachedSummary;
+  static List<DashboardSeriesPoint> _staticCachedSeries = const [];
+  static List<DashboardActivityItem> _staticCachedActivityItems = const [];
+  static String? _staticCachedNextCursor;
+
+  DashboardController({required ApiContract api}) : _api = api {
+    if (_staticCachedSummary != null) {
+      summary = _staticCachedSummary;
+      summaryStatus = LoadStatus.ready;
+    }
+    if (_staticCachedSeries.isNotEmpty) {
+      series = _staticCachedSeries;
+      seriesStatus = LoadStatus.ready;
+    }
+    if (_staticCachedActivityItems.isNotEmpty) {
+      activityItems = _staticCachedActivityItems;
+      _nextCursor = _staticCachedNextCursor;
+      activityStatus = LoadStatus.ready;
+    }
+  }
 
   final ApiContract _api;
   bool _disposed = false;
@@ -23,15 +42,19 @@ class DashboardController extends ChangeNotifier {
   int _window = 30;
   int get window => _window;
 
-  LoadStatus summaryStatus = LoadStatus.loading;
-  DashboardSummary? summary;
+  late LoadStatus summaryStatus =
+      _staticCachedSummary != null ? LoadStatus.ready : LoadStatus.loading;
+  DashboardSummary? summary = _staticCachedSummary;
 
-  LoadStatus seriesStatus = LoadStatus.loading;
-  List<DashboardSeriesPoint> series = const [];
+  late LoadStatus seriesStatus =
+      _staticCachedSeries.isNotEmpty ? LoadStatus.ready : LoadStatus.loading;
+  List<DashboardSeriesPoint> series = _staticCachedSeries;
 
-  LoadStatus activityStatus = LoadStatus.loading;
-  List<DashboardActivityItem> activityItems = const [];
-  String? _nextCursor;
+  late LoadStatus activityStatus = _staticCachedActivityItems.isNotEmpty
+      ? LoadStatus.ready
+      : LoadStatus.loading;
+  List<DashboardActivityItem> activityItems = _staticCachedActivityItems;
+  String? _nextCursor = _staticCachedNextCursor;
   String? get nextCursor => _nextCursor;
   bool loadingMore = false;
   String? actionFilter;
@@ -61,15 +84,20 @@ class DashboardController extends ChangeNotifier {
 
   Future<void> _loadSummary() async {
     final requestId = ++_summaryRequestId;
-    summaryStatus = LoadStatus.loading;
-    _notify();
+    if (summary == null) {
+      summaryStatus = LoadStatus.loading;
+      _notify();
+    }
     try {
       final result = await _api.getDashboardSummary(window: _window);
       if (requestId != _summaryRequestId) return;
       summary = result;
+      _staticCachedSummary = result;
       summaryStatus = LoadStatus.ready;
     } catch (_) {
       if (requestId != _summaryRequestId) return;
+      _staticCachedSummary = null;
+      summary = null;
       summaryStatus = LoadStatus.error;
     }
     _notify();
@@ -77,15 +105,20 @@ class DashboardController extends ChangeNotifier {
 
   Future<void> _loadSeries() async {
     final requestId = ++_seriesRequestId;
-    seriesStatus = LoadStatus.loading;
-    _notify();
+    if (series.isEmpty) {
+      seriesStatus = LoadStatus.loading;
+      _notify();
+    }
     try {
       final result = await _api.getDashboardActivitySeries(window: _window);
       if (requestId != _seriesRequestId) return;
       series = result.points.toList();
+      _staticCachedSeries = series;
       seriesStatus = LoadStatus.ready;
     } catch (_) {
       if (requestId != _seriesRequestId) return;
+      _staticCachedSeries = const [];
+      series = const [];
       seriesStatus = LoadStatus.error;
     }
     _notify();
@@ -93,10 +126,10 @@ class DashboardController extends ChangeNotifier {
 
   Future<void> _loadActivity() async {
     final requestId = ++_activityRequestId;
-    activityStatus = LoadStatus.loading;
-    activityItems = const [];
-    _nextCursor = null;
-    _notify();
+    if (activityItems.isEmpty) {
+      activityStatus = LoadStatus.loading;
+      _notify();
+    }
     try {
       final page = await _api.getDashboardActivity(
         limit: activityPageSize,
@@ -105,9 +138,14 @@ class DashboardController extends ChangeNotifier {
       if (requestId != _activityRequestId) return;
       activityItems = page.items.toList();
       _nextCursor = page.nextCursor;
+      _staticCachedActivityItems = activityItems;
+      _staticCachedNextCursor = _nextCursor;
       activityStatus = LoadStatus.ready;
     } catch (_) {
       if (requestId != _activityRequestId) return;
+      _staticCachedActivityItems = const [];
+      activityItems = const [];
+      _nextCursor = null;
       activityStatus = LoadStatus.error;
     }
     _notify();

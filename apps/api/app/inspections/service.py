@@ -163,9 +163,7 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
         checklist_items_snapshot=[
             item.model_dump() for item in inspection.checklist_items_snapshot
         ],
-        checklist_responses=[
-            response.model_dump() for response in inspection.checklist_responses
-        ],
+        checklist_responses=[response.model_dump() for response in inspection.checklist_responses],
         gps_lat=inspection.gps_lat,
         gps_lng=inspection.gps_lng,
         client_created_at=inspection.client_created_at,
@@ -324,9 +322,7 @@ class InspectionService:
         inspection = await self._active_inspection(scope, inspection_id)
         return _to_detail(inspection, self._storage)
 
-    def _value_matches_type(
-        self, value: object, item_type: str, options: list[str] | None
-    ) -> bool:
+    def _value_matches_type(self, value: object, item_type: str, options: list[str] | None) -> bool:
         if item_type == "boolean":
             return isinstance(value, bool)
         if item_type == "numeric":
@@ -417,9 +413,7 @@ class InspectionService:
             gps_lng = request.gps_lng if "gps_lng" in provided else current.gps_lng
             self._validate_gps(gps_lat, gps_lng)
         if request.checklist_responses is not None:
-            stamped = self._validate_responses(
-                current, request.checklist_responses, actor_uid
-            )
+            stamped = self._validate_responses(current, request.checklist_responses, actor_uid)
             provided["checklist_responses"] = self._merge_checklist_responses(
                 current.checklist_responses, stamped
             )
@@ -755,9 +749,7 @@ class InspectionService:
         (voice notes have none of those) plus `duration_ms`."""
         current = await self._active_inspection(scope, inspection_id)
 
-        existing = next(
-            (v for v in current.voice_notes if v.local_id == request.local_id), None
-        )
+        existing = next((v for v in current.voice_notes if v.local_id == request.local_id), None)
         if existing is not None:
             if (
                 existing.filename == request.filename

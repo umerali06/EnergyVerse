@@ -6,7 +6,8 @@ AssetListItem assetListItemFixture({
   String assetTag = 'PMP-001',
   String name = 'Feed Pump',
   String category = 'Pump',
-  AssetListItemCurrentStatusEnum currentStatus = AssetListItemCurrentStatusEnum.healthy,
+  AssetListItemCurrentStatusEnum currentStatus =
+      AssetListItemCurrentStatusEnum.healthy,
   String facilityId = 'facility-1',
   String? areaId = 'area-1',
   String? manufacturer = 'Acme Co',
@@ -27,11 +28,13 @@ AssetListItem assetListItemFixture({
       ..model = model
       ..parentAssetId = parentAssetId
       ..createdAt = DateTime.utc(2026, 1, 1)
-      ..updatedAt = updatedAt ?? DateTime.now().subtract(const Duration(minutes: 5)),
+      ..updatedAt =
+          updatedAt ?? DateTime.now().subtract(const Duration(minutes: 5)),
   );
 }
 
-AssetListPage assetListPageFixture({List<AssetListItem>? items, String? nextCursor}) {
+AssetListPage assetListPageFixture(
+    {List<AssetListItem>? items, String? nextCursor}) {
   return AssetListPage(
     (builder) => builder
       ..items = ListBuilder(items ?? [assetListItemFixture()])
@@ -44,7 +47,8 @@ AssetDetail assetDetailFixture({
   String assetTag = 'PMP-001',
   String name = 'Feed Pump',
   String category = 'Pump',
-  AssetDetailCurrentStatusEnum currentStatus = AssetDetailCurrentStatusEnum.healthy,
+  AssetDetailCurrentStatusEnum currentStatus =
+      AssetDetailCurrentStatusEnum.healthy,
   String facilityId = 'facility-1',
   String? areaId = 'area-1',
   String? manufacturer = 'Acme Co',
@@ -91,13 +95,15 @@ AssetHistoryEvent assetHistoryEventFixture({
   return AssetHistoryEvent(
     (builder) => builder
       ..id = id
-      ..occurredAt = occurredAt ?? DateTime.now().subtract(const Duration(hours: 2))
+      ..occurredAt =
+          occurredAt ?? DateTime.now().subtract(const Duration(hours: 2))
       ..summary = summary
       ..type = type,
   );
 }
 
-AssetHistoryPage assetHistoryPageFixture({List<AssetHistoryEvent>? items, String? nextCursor}) {
+AssetHistoryPage assetHistoryPageFixture(
+    {List<AssetHistoryEvent>? items, String? nextCursor}) {
   return AssetHistoryPage(
     (builder) => builder
       ..items = ListBuilder(items ?? [])
@@ -122,7 +128,8 @@ FacilityDetail facilityFixture({
   );
 }
 
-FacilityListPage facilityListPageFixture({List<FacilityDetail>? items, String? nextCursor}) {
+FacilityListPage facilityListPageFixture(
+    {List<FacilityDetail>? items, String? nextCursor}) {
   return FacilityListPage(
     (builder) => builder
       ..items = ListBuilder(items ?? [facilityFixture()])
@@ -145,7 +152,8 @@ AreaDetail areaFixture({
   );
 }
 
-AreaListPage areaListPageFixture({List<AreaDetail>? items, String? nextCursor}) {
+AreaListPage areaListPageFixture(
+    {List<AreaDetail>? items, String? nextCursor}) {
   return AreaListPage(
     (builder) => builder
       ..items = ListBuilder(items ?? [areaFixture()])

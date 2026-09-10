@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 
+import { RequirePermission } from "@/auth/route-guards";
 import { protectedPage } from "@/seo/site";
 
 export const metadata: Metadata = protectedPage("Reports");
 
-import { ComingSoonScreen } from "@/shell/app-shell";
+import { ReportsPage } from "@/reports/reports-page";
 
 export default function Page() {
-  return <ComingSoonScreen moduleName="Reports" />;
+  return <RequirePermission permission="reports.read"><ReportsPage /></RequirePermission>;
 }

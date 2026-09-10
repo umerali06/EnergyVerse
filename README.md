@@ -67,9 +67,17 @@ cd apps/admin
 pnpm install
 $env:NEXT_PUBLIC_API_BASE_URL="http://localhost:8000"
 pnpm dev
-# http://localhost:3000
+# Public marketing site (no sign-in needed): http://localhost:3000
+#   also /pricing and /about
+# Signed-in dashboard: http://localhost:3000/dashboard
+# Sign in / create an organization: /login and /signup
 # Development-only primitive showcase: http://localhost:3000/design-system
 ```
+
+`/` is the public landing page, so opening the app in a browser no longer drops
+straight into a login form. Everything behind authentication lives under an
+explicit path (`/dashboard`, `/assets`, `/inspections`, …) and is excluded from
+robots.txt; see `apps/admin/src/navigation/routes.ts`.
 
 ### Mobile
 
@@ -154,7 +162,7 @@ bindings after a token change:
 node packages/design-tokens/scripts/generate.mjs
 ```
 
-Dark mode is the default in both clients, light mode is persisted locally, and
+Light mode is the default in both clients, a chosen dark mode is persisted locally, and
 both clients honor the operating system's reduced-animation preference. All
 future screens must be composed from the shared tokens and reusable primitives;
 feature-local copies of colors, spacing, typography, or motion values are not

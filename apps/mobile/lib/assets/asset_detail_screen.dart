@@ -15,8 +15,16 @@ import '../design_system/primitives.dart';
 import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
 import '../inspections/gps_capture.dart';
-import '../inspections/inspections_screen.dart' show inspectionStatusFor, inspectionStatusLabel;
+import '../inspections/inspections_screen.dart'
+    show inspectionStatusFor, inspectionStatusLabel;
+import '../media/media_capture_screen.dart';
 import '../sync/sync_engine.dart';
+import '../work_orders/work_orders_screen.dart'
+    show
+        workOrderPriorityFor,
+        workOrderPriorityLabel,
+        workOrderStatusFor,
+        workOrderStatusLabel;
 import 'assets_controller.dart';
 import 'assets_screen.dart' show statusFor, statusLabel;
 
@@ -57,19 +65,16 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
 
   void _load() {
     setState(() => _status = LoadStatus.loading);
-    _controller!
-        .getAsset(widget.assetId)
-        .then((asset) {
-          if (!mounted) return;
-          setState(() {
-            _asset = asset;
-            _status = LoadStatus.ready;
-          });
-        })
-        .catchError((_) {
-          if (!mounted) return;
-          setState(() => _status = LoadStatus.error);
-        });
+    _controller!.getAsset(widget.assetId).then((asset) {
+      if (!mounted) return;
+      setState(() {
+        _asset = asset;
+        _status = LoadStatus.ready;
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() => _status = LoadStatus.error);
+    });
   }
 
   bool _startingInspection = false;
@@ -94,11 +99,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         gpsLng: position.lng,
       );
       if (!mounted) return;
-      await Navigator.of(context).pushNamed(AppRoutes.inspectionDetail, arguments: id);
+      await Navigator.of(context)
+          .pushNamed(AppRoutes.inspectionDetail, arguments: id);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't start the inspection. Please try again.")),
+        const SnackBar(
+            content: Text("Couldn't start the inspection. Please try again.")),
       );
     } finally {
       if (mounted) setState(() => _startingInspection = false);
@@ -109,7 +116,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
   Widget build(BuildContext context) {
     final controller = _controller;
     if (controller == null) return const SizedBox.shrink();
-    return AnimatedBuilder(animation: controller, builder: (context, _) => _buildBody(controller));
+    return AnimatedBuilder(
+        animation: controller, builder: (context, _) => _buildBody(controller));
   }
 
   Widget _buildBody(AssetsController controller) {
@@ -127,19 +135,32 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
     }
     final asset = _asset;
     if (_status == LoadStatus.error || asset == null) {
-      return Padding(
-        padding: const EdgeInsets.all(DsSpacing.s6),
-        child: EmptyState(
-          action: AppButton(label: 'Retry', onPressed: _load, variant: AppButtonVariant.ghost),
-          description: "Couldn't load this asset. Check your connection and try again.",
-          title: 'Something went wrong',
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            action: AppButton(
+                label: 'Retry',
+                onPressed: _load,
+                variant: AppButtonVariant.ghost),
+            description:
+                "Couldn't load this asset. Check your connection and try again.",
+            title: 'Something went wrong',
+          ),
         ),
       );
     }
 
-    final canWrite = AuthProvider.of(context).currentUser?.permissions.contains('assets.write') ?? false;
-    final canInspect =
-        AuthProvider.of(context).currentUser?.permissions.contains('inspections.write') ?? false;
+    final canWrite = AuthProvider.of(context)
+            .currentUser
+            ?.permissions
+            .contains('assets.write') ??
+        false;
+    final canInspect = AuthProvider.of(context)
+            .currentUser
+            ?.permissions
+            .contains('inspections.write') ??
+        false;
     return DefaultTabController(
       length: 5,
       child: Column(
@@ -161,7 +182,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(asset.name, style: Theme.of(context).textTheme.headlineSmall),
+                          Text(asset.name,
+                              style: Theme.of(context).textTheme.headlineSmall),
                           Text(
                             asset.assetTag,
                             style: TextStyle(
@@ -183,10 +205,15 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                       ),
                     if (canWrite) ...[
                       const SizedBox(width: DsSpacing.s2),
-                      AppButton(label: 'Edit', onPressed: () async {
-                        await Navigator.of(context).pushNamed(AppRoutes.assetForm, arguments: asset.id);
-                        _load();
-                      }, variant: AppButtonVariant.ghost),
+                      AppButton(
+                          label: 'Edit',
+                          onPressed: () async {
+                            await Navigator.of(context).pushNamed(
+                                AppRoutes.assetForm,
+                                arguments: asset.id);
+                            _load();
+                          },
+                          variant: AppButtonVariant.ghost),
                     ],
                   ],
                 ),
@@ -226,12 +253,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
               children: [
                 _OverviewTab(asset: asset, controller: controller),
                 _InspectionsTab(assetId: asset.id, controller: controller),
-                const _StaticEmptyTab(
-                  description: 'Work orders will appear here once Phase 11 lands.',
-                  title: 'No work orders yet',
-                ),
+                _WorkOrdersTab(assetId: asset.id, controller: controller),
                 _HistoryTab(assetId: asset.id, controller: controller),
-                _MediaTab(asset: asset, canWrite: canWrite, controller: controller, onChanged: (next) => setState(() => _asset = next)),
+                _MediaTab(
+                    asset: asset,
+                    canWrite: canWrite,
+                    controller: controller,
+                    onChanged: (next) => setState(() => _asset = next)),
               ],
             ),
           ),
@@ -287,19 +315,16 @@ class _OverviewTabState extends State<_OverviewTab> {
   @override
   void initState() {
     super.initState();
-    widget.controller
-        .getChildAssets(widget.asset.id)
-        .then((items) {
-          if (!mounted) return;
-          setState(() {
-            _children = items;
-            _childrenStatus = LoadStatus.ready;
-          });
-        })
-        .catchError((_) {
-          if (!mounted) return;
-          setState(() => _childrenStatus = LoadStatus.error);
-        });
+    widget.controller.getChildAssets(widget.asset.id).then((items) {
+      if (!mounted) return;
+      setState(() {
+        _children = items;
+        _childrenStatus = LoadStatus.ready;
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() => _childrenStatus = LoadStatus.error);
+    });
   }
 
   @override
@@ -367,8 +392,10 @@ class _OverviewTabState extends State<_OverviewTab> {
           ),
         ),
         const SizedBox(height: DsSpacing.s2),
-        if (_childrenStatus == LoadStatus.loading) const AppSkeleton(height: 20, width: 160),
-        if (_childrenStatus == LoadStatus.ready && _children.isEmpty) const Text('No sub-assets.'),
+        if (_childrenStatus == LoadStatus.loading)
+          const AppSkeleton(height: 20, width: 160),
+        if (_childrenStatus == LoadStatus.ready && _children.isEmpty)
+          const Text('No sub-assets.'),
         if (_childrenStatus == LoadStatus.ready && _children.isNotEmpty)
           for (final child in _children)
             Padding(
@@ -377,7 +404,9 @@ class _OverviewTabState extends State<_OverviewTab> {
             ),
         const SizedBox(height: DsSpacing.s4),
         _Field(label: 'Created', value: formatCompanyDateTime(asset.createdAt)),
-        _Field(label: 'Last updated', value: formatCompanyDateTime(asset.updatedAt)),
+        _Field(
+            label: 'Last updated',
+            value: formatCompanyDateTime(asset.updatedAt)),
       ],
     );
   }
@@ -400,41 +429,47 @@ class _InspectionsTabState extends State<_InspectionsTab> {
   @override
   void initState() {
     super.initState();
-    widget.controller
-        .getInspections(widget.assetId)
-        .then((page) {
-          if (!mounted) return;
-          setState(() {
-            _items = page.items.toList();
-            _status = LoadStatus.ready;
-          });
-        })
-        .catchError((_) {
-          if (!mounted) return;
-          setState(() => _status = LoadStatus.error);
-        });
+    widget.controller.getInspections(widget.assetId).then((page) {
+      if (!mounted) return;
+      setState(() {
+        _items = page.items.toList();
+        _status = LoadStatus.ready;
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() => _status = LoadStatus.error);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (_status == LoadStatus.loading) {
-      return const Padding(padding: EdgeInsets.all(DsSpacing.s6), child: AppSkeleton(height: 64));
+      return const SingleChildScrollView(
+        child: Padding(
+            padding: EdgeInsets.all(DsSpacing.s6),
+            child: AppSkeleton(height: 64)),
+      );
     }
     if (_status == LoadStatus.error) {
-      return const Padding(
-        padding: EdgeInsets.all(DsSpacing.s6),
-        child: EmptyState(
-          description: "Couldn't load this asset's inspections.",
-          title: 'Something went wrong',
+      return const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            description: "Couldn't load this asset's inspections.",
+            title: 'Something went wrong',
+          ),
         ),
       );
     }
     if (_items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(DsSpacing.s6),
-        child: EmptyState(
-          description: 'No inspections have been recorded for this asset yet.',
-          title: 'No inspections yet',
+      return const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            description:
+                'No inspections have been recorded for this asset yet.',
+            title: 'No inspections yet',
+          ),
         ),
       );
     }
@@ -446,8 +481,9 @@ class _InspectionsTabState extends State<_InspectionsTab> {
             padding: const EdgeInsets.only(bottom: DsSpacing.s3),
             child: AppCard(
               child: InkWell(
-                onTap: () => Navigator.of(context)
-                    .pushNamed(AppRoutes.inspectionDetail, arguments: inspection.id),
+                onTap: () => Navigator.of(context).pushNamed(
+                    AppRoutes.inspectionDetail,
+                    arguments: inspection.id),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -461,7 +497,8 @@ class _InspectionsTabState extends State<_InspectionsTab> {
                           ),
                           const SizedBox(height: DsSpacing.s2),
                           StatusPill(
-                            label: inspectionStatusLabel(inspection.status.name),
+                            label:
+                                inspectionStatusLabel(inspection.status.name),
                             status: inspectionStatusFor(inspection.status.name),
                           ),
                         ],
@@ -469,6 +506,142 @@ class _InspectionsTabState extends State<_InspectionsTab> {
                     ),
                     Text(
                       formatRelativeTime(inspection.updatedAt),
+                      style: TextStyle(
+                        fontFamily: DsTypography.mono,
+                        fontSize: DsTypography.sizeCaption,
+                        color: context.semantic.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _WorkOrdersTab extends StatefulWidget {
+  const _WorkOrdersTab({required this.assetId, required this.controller});
+
+  final String assetId;
+  final AssetsController controller;
+
+  @override
+  State<_WorkOrdersTab> createState() => _WorkOrdersTabState();
+}
+
+class _WorkOrdersTabState extends State<_WorkOrdersTab> {
+  LoadStatus _status = LoadStatus.loading;
+  List<WorkOrderListItem> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    setState(() => _status = LoadStatus.loading);
+    widget.controller.getWorkOrders(widget.assetId).then((page) {
+      if (!mounted) return;
+      setState(() {
+        _items = page.items.toList();
+        _status = LoadStatus.ready;
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() => _status = LoadStatus.error);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_status == LoadStatus.loading) {
+      return const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(DsSpacing.s6),
+          child: AppSkeleton(height: 64),
+        ),
+      );
+    }
+    if (_status == LoadStatus.error) {
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            action: AppButton(
+              label: 'Retry',
+              onPressed: _load,
+              variant: AppButtonVariant.ghost,
+            ),
+            description: "Couldn't load work orders for this asset.",
+            title: 'Something went wrong',
+          ),
+        ),
+      );
+    }
+    if (_items.isEmpty) {
+      return const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            description:
+                'No work orders have been created for this asset yet.',
+            title: 'No work orders yet',
+          ),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(DsSpacing.s6),
+      children: [
+        for (final workOrder in _items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: DsSpacing.s3),
+            child: AppCard(
+              child: InkWell(
+                onTap: () => Navigator.of(context).pushNamed(
+                  AppRoutes.workOrderDetail,
+                  arguments: workOrder.id,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            workOrder.title,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: DsSpacing.s2),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: DsSpacing.s2,
+                            children: [
+                              StatusPill(
+                                label: workOrderPriorityLabel(
+                                    workOrder.priority.name),
+                                status: workOrderPriorityFor(
+                                    workOrder.priority.name),
+                              ),
+                              StatusPill(
+                                label:
+                                    workOrderStatusLabel(workOrder.status.name),
+                                status:
+                                    workOrderStatusFor(workOrder.status.name),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: DsSpacing.s2),
+                    Text(
+                      formatRelativeTime(workOrder.updatedAt),
                       style: TextStyle(
                         fontFamily: DsTypography.mono,
                         fontSize: DsTypography.sizeCaption,
@@ -502,41 +675,46 @@ class _HistoryTabState extends State<_HistoryTab> {
   @override
   void initState() {
     super.initState();
-    widget.controller
-        .getAssetHistory(widget.assetId)
-        .then((page) {
-          if (!mounted) return;
-          setState(() {
-            _events = page.items?.toList() ?? const [];
-            _status = LoadStatus.ready;
-          });
-        })
-        .catchError((_) {
-          if (!mounted) return;
-          setState(() => _status = LoadStatus.error);
-        });
+    widget.controller.getAssetHistory(widget.assetId).then((page) {
+      if (!mounted) return;
+      setState(() {
+        _events = page.items?.toList() ?? const [];
+        _status = LoadStatus.ready;
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() => _status = LoadStatus.error);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (_status == LoadStatus.loading) {
-      return const Padding(padding: EdgeInsets.all(DsSpacing.s6), child: AppSkeleton(height: 64));
+      return const SingleChildScrollView(
+        child: Padding(
+            padding: EdgeInsets.all(DsSpacing.s6),
+            child: AppSkeleton(height: 64)),
+      );
     }
     if (_status == LoadStatus.error) {
-      return const Padding(
-        padding: EdgeInsets.all(DsSpacing.s6),
-        child: EmptyState(
-          description: "Couldn't load this asset's history.",
-          title: 'Something went wrong',
+      return const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            description: "Couldn't load this asset's history.",
+            title: 'Something went wrong',
+          ),
         ),
       );
     }
     if (_events.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(DsSpacing.s6),
-        child: EmptyState(
-          description: 'No history has been recorded for this asset yet.',
-          title: 'No history yet',
+      return const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            description: 'No history has been recorded for this asset yet.',
+            title: 'No history yet',
+          ),
         ),
       );
     }
@@ -558,7 +736,8 @@ class _HistoryTabState extends State<_HistoryTab> {
                       color: context.semantic.textMuted,
                     ),
                   ),
-                  Text(event.type, style: Theme.of(context).textTheme.titleSmall),
+                  Text(event.type,
+                      style: Theme.of(context).textTheme.titleSmall),
                   Text(event.summary),
                 ],
               ),
@@ -570,7 +749,11 @@ class _HistoryTabState extends State<_HistoryTab> {
 }
 
 class _MediaTab extends StatefulWidget {
-  const _MediaTab({required this.asset, required this.canWrite, required this.controller, required this.onChanged});
+  const _MediaTab(
+      {required this.asset,
+      required this.canWrite,
+      required this.controller,
+      required this.onChanged});
 
   final AssetDetail asset;
   final bool canWrite;
@@ -584,8 +767,17 @@ class _MediaTab extends StatefulWidget {
 class _MediaTabState extends State<_MediaTab> {
   double? progress;
 
-  Future<void> _photo(ImageSource source) async {
-    final file = await ImagePicker().pickImage(source: source, imageQuality: 90);
+  Future<void> _capturePhoto() async {
+    final result = await Navigator.of(context).push<MediaCaptureResult>(
+      MaterialPageRoute(builder: (_) => const PhotoCameraCaptureScreen()),
+    );
+    if (result == null || result.kind != 'photo') return;
+    await _upload('photo', result.path, result.filename);
+  }
+
+  Future<void> _photoFromGallery() async {
+    final file = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 90);
     if (file == null) return;
     await _upload('photo', file.path, file.name);
   }
@@ -593,7 +785,9 @@ class _MediaTabState extends State<_MediaTab> {
   Future<void> _document(String kind) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: kind == 'manual' ? ['pdf', 'doc', 'docx'] : ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp'],
+      allowedExtensions: kind == 'manual'
+          ? ['pdf', 'doc', 'docx']
+          : ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp'],
     );
     final file = result?.files.single;
     if (file?.path == null) return;
@@ -604,11 +798,14 @@ class _MediaTabState extends State<_MediaTab> {
     setState(() => progress = 0);
     try {
       final next = await AuthProvider.of(context).api.uploadAssetMedia(
-        assetId: widget.asset.id, kind: kind, path: path, filename: filename,
-        onProgress: (sent, total) {
-          if (mounted && total > 0) setState(() => progress = sent / total);
-        },
-      );
+            assetId: widget.asset.id,
+            kind: kind,
+            path: path,
+            filename: filename,
+            onProgress: (sent, total) {
+              if (mounted && total > 0) setState(() => progress = sent / total);
+            },
+          );
       widget.onChanged(next);
     } finally {
       if (mounted) setState(() => progress = null);
@@ -616,20 +813,27 @@ class _MediaTabState extends State<_MediaTab> {
   }
 
   Future<void> _remove(AssetMediaResponse media) async {
-    final next = await AuthProvider.of(context).api.deleteAssetMedia(widget.asset.id, media.id);
+    final next = await AuthProvider.of(context)
+        .api
+        .deleteAssetMedia(widget.asset.id, media.id);
     widget.onChanged(next);
   }
 
   @override
   Widget build(BuildContext context) {
     final asset = widget.asset;
-    final count = (asset.photos?.length ?? 0) + (asset.documents?.length ?? 0) + (asset.manuals?.length ?? 0);
+    final count = (asset.photos?.length ?? 0) +
+        (asset.documents?.length ?? 0) +
+        (asset.manuals?.length ?? 0);
     if (count == 0 && !widget.canWrite) {
-      return const Padding(
-        padding: EdgeInsets.all(DsSpacing.s6),
-        child: EmptyState(
-          description: 'No photos, documents, or manuals have been attached.',
-          title: 'No photos or documents yet',
+      return const SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(DsSpacing.s6),
+          child: EmptyState(
+            description:
+                'No photos, documents, or manuals have been attached.',
+            title: 'No photos or documents yet',
+          ),
         ),
       );
     }
@@ -638,56 +842,68 @@ class _MediaTabState extends State<_MediaTab> {
       children: [
         if (progress != null) LinearProgressIndicator(value: progress),
         _mediaSection('Photos', asset.photos?.toList() ?? const [], [
-          AppButton(label: 'Camera', onPressed: () => _photo(ImageSource.camera), variant: AppButtonVariant.ghost),
-          AppButton(label: 'Gallery', onPressed: () => _photo(ImageSource.gallery), variant: AppButtonVariant.ghost),
+          AppButton(
+              label: 'Camera',
+              onPressed: _capturePhoto,
+              variant: AppButtonVariant.ghost),
+          AppButton(
+              label: 'Gallery',
+              onPressed: _photoFromGallery,
+              variant: AppButtonVariant.ghost),
         ]),
         _mediaSection('Documents', asset.documents?.toList() ?? const [], [
-          AppButton(label: 'Add document', onPressed: () => _document('document'), variant: AppButtonVariant.ghost),
+          AppButton(
+              label: 'Add document',
+              onPressed: () => _document('document'),
+              variant: AppButtonVariant.ghost),
         ]),
         _mediaSection('Manuals', asset.manuals?.toList() ?? const [], [
-          AppButton(label: 'Add manual', onPressed: () => _document('manual'), variant: AppButtonVariant.ghost),
+          AppButton(
+              label: 'Add manual',
+              onPressed: () => _document('manual'),
+              variant: AppButtonVariant.ghost),
         ]),
       ],
     );
   }
 
-  Widget _mediaSection(String title, List<AssetMediaResponse> items, List<Widget> actions) {
+  Widget _mediaSection(
+      String title, List<AssetMediaResponse> items, List<Widget> actions) {
     return Padding(
       padding: const EdgeInsets.only(bottom: DsSpacing.s5),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+          Expanded(
+              child:
+                  Text(title, style: Theme.of(context).textTheme.titleMedium)),
           if (widget.canWrite) ...actions,
         ]),
         const SizedBox(height: DsSpacing.s2),
         if (items.isEmpty) Text('No ${title.toLowerCase()} attached.'),
         for (final media in items)
-          AppCard(child: Row(children: [
+          AppCard(
+              child: Row(children: [
             if (media.kind.name == 'photo')
-              ClipRRect(borderRadius: BorderRadius.circular(6), child: Image.network(media.url, width: 64, height: 64, fit: BoxFit.cover)),
+              ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.network(media.url,
+                      width: 64, height: 64, fit: BoxFit.cover)),
             if (media.kind.name == 'photo') const SizedBox(width: DsSpacing.s3),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(media.filename, overflow: TextOverflow.ellipsis),
-              Text('${(media.size / 1024).ceil()} KB', style: TextStyle(color: context.semantic.textMuted)),
-            ])),
-            if (widget.canWrite) IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Remove', onPressed: () => _remove(media)),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(media.filename, overflow: TextOverflow.ellipsis),
+                  Text('${(media.size / 1024).ceil()} KB',
+                      style: TextStyle(color: context.semantic.textMuted)),
+                ])),
+            if (widget.canWrite)
+              IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Remove',
+                  onPressed: () => _remove(media)),
           ])),
       ]),
-    );
-  }
-}
-
-class _StaticEmptyTab extends StatelessWidget {
-  const _StaticEmptyTab({required this.title, required this.description});
-
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(DsSpacing.s6),
-      child: EmptyState(description: description, title: title),
     );
   }
 }

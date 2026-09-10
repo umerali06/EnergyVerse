@@ -27,6 +27,27 @@ void main() {
       // TODO
     });
 
+    // Dashboard Permits Summary
+    //
+    //Future<PermitDashboardSummary> getDashboardPermitsSummary() async
+    test('test getDashboardPermitsSummary', () async {
+      // TODO
+    });
+
+    // Dashboard Reports Summary
+    //
+    //Future<ReportDashboardSummary> getDashboardReportsSummary() async
+    test('test getDashboardReportsSummary', () async {
+      // TODO
+    });
+
+    // Dashboard Safety Summary
+    //
+    //Future<SafetyDashboardSummary> getDashboardSafetySummary() async
+    test('test getDashboardSafetySummary', () async {
+      // TODO
+    });
+
     // Dashboard Summary
     //
     //Future<DashboardSummary> getDashboardSummary({ int window }) async

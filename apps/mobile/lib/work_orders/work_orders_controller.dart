@@ -11,21 +11,29 @@ import 'local_work_orders_repository.dart';
 /// current user's uid ("My Work Orders") via [setMineOnly]; there is no
 /// cursor pagination against the local cache, same rationale as inspections.
 class WorkOrdersController extends ChangeNotifier {
+  static List<LocalWorkOrderRecord>? _staticCachedItems;
+
   WorkOrdersController({
     required LocalWorkOrdersRepository repository,
     String? initialStatus,
     String? initialTechnicianId,
   })  : _repository = repository,
         status = initialStatus,
-        technicianId = initialTechnicianId;
+        technicianId = initialTechnicianId {
+    if (_staticCachedItems != null) {
+      items = _staticCachedItems!;
+      listStatus = LoadStatus.ready;
+    }
+  }
 
   final LocalWorkOrdersRepository _repository;
   StreamSubscription<List<LocalWorkOrderRecord>>? _subscription;
   int _generation = 0;
   bool _disposed = false;
 
-  LoadStatus listStatus = LoadStatus.loading;
-  List<LocalWorkOrderRecord> items = const [];
+  late LoadStatus listStatus =
+      _staticCachedItems != null ? LoadStatus.ready : LoadStatus.loading;
+  List<LocalWorkOrderRecord> items = _staticCachedItems ?? const [];
 
   String? status;
   String? technicianId;
@@ -50,19 +58,23 @@ class WorkOrdersController extends ChangeNotifier {
   Future<void> _load() async {
     final generation = ++_generation;
     unawaited(_subscription?.cancel());
-    listStatus = LoadStatus.loading;
-    items = const [];
-    _notify();
+    if (items.isEmpty) {
+      listStatus = LoadStatus.loading;
+      _notify();
+    }
     _subscription = _repository
         .watchWorkOrders(status: status, technicianId: technicianId)
         .listen((records) {
       if (generation != _generation) return;
       items = records;
+      _staticCachedItems = records;
       listStatus = LoadStatus.ready;
       _notify();
     }, onError: (_) {
       if (generation != _generation) return;
-      listStatus = LoadStatus.error;
+      if (items.isEmpty) {
+        listStatus = LoadStatus.error;
+      }
       _notify();
     });
     unawaited(_repository.refreshFromNetwork(

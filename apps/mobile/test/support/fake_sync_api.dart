@@ -1,5 +1,6 @@
 import 'package:fev_api_client/fev_api_client.dart';
 import 'package:fev_mobile/api/api_service.dart';
+import '../support/subscription_fixtures.dart';
 
 typedef GetInspectionFn = Future<InspectionDetail> Function(String id);
 typedef CreateInspectionFn = Future<InspectionDetail> Function(
@@ -162,6 +163,10 @@ class FakeSyncApi implements ApiContract {
   final ReviewAiAnalysisFn? _reviewInspectionAiAnalysis;
 
   final List<String> calls = [];
+
+  @override
+  Future<SubscriptionResponse> getSubscription() async =>
+      subscriptionResponseFixture();
 
   @override
   Future<InspectionDetail> getInspection(String inspectionId) {
@@ -413,6 +418,10 @@ class FakeSyncApi implements ApiContract {
       throw UnimplementedError();
   @override
   Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() =>
       throw UnimplementedError();
   @override
   Future<UserListPage> getUsers({

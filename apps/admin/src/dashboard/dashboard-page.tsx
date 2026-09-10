@@ -4,10 +4,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import "@/assets/asset-widgets";
+import "@/safety/safety-widgets";
+import "@/permits/permit-widgets";
+import "@/reports/report-widgets";
+import "@/work-orders/work-order-widgets";
 import "./reserved-widgets";
 
 import { useAuth } from "@/auth/auth-context";
 import { usePermissions } from "@/auth/permissions";
+import { PlanCard } from "@/billing/plan-card";
 import {
   Badge,
   Button,
@@ -22,11 +27,7 @@ import {
 } from "@/design-system";
 import { navIcons } from "@/navigation/nav-config";
 
-import {
-  activityWindows,
-  useDashboardData,
-  type ActivityWindowDays,
-} from "./dashboard-data";
+import { activityWindows, useDashboardData, type ActivityWindowDays } from "./dashboard-data";
 import { actionIcons } from "./icons";
 import {
   actionIconKey,
@@ -121,7 +122,11 @@ function WindowSwitcher({
   onChange: (window: ActivityWindowDays) => void;
 }) {
   return (
-    <div aria-label="Activity window" className="flex gap-1 rounded-md border border-border p-1" role="group">
+    <div
+      aria-label="Activity window"
+      className="flex gap-1 rounded-md border border-border p-1"
+      role="group"
+    >
       {activityWindows.map((window) => (
         <button
           aria-pressed={window === value}
@@ -145,39 +150,54 @@ function WindowSwitcher({
 function QuickActionsCard() {
   const router = useRouter();
   const { can } = usePermissions();
-  const isDev = process.env.NODE_ENV === "development";
   const actions = [
     {
       key: "users",
-      label: "Users",
-      description: "Invite, edit, and deactivate people in your company.",
+      label: "Users & Access",
+      description: "Invite, edit, and manage team members and role access.",
       route: "/users",
       icon: navIcons.users,
       visible: can("users.manage"),
     },
     {
-      key: "assets-demo",
-      label: "Assets demo",
-      description: "See the assets.write permission gate in action.",
-      route: "/rbac-demo",
+      key: "assets",
+      label: "Asset Inventory",
+      description: "View, filter, and inspect facility assets & 3D digital twin.",
+      route: "/assets",
       icon: navIcons.assets,
-      visible: can("assets.write"),
+      visible: can("assets.read"),
+    },
+    {
+      key: "work-orders",
+      label: "Work Orders",
+      description: "Manage maintenance assignments, priorities & reviews.",
+      route: "/work-orders",
+      icon: navIcons.workOrders,
+      visible: can("work_orders.read"),
+    },
+    {
+      key: "permits",
+      label: "Permit-to-Work",
+      description: "Review safety risk assessments & sequential permit approvals.",
+      route: "/permits",
+      icon: navIcons.permits,
+      visible: can("permits.read"),
     },
     {
       key: "settings",
-      label: "Admin & Settings",
-      description: "Company configuration — coming soon.",
+      label: "Company Configuration",
+      description: "Manage organization profile, logo, timezone, and settings.",
       route: "/settings",
       icon: navIcons.settings,
       visible: can("company.settings"),
     },
     {
       key: "design-system",
-      label: "Design system",
-      description: "Component and token showcase (development only).",
+      label: "Design System Showcase",
+      description: "Explore industrial design tokens, brand UI primitives & components.",
       route: "/design-system",
       icon: navIcons.dashboard,
-      visible: isDev,
+      visible: true,
     },
   ].filter((action) => action.visible);
 
@@ -400,11 +420,16 @@ export function DashboardPage({
 
           <div className="grid gap-6">
             <QuickActionsCard />
+            {/* Replaces the old raw-tier pill: the plan, its billing status,
+                trial time left, and usage against each quota, all from the
+                API's resolved entitlements (D-093). Seats is the count an
+                admin actually controls; asset and facility counts are not
+                loaded on this page yet, so those rows show their cap only. */}
+            <PlanCard seatsUsed={data.summary.data?.usersTotal ?? null} />
             <DashboardWidgetGrid subscriptionTier={data.summary.data?.subscriptionTier} />
             {data.summary.status === "ready" && data.summary.data && (
               <Card className="p-4">
-                <StatusPill tone="info">{data.summary.data.subscriptionTier}</StatusPill>
-                <p className="mt-3 text-bodySmall text-text-secondary">
+                <p className="text-bodySmall text-text-secondary">
                   Company since {formatCompanyDate(data.summary.data.companyCreatedAt, dateFormat)}
                 </p>
               </Card>
