@@ -80,13 +80,24 @@ describe("DigitalTwinViewer", () => {
     expect(screen.getAllByText("P-101A").length).toBeGreaterThan(0);
   });
 
-  it("navigates to asset details when View Asset Details is clicked in drawer", async () => {
+  it("opens the selected asset's own record from the drawer", async () => {
     render(<DigitalTwinViewer scene={mockScene} />);
     const assetNode = await screen.findByText("Main Crude Charge Pump");
     await userEvent.setup().click(assetNode);
 
     const viewButton = await screen.findByRole("button", { name: /View Asset Details/i });
     await userEvent.setup().click(viewButton);
-    expect(mockPush).toHaveBeenCalledWith("/assets");
+    // The selected hotspot must survive the navigation, not drop to the list.
+    expect(mockPush).toHaveBeenCalledWith("/assets/asset-1");
+  });
+
+  it("deep-links work order creation with the selected asset attached", async () => {
+    render(<DigitalTwinViewer scene={mockScene} />);
+    const assetNode = await screen.findByText("Main Crude Charge Pump");
+    await userEvent.setup().click(assetNode);
+
+    const createButton = await screen.findByRole("button", { name: /Create Work Order/i });
+    await userEvent.setup().click(createButton);
+    expect(mockPush).toHaveBeenCalledWith("/work-orders?createForAsset=asset-1");
   });
 });

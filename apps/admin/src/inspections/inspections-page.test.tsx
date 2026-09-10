@@ -88,11 +88,16 @@ function renderInspections({
   roleKey = "company_admin",
   permissions = roleMatrix.company_admin,
   listInspections = vi.fn(async () => ({ items: [inspectionItem()], nextCursor: null })),
+  listUsers = vi.fn(async () => ({
+    items: [{ id: "demo-acme-field_inspector", displayName: "Dana Okafor", roleKey: "field_inspector" }],
+    nextCursor: null,
+  })),
   gated = false,
 }: {
   roleKey?: string;
   permissions?: string[];
   listInspections?: ReturnType<typeof vi.fn>;
+  listUsers?: ReturnType<typeof vi.fn>;
   gated?: boolean;
 } = {}) {
   const identity = {
@@ -104,7 +109,7 @@ function renderInspections({
     roleKey,
     permissions: new Set(permissions),
   };
-  const apiClient = { getCurrentUser: vi.fn(async () => identity), listInspections };
+  const apiClient = { getCurrentUser: vi.fn(async () => identity), listInspections, listUsers };
   const content = gated ? (
     <RequirePermission permission="inspections.read">
       <InspectionsPage />
@@ -124,6 +129,13 @@ function renderInspections({
 }
 
 describe("inspections page", () => {
+  it("shows the inspector's name rather than their identifier", async () => {
+    renderInspections();
+    const body = await screen.findByTestId("inspections-table-body");
+    expect(await within(body).findByText("Dana Okafor")).toBeInTheDocument();
+    expect(within(body).queryByText("demo-acme-field_inspector")).not.toBeInTheDocument();
+  });
+
   it("renders real tenant inspections", async () => {
     renderInspections();
     expect(await screen.findByText("Q3 Routine Inspection")).toBeInTheDocument();

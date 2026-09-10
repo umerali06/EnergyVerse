@@ -59,7 +59,7 @@ function Ready({ children }: { children: React.ReactNode }) {
   );
 }
 
-function setup() {
+function setup(overrides: Record<string, unknown> = {}) {
   const apiClient = {
     getCurrentUser: vi.fn(async () => ({
       uid: "hse-1",
@@ -84,6 +84,7 @@ function setup() {
     assignSafetyReport: vi.fn(),
     updateCorrectiveAction: vi.fn(),
     cancelCorrectiveAction: vi.fn(),
+    ...overrides,
   };
   render(
     <ThemeProvider>
@@ -106,6 +107,32 @@ describe("safety reports page", () => {
     await userEvent.click(screen.getByText("Gas leak at separator"));
     expect(await screen.findByText("Strong odor detected.")).toBeInTheDocument();
     expect(api.getSafetyReport).toHaveBeenCalledWith("sr-1");
+  });
+
+  it("shows a failure state, not an empty incident history, when the list request fails", async () => {
+    setup({
+      listSafetyReports: vi.fn(async () => {
+        throw new Error("upstream unavailable");
+      }),
+    });
+
+    expect(await screen.findByText("Safety reports could not be loaded")).toBeInTheDocument();
+    // A failed request must never be presented as a record of zero incidents.
+    expect(screen.queryByText("No safety reports")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("recovers the list when the retry succeeds", async () => {
+    const listSafetyReports = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("upstream unavailable"))
+      .mockResolvedValue({ items: [report()], nextCursor: null });
+    setup({ listSafetyReports });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("Gas leak at separator")).toBeInTheDocument();
+    expect(screen.queryByText("Safety reports could not be loaded")).not.toBeInTheDocument();
   });
 
   it("exposes the controlled next lifecycle action to HSE", async () => {

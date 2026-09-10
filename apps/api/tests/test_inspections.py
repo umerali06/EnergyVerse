@@ -189,6 +189,28 @@ def test_create_inspection_rejects_malformed_uuid(wiring: dict[str, Any]) -> Non
     assert response.json()["error"] == "invalid_inspection_id"
 
 
+def test_create_inspection_derives_a_title_when_none_is_supplied(
+    wiring: dict[str, Any],
+) -> None:
+    response = _create_inspection(_identity())
+    assert response.status_code == 200
+    # Reviewers must never see "Untitled": an omitted title falls back to the
+    # inspection type plus the asset the inspection was raised against.
+    assert response.json()["title"] == "Routine inspection - Feed Pump 101"
+
+
+def test_create_inspection_derives_a_title_when_blank(wiring: dict[str, Any]) -> None:
+    response = _create_inspection(_identity(), title="   ")
+    assert response.status_code == 200
+    assert response.json()["title"] == "Routine inspection - Feed Pump 101"
+
+
+def test_create_inspection_keeps_a_supplied_title(wiring: dict[str, Any]) -> None:
+    response = _create_inspection(_identity(), title="Weekly seal check")
+    assert response.status_code == 200
+    assert response.json()["title"] == "Weekly seal check"
+
+
 def test_create_inspection_resubmit_is_idempotent_noop(wiring: dict[str, Any]) -> None:
     inspection_id = str(uuid.uuid4())
     first = _create_inspection(_identity(), id=inspection_id, title="Same Title")

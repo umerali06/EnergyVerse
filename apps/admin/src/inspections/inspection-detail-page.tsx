@@ -100,6 +100,7 @@ export function InspectionDetailPage({
   }>({ status: "loading", inspection: null });
   const [template, setTemplate] = useState<ChecklistTemplateDetail | null>(null);
   const [showAnnotations, setShowAnnotations] = useState(true);
+  const [inspectorLabel, setInspectorLabel] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -116,6 +117,25 @@ export function InspectionDetailPage({
       active = false;
     };
   }, [apiClient, inspectionId]);
+
+  // Resolve the inspector's identifier to their name. Best-effort: the raw
+  // identifier stays on screen if the directory lookup fails or is forbidden,
+  // so the record is never left without an attributable inspector.
+  useEffect(() => {
+    let active = true;
+    const uid = state.inspection?.inspectorId;
+    setInspectorLabel(uid ?? null);
+    if (!uid) return;
+    apiClient
+      .getUser(uid)
+      .then((user) => {
+        if (active) setInspectorLabel(user.displayName || uid);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [apiClient, state.inspection?.inspectorId]);
 
   useEffect(() => {
     let active = true;
@@ -203,7 +223,7 @@ export function InspectionDetailPage({
             <Card className="mt-6 grid gap-6 p-5">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Asset" value={state.inspection.assetId} />
-                <Field label="Inspector" value={state.inspection.inspectorId} />
+                <Field label="Inspector" value={inspectorLabel ?? state.inspection.inspectorId} />
                 <Field
                   label="Started"
                   value={

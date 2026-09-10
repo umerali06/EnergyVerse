@@ -1,8 +1,8 @@
 "use client";
 
 import type { WorkOrderListItem } from "@fev/api-client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
 import { formatRelativeTime } from "@/dashboard/format";
@@ -71,9 +71,23 @@ export function WorkOrdersPage({
 }: { reducedMotionOverride?: boolean } = {}) {
   const data = useWorkOrdersData();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentUser } = useAuth();
   const canWrite = currentUser?.permissions.has("work_orders.write") ?? false;
   const [createOpen, setCreateOpen] = useState(false);
+
+  // `?createForAsset=<id>` deep-links a work order straight from another
+  // module (the 3D facility view) with that asset already selected.
+  const createForAsset = searchParams.get("createForAsset");
+  useEffect(() => {
+    if (createForAsset && canWrite) setCreateOpen(true);
+  }, [canWrite, createForAsset]);
+
+  function closeCreate() {
+    setCreateOpen(false);
+    // Drop the parameter so the modal does not reopen on a later render.
+    if (createForAsset) router.replace("/work-orders");
+  }
 
   // The backend has no server-side priority filter (see ListWorkOrdersRequest
   // in the generated client); this narrows the currently loaded page only.
@@ -320,7 +334,8 @@ export function WorkOrdersPage({
 
       <CreateWorkOrderModal
         assets={data.assets.items}
-        onClose={() => setCreateOpen(false)}
+        initialAssetId={createForAsset ?? undefined}
+        onClose={closeCreate}
         onCreated={data.retry}
         open={createOpen}
         workOrders={data}

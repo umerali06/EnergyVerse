@@ -5,7 +5,7 @@ import Link from "next/link";
 import { EmptyState, Skeleton, StatusPill, TableShell } from "@/design-system";
 import { formatRelativeTime } from "@/dashboard/format";
 
-import { useInspectionsData } from "./inspections-data";
+import { inspectorName, useInspectionsData } from "./inspections-data";
 import { statusLabel, statusTone } from "./inspections-page";
 
 /** The asset-detail Inspections tab (D-033 resolution) -- scoped to one
@@ -74,7 +74,7 @@ export function InspectionsTab({ assetId }: { assetId: string }) {
               </Link>
             </td>
             <td className="p-3 font-mono text-caption text-text-secondary">
-              {inspection.inspectorId}
+              {inspectorName(data.users.items, inspection.inspectorId)}
             </td>
             <td
               className="p-3 font-mono text-caption text-text-muted"

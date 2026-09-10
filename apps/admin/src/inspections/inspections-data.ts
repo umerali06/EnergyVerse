@@ -1,6 +1,6 @@
 "use client";
 
-import type { InspectionDetail, InspectionListItem } from "@fev/api-client";
+import type { InspectionDetail, InspectionListItem, UserListItem } from "@fev/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
@@ -15,6 +15,7 @@ export type InspectionFilters = {
 };
 
 const PAGE_SIZE = 25;
+const LOOKUP_LIMIT = 100;
 const DEFAULT_FILTERS: InspectionFilters = {
   assetId: null,
   facilityId: null,
@@ -26,6 +27,19 @@ const DEFAULT_FILTERS: InspectionFilters = {
  * 4.1/4.2 `useAssetsData` shape. `initialFilters` seeds state once on mount
  * (e.g. the asset-detail Inspections tab scoping the list to one asset). */
 import { useCachedQuery } from "@/cache/cache-context";
+
+/**
+ * Inspections carry only an `inspectorId`; a reviewer needs the person's name.
+ * Falls back to the raw identifier so a user outside the fetched page (or a
+ * deactivated account) still renders something traceable rather than blank.
+ */
+export function inspectorName(
+  users: readonly UserListItem[],
+  inspectorId: string | null | undefined,
+): string | null {
+  if (!inspectorId) return null;
+  return users.find((user) => user.id === inspectorId)?.displayName ?? inspectorId;
+}
 
 export function useInspectionsData(initialFilters: Partial<InspectionFilters> = {}) {
   const { apiClient } = useAuth();
@@ -49,6 +63,11 @@ export function useInspectionsData(initialFilters: Partial<InspectionFilters> = 
         inspectorId: filters.inspectorId ?? undefined,
         limit: PAGE_SIZE,
       }),
+  );
+
+  const usersQuery = useCachedQuery<{ items: UserListItem[] }>(
+    "users:directory:100",
+    () => apiClient.listUsers({ limit: LOOKUP_LIMIT, sort: "name" }),
   );
 
   const currentNextCursor =
@@ -116,6 +135,7 @@ export function useInspectionsData(initialFilters: Partial<InspectionFilters> = 
       nextCursor: currentNextCursor,
       loadingMore,
     },
+    users: { items: usersQuery.data?.items ?? [] },
     retry: inspectionsQuery.refetch,
     loadMore,
     getInspection,

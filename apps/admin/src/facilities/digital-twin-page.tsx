@@ -153,7 +153,7 @@ export function DigitalTwinPage() {
   const error = facilitiesQuery.error ? "Unable to load facilities for 3D View" : null;
 
   return (
-    <section className="p-6 md:p-10 min-h-[calc(100vh-4rem)] flex flex-col">
+    <section className="p-4 md:p-6 min-h-[calc(100vh-4rem)] flex flex-col">
       <MotionSection className="mx-auto max-w-7xl w-full flex-1 flex flex-col">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -187,7 +187,7 @@ export function DigitalTwinPage() {
 
         {/* Main Content Viewport */}
         {loadingFacilities || loadingScene ? (
-          <Card className="flex-1 flex flex-col items-center justify-center p-12 text-center min-h-[500px]">
+          <Card className="flex-1 flex flex-col items-center justify-center p-12 text-center min-h-[70vh]">
             <RefreshCwIcon className="h-10 w-10 text-primary-500 animate-spin mb-4" />
             <h3 className="text-h5 font-bold text-text-primary">Loading 3D Digital Twin</h3>
             <p className="text-bodySmall text-text-secondary mt-1">
@@ -207,7 +207,7 @@ export function DigitalTwinPage() {
             />
           </Card>
         ) : scene ? (
-          <div className="flex-1 min-h-[550px] w-full">
+          <div className="flex-1 min-h-[70vh] w-full">
             <DigitalTwinViewer scene={scene} />
           </div>
         ) : (

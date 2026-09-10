@@ -10,6 +10,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Input,
   MotionSection,
   Select,
@@ -50,12 +51,13 @@ export function SafetyPage() {
   const [status, setStatus] = useState("");
   const [severity, setSeverity] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setListError(null);
     try {
       const page = await apiClient.listSafetyReports({
         status: status || undefined,
@@ -64,7 +66,8 @@ export function SafetyPage() {
       });
       setItems(page.items);
     } catch {
-      setError("Safety reports could not be loaded.");
+      setItems([]);
+      setListError("Safety reports could not be loaded.");
     } finally {
       setLoading(false);
     }
@@ -75,11 +78,11 @@ export function SafetyPage() {
   }, [load]);
 
   async function open(reportId: string) {
-    setError(null);
+    setActionError(null);
     try {
       setSelected(await apiClient.getSafetyReport(reportId));
     } catch {
-      setError("The safety report could not be loaded.");
+      setActionError("The safety report could not be loaded.");
     }
   }
 
@@ -116,8 +119,10 @@ export function SafetyPage() {
             }}
           />
         )}
-        {error && (
-          <Card className="mt-5 border-critical p-4 text-bodySmall text-critical">{error}</Card>
+        {actionError && (
+          <Card className="mt-5 border-critical p-4 text-bodySmall text-critical">
+            {actionError}
+          </Card>
         )}
 
         <Card className="mt-6 p-4">
@@ -162,6 +167,12 @@ export function SafetyPage() {
           <Card className="overflow-hidden">
             {loading ? (
               <p className="p-6 text-bodySmall text-text-secondary">Loading safety reports…</p>
+            ) : listError ? (
+              <ErrorState
+                title="Safety reports could not be loaded"
+                description="The incident history is unavailable, so this list is not a record of zero incidents. Retry, or contact an administrator if it persists."
+                action={<Button onClick={() => void load()}>Retry</Button>}
+              />
             ) : items.length === 0 ? (
               <EmptyState
                 title="No safety reports"

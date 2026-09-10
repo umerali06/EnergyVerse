@@ -107,6 +107,29 @@ class InspectionServiceError(Exception):
         self.details = details
 
 
+INSPECTION_TYPE_LABELS: dict[str, str] = {
+    "routine": "Routine inspection",
+    "scheduled": "Scheduled inspection",
+    "ad_hoc": "Ad-hoc inspection",
+}
+
+
+def _derive_title(title: str | None, asset_name: str, inspection_type: str) -> str:
+    """Give every inspection a human-readable title.
+
+    A title is optional on the wire (offline clients create drafts before the
+    inspector has typed anything), but a record that reaches a reviewer with no
+    title reads as "Untitled". When the caller supplies nothing usable we name
+    the inspection after the asset it was raised against, which is the detail a
+    reviewer actually scans for.
+    """
+    supplied = (title or "").strip()
+    if supplied:
+        return supplied
+    label = INSPECTION_TYPE_LABELS.get(inspection_type, "Inspection")
+    return f"{label} - {asset_name}"
+
+
 def _encode_cursor(inspection_id: str) -> str:
     return base64.urlsafe_b64encode(inspection_id.encode()).decode()
 
@@ -248,7 +271,7 @@ class InspectionService:
             inspector_id=actor_uid,
             status="draft",
             inspection_type=request.inspection_type,
-            title=request.title,
+            title=_derive_title(request.title, asset.name, request.inspection_type),
             notes=request.notes,
             gps_lat=request.gps_lat,
             gps_lng=request.gps_lng,

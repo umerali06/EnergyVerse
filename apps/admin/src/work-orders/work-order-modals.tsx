@@ -30,12 +30,14 @@ function generateWorkOrderId(): string {
 
 export function CreateWorkOrderModal({
   assets,
+  initialAssetId,
   onClose,
   onCreated,
   open,
   workOrders,
 }: {
   assets: readonly AssetListItem[];
+  initialAssetId?: string;
   onClose: () => void;
   onCreated: () => void;
   open: boolean;
@@ -52,14 +54,16 @@ export function CreateWorkOrderModal({
 
   useEffect(() => {
     if (open) {
-      setAssetId(assets[0]?.id ?? "");
+      // A caller-supplied asset (e.g. the 3D facility view) wins over the
+      // first-in-list default so the selection survives the navigation.
+      setAssetId(initialAssetId ?? assets[0]?.id ?? "");
       setTitle("");
       setDescription("");
       setPriority("medium");
       setDueDate("");
       setError(null);
     }
-  }, [assets, open]);
+  }, [assets, initialAssetId, open]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

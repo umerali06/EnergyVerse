@@ -516,3 +516,27 @@ export function EmptyState({
     </div>
   );
 }
+
+export function ErrorState({
+  action,
+  description,
+  title,
+}: {
+  action?: ReactNode;
+  description: string;
+  title: string;
+}) {
+  return (
+    <div
+      className="grid place-items-center rounded-lg border border-critical p-6 text-center"
+      role="alert"
+    >
+      <span aria-hidden className="mb-3 font-mono text-micro uppercase tracking-[0.2em] text-critical">
+        request failed
+      </span>
+      <h3 className="text-h5 font-bold">{title}</h3>
+      <p className="mt-2 max-w-sm text-body text-text-muted">{description}</p>
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}

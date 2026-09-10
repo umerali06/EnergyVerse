@@ -282,10 +282,10 @@ export function DashboardPage({
   const showRoles = can("roles.manage");
 
   return (
-    <section className="p-6 md:p-10">
-      <MotionSection className="mx-auto max-w-6xl" reducedMotionOverride={reducedMotionOverride}>
+    <section className="p-6 md:p-8">
+      <MotionSection className="mx-auto max-w-7xl" reducedMotionOverride={reducedMotionOverride}>
         <DashboardHeader />
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="grid gap-6">
             {(showUsers || showRoles) && (
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

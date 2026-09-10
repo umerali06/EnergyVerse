@@ -244,12 +244,18 @@ function renderDetail({
   cancelInspection = vi.fn(async () => inspectionDetail({ status: "cancelled" })),
   deleteInspection = vi.fn(async () => ({ id: "inspection-1", deleted: true })),
   getChecklistTemplate = vi.fn(async () => checklistTemplateDetail()),
+  getUser = vi.fn(async () => ({
+    id: "demo-acme-field_inspector",
+    displayName: "Dana Okafor",
+    email: "inspector@acme.example.invalid",
+  })),
 }: {
   permissions?: string[];
   getInspection?: ReturnType<typeof vi.fn>;
   cancelInspection?: ReturnType<typeof vi.fn>;
   deleteInspection?: ReturnType<typeof vi.fn>;
   getChecklistTemplate?: ReturnType<typeof vi.fn>;
+  getUser?: ReturnType<typeof vi.fn>;
 } = {}) {
   const identity = {
     uid: "demo-acme-company_admin",
@@ -266,6 +272,7 @@ function renderDetail({
     cancelInspection,
     deleteInspection,
     getChecklistTemplate,
+    getUser,
   };
   return render(
     <ThemeProvider>
@@ -279,6 +286,17 @@ function renderDetail({
 }
 
 describe("inspection detail page", () => {
+  it("shows the inspector's name rather than their identifier", async () => {
+    renderDetail();
+    expect(await screen.findByText("Dana Okafor")).toBeInTheDocument();
+    expect(screen.queryByText("demo-acme-field_inspector")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the inspector identifier when the directory lookup fails", async () => {
+    renderDetail({ getUser: vi.fn(async () => Promise.reject(new Error("forbidden"))) });
+    expect(await screen.findByText("demo-acme-field_inspector")).toBeInTheDocument();
+  });
+
   it("renders the inspection summary and checklist snapshot", async () => {
     renderDetail();
     expect(await screen.findByText("Q3 Routine Inspection")).toBeInTheDocument();

@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider, useAuth } from "@/auth/auth-context";
 import type { AuthGateway, AuthSession } from "@/auth/firebase-gateway";
@@ -11,14 +11,17 @@ import { ThemeProvider, ToastProvider } from "@/design-system";
 import { WorkOrdersPage } from "./work-orders-page";
 
 const pushMock = vi.fn();
+const replaceMock = vi.fn();
+let searchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     back: vi.fn(),
     prefetch: vi.fn(),
     push: pushMock,
-    replace: vi.fn(),
+    replace: replaceMock,
   }),
+  useSearchParams: () => searchParams,
 }));
 
 const session: AuthSession = {
@@ -180,6 +183,30 @@ function renderWorkOrders({
 }
 
 describe("work orders page", () => {
+  beforeEach(() => {
+    searchParams = new URLSearchParams();
+    pushMock.mockClear();
+    replaceMock.mockClear();
+  });
+
+  it("opens creation with the asset preselected when deep-linked from the 3D view", async () => {
+    searchParams = new URLSearchParams("createForAsset=asset-2");
+    renderWorkOrders({
+      listAssets: vi.fn(async () => ({
+        items: [assetItem(), assetItem({ id: "asset-2", assetTag: "CMP-002", name: "Gas Compressor" })],
+        nextCursor: null,
+      })),
+    });
+
+    // Scoped to the dialog: the filter bar carries its own "Asset" select.
+    // asset-1 is first in the list, so a passing assertion proves the
+    // deep-linked asset wins over the default rather than coinciding with it.
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("Asset")).toHaveValue("asset-2"),
+    );
+  });
+
   it("shows a loading state and then the real tenant work orders", async () => {
     let resolveList!: (value: { items: unknown[]; nextCursor: null }) => void;
     const deferred = new Promise((resolve) => {

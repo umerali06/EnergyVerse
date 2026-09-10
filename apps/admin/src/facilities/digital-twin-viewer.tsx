@@ -412,7 +412,7 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
-        className="relative flex-1 min-h-[500px] w-full cursor-grab active:cursor-grabbing select-none overflow-hidden"
+        className="relative flex-1 min-h-[70vh] w-full cursor-grab active:cursor-grabbing select-none overflow-hidden"
       >
         {webGlAvailable ? (
           <canvas ref={canvasRef} className="h-full w-full block" />
@@ -562,7 +562,7 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
               <Button
                 variant="primary"
                 className="w-full justify-center"
-                onClick={() => router.push(`/assets`)}
+                onClick={() => router.push(`/assets/${selectedHotspot.asset_id}`)}
               >
                 <ExternalLinkIcon className="mr-2 h-4 w-4" />
                 View Asset Details
@@ -570,7 +570,9 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
               <Button
                 variant="secondary"
                 className="w-full justify-center text-slate-200"
-                onClick={() => router.push(`/work-orders`)}
+                onClick={() =>
+                  router.push(`/work-orders?createForAsset=${selectedHotspot.asset_id}`)
+                }
               >
                 <WrenchIcon className="mr-2 h-4 w-4" />
                 Create Work Order
