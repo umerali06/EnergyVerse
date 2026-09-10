@@ -35,7 +35,7 @@ class InspectionsApi {
   const InspectionsApi(this._dio, this._serializers);
 
   /// Analyze Inspection Media
-  /// Runs Claude vision analysis on one already-attached photo (spec 8 \&quot;AI Photo &amp; Video Analysis\&quot;, Phase 7.10) -- &#x60;media_id&#x60; is the media item&#39;s server id, matching &#x60;update_inspection_media&#x60;/&#x60;detach_inspection_media&#x60;&#39;s own path parameter. Every finding lands as an advisory &#x60;Annotation(source&#x3D;\&quot;ai\&quot;, ...)&#x60;; nothing here ever auto-confirms a finding.
+  /// Runs Claude vision analysis on one already-attached photo or video (spec 8 \&quot;AI Photo &amp; Video Analysis\&quot;) -- &#x60;media_id&#x60; is the media item&#39;s server id, matching &#x60;update_inspection_media&#x60;/&#x60;detach_inspection_media&#x60;&#39;s own path parameter. A video is sampled into frames first and analysed as a whole; its findings carry the frame offset they were seen at. Every finding lands as an advisory &#x60;Annotation(source&#x3D;\&quot;ai\&quot;, ...)&#x60;; nothing here ever auto-confirms a finding.
   ///
   /// Parameters:
   /// * [inspectionId]

@@ -39,7 +39,7 @@ Method | HTTP request | Description
 
 Analyze Inspection Media
 
-Runs Claude vision analysis on one already-attached photo (spec 8 \"AI Photo & Video Analysis\", Phase 7.10) -- `media_id` is the media item's server id, matching `update_inspection_media`/`detach_inspection_media`'s own path parameter. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
+Runs Claude vision analysis on one already-attached photo or video (spec 8 \"AI Photo & Video Analysis\") -- `media_id` is the media item's server id, matching `update_inspection_media`/`detach_inspection_media`'s own path parameter. A video is sampled into frames first and analysed as a whole; its findings carry the frame offset they were seen at. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
 
 ### Example
 ```dart

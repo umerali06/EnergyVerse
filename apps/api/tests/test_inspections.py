@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from app.ai.video_frames import VideoDecodeError
 from app.assets.service import AssetManagementService, get_asset_management_service
 from app.audit.service import AuditService
 from app.auth.dependencies import get_current_user
@@ -30,7 +31,7 @@ from scripts.seed import (
     CHECKLIST_TEMPLATE_TANK_ID,
     run_seed,
 )
-from tests.fakes.ai import FakeAiClient
+from tests.fakes.ai import FakeAiClient, FakeFrameExtractor
 from tests.fakes.firestore import FakeAsyncClient
 from tests.fakes.storage import FakeBucket
 
@@ -47,6 +48,7 @@ def wiring() -> dict[str, Any]:
     bucket = FakeBucket()
     users = UserRepository(client, audit)
     ai_client = FakeAiClient()
+    frame_extractor = FakeFrameExtractor()
     service = InspectionService(
         inspections=InspectionRepository(client, audit),
         assets=AssetRepository(client, audit),
@@ -54,6 +56,7 @@ def wiring() -> dict[str, Any]:
         users=users,
         storage=InspectionMediaStorage(bucket),
         ai_client=ai_client,
+        frame_extractor=frame_extractor,
     )
     # `complete_inspection` (Phase 7.8) looks up the signer's display_name
     # server-side -- every identity `_identity()` builds must have a backing
@@ -73,7 +76,12 @@ def wiring() -> dict[str, Any]:
     )
     app.dependency_overrides[get_inspection_service] = lambda: service
     app.dependency_overrides[get_access_denial_audit] = lambda: audit
-    yield {"client": client, "bucket": bucket, "ai_client": ai_client}
+    yield {
+        "client": client,
+        "bucket": bucket,
+        "ai_client": ai_client,
+        "frame_extractor": frame_extractor,
+    }
     app.dependency_overrides.pop(get_inspection_service, None)
     app.dependency_overrides.pop(get_access_denial_audit, None)
 
@@ -1859,27 +1867,104 @@ def test_analyze_media_rejects_unknown_media(wiring: dict[str, Any]) -> None:
     assert response.json()["error"] == "media_not_found"
 
 
-def test_analyze_media_rejects_video(wiring: dict[str, Any]) -> None:
-    created = _create_inspection(_identity()).json()
+def _attach_video(wiring: dict[str, Any], inspection_id: str) -> str:
     local_id = str(uuid.uuid4())
     wiring["bucket"].seed(
-        _media_path(ACME_COMPANY_ID, created["id"], local_id, "clip.mp4"),
-        b"bytes",
+        _media_path(ACME_COMPANY_ID, inspection_id, local_id, "clip.mp4"),
+        b"video-bytes",
         "video/mp4",
     )
     attached = _attach_media(
         _identity(),
-        created["id"],
+        inspection_id,
         local_id=local_id,
         filename="clip.mp4",
         kind="video",
         content_type="video/mp4",
     )
-    media_id = attached.json()["media"][-1]["id"]
+    return str(attached.json()["media"][-1]["id"])
+
+
+def test_analyze_media_samples_frames_from_a_video(wiring: dict[str, Any]) -> None:
+    created = _create_inspection(_identity()).json()
+    media_id = _attach_video(wiring, created["id"])
 
     response = _analyze_media(_identity(), created["id"], media_id)
+    assert response.status_code == 200
+
+    # The clip was decoded into frames and analysed as one request, not per frame.
+    assert len(wiring["frame_extractor"].calls) == 1
+    assert wiring["frame_extractor"].calls[0][1] == "video/mp4"
+    assert len(wiring["ai_client"].video_calls) == 1
+    assert not wiring["ai_client"].calls, "a video must not go through the photo path"
+
+    analysis = response.json()["ai_analysis"][-1]
+    assert analysis["media_kind"] == "video"
+    assert analysis["frames_analyzed"] == 2
+
+
+def test_video_findings_record_the_frame_they_were_seen_in(wiring: dict[str, Any]) -> None:
+    from app.ai.vision_client import AiAnalysisResult, AiFinding, AiFindingPoint
+
+    wiring["ai_client"].video_result = AiAnalysisResult(
+        summary="Corrosion visible mid-clip.",
+        risk_level="medium",
+        findings=[
+            AiFinding(
+                shape="rectangle",
+                points=[AiFindingPoint(x=0.1, y=0.1), AiFindingPoint(x=0.4, y=0.5)],
+                damage_type="corrosion",
+                confidence=0.8,
+                frame_timestamp_seconds=1.5,
+            )
+        ],
+    )
+    created = _create_inspection(_identity()).json()
+    media_id = _attach_video(wiring, created["id"])
+
+    body = _analyze_media(_identity(), created["id"], media_id).json()
+    annotation = body["annotations"][-1]
+
+    # Normalized coordinates are meaningless on a clip without the frame they
+    # were measured against, so the offset must survive onto the annotation.
+    assert annotation["frame_timestamp_seconds"] == 1.5
+    assert annotation["source"] == "ai"
+    assert annotation["confidence"] == 0.8
+
+
+def test_photo_analysis_leaves_the_frame_offset_unset(wiring: dict[str, Any]) -> None:
+    from app.ai.vision_client import AiAnalysisResult, AiFinding, AiFindingPoint
+
+    created = _create_inspection(_identity()).json()
+    media_id, _ = _attach_photo_with_id(_identity(), wiring["bucket"], created["id"])
+    wiring["ai_client"].result = AiAnalysisResult(
+        summary="Rust on the flange.",
+        findings=[
+            AiFinding(
+                shape="point",
+                points=[AiFindingPoint(x=0.5, y=0.5)],
+                confidence=0.6,
+            )
+        ],
+    )
+
+    body = _analyze_media(_identity(), created["id"], media_id).json()
+    annotation = body["annotations"][-1]
+    assert annotation["frame_timestamp_seconds"] is None
+    assert body["ai_analysis"][-1]["media_kind"] == "photo"
+    assert body["ai_analysis"][-1]["frames_analyzed"] is None
+
+
+def test_analyze_media_reports_an_undecodable_video(wiring: dict[str, Any]) -> None:
+    wiring["frame_extractor"].error = VideoDecodeError("The video file is empty")
+    created = _create_inspection(_identity()).json()
+    media_id = _attach_video(wiring, created["id"])
+
+    response = _analyze_media(_identity(), created["id"], media_id)
+    # A broken upload is the caller's problem (422), not an upstream AI
+    # failure (502) -- the two are separately actionable.
     assert response.status_code == 422
-    assert response.json()["error"] == "ai_analysis_unsupported_media_kind"
+    assert response.json()["error"] == "ai_analysis_video_undecodable"
 
 
 def test_analyze_media_upstream_failure_returns_502(wiring: dict[str, Any]) -> None:

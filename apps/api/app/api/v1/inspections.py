@@ -547,12 +547,13 @@ async def analyze_inspection_media(
     current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
     service: Annotated[InspectionService, Depends(get_inspection_service)],
 ) -> InspectionDetail:
-    """Runs Claude vision analysis on one already-attached photo (spec 8 "AI
-    Photo & Video Analysis", Phase 7.10) -- `media_id` is the media item's
+    """Runs Claude vision analysis on one already-attached photo or video
+    (spec 8 "AI Photo & Video Analysis") -- `media_id` is the media item's
     server id, matching `update_inspection_media`/`detach_inspection_media`'s
-    own path parameter. Every finding lands as an advisory
-    `Annotation(source="ai", ...)`; nothing here ever auto-confirms a
-    finding."""
+    own path parameter. A video is sampled into frames first and analysed as a
+    whole; its findings carry the frame offset they were seen at. Every finding
+    lands as an advisory `Annotation(source="ai", ...)`; nothing here ever
+    auto-confirms a finding."""
     scope = CompanyScope(company_id=current_user.company_id)
     try:
         return await service.analyze_media(scope, inspection_id, media_id, current_user.uid)

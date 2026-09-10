@@ -221,8 +221,24 @@ class _InspectionMediaSectionState extends State<InspectionMediaSection> {
       _openAnnotate(item);
       return;
     }
+    final repository = SyncProvider.repositoryOf(context);
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => _MediaViewerScreen(item: item)),
+      MaterialPageRoute<void>(
+        builder: (_) => _MediaViewerScreen(
+          item: item,
+          // Analysis needs a real server media id and a live round trip to the
+          // AI, so a clip that has not uploaded yet is not offered it -- the
+          // same rule the photo path applies.
+          onAnalyze: item.isLocalOnly
+              ? null
+              : () async {
+                  await repository.analyzeMedia(
+                    inspectionId: widget.inspectionId,
+                    mediaId: item.id,
+                  );
+                },
+        ),
+      ),
     );
   }
 
@@ -622,9 +638,12 @@ class _LocalVideoThumbnailState extends State<_LocalVideoThumbnail> {
 }
 
 class _MediaViewerScreen extends StatefulWidget {
-  const _MediaViewerScreen({required this.item});
+  const _MediaViewerScreen({required this.item, this.onAnalyze});
 
   final _GalleryItem item;
+
+  /// Null when the clip has not synced yet, which is what hides the action.
+  final Future<void> Function()? onAnalyze;
 
   @override
   State<_MediaViewerScreen> createState() => _MediaViewerScreenState();
@@ -632,6 +651,29 @@ class _MediaViewerScreen extends StatefulWidget {
 
 class _MediaViewerScreenState extends State<_MediaViewerScreen> {
   VideoPlayerController? _controller;
+  bool _analyzing = false;
+
+  Future<void> _analyze() async {
+    final onAnalyze = widget.onAnalyze;
+    if (onAnalyze == null || _analyzing) return;
+    setState(() => _analyzing = true);
+    try {
+      await onAnalyze();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Analysis complete. Review the findings on the inspection.'),
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _analyzing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not analyse this video: $error')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -663,8 +705,25 @@ class _MediaViewerScreenState extends State<_MediaViewerScreen> {
     final controller = _controller;
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar:
-          AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        actions: [
+          if (!item.isPhoto && widget.onAnalyze != null)
+            _analyzing
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Center(child: AppLoader(label: 'Analysing')),
+                  )
+                : TextButton.icon(
+                    onPressed: _analyze,
+                    icon: const Icon(Icons.auto_awesome_outlined,
+                        color: Colors.white),
+                    label: const Text('Analyse with AI',
+                        style: TextStyle(color: Colors.white)),
+                  ),
+        ],
+      ),
       body: Center(
         child: item.isPhoto
             ? (item.networkUrl != null

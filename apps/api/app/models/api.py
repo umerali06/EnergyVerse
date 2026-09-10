@@ -560,6 +560,7 @@ class AnnotationResponse(BaseModel):
     note: str | None = None
     source: Literal["manual", "ai"] = "manual"
     confidence: float | None = None
+    frame_timestamp_seconds: float | None = None
     created_by: str
     created_at: datetime
 
@@ -636,6 +637,8 @@ class AiAnalysisResponse(BaseModel):
     recommendations: str | None = None
     risk_level: Literal["low", "medium", "high", "critical"] | None = None
     annotation_ids: list[str] = Field(default_factory=list)
+    media_kind: Literal["photo", "video"] = "photo"
+    frames_analyzed: int | None = None
     reviewed: bool = False
     reviewed_by: str | None = None
     reviewed_at: datetime | None = None

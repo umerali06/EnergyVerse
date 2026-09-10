@@ -196,7 +196,7 @@ export interface UpdateInspectionVoiceNoteRequest {
 export class InspectionsApi extends runtime.BaseAPI {
 
     /**
-     * Runs Claude vision analysis on one already-attached photo (spec 8 \"AI Photo & Video Analysis\", Phase 7.10) -- `media_id` is the media item\'s server id, matching `update_inspection_media`/`detach_inspection_media`\'s own path parameter. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
+     * Runs Claude vision analysis on one already-attached photo or video (spec 8 \"AI Photo & Video Analysis\") -- `media_id` is the media item\'s server id, matching `update_inspection_media`/`detach_inspection_media`\'s own path parameter. A video is sampled into frames first and analysed as a whole; its findings carry the frame offset they were seen at. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
      * Analyze Inspection Media
      */
     async analyzeInspectionMediaRaw(requestParameters: AnalyzeInspectionMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<InspectionDetail>> {
@@ -237,7 +237,7 @@ export class InspectionsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Runs Claude vision analysis on one already-attached photo (spec 8 \"AI Photo & Video Analysis\", Phase 7.10) -- `media_id` is the media item\'s server id, matching `update_inspection_media`/`detach_inspection_media`\'s own path parameter. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
+     * Runs Claude vision analysis on one already-attached photo or video (spec 8 \"AI Photo & Video Analysis\") -- `media_id` is the media item\'s server id, matching `update_inspection_media`/`detach_inspection_media`\'s own path parameter. A video is sampled into frames first and analysed as a whole; its findings carry the frame offset they were seen at. Every finding lands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a finding.
      * Analyze Inspection Media
      */
     async analyzeInspectionMedia(requestParameters: AnalyzeInspectionMediaRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<InspectionDetail> {

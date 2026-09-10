@@ -272,6 +272,8 @@ class _$AnnotationResponse extends AnnotationResponse {
   @override
   final AnnotationResponseDamageTypeEnum? damageType;
   @override
+  final num? frameTimestampSeconds;
+  @override
   final String id;
   @override
   final String mediaLocalId;
@@ -294,6 +296,7 @@ class _$AnnotationResponse extends AnnotationResponse {
       required this.createdAt,
       required this.createdBy,
       this.damageType,
+      this.frameTimestampSeconds,
       required this.id,
       required this.mediaLocalId,
       this.note,
@@ -334,6 +337,7 @@ class _$AnnotationResponse extends AnnotationResponse {
         createdAt == other.createdAt &&
         createdBy == other.createdBy &&
         damageType == other.damageType &&
+        frameTimestampSeconds == other.frameTimestampSeconds &&
         id == other.id &&
         mediaLocalId == other.mediaLocalId &&
         note == other.note &&
@@ -350,6 +354,7 @@ class _$AnnotationResponse extends AnnotationResponse {
     _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jc(_$hash, createdBy.hashCode);
     _$hash = $jc(_$hash, damageType.hashCode);
+    _$hash = $jc(_$hash, frameTimestampSeconds.hashCode);
     _$hash = $jc(_$hash, id.hashCode);
     _$hash = $jc(_$hash, mediaLocalId.hashCode);
     _$hash = $jc(_$hash, note.hashCode);
@@ -368,6 +373,7 @@ class _$AnnotationResponse extends AnnotationResponse {
           ..add('createdAt', createdAt)
           ..add('createdBy', createdBy)
           ..add('damageType', damageType)
+          ..add('frameTimestampSeconds', frameTimestampSeconds)
           ..add('id', id)
           ..add('mediaLocalId', mediaLocalId)
           ..add('note', note)
@@ -402,6 +408,11 @@ class AnnotationResponseBuilder
   AnnotationResponseDamageTypeEnum? get damageType => _$this._damageType;
   set damageType(AnnotationResponseDamageTypeEnum? damageType) =>
       _$this._damageType = damageType;
+
+  num? _frameTimestampSeconds;
+  num? get frameTimestampSeconds => _$this._frameTimestampSeconds;
+  set frameTimestampSeconds(num? frameTimestampSeconds) =>
+      _$this._frameTimestampSeconds = frameTimestampSeconds;
 
   String? _id;
   String? get id => _$this._id;
@@ -442,6 +453,7 @@ class AnnotationResponseBuilder
       _createdAt = $v.createdAt;
       _createdBy = $v.createdBy;
       _damageType = $v.damageType;
+      _frameTimestampSeconds = $v.frameTimestampSeconds;
       _id = $v.id;
       _mediaLocalId = $v.mediaLocalId;
       _note = $v.note;
@@ -480,6 +492,7 @@ class AnnotationResponseBuilder
               createdBy: BuiltValueNullFieldError.checkNotNull(
                   createdBy, r'AnnotationResponse', 'createdBy'),
               damageType: damageType,
+              frameTimestampSeconds: frameTimestampSeconds,
               id: BuiltValueNullFieldError.checkNotNull(
                   id, r'AnnotationResponse', 'id'),
               mediaLocalId: BuiltValueNullFieldError.checkNotNull(

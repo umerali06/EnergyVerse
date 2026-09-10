@@ -20,6 +20,8 @@ python-docx = "^1.2.0"
 openpyxl = "^3.1.5"
 pypdf = "^6.0.0"
 stripe = "^15.6.1"
+av = "^13.1.0"
+pillow = ">=11.0,<13"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

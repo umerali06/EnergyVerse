@@ -370,6 +370,11 @@ class Annotation(StrictModel):
     note: str | None = Field(default=None, max_length=1000)
     source: Literal["manual", "ai"] = "manual"
     confidence: float | None = Field(default=None, ge=0, le=1)
+    # Set only for a region found in a video: the offset, in seconds, of the
+    # frame the coordinates belong to. Normalized points are meaningless on a
+    # clip without knowing which frame they were measured against. Null for
+    # every photo annotation, so existing records stay valid unchanged.
+    frame_timestamp_seconds: float | None = Field(default=None, ge=0)
     created_by: str
     created_at: datetime
 
@@ -500,6 +505,11 @@ class AiAnalysis(StrictModel):
     recommendations: str | None = None
     risk_level: Literal["low", "medium", "high", "critical"] | None = None
     annotation_ids: list[str] = Field(default_factory=list)
+    # "photo" for a still; "video" when the run sampled frames from a clip.
+    media_kind: Literal["photo", "video"] = "photo"
+    # How many frames were sampled and analysed (video runs only), so a
+    # reviewer knows the coverage behind the summary.
+    frames_analyzed: int | None = Field(default=None, ge=1)
     reviewed: bool = False
     reviewed_by: str | None = None
     reviewed_at: datetime | None = None

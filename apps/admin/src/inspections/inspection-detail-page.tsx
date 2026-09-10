@@ -1,6 +1,10 @@
 "use client";
 
-import type { ChecklistTemplateDetail, InspectionDetail } from "@fev/api-client";
+import type {
+  AnnotationResponse,
+  ChecklistTemplateDetail,
+  InspectionDetail,
+} from "@fev/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -81,6 +85,19 @@ function Field({ label, value }: { label: string; value: string }) {
       <p className="mt-0.5 text-bodySmall text-text-primary">{value}</p>
     </div>
   );
+}
+
+/** Offsets, formatted `m:ss`, of the video findings that carry one. */
+function frameFindings(annotations: readonly AnnotationResponse[]): string[] {
+  return annotations
+    .map((annotation) => annotation.frameTimestampSeconds)
+    .filter((seconds): seconds is number => seconds != null)
+    .sort((a, b) => a - b)
+    .map((seconds) => {
+      const minutes = Math.floor(seconds / 60);
+      const rest = Math.floor(seconds % 60);
+      return `${minutes}:${String(rest).padStart(2, "0")}`;
+    });
 }
 
 export function InspectionDetailPage({
@@ -388,6 +405,14 @@ export function InspectionDetailPage({
                               {damageTypes.join(", ")}
                             </p>
                           )}
+                          {item.kind === "video" && frameFindings(itemAnnotations).length > 0 && (
+                            // A clip cannot carry an overlay on its tile, so the
+                            // offsets are listed instead -- a reviewer needs to
+                            // know where in the recording to look.
+                            <p className="font-mono text-caption text-text-secondary">
+                              Findings at {frameFindings(itemAnnotations).join(", ")}
+                            </p>
+                          )}
                         </li>
                       );
                     })}
@@ -403,7 +428,7 @@ export function InspectionDetailPage({
                 </p>
                 {(state.inspection.aiAnalysis ?? []).length === 0 ? (
                   <p className="mt-1 text-bodySmall text-text-muted">
-                    No photos have been analyzed yet.
+                    No photos or videos have been analyzed yet.
                   </p>
                 ) : (
                   <ul className="mt-2 grid gap-3">
@@ -420,6 +445,16 @@ export function InspectionDetailPage({
                             <StatusPill tone={riskLevelTone(analysis.riskLevel)}>
                               {statusLabel(analysis.riskLevel)} risk
                             </StatusPill>
+                          )}
+                          {analysis.mediaKind === "video" && (
+                            // Coverage matters on a clip: the summary is based
+                            // on sampled frames, not the whole recording.
+                            <Badge>
+                              Video
+                              {analysis.framesAnalyzed
+                                ? ` · ${analysis.framesAnalyzed} frames analysed`
+                                : ""}
+                            </Badge>
                           )}
                         </div>
                         <p className="text-bodySmall text-text-primary">{analysis.summary}</p>

@@ -48,6 +48,47 @@ class InspectionRepository(TenantRepository[Inspection]):
     target_type = "inspection"
     model_type = Inspection
 
+    async def list_untitled(self) -> list[Inspection]:
+        """Every active inspection (any company) with no title.
+
+        Inspections created before the service started deriving a title reach
+        reviewers as "Untitled"; the one-time backfill names them after the
+        asset they were raised against.
+        """
+        query = self._collection.where(filter=FieldFilter("title", "==", None))
+        query = query.where(filter=FieldFilter("deleted_at", "==", None))
+        documents = []
+        async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+            data = snapshot.to_dict()
+            if data is not None:
+                documents.append(self.model_type.model_validate(data))
+        return documents
+
+    async def backfill_title(
+        self, scope: CompanyScope, inspection_id: str, title: str, actor_uid: str
+    ) -> Inspection:
+        """Set a derived title without touching `revision`.
+
+        A backfill is not a user edit: bumping the revision would invalidate
+        every in-flight offline client's optimistic-concurrency token and force
+        spurious conflict resolution on records nobody actually changed.
+        """
+        await self._collection.document(inspection_id).update(
+            {"title": title, "updated_at": utc_now()},
+            timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
+            retry=None,
+        )
+        updated = await self.get(scope, inspection_id)
+        assert updated is not None
+        await self._write_audit(
+            scope,
+            actor_uid=actor_uid,
+            action="inspection.title_backfilled",
+            target_id=inspection_id,
+            metadata={"title": title},
+        )
+        return updated
+
     async def upsert_draft(
         self,
         scope: CompanyScope,

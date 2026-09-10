@@ -535,7 +535,7 @@ describe("inspection detail page", () => {
   it("shows an honest empty state when no photos have been analyzed yet", async () => {
     renderDetail();
     await screen.findByText("Q3 Routine Inspection");
-    expect(screen.getByText("No photos have been analyzed yet.")).toBeInTheDocument();
+    expect(screen.getByText("No photos or videos have been analyzed yet.")).toBeInTheDocument();
   });
 
   it("renders an AI analysis run with its summary, risk level, and needs-review status", async () => {

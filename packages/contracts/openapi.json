@@ -85,8 +85,28 @@
             "title": "Created By",
             "type": "string"
           },
+          "frames_analyzed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frames Analyzed"
+          },
           "id": {
             "title": "Id",
+            "type": "string"
+          },
+          "media_kind": {
+            "default": "photo",
+            "enum": [
+              "photo",
+              "video"
+            ],
+            "title": "Media Kind",
             "type": "string"
           },
           "media_local_id": {
@@ -257,6 +277,17 @@
               }
             ],
             "title": "Damage Type"
+          },
+          "frame_timestamp_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Timestamp Seconds"
           },
           "id": {
             "title": "Id",
@@ -17176,7 +17207,7 @@
     },
     "/api/v1/inspections/{inspection_id}/media/{media_id}/analyze": {
       "post": {
-        "description": "Runs Claude vision analysis on one already-attached photo (spec 8 \"AI\nPhoto & Video Analysis\", Phase 7.10) -- `media_id` is the media item's\nserver id, matching `update_inspection_media`/`detach_inspection_media`'s\nown path parameter. Every finding lands as an advisory\n`Annotation(source=\"ai\", ...)`; nothing here ever auto-confirms a\nfinding.",
+        "description": "Runs Claude vision analysis on one already-attached photo or video\n(spec 8 \"AI Photo & Video Analysis\") -- `media_id` is the media item's\nserver id, matching `update_inspection_media`/`detach_inspection_media`'s\nown path parameter. A video is sampled into frames first and analysed as a\nwhole; its findings carry the frame offset they were seen at. Every finding\nlands as an advisory `Annotation(source=\"ai\", ...)`; nothing here ever\nauto-confirms a finding.",
         "operationId": "analyze_inspection_media",
         "parameters": [
           {

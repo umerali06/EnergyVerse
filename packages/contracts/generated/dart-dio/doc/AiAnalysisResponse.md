@@ -11,7 +11,9 @@ Name | Type | Description | Notes
 **annotationIds** | **BuiltList&lt;String&gt;** |  | [optional]
 **createdAt** | [**DateTime**](DateTime.md) |  |
 **createdBy** | **String** |  |
+**framesAnalyzed** | **int** |  | [optional]
 **id** | **String** |  |
+**mediaKind** | **String** |  | [optional] [default to 'photo']
 **mediaLocalId** | **String** |  |
 **model** | **String** |  |
 **recommendations** | **String** |  | [optional]

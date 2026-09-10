@@ -39,10 +39,22 @@ export interface AiAnalysisResponse {
     createdBy: string;
     /**
      *
+     * @type {number}
+     * @memberof AiAnalysisResponse
+     */
+    framesAnalyzed?: number | null;
+    /**
+     *
      * @type {string}
      * @memberof AiAnalysisResponse
      */
     id: string;
+    /**
+     *
+     * @type {string}
+     * @memberof AiAnalysisResponse
+     */
+    mediaKind?: AiAnalysisResponseMediaKindEnum;
     /**
      *
      * @type {string}
@@ -97,6 +109,15 @@ export interface AiAnalysisResponse {
 /**
  * @export
  */
+export const AiAnalysisResponseMediaKindEnum = {
+    Photo: 'photo',
+    Video: 'video'
+} as const;
+export type AiAnalysisResponseMediaKindEnum = typeof AiAnalysisResponseMediaKindEnum[keyof typeof AiAnalysisResponseMediaKindEnum];
+
+/**
+ * @export
+ */
 export const AiAnalysisResponseRiskLevelEnum = {
     Low: 'low',
     Medium: 'medium',
@@ -132,7 +153,9 @@ export function AiAnalysisResponseFromJSONTyped(json: any, ignoreDiscriminator: 
         'annotationIds': json['annotation_ids'] == null ? undefined : json['annotation_ids'],
         'createdAt': (new Date(json['created_at'])),
         'createdBy': json['created_by'],
+        'framesAnalyzed': json['frames_analyzed'] == null ? undefined : json['frames_analyzed'],
         'id': json['id'],
+        'mediaKind': json['media_kind'] == null ? undefined : json['media_kind'],
         'mediaLocalId': json['media_local_id'],
         'model': json['model'],
         'recommendations': json['recommendations'] == null ? undefined : json['recommendations'],
@@ -158,7 +181,9 @@ export function AiAnalysisResponseToJSONTyped(value?: AiAnalysisResponse | null,
         'annotation_ids': value['annotationIds'],
         'created_at': ((value['createdAt']).toISOString()),
         'created_by': value['createdBy'],
+        'frames_analyzed': value['framesAnalyzed'],
         'id': value['id'],
+        'media_kind': value['mediaKind'],
         'media_local_id': value['mediaLocalId'],
         'model': value['model'],
         'recommendations': value['recommendations'],

@@ -3,6 +3,11 @@ import binascii
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from app.ai.video_frames import (
+    VideoDecodeError,
+    VideoFrameExtractor,
+    get_video_frame_extractor,
+)
 from app.ai.vision_client import AiClientError, VisionAnalysisClient, get_vision_client
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
@@ -114,7 +119,7 @@ INSPECTION_TYPE_LABELS: dict[str, str] = {
 }
 
 
-def _derive_title(title: str | None, asset_name: str, inspection_type: str) -> str:
+def derive_title(title: str | None, asset_name: str, inspection_type: str) -> str:
     """Give every inspection a human-readable title.
 
     A title is optional on the wire (offline clients create drafts before the
@@ -214,6 +219,7 @@ class InspectionService:
         users: UserRepository,
         storage: InspectionMediaStorage | None = None,
         ai_client: VisionAnalysisClient | None = None,
+        frame_extractor: VideoFrameExtractor | None = None,
     ) -> None:
         self._inspections = inspections
         self._assets = assets
@@ -221,6 +227,7 @@ class InspectionService:
         self._users = users
         self._storage = storage or get_inspection_media_storage()
         self._ai_client = ai_client or get_vision_client()
+        self._frame_extractor = frame_extractor or get_video_frame_extractor()
 
     async def _active_asset(self, scope: CompanyScope, asset_id: str) -> Asset:
         asset = await self._assets.get(scope, asset_id)
@@ -271,7 +278,7 @@ class InspectionService:
             inspector_id=actor_uid,
             status="draft",
             inspection_type=request.inspection_type,
-            title=_derive_title(request.title, asset.name, request.inspection_type),
+            title=derive_title(request.title, asset.name, request.inspection_type),
             notes=request.notes,
             gps_lat=request.gps_lat,
             gps_lng=request.gps_lng,
@@ -1076,16 +1083,23 @@ class InspectionService:
     async def analyze_media(
         self, scope: CompanyScope, inspection_id: str, media_id: str, actor_uid: str
     ) -> InspectionDetail:
-        """Runs Claude vision analysis on one already-attached photo (spec 8
-        "AI Photo & Video Analysis", Phase 7.10) -- `media_id` is the media
-        item's server id, matching `update_media`/`detach_media`'s own path
-        parameter convention; internally resolved to the `local_id`
-        `Annotation.media_local_id` actually references. Video is out of
-        scope for this phase (no frame-extraction pipeline exists). Every
-        finding lands as its own `Annotation(source="ai", confidence=...)`,
-        never auto-confirmed; `AiAnalysis` carries the run's summary/
-        recommendations/risk level and starts `reviewed=False` until the
-        inspector explicitly reviews it."""
+        """Runs Claude vision analysis on one already-attached photo or video
+        (spec 8 "AI Photo & Video Analysis") -- `media_id` is the media item's
+        server id, matching `update_media`/`detach_media`'s own path parameter
+        convention; internally resolved to the `local_id`
+        `Annotation.media_local_id` actually references.
+
+        A photo is sent as a single image. A video is first sampled into
+        frames (Claude's vision API takes images, not clips) and those frames
+        are analysed together in one request, so a defect recurring across
+        frames is reported once rather than per frame; each finding carries the
+        offset of the frame it was seen in, without which its normalized
+        coordinates would be meaningless.
+
+        Every finding lands as its own `Annotation(source="ai",
+        confidence=...)`, never auto-confirmed; `AiAnalysis` carries the run's
+        summary/recommendations/risk level and starts `reviewed=False` until
+        the inspector explicitly reviews it."""
         current = await self._active_inspection(scope, inspection_id)
         media = next((m for m in current.media if m.id == media_id), None)
         if media is None:
@@ -1095,17 +1109,30 @@ class InspectionService:
                 "No media item with that id exists on this inspection",
                 {"media_id": media_id},
             )
-        if media.kind != "photo":
+        if media.kind not in ("photo", "video"):
             raise InspectionServiceError(
                 422,
                 "ai_analysis_unsupported_media_kind",
-                "AI analysis currently supports photos only",
+                "AI analysis supports photos and videos only",
                 {"kind": media.kind},
             )
 
-        image_bytes = self._storage.download_bytes(media.path)
+        media_bytes = self._storage.download_bytes(media.path)
+        frames_analyzed: int | None = None
         try:
-            result = await self._ai_client.analyze_photo(image_bytes, media.content_type)
+            if media.kind == "video":
+                # Claude's vision API takes images, so the clip is sampled into
+                # frames first; the count is recorded on the analysis so a
+                # reviewer knows how much of the clip the summary is based on.
+                frames = self._frame_extractor.extract(media_bytes, media.content_type)
+                frames_analyzed = len(frames)
+                result = await self._ai_client.analyze_video_frames(frames)
+            else:
+                result = await self._ai_client.analyze_photo(media_bytes, media.content_type)
+        except VideoDecodeError as error:
+            raise InspectionServiceError(
+                422, "ai_analysis_video_undecodable", str(error)
+            ) from error
         except AiClientError as error:
             raise InspectionServiceError(502, "ai_analysis_failed", str(error)) from error
 
@@ -1121,6 +1148,9 @@ class InspectionService:
                 note=finding.note,
                 source="ai",
                 confidence=finding.confidence,
+                frame_timestamp_seconds=(
+                    finding.frame_timestamp_seconds if media.kind == "video" else None
+                ),
                 created_by=actor_uid,
                 created_at=now,
             )
@@ -1134,6 +1164,8 @@ class InspectionService:
             recommendations=result.recommendations,
             risk_level=result.risk_level,
             annotation_ids=[a.id for a in new_annotations],
+            media_kind=media.kind,
+            frames_analyzed=frames_analyzed,
             created_by=actor_uid,
             created_at=now,
         )

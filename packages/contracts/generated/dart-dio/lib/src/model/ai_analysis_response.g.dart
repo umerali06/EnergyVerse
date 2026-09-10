@@ -6,6 +6,30 @@ part of 'ai_analysis_response.dart';
 // BuiltValueGenerator
 // **************************************************************************
 
+const AiAnalysisResponseMediaKindEnum _$aiAnalysisResponseMediaKindEnum_photo =
+    const AiAnalysisResponseMediaKindEnum._('photo');
+const AiAnalysisResponseMediaKindEnum _$aiAnalysisResponseMediaKindEnum_video =
+    const AiAnalysisResponseMediaKindEnum._('video');
+
+AiAnalysisResponseMediaKindEnum _$aiAnalysisResponseMediaKindEnumValueOf(
+    String name) {
+  switch (name) {
+    case 'photo':
+      return _$aiAnalysisResponseMediaKindEnum_photo;
+    case 'video':
+      return _$aiAnalysisResponseMediaKindEnum_video;
+    default:
+      throw new ArgumentError(name);
+  }
+}
+
+final BuiltSet<AiAnalysisResponseMediaKindEnum>
+    _$aiAnalysisResponseMediaKindEnumValues = new BuiltSet<
+        AiAnalysisResponseMediaKindEnum>(const <AiAnalysisResponseMediaKindEnum>[
+  _$aiAnalysisResponseMediaKindEnum_photo,
+  _$aiAnalysisResponseMediaKindEnum_video,
+]);
+
 const AiAnalysisResponseRiskLevelEnum _$aiAnalysisResponseRiskLevelEnum_low =
     const AiAnalysisResponseRiskLevelEnum._('low');
 const AiAnalysisResponseRiskLevelEnum _$aiAnalysisResponseRiskLevelEnum_medium =
@@ -41,9 +65,42 @@ final BuiltSet<AiAnalysisResponseRiskLevelEnum>
   _$aiAnalysisResponseRiskLevelEnum_critical,
 ]);
 
+Serializer<AiAnalysisResponseMediaKindEnum>
+    _$aiAnalysisResponseMediaKindEnumSerializer =
+    new _$AiAnalysisResponseMediaKindEnumSerializer();
 Serializer<AiAnalysisResponseRiskLevelEnum>
     _$aiAnalysisResponseRiskLevelEnumSerializer =
     new _$AiAnalysisResponseRiskLevelEnumSerializer();
+
+class _$AiAnalysisResponseMediaKindEnumSerializer
+    implements PrimitiveSerializer<AiAnalysisResponseMediaKindEnum> {
+  static const Map<String, Object> _toWire = const <String, Object>{
+    'photo': 'photo',
+    'video': 'video',
+  };
+  static const Map<Object, String> _fromWire = const <Object, String>{
+    'photo': 'photo',
+    'video': 'video',
+  };
+
+  @override
+  final Iterable<Type> types = const <Type>[AiAnalysisResponseMediaKindEnum];
+  @override
+  final String wireName = 'AiAnalysisResponseMediaKindEnum';
+
+  @override
+  Object serialize(
+          Serializers serializers, AiAnalysisResponseMediaKindEnum object,
+          {FullType specifiedType = FullType.unspecified}) =>
+      _toWire[object.name] ?? object.name;
+
+  @override
+  AiAnalysisResponseMediaKindEnum deserialize(
+          Serializers serializers, Object serialized,
+          {FullType specifiedType = FullType.unspecified}) =>
+      AiAnalysisResponseMediaKindEnum.valueOf(
+          _fromWire[serialized] ?? (serialized is String ? serialized : ''));
+}
 
 class _$AiAnalysisResponseRiskLevelEnumSerializer
     implements PrimitiveSerializer<AiAnalysisResponseRiskLevelEnum> {
@@ -87,7 +144,11 @@ class _$AiAnalysisResponse extends AiAnalysisResponse {
   @override
   final String createdBy;
   @override
+  final int? framesAnalyzed;
+  @override
   final String id;
+  @override
+  final AiAnalysisResponseMediaKindEnum? mediaKind;
   @override
   final String mediaLocalId;
   @override
@@ -113,7 +174,9 @@ class _$AiAnalysisResponse extends AiAnalysisResponse {
       {this.annotationIds,
       required this.createdAt,
       required this.createdBy,
+      this.framesAnalyzed,
       required this.id,
+      this.mediaKind,
       required this.mediaLocalId,
       required this.model,
       this.recommendations,
@@ -152,7 +215,9 @@ class _$AiAnalysisResponse extends AiAnalysisResponse {
         annotationIds == other.annotationIds &&
         createdAt == other.createdAt &&
         createdBy == other.createdBy &&
+        framesAnalyzed == other.framesAnalyzed &&
         id == other.id &&
+        mediaKind == other.mediaKind &&
         mediaLocalId == other.mediaLocalId &&
         model == other.model &&
         recommendations == other.recommendations &&
@@ -169,7 +234,9 @@ class _$AiAnalysisResponse extends AiAnalysisResponse {
     _$hash = $jc(_$hash, annotationIds.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jc(_$hash, createdBy.hashCode);
+    _$hash = $jc(_$hash, framesAnalyzed.hashCode);
     _$hash = $jc(_$hash, id.hashCode);
+    _$hash = $jc(_$hash, mediaKind.hashCode);
     _$hash = $jc(_$hash, mediaLocalId.hashCode);
     _$hash = $jc(_$hash, model.hashCode);
     _$hash = $jc(_$hash, recommendations.hashCode);
@@ -188,7 +255,9 @@ class _$AiAnalysisResponse extends AiAnalysisResponse {
           ..add('annotationIds', annotationIds)
           ..add('createdAt', createdAt)
           ..add('createdBy', createdBy)
+          ..add('framesAnalyzed', framesAnalyzed)
           ..add('id', id)
+          ..add('mediaKind', mediaKind)
           ..add('mediaLocalId', mediaLocalId)
           ..add('model', model)
           ..add('recommendations', recommendations)
@@ -219,9 +288,19 @@ class AiAnalysisResponseBuilder
   String? get createdBy => _$this._createdBy;
   set createdBy(String? createdBy) => _$this._createdBy = createdBy;
 
+  int? _framesAnalyzed;
+  int? get framesAnalyzed => _$this._framesAnalyzed;
+  set framesAnalyzed(int? framesAnalyzed) =>
+      _$this._framesAnalyzed = framesAnalyzed;
+
   String? _id;
   String? get id => _$this._id;
   set id(String? id) => _$this._id = id;
+
+  AiAnalysisResponseMediaKindEnum? _mediaKind;
+  AiAnalysisResponseMediaKindEnum? get mediaKind => _$this._mediaKind;
+  set mediaKind(AiAnalysisResponseMediaKindEnum? mediaKind) =>
+      _$this._mediaKind = mediaKind;
 
   String? _mediaLocalId;
   String? get mediaLocalId => _$this._mediaLocalId;
@@ -267,7 +346,9 @@ class AiAnalysisResponseBuilder
       _annotationIds = $v.annotationIds?.toBuilder();
       _createdAt = $v.createdAt;
       _createdBy = $v.createdBy;
+      _framesAnalyzed = $v.framesAnalyzed;
       _id = $v.id;
+      _mediaKind = $v.mediaKind;
       _mediaLocalId = $v.mediaLocalId;
       _model = $v.model;
       _recommendations = $v.recommendations;
@@ -305,8 +386,10 @@ class AiAnalysisResponseBuilder
                   createdAt, r'AiAnalysisResponse', 'createdAt'),
               createdBy: BuiltValueNullFieldError.checkNotNull(
                   createdBy, r'AiAnalysisResponse', 'createdBy'),
+              framesAnalyzed: framesAnalyzed,
               id: BuiltValueNullFieldError.checkNotNull(
                   id, r'AiAnalysisResponse', 'id'),
+              mediaKind: mediaKind,
               mediaLocalId: BuiltValueNullFieldError.checkNotNull(
                   mediaLocalId, r'AiAnalysisResponse', 'mediaLocalId'),
               model: BuiltValueNullFieldError.checkNotNull(

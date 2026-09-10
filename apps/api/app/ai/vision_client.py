@@ -7,11 +7,13 @@ freely edit or delete, exactly like a manually drawn one (D-054's own
 rationale for reserving `source`/`confidence`)."""
 
 import base64
-from typing import Protocol
+from copy import deepcopy
+from typing import Any, Protocol
 
 import anthropic
 from pydantic import BaseModel, Field, ValidationError
 
+from app.ai.video_frames import VideoFrame
 from app.core.settings import settings
 
 DAMAGE_TYPES = (
@@ -41,7 +43,25 @@ _ANALYSIS_PROMPT = (
     "damage, return an empty findings array and say so plainly in the summary."
 )
 
-_REPORT_TOOL = {
+_VIDEO_ANALYSIS_PROMPT = (
+    "You are assisting a field inspector reviewing frames sampled from a video "
+    "recording of an industrial asset (oil & gas, energy, or utility "
+    "equipment). The frames are given in chronological order and each is "
+    "labelled with its offset in seconds from the start of the clip. They come "
+    "from one continuous recording, so the same defect may appear in several "
+    "frames -- report it once, against the frame where it is clearest. Look "
+    "only for visible physical damage or defects: corrosion, rust, cracks, "
+    "surface damage, paint deterioration, missing bolts, broken components, "
+    "fluid leaks, or general wear. Do not speculate about anything not visible. "
+    "Call report_video_analysis with your findings. Every finding must carry "
+    "frame_timestamp_seconds set to the labelled offset of the frame it was "
+    "seen in, and its points as normalized 0-1 coordinates relative to that "
+    "frame's own width/height (a rectangle needs its top-left and bottom-right "
+    "corners; a point needs one coordinate pair). If the frames show no "
+    "visible damage, return an empty findings array and say so in the summary."
+)
+
+_REPORT_TOOL: dict[str, Any] = {
     "name": "report_photo_analysis",
     "description": "Report visible damage/defects detected in an inspection photo.",
     "input_schema": {
@@ -92,6 +112,41 @@ _REPORT_TOOL = {
 }
 
 
+def _video_report_tool() -> dict[str, Any]:
+    """The photo tool with a required per-finding frame offset.
+
+    Built from the photo schema rather than duplicated so the two cannot drift
+    apart as damage types or point rules change.
+    """
+    schema: dict[str, Any] = deepcopy(_REPORT_TOOL["input_schema"])
+    finding: dict[str, Any] = schema["properties"]["findings"]["items"]
+    finding["properties"]["frame_timestamp_seconds"] = {
+        "type": "number",
+        "minimum": 0,
+        "description": "Offset in seconds of the labelled frame this finding was seen in.",
+    }
+    finding["required"] = [*finding["required"], "frame_timestamp_seconds"]
+    return {
+        "name": "report_video_analysis",
+        "description": "Report visible damage/defects detected across inspection video frames.",
+        "input_schema": schema,
+    }
+
+
+_VIDEO_REPORT_TOOL = _video_report_tool()
+
+
+def _image_block(image_bytes: bytes, content_type: str) -> dict[str, Any]:
+    return {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": content_type,
+            "data": base64.standard_b64encode(image_bytes).decode("ascii"),
+        },
+    }
+
+
 class AiClientError(Exception):
     """Raised when the vision API call fails, is misconfigured, or returns an
     unusable response -- the service layer translates this into a clean 502
@@ -109,6 +164,8 @@ class AiFinding(BaseModel):
     damage_type: str | None = None
     confidence: float = Field(ge=0, le=1)
     note: str | None = None
+    # Video runs only: the offset of the frame these coordinates belong to.
+    frame_timestamp_seconds: float | None = Field(default=None, ge=0)
 
 
 class AiAnalysisResult(BaseModel):
@@ -128,6 +185,8 @@ class VisionAnalysisClient(Protocol):
 
     async def analyze_photo(self, image_bytes: bytes, content_type: str) -> AiAnalysisResult: ...
 
+    async def analyze_video_frames(self, frames: list[VideoFrame]) -> AiAnalysisResult: ...
+
 
 class ClaudeVisionClient:
     """Real Claude vision implementation. `InspectionService` depends on the
@@ -146,9 +205,15 @@ class ClaudeVisionClient:
             self._client = anthropic.AsyncAnthropic(api_key=self._api_key)
         return self._client
 
-    async def analyze_photo(self, image_bytes: bytes, content_type: str) -> AiAnalysisResult:
+    async def _report(
+        self, content: list[dict[str, Any]], tool: dict[str, Any]
+    ) -> AiAnalysisResult:
+        """Issue one tool-forced vision request and validate the result.
+
+        Shared by the photo and video paths so both get identical error
+        translation and response validation.
+        """
         client = self._get_client()
-        encoded = base64.standard_b64encode(image_bytes).decode("ascii")
         try:
             # The Anthropic SDK's overloads expect its own precise TypedDicts
             # (ToolParam/ToolChoiceToolParam/MessageParam) rather than plain
@@ -159,25 +224,10 @@ class ClaudeVisionClient:
             # in this codebase.
             response = await client.messages.create(  # type: ignore[call-overload]
                 model=self.model_name,
-                max_tokens=1024,
-                tools=[_REPORT_TOOL],
-                tool_choice={"type": "tool", "name": "report_photo_analysis"},
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": content_type,
-                                    "data": encoded,
-                                },
-                            },
-                            {"type": "text", "text": _ANALYSIS_PROMPT},
-                        ],
-                    }
-                ],
+                max_tokens=2048,
+                tools=[tool],
+                tool_choice={"type": "tool", "name": tool["name"]},
+                messages=[{"role": "user", "content": content}],
             )
         except anthropic.APIError as error:
             raise AiClientError(f"Claude vision request failed: {error}") from error
@@ -189,6 +239,31 @@ class ClaudeVisionClient:
             return AiAnalysisResult.model_validate(tool_use.input)
         except ValidationError as error:
             raise AiClientError(f"Malformed AI response: {error}") from error
+
+    async def analyze_photo(self, image_bytes: bytes, content_type: str) -> AiAnalysisResult:
+        content: list[dict[str, Any]] = [
+            _image_block(image_bytes, content_type),
+            {"type": "text", "text": _ANALYSIS_PROMPT},
+        ]
+        return await self._report(content, _REPORT_TOOL)
+
+    async def analyze_video_frames(self, frames: list[VideoFrame]) -> AiAnalysisResult:
+        """Analyse frames sampled from one clip as a single request.
+
+        Sending every frame in one message (rather than one request per frame)
+        lets Claude recognise that the same defect recurs across frames and
+        report it once, which is why findings carry a frame offset instead of
+        each frame producing its own isolated analysis.
+        """
+        if not frames:
+            raise AiClientError("No frames were extracted from the video to analyse")
+
+        content: list[dict[str, Any]] = []
+        for frame in frames:
+            content.append({"type": "text", "text": f"Frame at {frame.timestamp_seconds:.2f}s:"})
+            content.append(_image_block(frame.image_bytes, frame.content_type))
+        content.append({"type": "text", "text": _VIDEO_ANALYSIS_PROMPT})
+        return await self._report(content, _VIDEO_REPORT_TOOL)
 
 
 def get_vision_client() -> ClaudeVisionClient:
