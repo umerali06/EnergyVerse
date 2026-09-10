@@ -65,6 +65,16 @@ abstract interface class DocumentsApiContract {
   Future<DocumentDeleted> deleteDocument(String documentId);
 }
 
+/// Personal notifications. Gated on being signed in rather than a permission,
+/// mirroring the backend: a notification is addressed to one user.
+abstract interface class NotificationsApiContract {
+  Future<NotificationListPage> getNotifications({bool unreadOnly});
+  Future<NotificationRead> markNotificationRead(String notificationId);
+  Future<NotificationsAllRead> markAllNotificationsRead();
+  Future<DeviceRegistered> registerNotificationDevice(RegisterDeviceRequest request);
+  Future<DeviceUnregistered> unregisterNotificationDevice(String token);
+}
+
 class NoopApiFeedback implements ApiFeedback {
   const NoopApiFeedback();
 
@@ -452,7 +462,8 @@ class ApiService
         PermitDashboardApiContract,
         ReportDashboardApiContract,
         GeneratedReportsApiContract,
-        DocumentsApiContract {
+        DocumentsApiContract,
+        NotificationsApiContract {
   ApiService({
     String baseUrl = apiBaseUrl,
     Dio? dio,
@@ -2080,6 +2091,105 @@ class ApiService
                 updateCorrectiveActionRequest: request,
               );
       return _requireSafetyReport(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  @override
+  Future<NotificationListPage> getNotifications({bool unreadOnly = false}) async {
+    try {
+      final response = await _client.getNotificationsApi().listNotifications(
+            unreadOnly: unreadOnly,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty notification page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<NotificationRead> markNotificationRead(String notificationId) async {
+    try {
+      final response = await _client.getNotificationsApi().markNotificationRead(
+            notificationId: notificationId,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty response marking a notification read',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<NotificationsAllRead> markAllNotificationsRead() async {
+    try {
+      final response =
+          await _client.getNotificationsApi().markAllNotificationsRead();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty response marking notifications read',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DeviceRegistered> registerNotificationDevice(
+    RegisterDeviceRequest request,
+  ) async {
+    try {
+      final response =
+          await _client.getNotificationsApi().registerNotificationDevice(
+                registerDeviceRequest: request,
+              );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty device registration response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DeviceUnregistered> unregisterNotificationDevice(String token) async {
+    try {
+      final response =
+          await _client.getNotificationsApi().unregisterNotificationDevice(
+                token: token,
+              );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty device unregistration response',
+        );
+      }
+      return value;
     } on DioException catch (error) {
       throw _typedError(error);
     }

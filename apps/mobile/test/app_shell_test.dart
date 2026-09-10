@@ -567,7 +567,12 @@ void main() {
     await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
     await tester.tap(find.byKey(const Key('nav-more')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('more-/reports')));
+    // The sheet scrolls; ensure the target is on screen before tapping or the
+    // hit lands on whatever occupies that position instead.
+    final reports = find.byKey(const Key('more-/reports'));
+    await tester.ensureVisible(reports);
+    await tester.pumpAndSettle();
+    await tester.tap(reports);
     await tester.pumpAndSettle();
     expect(find.text('Reports unavailable'), findsOneWidget);
     expect(find.byType(BottomSheet), findsNothing);

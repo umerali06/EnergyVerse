@@ -53,6 +53,7 @@ class AppNav {
   static const safety = '/safety';
   static const reports = '/reports';
   static const documents = '/documents';
+  static const notifications = '/notifications';
   static const users = '/users';
   static const roles = '/roles';
   static const settings = '/settings';
@@ -64,6 +65,13 @@ class AppNav {
       icon: Icons.dashboard_outlined,
       route: home,
       primary: true,
+    ),
+    // No permission or plan feature: a notification is addressed to one
+    // person, so every signed-in user reaches their own.
+    NavDestination(
+      label: 'Notifications',
+      icon: Icons.notifications_outlined,
+      route: notifications,
     ),
     NavDestination(
       label: 'Assets',

@@ -24,6 +24,7 @@ import '../documents/documents_screen.dart';
 import '../reports/reports_screen.dart';
 import '../shell/app_shell.dart';
 import '../users/users_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../work_orders/work_order_detail_screen.dart';
 import '../work_orders/work_orders_screen.dart';
 import 'auth_experience.dart';
@@ -370,6 +371,14 @@ class AppRoutes {
             ),
           );
         };
+      case AppNav.notifications:
+        return (_) => const RequireAuthGuard(
+              routeName: AppNav.notifications,
+              child: AppShellScaffold(
+                currentRoute: AppNav.notifications,
+                child: NotificationsScreen(),
+              ),
+            );
       case AppNav.documents:
         return (_) => const RequireAuthGuard(
               routeName: AppNav.documents,
