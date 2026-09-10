@@ -19,7 +19,7 @@ export function usePermitsData() {
 
   const filterKey = JSON.stringify({ permitType, facilityId });
 
-  const permitsQuery = useCachedQuery<{ items: PermitListItem[]; nextCursor: string | null }>(
+  const permitsQuery = useCachedQuery<{ items: PermitListItem[]; nextCursor?: string | null }>(
     `permits:list:${filterKey}`,
     () =>
       apiClient.listPermits({

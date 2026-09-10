@@ -11,7 +11,13 @@ from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.facilities import FacilityRepository
-from app.facilities.service import FacilityManagementService, get_facility_management_service
+from app.facilities.service import (
+    DEFAULT_HOTSPOT_POSITION,
+    FacilityManagementService,
+    _coerce_float,
+    _coerce_position,
+    get_facility_management_service,
+)
 from app.main import app
 from app.models.entities import CurrentUser
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
@@ -140,6 +146,52 @@ def test_update_facility_3d_scene_persists_custom_hotspots_and_presets(
     assert hotspot["position"] == [5.0, 2.5, -3.0]
     assert hotspot["radius"] == 2.0
     assert hotspot["label"] == "Custom Distillation Skid Node"
+
+
+# Scene documents are hand-authored and unvalidated in Firestore, so a hotspot
+# can carry a string, a null, or a missing key where a number belongs. Before
+# these guards a single bad value raised inside `float()` and returned a 500
+# for the entire facility scene rather than degrading that one hotspot.
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (2.5, 2.5),
+        (3, 3.0),
+        ("4.5", 4.5),
+        (None, 1.0),
+        ("not-a-number", 1.0),
+        ("", 1.0),
+        ({"nested": "object"}, 1.0),
+        ([1.0], 1.0),
+        (True, 1.0),
+        (float("nan"), 1.0),
+        (float("inf"), 1.0),
+    ],
+)
+def test_coerce_float_never_raises_on_untrusted_scene_values(
+    value: object, expected: float
+) -> None:
+    assert _coerce_float(value, 1.0) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]),
+        ([1, 2, 3], [1.0, 2.0, 3.0]),
+        (["1.5", "2.5", "3.5"], [1.5, 2.5, 3.5]),
+        # A single bad axis falls back to that axis's default, not the whole vector.
+        ([1.0, "bad", 3.0], [1.0, DEFAULT_HOTSPOT_POSITION[1], 3.0]),
+        (None, DEFAULT_HOTSPOT_POSITION),
+        ([1.0, 2.0], DEFAULT_HOTSPOT_POSITION),
+        ([1.0, 2.0, 3.0, 4.0], DEFAULT_HOTSPOT_POSITION),
+        ("1,2,3", DEFAULT_HOTSPOT_POSITION),
+    ],
+)
+def test_coerce_position_always_returns_three_floats(
+    value: object, expected: list[float]
+) -> None:
+    assert _coerce_position(value) == expected
 
 
 def test_get_3d_scene_cross_tenant_returns_404(wiring: dict[str, Any]) -> None:

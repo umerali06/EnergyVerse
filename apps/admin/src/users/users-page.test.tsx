@@ -12,7 +12,7 @@ import { UsersPage } from "./users-page";
 const session: AuthSession = {
   email: "company_admin@acme.example.invalid",
   emailVerified: true,
-  getIdToken: vi.fn(async () => "id-token"),
+  getIdToken: vi.fn(async (..._args: unknown[]) => "id-token"),
   uid: "demo-acme-company_admin",
 };
 
@@ -28,7 +28,7 @@ const roleMatrix: Record<string, string[]> = {
   field_inspector: ["assets.read", "reports.read", "reports.generate"],
 };
 
-function makeGateway(sendPasswordResetEmail = vi.fn(async () => undefined)): AuthGateway & {
+function makeGateway(sendPasswordResetEmail = vi.fn(async (..._args: unknown[]) => undefined)): AuthGateway & {
   sendPasswordResetEmail: typeof sendPasswordResetEmail;
 } {
   return {
@@ -90,15 +90,15 @@ function DashboardWithPermissions() {
 function renderUsers({
   roleKey = "company_admin",
   permissions = roleMatrix.company_admin,
-  listUsers = vi.fn(async () => ({ items: [userItem()], nextCursor: null })),
-  listRoles = vi.fn(async () => roles),
+  listUsers = vi.fn(async (..._args: unknown[]) => ({ items: [userItem()], nextCursor: null })),
+  listRoles = vi.fn(async (..._args: unknown[]) => roles),
   getUser = vi.fn(async (userId: string) => detailFor(userItem({ id: userId }))),
-  inviteUser = vi.fn(async () => detailFor(userItem({ id: "new-user" }))),
+  inviteUser = vi.fn(async (..._args: unknown[]) => detailFor(userItem({ id: "new-user" }))),
   updateUser = vi.fn(async (userId: string) => detailFor(userItem({ id: userId }))),
   setUserStatus = vi.fn(async (userId: string, request: { status: string }) =>
     detailFor(userItem({ id: userId, status: request.status })),
   ),
-  sendPasswordResetEmail = vi.fn(async () => undefined),
+  sendPasswordResetEmail = vi.fn(async (..._args: unknown[]) => undefined),
 }: {
   roleKey?: string;
   permissions?: string[];
@@ -120,7 +120,7 @@ function renderUsers({
     permissions: new Set(permissions),
   };
   const apiClient = {
-    getCurrentUser: vi.fn(async () => identity),
+    getCurrentUser: vi.fn(async (..._args: unknown[]) => identity),
     registerCompanyAdmin: vi.fn(),
     listUsers,
     listRoles,
@@ -156,7 +156,7 @@ describe("users page", () => {
   });
 
   it("shows an honest empty state when no users match", async () => {
-    renderUsers({ listUsers: vi.fn(async () => ({ items: [], nextCursor: null })) });
+    renderUsers({ listUsers: vi.fn(async (..._args: unknown[]) => ({ items: [], nextCursor: null })) });
     expect(await screen.findByText("No users found")).toBeInTheDocument();
   });
 
@@ -187,7 +187,7 @@ describe("users page", () => {
   });
 
   it("re-fetches with the search term", async () => {
-    const listUsers = vi.fn(async () => ({ items: [userItem()], nextCursor: null }));
+    const listUsers = vi.fn(async (..._args: unknown[]) => ({ items: [userItem()], nextCursor: null }));
     renderUsers({ listUsers });
     await screen.findByText("Acme Field Inspector");
     const user = userEvent.setup();
@@ -198,11 +198,11 @@ describe("users page", () => {
   });
 
   it("invites a user, sends the invite email, and refreshes the list", async () => {
-    const inviteUser = vi.fn(async () =>
+    const inviteUser = vi.fn(async (..._args: unknown[]) =>
       detailFor(userItem({ id: "new-user", displayName: "New Hire", email: "new@acme.example.invalid" })),
     );
-    const sendPasswordResetEmail = vi.fn(async () => undefined);
-    const listUsers = vi.fn(async () => ({ items: [userItem()], nextCursor: null }));
+    const sendPasswordResetEmail = vi.fn(async (..._args: unknown[]) => undefined);
+    const listUsers = vi.fn(async (..._args: unknown[]) => ({ items: [userItem()], nextCursor: null }));
     renderUsers({ inviteUser, sendPasswordResetEmail, listUsers });
     await screen.findByText("Acme Field Inspector");
     const user = userEvent.setup();
@@ -237,10 +237,10 @@ describe("users page", () => {
   });
 
   it("opens a user's detail, edits their role, and shows the new effective permissions", async () => {
-    const getUser = vi.fn(async () =>
+    const getUser = vi.fn(async (..._args: unknown[]) =>
       detailFor(userItem(), ["assets.read", "inspections.read"]),
     );
-    const updateUser = vi.fn(async () =>
+    const updateUser = vi.fn(async (..._args: unknown[]) =>
       detailFor(
         userItem({ roleId: "role-hse", roleKey: "hse_manager", roleName: "HSE Manager" }),
         ["safety.read", "safety.write"],

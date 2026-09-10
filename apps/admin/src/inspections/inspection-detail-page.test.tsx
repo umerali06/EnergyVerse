@@ -267,6 +267,7 @@ function renderDetail({
     permissions: new Set(permissions),
   };
   const apiClient = {
+    registerCompanyAdmin: vi.fn(),
     getCurrentUser: vi.fn(async () => identity),
     getInspection,
     cancelInspection,

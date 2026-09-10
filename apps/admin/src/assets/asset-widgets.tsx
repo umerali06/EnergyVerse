@@ -26,11 +26,8 @@ function useAssetDashboardSummary() {
     "dashboard:assets:summary",
     () => apiClient.getDashboardAssetsSummary(),
   );
-  return {
-    status: query.loading ? "loading" : query.error ? "error" : "ready",
-    data: query.data,
-    retry: query.refetch,
-  };
+  const status: AsyncStatus = query.loading ? "loading" : query.error ? "error" : "ready";
+  return { status, data: query.data, retry: query.refetch };
 }
 
 function StatCard({

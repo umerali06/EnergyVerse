@@ -91,6 +91,7 @@ export type AssetsApiClient = Pick<
   | "createAsset"
   | "deleteAssetMedia"
   | "getFacility"
+  | "getFacility3dScene"
   | "listAreas"
   | "listAssets"
   | "listFacilities"

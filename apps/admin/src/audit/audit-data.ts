@@ -54,7 +54,7 @@ export function useAuditLogData() {
 
   const filterKey = JSON.stringify(filters);
 
-  const auditLogsQuery = useCachedQuery<{ items: AuditLogEntry[]; nextCursor: string | null; truncated: boolean }>(
+  const auditLogsQuery = useCachedQuery<{ items: AuditLogEntry[]; nextCursor?: string | null; truncated?: boolean }>(
     `audit:list:${filterKey}`,
     () =>
       apiClient.listAuditLogs({

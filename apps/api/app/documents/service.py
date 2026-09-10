@@ -157,7 +157,9 @@ class DocumentService:
         try:
             doc = await self._documents.update_metadata(scope, document_id, updates, actor_uid)
         except LookupError as error:
-            raise DocumentServiceError(404, "document_not_found", "Document was not found") from error
+            raise DocumentServiceError(
+                404, "document_not_found", "Document was not found"
+            ) from error
         return _to_detail(doc)
 
     async def delete_document(
@@ -169,7 +171,9 @@ class DocumentService:
         try:
             await self._documents.soft_delete(scope, document_id, actor_uid)
         except LookupError as error:
-            raise DocumentServiceError(404, "document_not_found", "Document was not found") from error
+            raise DocumentServiceError(
+                404, "document_not_found", "Document was not found"
+            ) from error
 
 
 def get_document_service() -> DocumentService:

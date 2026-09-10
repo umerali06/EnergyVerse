@@ -28,7 +28,7 @@ export function usePlatformCompaniesData() {
   const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const companiesQuery = useCachedQuery<{ items: PlatformCompanySummary[]; nextCursor: string | null }>(
+  const companiesQuery = useCachedQuery<{ items: PlatformCompanySummary[]; nextCursor?: string | null }>(
     "platform:companies:list",
     () => apiClient.listPlatformCompanies({ limit: PAGE_SIZE }),
   );

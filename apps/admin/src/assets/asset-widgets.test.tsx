@@ -105,6 +105,7 @@ function renderAssetWidgets(getDashboardAssetsSummary: ReturnType<typeof vi.fn>)
     permissions: new Set(["assets.read"]),
   };
   const apiClient = {
+    registerCompanyAdmin: vi.fn(),
     getCurrentUser: vi.fn(async () => identity),
     getDashboardAssetsSummary,
   };

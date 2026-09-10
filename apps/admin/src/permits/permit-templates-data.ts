@@ -18,7 +18,7 @@ export function usePermitTemplatesData() {
 
   const filterKey = JSON.stringify({ permitType });
 
-  const templatesQuery = useCachedQuery<{ items: PermitTemplateListItem[]; nextCursor: string | null }>(
+  const templatesQuery = useCachedQuery<{ items: PermitTemplateListItem[]; nextCursor?: string | null }>(
     `permit-templates:list:${filterKey}`,
     () =>
       apiClient.listPermitTemplates({

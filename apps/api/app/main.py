@@ -117,7 +117,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
     # Allow any localhost/127.0.0.1 port so Flutter web dev (random port) can reach the API.
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?" if settings.cors_allow_all_localhost else None,
+    allow_origin_regex=(
+        r"http://(localhost|127\.0\.0\.1)(:\d+)?"
+        if settings.cors_allow_all_localhost
+        else None
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

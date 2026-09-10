@@ -44,7 +44,7 @@ export function useAssetsData(initialFilters: Partial<AssetFilters> = {}) {
 
   const filterKey = JSON.stringify(filters);
 
-  const assetsQuery = useCachedQuery<{ items: AssetListItem[]; nextCursor: string | null }>(
+  const assetsQuery = useCachedQuery<{ items: AssetListItem[]; nextCursor?: string | null }>(
     `assets:list:${filterKey}`,
     () =>
       apiClient.listAssets({

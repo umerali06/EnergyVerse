@@ -100,6 +100,8 @@ import {
   type UpdateAssetRequest,
   type PlatformStats,
   type QrScanResult,
+  type DigitalTwinSceneResponse,
+  type ReportDashboardSummary,
   type RoleDeleted,
   type RoleDetail,
   type RoleList,
@@ -528,6 +530,12 @@ export class FevApiClient {
     );
   }
 
+  getDashboardReportsSummary(signal?: AbortSignal): Promise<ReportDashboardSummary> {
+    return this.execute(() =>
+      this.dashboard.getDashboardReportsSummary(signal ? { signal } : undefined),
+    );
+  }
+
   getDashboardActivity(
     options: { limit?: number; cursor?: string; action?: string } = {},
     signal?: AbortSignal,
@@ -642,6 +650,12 @@ export class FevApiClient {
 
   resolveQrCode(code: string, signal?: AbortSignal): Promise<QrScanResult> {
     return this.execute(() => this.qr.resolveQrCode({ code }, signal ? { signal } : undefined));
+  }
+
+  getFacility3dScene(facilityId: string, signal?: AbortSignal): Promise<DigitalTwinSceneResponse> {
+    return this.execute(() =>
+      this.facilities.getFacility3dScene({ facilityId }, signal ? { signal } : undefined),
+    );
   }
 
   listFacilities(

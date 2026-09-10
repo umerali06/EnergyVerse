@@ -27,7 +27,7 @@ vi.mock("next/navigation", () => ({
 const session: AuthSession = {
   email: "company_admin@acme.example.invalid",
   emailVerified: true,
-  getIdToken: vi.fn(async () => "id-token"),
+  getIdToken: vi.fn(async (..._args: unknown[]) => "id-token"),
   uid: "demo-acme-company_admin",
 };
 
@@ -129,11 +129,11 @@ function DashboardWithPermissions({ children }: { children: React.ReactNode }) {
 function renderWorkOrders({
   roleKey = "company_admin",
   permissions = roleMatrix.company_admin,
-  listWorkOrders = vi.fn(async () => ({ items: [workOrderItem()], nextCursor: null })),
-  listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null })),
-  listFacilities = vi.fn(async () => ({ items: [facilityItem()], nextCursor: null })),
-  listUsers = vi.fn(async () => ({ items: [userItem()], nextCursor: null })),
-  createWorkOrder = vi.fn(async () => workOrderItem({ id: "wo-new", title: "New Work Order" })),
+  listWorkOrders = vi.fn(async (..._args: unknown[]) => ({ items: [workOrderItem()], nextCursor: null })),
+  listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null })),
+  listFacilities = vi.fn(async (..._args: unknown[]) => ({ items: [facilityItem()], nextCursor: null })),
+  listUsers = vi.fn(async (..._args: unknown[]) => ({ items: [userItem()], nextCursor: null })),
+  createWorkOrder = vi.fn(async (..._args: unknown[]) => workOrderItem({ id: "wo-new", title: "New Work Order" })),
   gated = false,
 }: {
   roleKey?: string;
@@ -155,7 +155,7 @@ function renderWorkOrders({
     permissions: new Set(permissions),
   };
   const apiClient = {
-    getCurrentUser: vi.fn(async () => identity),
+    getCurrentUser: vi.fn(async (..._args: unknown[]) => identity),
     registerCompanyAdmin: vi.fn(),
     listWorkOrders,
     listAssets,
@@ -192,7 +192,7 @@ describe("work orders page", () => {
   it("opens creation with the asset preselected when deep-linked from the 3D view", async () => {
     searchParams = new URLSearchParams("createForAsset=asset-2");
     renderWorkOrders({
-      listAssets: vi.fn(async () => ({
+      listAssets: vi.fn(async (..._args: unknown[]) => ({
         items: [assetItem(), assetItem({ id: "asset-2", assetTag: "CMP-002", name: "Gas Compressor" })],
         nextCursor: null,
       })),
@@ -220,7 +220,7 @@ describe("work orders page", () => {
   });
 
   it("shows an honest empty state when no work orders match", async () => {
-    renderWorkOrders({ listWorkOrders: vi.fn(async () => ({ items: [], nextCursor: null })) });
+    renderWorkOrders({ listWorkOrders: vi.fn(async (..._args: unknown[]) => ({ items: [], nextCursor: null })) });
     expect(await screen.findByText("No work orders found")).toBeInTheDocument();
   });
 
@@ -244,7 +244,7 @@ describe("work orders page", () => {
   });
 
   it("re-fetches when the status filter changes", async () => {
-    const listWorkOrders = vi.fn(async () => ({ items: [workOrderItem()], nextCursor: null }));
+    const listWorkOrders = vi.fn(async (..._args: unknown[]) => ({ items: [workOrderItem()], nextCursor: null }));
     renderWorkOrders({ listWorkOrders });
     await screen.findByText("Replace pump seal");
     const user = userEvent.setup();
@@ -255,7 +255,7 @@ describe("work orders page", () => {
   });
 
   it("re-fetches when the asset filter changes", async () => {
-    const listWorkOrders = vi.fn(async () => ({ items: [workOrderItem()], nextCursor: null }));
+    const listWorkOrders = vi.fn(async (..._args: unknown[]) => ({ items: [workOrderItem()], nextCursor: null }));
     renderWorkOrders({ listWorkOrders });
     await screen.findByText("Replace pump seal");
     const user = userEvent.setup();
@@ -266,7 +266,7 @@ describe("work orders page", () => {
   });
 
   it("filters by priority client-side without re-fetching (no server param exists)", async () => {
-    const listWorkOrders = vi.fn(async () => ({
+    const listWorkOrders = vi.fn(async (..._args: unknown[]) => ({
       items: [
         workOrderItem({ id: "wo-1", title: "High priority job", priority: "high" }),
         workOrderItem({ id: "wo-2", title: "Low priority job", priority: "low" }),
@@ -307,8 +307,8 @@ describe("work orders page", () => {
   });
 
   it("creates a work order through the modal and refreshes the list", async () => {
-    const listWorkOrders = vi.fn(async () => ({ items: [workOrderItem()], nextCursor: null }));
-    const createWorkOrder = vi.fn(async () => workOrderItem({ id: "wo-new" }));
+    const listWorkOrders = vi.fn(async (..._args: unknown[]) => ({ items: [workOrderItem()], nextCursor: null }));
+    const createWorkOrder = vi.fn(async (..._args: unknown[]) => workOrderItem({ id: "wo-new" }));
     renderWorkOrders({ listWorkOrders, createWorkOrder });
     await screen.findByText("Replace pump seal");
     const user = userEvent.setup();

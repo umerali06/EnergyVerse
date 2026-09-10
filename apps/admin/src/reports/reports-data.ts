@@ -19,7 +19,7 @@ export function useReportsData() {
 
   const filterKey = JSON.stringify({ reportType, status });
 
-  const reportsQuery = useCachedQuery<{ items: GeneratedReportListItem[]; nextCursor: string | null }>(
+  const reportsQuery = useCachedQuery<{ items: GeneratedReportListItem[]; nextCursor?: string | null }>(
     `reports:list:${filterKey}`,
     () =>
       apiClient.listGeneratedReports({

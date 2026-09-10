@@ -610,7 +610,10 @@ DEMO_DOCUMENTS = (
         title="High Pressure Feed Pump Operation & Safety SOP",
         document_code="DOC-SOP-001",
         category="sop",
-        description="Standard operating procedure for pre-start inspection, startup sequence, normal operation, and emergency shutdown of Feed Pump P-101.",
+        description=(
+            "Standard operating procedure for pre-start inspection, startup sequence, normal "
+            "operation, and emergency shutdown of Feed Pump P-101."
+        ),
         file_path="sops/DOC-SOP-001_feed_pump_sop.pdf",
         filename="DOC-SOP-001_feed_pump_sop.pdf",
         file_format="pdf",
@@ -624,7 +627,10 @@ DEMO_DOCUMENTS = (
         title="Ariel JGK/4 Compressor Technical Specification & Maintenance Manual",
         document_code="DOC-MAN-201",
         category="manual",
-        description="Original OEM technical specifications, lubrication guidelines, torque settings, and preventive maintenance manual for Reciprocating Compressor C-201.",
+        description=(
+            "Original OEM technical specifications, lubrication guidelines, torque settings, "
+            "and preventive maintenance manual for Reciprocating Compressor C-201."
+        ),
         file_path="manuals/DOC-MAN-201_ariel_compressor_manual.pdf",
         filename="DOC-MAN-201_ariel_compressor_manual.pdf",
         file_format="pdf",
@@ -638,7 +644,10 @@ DEMO_DOCUMENTS = (
         title="Site HSE Safety Policy & Hazardous Chemical Exposure Standard",
         document_code="DOC-POL-101",
         category="safety_policy",
-        description="Site-wide health, safety, and environmental compliance regulations governing PPE, chemical spill containment, and emergency evacuation protocols.",
+        description=(
+            "Site-wide health, safety, and environmental compliance regulations governing PPE, "
+            "chemical spill containment, and emergency evacuation protocols."
+        ),
         file_path="policies/DOC-POL-101_hse_safety_policy.pdf",
         filename="DOC-POL-101_hse_safety_policy.pdf",
         file_format="pdf",
@@ -651,7 +660,10 @@ DEMO_DOCUMENTS = (
         title="Crude Tank T-301 Annual API 653 Integrity Certificate",
         document_code="DOC-CRT-301",
         category="certificate",
-        description="Certified third-party inspection compliance certificate confirming shell thickness, foundation stability, and roof seal integrity per API 653 standards.",
+        description=(
+            "Certified third-party inspection compliance certificate confirming shell "
+            "thickness, foundation stability, and roof seal integrity per API 653 standards."
+        ),
         file_path="certificates/DOC-CRT-301_api653_inspection.pdf",
         filename="DOC-CRT-301_api653_inspection.pdf",
         file_format="pdf",
@@ -1129,13 +1141,13 @@ async def _ensure_document(
                 id=seed.id,
                 title=seed.title,
                 document_code=seed.document_code,
-                category=seed.category, # type: ignore
+                category=seed.category,
                 description=seed.description,
                 facility_id=seed.facility_id,
                 asset_id=seed.asset_id,
                 file_path=seed.file_path,
                 filename=seed.filename,
-                file_format=seed.file_format, # type: ignore
+                file_format=seed.file_format,
                 file_size_bytes=seed.file_size_bytes,
                 status="active",
                 tags=list(seed.tags),
@@ -1411,14 +1423,17 @@ async def run_seed(
         acme_areas,
         acme_assets,
         acme_checklist_templates,
-        acme_inspections,
-        acme_work_orders,
-        acme_documents,
     ) = await asyncio.gather(
         facilities.list(acme_scope),
         areas.list(acme_scope),
         assets.list(acme_scope),
         checklist_templates.list(acme_scope),
+    )
+    (
+        acme_inspections,
+        acme_work_orders,
+        acme_documents,
+    ) = await asyncio.gather(
         inspections.list(acme_scope),
         work_orders.list(acme_scope),
         documents.list(acme_scope),

@@ -1,3 +1,4 @@
+import type { SafetyDashboardSummary } from "@fev/api-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -56,14 +57,15 @@ class Gateway implements AuthGateway {
   async signOut() {}
 }
 
-function renderWidgets(summary: object) {
+function renderWidgets(summary: SafetyDashboardSummary) {
   const identity = {
-    uid: "hse", email: session.email, emailVerified: true, companyId: "acme-energy",
+    uid: "hse", email: session.email ?? "hse@acme.example.invalid", emailVerified: true,
+    companyId: "acme-energy",
     companyName: "Acme Energy", roleKey: "hse_manager", permissions: new Set(["safety.read"]),
   };
   return render(
     <ThemeProvider><ToastProvider>
-      <AuthProvider apiClient={{ getCurrentUser: vi.fn(async () => identity), getDashboardSafetySummary: vi.fn(async () => summary) }} gateway={new Gateway()}>
+      <AuthProvider apiClient={{ registerCompanyAdmin: vi.fn(), getCurrentUser: vi.fn(async () => identity), getDashboardSafetySummary: vi.fn(async () => summary) }} gateway={new Gateway()}>
         <PermissionProvider initialPermissions={["safety.read"]}><SubscriptionProvider initialSubscription={allFeatures}><DashboardWidgetGrid /></SubscriptionProvider></PermissionProvider>
       </AuthProvider>
     </ToastProvider></ThemeProvider>,

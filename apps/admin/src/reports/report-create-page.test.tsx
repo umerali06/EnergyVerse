@@ -1,3 +1,4 @@
+import type { GeneratedReportDetail } from "@fev/api-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,8 +59,8 @@ function setup(permissions = ["reports.generate", "inspections.read"]) {
         {
           id: "inspection-1",
           title: "Separator inspection",
-          inspectionType: "routine",
-          status: "completed",
+          inspectionType: "routine" as const,
+          status: "completed" as const,
           assetId: "asset-1",
           facilityId: "facility-1",
           inspectorId: "inspector-1",
@@ -73,7 +74,12 @@ function setup(permissions = ["reports.generate", "inspections.read"]) {
     listWorkOrders: vi.fn(),
     listSafetyReports: vi.fn(),
     listAssets: vi.fn(),
-    generateReport: vi.fn(async (request) => ({ id: request.id })),
+    // The page only reads the new report's id to navigate to it; the rest of
+    // GeneratedReportDetail is irrelevant to this test.
+    generateReport: vi.fn(
+      async (request: { id: string }) =>
+        ({ id: request.id }) as unknown as GeneratedReportDetail,
+    ),
   };
   render(
     <ThemeProvider>

@@ -67,6 +67,7 @@ function renderReportWidgets(getDashboardReportsSummary: ReturnType<typeof vi.fn
     permissions: new Set(["reports.read"]),
   };
   const apiClient = {
+    registerCompanyAdmin: vi.fn(),
     getCurrentUser: vi.fn(async () => identity),
     getDashboardReportsSummary,
   };

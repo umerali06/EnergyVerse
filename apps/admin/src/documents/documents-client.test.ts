@@ -13,7 +13,7 @@ import { FevApiClient } from "@/api";
  */
 describe("documents transport", () => {
   it("requests the tenant document list with its filters", async () => {
-    const fetchApi = vi.fn(async () =>
+    const fetchApi = vi.fn(async (..._args: unknown[]) =>
       new Response(JSON.stringify({ items: [], next_cursor: null }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -31,7 +31,7 @@ describe("documents transport", () => {
   });
 
   it("posts a create as the request body the API declares", async () => {
-    const fetchApi = vi.fn(async () =>
+    const fetchApi = vi.fn(async (..._args: unknown[]) =>
       new Response(JSON.stringify({ id: "doc-1", title: "SOP" }), {
         status: 201,
         headers: { "Content-Type": "application/json" },

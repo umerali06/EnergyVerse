@@ -27,7 +27,7 @@ export function useUsersData() {
 
   const filterKey = JSON.stringify(filters);
 
-  const usersQuery = useCachedQuery<{ items: UserListItem[]; nextCursor: string | null }>(
+  const usersQuery = useCachedQuery<{ items: UserListItem[]; nextCursor?: string | null }>(
     `users:list:${filterKey}`,
     () =>
       apiClient.listUsers({

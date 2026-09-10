@@ -106,7 +106,13 @@ def ensure_price(
             return []
         # Prices are immutable: archive and recreate under the same lookup key.
         if not dry_run:
-            stripe.Price.modify(current["id"], active=False, lookup_key=None)
+            # Passing lookup_key=None frees the key so the replacement price can
+            # claim it. Stripe supports this; its stubs declare the parameter str.
+            stripe.Price.modify(
+                current["id"],
+                active=False,
+                lookup_key=None,  # type: ignore[arg-type]
+            )
         changes = [
             Change(
                 "archive",

@@ -40,109 +40,63 @@ import {
 import { useCachedQuery } from "@/cache/cache-context";
 import { DigitalTwinScene, DigitalTwinViewer } from "./digital-twin-viewer";
 
-const DEFAULT_FACILITIES = [
-  { id: "fac_north_refinery", name: "North Refinery Plant" },
-  { id: "fac_compressor_station_2", name: "Compressor Station 2" },
-];
-
 export function DigitalTwinPage() {
   const { apiClient } = useAuth();
-  const [selectedFacilityId, setSelectedFacilityId] = useState<string>("fac_north_refinery");
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string>("");
 
   // Load tenant facilities with Stale-While-Revalidate caching
   const facilitiesQuery = useCachedQuery<Array<{ id: string; name: string }>>(
     "facilities:list:50",
     async () => {
-      try {
-        const res = await apiClient.listFacilities({ limit: 50 });
-        const items = res.items.map((f) => ({ id: f.id, name: f.name }));
-        return items.length > 0 ? items : DEFAULT_FACILITIES;
-      } catch {
-        return DEFAULT_FACILITIES;
-      }
+      const res = await apiClient.listFacilities({ limit: 50 });
+      return res.items.map((f) => ({ id: f.id, name: f.name }));
     },
   );
 
-  const facilities = facilitiesQuery.data ?? DEFAULT_FACILITIES;
+  const facilities = facilitiesQuery.data ?? [];
 
-  // Load 3D scene with Stale-While-Revalidate caching
+  // Select the tenant's first real facility once the list resolves; there is
+  // no hard-coded default facility to fall back on any more.
+  useEffect(() => {
+    if (!selectedFacilityId && facilities.length > 0) {
+      setSelectedFacilityId(facilities[0].id);
+    }
+  }, [facilities, selectedFacilityId]);
+
+  // The 3D scene comes from the tenant's real facility record. It previously
+  // used a bare `fetch` to a relative URL -- which never reaches the API and
+  // carries no bearer token -- and silently fell back to three hard-coded
+  // sample assets, so the viewer showed fabricated equipment for every
+  // tenant. It now goes through the authenticated client and surfaces a real
+  // failure instead of inventing one.
   const sceneQuery = useCachedQuery<DigitalTwinScene>(
     `digital-twin:scene:${selectedFacilityId}`,
     async () => {
-      let data: DigitalTwinScene | null = null;
-      try {
-        const res = await fetch(`/api/v1/facilities/${selectedFacilityId}/3d-scene`);
-        if (res.ok) {
-          data = (await res.json()) as DigitalTwinScene;
-        }
-      } catch {
-        // Fallback to client synthesized scene
-      }
-
-      if (!data) {
-        const selected = facilities.find((f) => f.id === selectedFacilityId);
-        data = {
-          facility_id: selectedFacilityId,
-          facility_name: selected?.name || "North Refinery Plant",
-          scene_type: "procedural_refinery",
-          camera_presets: [
-            {
-              id: "cam_overhead",
-              name: "Overhead Overview",
-              position: [0, 30, 40],
-              target: [0, 0, 0],
-            },
-            {
-              id: "cam_pump_skid",
-              name: "Pump Skid Station",
-              position: [-12, 8, 15],
-              target: [-6, 2, 0],
-            },
-            {
-              id: "cam_tank_farm",
-              name: "Tank Farm Area",
-              position: [18, 12, 18],
-              target: [10, 4, 0],
-            },
-          ],
-          hotspots: [
-            {
-              id: "hs-1",
-              asset_id: "asset-1",
-              asset_name: "Main Crude Charge Pump",
-              asset_tag: "P-101A",
-              category: "Pump",
-              current_status: "Healthy",
-              position: [-6, 1.8, 10],
-              radius: 1.5,
-              label: "Main Crude Charge Pump (P-101A)",
-            },
-            {
-              id: "hs-2",
-              asset_id: "asset-2",
-              asset_name: "Hydrocracker Inlet Valve",
-              asset_tag: "V-204B",
-              category: "Valve",
-              current_status: "Warning",
-              position: [0, 4.5, 0],
-              radius: 1.5,
-              label: "Hydrocracker Inlet Valve (V-204B)",
-            },
-            {
-              id: "hs-3",
-              asset_id: "asset-3",
-              asset_name: "High Pressure Gas Separator",
-              asset_tag: "SEP-301",
-              category: "Separator",
-              current_status: "Critical",
-              position: [12, 2.5, -8],
-              radius: 2.0,
-              label: "High Pressure Separator (SEP-301)",
-            },
-          ],
-        };
-      }
-      return data;
+      const response = await apiClient.getFacility3dScene(selectedFacilityId);
+      return {
+        facility_id: response.facilityId,
+        facility_name: response.facilityName,
+        scene_type: response.sceneType ?? "procedural_refinery",
+        updated_at: response.updatedAt.toISOString(),
+        model_3d_url: response.model3dUrl ?? null,
+        camera_presets: (response.cameraPresets ?? []).map((preset) => ({
+          id: preset.id,
+          name: preset.name,
+          position: preset.position as [number, number, number],
+          target: preset.target as [number, number, number],
+        })),
+        hotspots: (response.hotspots ?? []).map((hotspot) => ({
+          id: hotspot.id,
+          asset_id: hotspot.assetId,
+          asset_name: hotspot.assetName,
+          asset_tag: hotspot.assetTag,
+          category: hotspot.category,
+          current_status: hotspot.currentStatus,
+          position: hotspot.position as [number, number, number],
+          radius: hotspot.radius ?? 1.5,
+          label: hotspot.label ?? hotspot.assetName,
+        })),
+      };
     },
     { enabled: Boolean(selectedFacilityId) },
   );
@@ -150,7 +104,14 @@ export function DigitalTwinPage() {
   const scene = sceneQuery.data;
   const loadingFacilities = facilitiesQuery.loading;
   const loadingScene = sceneQuery.loading && !scene;
-  const error = facilitiesQuery.error ? "Unable to load facilities for 3D View" : null;
+  // A failed scene request must read as a failure. Without this it fell
+  // through to the "No Facility Selected" empty state, presenting a broken
+  // request as though the tenant simply had nothing to show.
+  const error = facilitiesQuery.error
+    ? "Unable to load facilities for the 3D view."
+    : sceneQuery.error
+      ? "The 3D scene for this facility could not be loaded."
+      : null;
 
   return (
     <section className="p-4 md:p-6 min-h-[calc(100vh-4rem)] flex flex-col">
@@ -200,7 +161,13 @@ export function DigitalTwinPage() {
               title="3D View Unavailable"
               description={error}
               action={
-                <Button variant="ghost" onClick={() => setSelectedFacilityId(selectedFacilityId)}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    void facilitiesQuery.refetch();
+                    void sceneQuery.refetch();
+                  }}
+                >
                   Retry Loading Scene
                 </Button>
               }

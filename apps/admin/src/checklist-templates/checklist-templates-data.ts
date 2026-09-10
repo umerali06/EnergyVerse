@@ -22,7 +22,7 @@ export function useChecklistTemplatesData() {
 
   const filterKey = JSON.stringify({ category });
 
-  const templatesQuery = useCachedQuery<{ items: ChecklistTemplateListItem[]; nextCursor: string | null }>(
+  const templatesQuery = useCachedQuery<{ items: ChecklistTemplateListItem[]; nextCursor?: string | null }>(
     `checklist-templates:list:${filterKey}`,
     () =>
       apiClient.listChecklistTemplates({

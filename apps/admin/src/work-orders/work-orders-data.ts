@@ -63,7 +63,7 @@ export function useWorkOrdersData(initialFilters: Partial<WorkOrderFilters> = {}
     technicianId: filters.technicianId,
   });
 
-  const workOrdersQuery = useCachedQuery<{ items: WorkOrderListItem[]; nextCursor: string | null }>(
+  const workOrdersQuery = useCachedQuery<{ items: WorkOrderListItem[]; nextCursor?: string | null }>(
     `work-orders:list:${filterKey}`,
     () =>
       apiClient.listWorkOrders({

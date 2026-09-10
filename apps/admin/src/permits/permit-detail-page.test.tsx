@@ -17,7 +17,7 @@ const gateway: AuthGateway = {
 
 function Harness({ apiClient, permissions, children }: { apiClient: Record<string, unknown>; permissions: string[]; children: React.ReactNode }) {
   const identity = { uid: "admin", email: "admin@acme.test", emailVerified: true, companyId: "acme", companyName: "Acme", roleKey: "hse_manager", permissions: new Set(permissions) };
-  return <ThemeProvider><ToastProvider><AuthProvider gateway={gateway} apiClient={{ getCurrentUser: vi.fn(async () => identity), ...apiClient }}><Ready>{children}</Ready></AuthProvider></ToastProvider></ThemeProvider>;
+  return <ThemeProvider><ToastProvider><AuthProvider gateway={gateway} apiClient={{ registerCompanyAdmin: vi.fn(), getCurrentUser: vi.fn(async () => identity), ...apiClient }}><Ready>{children}</Ready></AuthProvider></ToastProvider></ThemeProvider>;
 }
 
 function Ready({ children }: { children: React.ReactNode }) {

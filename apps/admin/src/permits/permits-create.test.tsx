@@ -12,7 +12,7 @@ import { PermitsPage } from "./permits-page";
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ back: vi.fn(), prefetch: vi.fn(), push: pushMock, replace: vi.fn() }) }));
 
-const session: AuthSession = { email: "admin@acme.test", emailVerified: true, getIdToken: vi.fn(async () => "token"), uid: "admin" };
+const session: AuthSession = { email: "admin@acme.test", emailVerified: true, getIdToken: vi.fn(async (..._args: unknown[]) => "token"), uid: "admin" };
 const gateway: AuthGateway = {
   async getIdToken() { return "token"; },
   observe(listener) { listener(session); return () => undefined; },
@@ -23,7 +23,7 @@ const gateway: AuthGateway = {
 
 function Harness({ apiClient, permissions, children }: { apiClient: Record<string, unknown>; permissions: string[]; children: React.ReactNode }) {
   const identity = { uid: "admin", email: "admin@acme.test", emailVerified: true, companyId: "acme", companyName: "Acme", roleKey: "company_admin", permissions: new Set(permissions) };
-  return <ThemeProvider><ToastProvider><AuthProvider gateway={gateway} apiClient={{ getCurrentUser: vi.fn(async () => identity), ...apiClient }}><Ready>{children}</Ready></AuthProvider></ToastProvider></ThemeProvider>;
+  return <ThemeProvider><ToastProvider><AuthProvider gateway={gateway} apiClient={{ registerCompanyAdmin: vi.fn(), getCurrentUser: vi.fn(async (..._args: unknown[]) => identity), ...apiClient }}><Ready>{children}</Ready></AuthProvider></ToastProvider></ThemeProvider>;
 }
 
 function Ready({ children }: { children: React.ReactNode }) {
@@ -40,18 +40,18 @@ const permit = {
 
 function createSetup(overrides: Record<string, unknown> = {}) {
   return {
-    listFacilities: vi.fn(async () => ({ items: [facility], nextCursor: null })),
-    listUsers: vi.fn(async () => ({ items: [{ id: "worker-1", displayName: "Aisha Khan", email: "aisha@acme.test" }], nextCursor: null })),
-    listPermitTemplates: vi.fn(async () => ({ items: [{ id: "template-1", name: "Hot work standard" }], nextCursor: null })),
-    listAreas: vi.fn(async () => ({ items: [{ id: "area-1", name: "Compressor deck" }], nextCursor: null })),
-    listAssets: vi.fn(async () => ({ items: [{ id: "asset-1", name: "Relief valve RV-22", areaId: "area-1" }], nextCursor: null })),
+    listFacilities: vi.fn(async (..._args: unknown[]) => ({ items: [facility], nextCursor: null })),
+    listUsers: vi.fn(async (..._args: unknown[]) => ({ items: [{ id: "worker-1", displayName: "Aisha Khan", email: "aisha@acme.test" }], nextCursor: null })),
+    listPermitTemplates: vi.fn(async (..._args: unknown[]) => ({ items: [{ id: "template-1", name: "Hot work standard" }], nextCursor: null })),
+    listAreas: vi.fn(async (..._args: unknown[]) => ({ items: [{ id: "area-1", name: "Compressor deck" }], nextCursor: null })),
+    listAssets: vi.fn(async (..._args: unknown[]) => ({ items: [{ id: "asset-1", name: "Relief valve RV-22", areaId: "area-1" }], nextCursor: null })),
     ...overrides,
   };
 }
 
 describe("permit register and draft creation", () => {
   it("renders real permit records with resolved facility names", async () => {
-    render(<Harness permissions={["permits.read"]} apiClient={{ listPermits: vi.fn(async () => ({ items: [permit], nextCursor: null })), listFacilities: vi.fn(async () => ({ items: [facility], nextCursor: null })) }}><PermitsPage /></Harness>);
+    render(<Harness permissions={["permits.read"]} apiClient={{ listPermits: vi.fn(async (..._args: unknown[]) => ({ items: [permit], nextCursor: null })), listFacilities: vi.fn(async (..._args: unknown[]) => ({ items: [facility], nextCursor: null })) }}><PermitsPage /></Harness>);
     expect(await screen.findByText("PTW-2026-0042")).toBeInTheDocument();
     expect(screen.getByText("Replace relief valve")).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Permit register" })).getByText("North Process Plant")).toBeInTheDocument();
@@ -59,8 +59,8 @@ describe("permit register and draft creation", () => {
   });
 
   it("sends permit type and facility filters to the API", async () => {
-    const listPermits = vi.fn(async () => ({ items: [permit], nextCursor: null }));
-    render(<Harness permissions={["permits.read"]} apiClient={{ listPermits, listFacilities: vi.fn(async () => ({ items: [facility], nextCursor: null })) }}><PermitsPage /></Harness>);
+    const listPermits = vi.fn(async (..._args: unknown[]) => ({ items: [permit], nextCursor: null }));
+    render(<Harness permissions={["permits.read"]} apiClient={{ listPermits, listFacilities: vi.fn(async (..._args: unknown[]) => ({ items: [facility], nextCursor: null })) }}><PermitsPage /></Harness>);
     await screen.findByText("PTW-2026-0042");
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText("Permit type"), "hot_work");
@@ -81,7 +81,7 @@ describe("permit register and draft creation", () => {
   });
 
   it("creates a validated draft with real selections and risk inputs", async () => {
-    const createPermit = vi.fn(async () => ({ ...permit, permitNumber: "PTW-2026-0043" }));
+    const createPermit = vi.fn(async (..._args: unknown[]) => ({ ...permit, permitNumber: "PTW-2026-0043" }));
     const api = createSetup({ createPermit });
     render(<Harness permissions={["permits.write"]} apiClient={api}><PermitCreatePage /></Harness>);
     await screen.findByRole("heading", { name: "Create permit draft" });

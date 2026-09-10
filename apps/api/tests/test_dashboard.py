@@ -18,8 +18,8 @@ from app.models.api import PermitDashboardSummary, ReportDashboardSummary
 from app.models.base import utc_now
 from app.models.entities import AuditLog, CurrentUser
 from app.permits.service import get_permit_service
-from app.reports.service import get_generated_report_service
 from app.rbac.dependencies import get_access_denial_audit
+from app.reports.service import get_generated_report_service
 from scripts.seed import ACME_COMPANY_ID, run_seed
 from tests.fakes.firestore import FakeAsyncClient
 

@@ -53,7 +53,7 @@ export function useInspectionsData(initialFilters: Partial<InspectionFilters> = 
 
   const filterKey = JSON.stringify(filters);
 
-  const inspectionsQuery = useCachedQuery<{ items: InspectionListItem[]; nextCursor: string | null }>(
+  const inspectionsQuery = useCachedQuery<{ items: InspectionListItem[]; nextCursor?: string | null }>(
     `inspections:list:${filterKey}`,
     () =>
       apiClient.listInspections({

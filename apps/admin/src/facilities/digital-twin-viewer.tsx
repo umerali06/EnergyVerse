@@ -4,7 +4,32 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { useRouter } from "next/navigation";
 
-import { Badge, Button } from "@/design-system";
+import { Badge, Button, StatusPill, type StatusTone } from "@/design-system";
+
+import {
+  GRID_PRIMARY,
+  GRID_SECONDARY,
+  GROUND,
+  HOTSPOT_CRITICAL,
+  HOTSPOT_HEALTHY,
+  HOTSPOT_WARNING,
+  LIGHT_AMBIENT,
+  LIGHT_DIRECTIONAL,
+  LIGHT_HEMISPHERE_GROUND,
+  LIGHT_HEMISPHERE_SKY,
+  MATERIAL_ACCENT,
+  MATERIAL_DARK_METAL,
+  MATERIAL_METAL,
+  MATERIAL_PIPE,
+  SCENE_BACKGROUND,
+  SCENE_FOG,
+} from "./scene-palette";
+
+function statusTone(status: DigitalTwinHotspot["current_status"]): StatusTone {
+  if (status === "Healthy") return "healthy";
+  if (status === "Warning") return "warning";
+  return "critical";
+}
 
 function IconSvg({ path, className = "h-4 w-4" }: { path: string; className?: string }) {
   return (
@@ -44,8 +69,8 @@ const WrenchIcon = ({ className }: { className?: string }) => (
 );
 
 export interface CameraPreset {
-  id: str;
-  name: str;
+  id: string;
+  name: string;
   position: [number, number, number];
   target: [number, number, number];
 }
@@ -121,8 +146,8 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
 
       // Scene setup
       const threeScene = new THREE.Scene();
-      threeScene.background = new THREE.Color("#090D16");
-      threeScene.fog = new THREE.FogExp2("#090D16", 0.015);
+      threeScene.background = new THREE.Color(SCENE_BACKGROUND);
+      threeScene.fog = new THREE.FogExp2(SCENE_FOG, 0.015);
 
       // Camera setup
       const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
@@ -143,14 +168,14 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
       // Lighting setup
-      const ambientLight = new THREE.AmbientLight("#94A3B8", 0.6);
+      const ambientLight = new THREE.AmbientLight(LIGHT_AMBIENT, 0.6);
       threeScene.add(ambientLight);
 
-      const hemiLight = new THREE.HemisphereLight("#38BDF8", "#0F172A", 0.7);
+      const hemiLight = new THREE.HemisphereLight(LIGHT_HEMISPHERE_SKY, LIGHT_HEMISPHERE_GROUND, 0.7);
       hemiLight.position.set(0, 50, 0);
       threeScene.add(hemiLight);
 
-      const dirLight = new THREE.DirectionalLight("#FFFFFF", 1.2);
+      const dirLight = new THREE.DirectionalLight(LIGHT_DIRECTIONAL, 1.2);
       dirLight.position.set(25, 45, 20);
       dirLight.castShadow = true;
       dirLight.shadow.mapSize.width = 2048;
@@ -353,7 +378,7 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
           <div>
             <h2 className="text-body font-bold text-white flex items-center gap-2">
               {scene.facility_name} 3D Digital Twin
-              <Badge variant="outline" className="text-caption font-mono border-primary-500/40 text-primary-300">
+              <Badge className="text-caption font-mono text-primary-300">
                 {scene.scene_type}
               </Badge>
             </h2>
@@ -437,17 +462,9 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
                 >
                   <div className="flex items-center justify-between w-full mb-2">
                     <span className="font-mono text-caption text-slate-400">{hotspot.asset_tag}</span>
-                    <Badge
-                      variant={
-                        hotspot.current_status === "Healthy"
-                          ? "success"
-                          : hotspot.current_status === "Warning"
-                          ? "warning"
-                          : "critical"
-                      }
-                    >
+                    <StatusPill tone={statusTone(hotspot.current_status)}>
                       {hotspot.current_status}
-                    </Badge>
+                    </StatusPill>
                   </div>
                   <span className="text-bodySmall font-bold text-white">{hotspot.asset_name}</span>
                   <span className="text-caption text-slate-400 mt-1">
@@ -529,18 +546,9 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
               </div>
 
               <div className="mt-4 flex items-center gap-2">
-                <Badge
-                  variant={
-                    selectedHotspot.current_status === "Healthy"
-                      ? "success"
-                      : selectedHotspot.current_status === "Warning"
-                      ? "warning"
-                      : "critical"
-                  }
-                  className="text-bodySmall py-1 px-3"
-                >
+                <StatusPill tone={statusTone(selectedHotspot.current_status)}>
                   {selectedHotspot.current_status}
-                </Badge>
+                </StatusPill>
                 <span className="text-caption text-slate-400">{selectedHotspot.category}</span>
               </div>
 
@@ -568,7 +576,7 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
                 View Asset Details
               </Button>
               <Button
-                variant="secondary"
+                variant="ghost"
                 className="w-full justify-center text-slate-200"
                 onClick={() =>
                   router.push(`/work-orders?createForAsset=${selectedHotspot.asset_id}`)
@@ -604,13 +612,13 @@ export function DigitalTwinViewer({ scene, readOnly = true }: DigitalTwinViewerP
 // Procedural 3D Industrial Refinery Layout Constructor
 function buildProceduralRefinery(scene: THREE.Scene) {
   // Ground Grid
-  const gridHelper = new THREE.GridHelper(100, 40, "#334155", "#1E293B");
+  const gridHelper = new THREE.GridHelper(100, 40, GRID_PRIMARY, GRID_SECONDARY);
   gridHelper.position.y = -0.01;
   scene.add(gridHelper);
 
   const groundGeo = new THREE.PlaneGeometry(120, 120);
   const groundMat = new THREE.MeshStandardMaterial({
-    color: "#0B132B",
+    color: GROUND,
     roughness: 0.8,
     metalness: 0.2,
   });
@@ -620,10 +628,26 @@ function buildProceduralRefinery(scene: THREE.Scene) {
   scene.add(ground);
 
   // Materials
-  const metalMat = new THREE.MeshStandardMaterial({ color: "#475569", roughness: 0.4, metalness: 0.8 });
-  const darkMetalMat = new THREE.MeshStandardMaterial({ color: "#1E293B", roughness: 0.6, metalness: 0.7 });
-  const pipeMat = new THREE.MeshStandardMaterial({ color: "#64748B", roughness: 0.3, metalness: 0.9 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: "#0284C7", roughness: 0.5, metalness: 0.5 });
+  const metalMat = new THREE.MeshStandardMaterial({
+    color: MATERIAL_METAL,
+    roughness: 0.4,
+    metalness: 0.8,
+  });
+  const darkMetalMat = new THREE.MeshStandardMaterial({
+    color: MATERIAL_DARK_METAL,
+    roughness: 0.6,
+    metalness: 0.7,
+  });
+  const pipeMat = new THREE.MeshStandardMaterial({
+    color: MATERIAL_PIPE,
+    roughness: 0.3,
+    metalness: 0.9,
+  });
+  const accentMat = new THREE.MeshStandardMaterial({
+    color: MATERIAL_ACCENT,
+    roughness: 0.5,
+    metalness: 0.5,
+  });
 
   // 1. Distillation Towers
   for (let i = 0; i < 3; i++) {
@@ -693,10 +717,10 @@ function createHotspotMesh(hotspot: DigitalTwinHotspot): THREE.Group {
 
   const colorHex =
     hotspot.current_status === "Healthy"
-      ? "#10B981"
+      ? HOTSPOT_HEALTHY
       : hotspot.current_status === "Warning"
-      ? "#F59E0B"
-      : "#EF4444";
+        ? HOTSPOT_WARNING
+        : HOTSPOT_CRITICAL;
 
   // Inner Glowing Core Sphere
   const coreGeo = new THREE.SphereGeometry(0.5, 16, 16);

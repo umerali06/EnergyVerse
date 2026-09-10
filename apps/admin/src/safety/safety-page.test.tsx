@@ -32,9 +32,9 @@ function report(overrides: Record<string, unknown> = {}) {
   return {
     id: "sr-1",
     title: "Gas leak at separator",
-    category: "gas_leak",
-    severity: "critical",
-    status: "reported",
+    category: "gas_leak" as const,
+    severity: "critical" as const,
+    status: "reported" as const,
     reporterId: "inspector-1",
     assignedManagerId: null,
     occurredAt: new Date("2026-08-16T10:00:00Z"),

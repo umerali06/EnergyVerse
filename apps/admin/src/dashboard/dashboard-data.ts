@@ -31,7 +31,7 @@ export function useDashboardData() {
     () => apiClient.getDashboardActivitySeries(window),
   );
 
-  const activityQuery = useCachedQuery<{ items: DashboardActivityItem[]; nextCursor: string | null }>(
+  const activityQuery = useCachedQuery<{ items: DashboardActivityItem[]; nextCursor?: string | null }>(
     `dashboard:activity:${actionFilter ?? "all"}`,
     () =>
       apiClient.getDashboardActivity({

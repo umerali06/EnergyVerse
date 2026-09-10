@@ -27,10 +27,10 @@ import stripe
 from app.audit.service import AuditService
 from app.billing.service import SubscriptionService
 from app.billing.stripe_gateway import get_stripe_gateway, snapshot_from_subscription
+from app.core.settings import settings
 from app.db.firestore import get_firestore_client
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.companies import CompanyRepository
-from app.core.settings import settings
 from app.models.base import CompanyScope
 
 #: Statuses worth adopting. A subscription Stripe has already finished with

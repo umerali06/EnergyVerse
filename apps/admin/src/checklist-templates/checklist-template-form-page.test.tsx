@@ -106,11 +106,12 @@ function renderForm({
     permissions: new Set(["checklist_templates.read", "checklist_templates.write"]),
   };
   const apiClient = {
+    registerCompanyAdmin: vi.fn(),
     getCurrentUser: vi.fn(async () => identity),
     createChecklistTemplate,
     updateChecklistTemplate,
     getChecklistTemplate,
-    deleteChecklistTemplate: vi.fn(async () => ({ id: templateId, deleted: true })),
+    deleteChecklistTemplate: vi.fn(async () => ({ id: templateId ?? "tpl-1", deleted: true })),
   };
   return render(
     <ThemeProvider>

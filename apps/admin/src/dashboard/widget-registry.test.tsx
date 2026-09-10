@@ -107,7 +107,7 @@ describe("dashboard widget registry", () => {
       title: "Assigned work",
       requiredPermission: "work_orders.read",
       requiredFeature: "work_orders",
-      size: "half",
+      size: "md",
       render: () => <p>work order widget</p>,
     });
     registerWidget({
@@ -115,7 +115,7 @@ describe("dashboard widget registry", () => {
       title: "Assets",
       requiredPermission: "assets.read",
       requiredFeature: "assets",
-      size: "half",
+      size: "md",
       render: () => <p>asset widget</p>,
     });
 
@@ -139,7 +139,7 @@ describe("dashboard widget registry", () => {
       title: "Assets",
       requiredPermission: "assets.read",
       requiredFeature: "assets",
-      size: "half",
+      size: "md",
       render: () => <p>asset widget</p>,
     });
 

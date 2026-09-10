@@ -24,17 +24,16 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 import { useCachedQuery } from "@/cache/cache-context";
 
+type AsyncStatus = "loading" | "error" | "ready";
+
 function useSafetySummary() {
   const { apiClient } = useAuth();
   const query = useCachedQuery<SafetyDashboardSummary>(
     "dashboard:safety:summary",
     () => apiClient.getDashboardSafetySummary(),
   );
-  return {
-    status: query.loading ? "loading" : query.error ? "error" : "ready",
-    data: query.data,
-    retry: query.refetch,
-  };
+  const status: AsyncStatus = query.loading ? "loading" : query.error ? "error" : "ready";
+  return { status, data: query.data, retry: query.refetch };
 }
 
 function SafetyIncidentsWidget() {

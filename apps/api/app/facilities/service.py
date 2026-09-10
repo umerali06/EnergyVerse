@@ -1,8 +1,7 @@
 import base64
 import binascii
+from datetime import UTC, datetime
 from uuid import uuid4
-
-from datetime import datetime, timezone
 
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
@@ -27,10 +26,56 @@ from app.models.entities import Facility, FacilityCreate, FacilityUpdate
 SORT_OPTIONS = frozenset({"name", "-name", "created_at", "-created_at"})
 
 DEFAULT_CAMERA_PRESETS = [
-    CameraPreset(id="cam_overhead", name="Overhead Overview", position=[0.0, 30.0, 40.0], target=[0.0, 0.0, 0.0]),
-    CameraPreset(id="cam_pump_station", name="Pump Skid Station", position=[-12.0, 8.0, 15.0], target=[-6.0, 2.0, 0.0]),
-    CameraPreset(id="cam_tank_farm", name="Tank Farm Area", position=[18.0, 12.0, 18.0], target=[10.0, 4.0, 0.0]),
+    CameraPreset(
+        id="cam_overhead",
+        name="Overhead Overview",
+        position=[0.0, 30.0, 40.0],
+        target=[0.0, 0.0, 0.0],
+    ),
+    CameraPreset(
+        id="cam_pump_station",
+        name="Pump Skid Station",
+        position=[-12.0, 8.0, 15.0],
+        target=[-6.0, 2.0, 0.0],
+    ),
+    CameraPreset(
+        id="cam_tank_farm",
+        name="Tank Farm Area",
+        position=[18.0, 12.0, 18.0],
+        target=[10.0, 4.0, 0.0],
+    ),
 ]
+
+
+DEFAULT_HOTSPOT_POSITION = [0.0, 1.5, 0.0]
+
+
+def _coerce_float(value: object, default: float) -> float:
+    """Read a number out of a Firestore document without trusting it.
+
+    Scene documents are hand-authored and have no schema enforcement, so a
+    hotspot can carry a string, a null, or nothing at all where a number
+    belongs. `float()` would raise on those and take the whole facility scene
+    down with a 500; a bad single value should cost that value only.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return default
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    if parsed != parsed or parsed in (float("inf"), float("-inf")):
+        return default
+    return parsed
+
+
+def _coerce_position(value: object) -> list[float]:
+    """Coerce a stored hotspot position to three finite floats."""
+    if not isinstance(value, list) or len(value) != 3:
+        return list(DEFAULT_HOTSPOT_POSITION)
+    return [
+        _coerce_float(axis, DEFAULT_HOTSPOT_POSITION[index]) for index, axis in enumerate(value)
+    ]
 
 
 class FacilityManagementError(Exception):
@@ -231,7 +276,9 @@ class FacilityManagementService:
         asset_map = {asset.id: asset for asset in facility_assets}
 
         client = self._facilities._client
-        doc_ref = client.collection("digital_twin_scenes").document(f"{scope.company_id}:{facility_id}")
+        doc_ref = client.collection("digital_twin_scenes").document(
+            f"{scope.company_id}:{facility_id}"
+        )
         doc = await doc_ref.get()
 
         model_3d_url: str | None = None
@@ -242,7 +289,8 @@ class FacilityManagementService:
 
         if doc.exists:
             data = doc.to_dict() or {}
-            model_3d_url = data.get("model_3d_url")  # type: ignore[assignment]
+            raw_model_url = data.get("model_3d_url")
+            model_3d_url = raw_model_url if isinstance(raw_model_url, str) else None
             scene_type = str(data.get("scene_type", "procedural_refinery"))
             if "camera_presets" in data and isinstance(data["camera_presets"], list):
                 camera_presets = [
@@ -268,13 +316,8 @@ class FacilityManagementService:
             if asset_id in asset_map:
                 asset = asset_map[asset_id]
                 configured_asset_ids.add(asset_id)
-                pos = raw_h.get("position")
-                position = (
-                    [float(x) for x in pos]  # type: ignore[union-attr]
-                    if isinstance(pos, list) and len(pos) == 3
-                    else [0.0, 1.5, 0.0]
-                )
-                radius = float(raw_h.get("radius", 1.0))
+                position = _coerce_position(raw_h.get("position"))
+                radius = _coerce_float(raw_h.get("radius"), 1.0)
                 label = str(raw_h.get("label")) if raw_h.get("label") else asset.name
                 hotspots_out.append(
                     DigitalTwinHotspotResponse(
@@ -283,7 +326,7 @@ class FacilityManagementService:
                         asset_name=asset.name,
                         asset_tag=asset.asset_tag,
                         category=asset.category,
-                        current_status=asset.current_status,  # type: ignore[arg-type]
+                        current_status=asset.current_status,
                         position=position,
                         radius=radius,
                         label=label,
@@ -291,7 +334,9 @@ class FacilityManagementService:
                 )
 
         # Synthesize default spatial 3D placements for facility assets not explicitly bound yet
-        unplaced_assets = [asset for asset in facility_assets if asset.id not in configured_asset_ids]
+        unplaced_assets = [
+            asset for asset in facility_assets if asset.id not in configured_asset_ids
+        ]
         for index, asset in enumerate(unplaced_assets):
             # Arrange unplaced assets in a spatial ring/grid layout
             col = index % 4
@@ -306,7 +351,7 @@ class FacilityManagementService:
                     asset_name=asset.name,
                     asset_tag=asset.asset_tag,
                     category=asset.category,
-                    current_status=asset.current_status,  # type: ignore[arg-type]
+                    current_status=asset.current_status,
                     position=[x, y, z],
                     radius=1.5,
                     label=asset.name,
@@ -332,9 +377,11 @@ class FacilityManagementService:
     ) -> DigitalTwinSceneResponse:
         facility = await self._active_facility(scope, facility_id)
         client = self._facilities._client
-        doc_ref = client.collection("digital_twin_scenes").document(f"{scope.company_id}:{facility_id}")
+        doc_ref = client.collection("digital_twin_scenes").document(
+            f"{scope.company_id}:{facility_id}"
+        )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         camera_presets = (
             [p.model_dump() for p in request.camera_presets]
             if request.camera_presets is not None
