@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import binascii
+import logging
 from collections.abc import Awaitable
 from pathlib import Path
 from uuid import uuid4
@@ -34,6 +35,7 @@ from app.models.api import (
 )
 from app.models.base import CompanyScope, utc_now
 from app.models.entities import CorrectiveAction, SafetyEvidence, SafetyReport, SafetyReportCreate
+from app.notifications.service import NotificationService, get_notification_service
 from app.safety_reports.constants import SAFETY_CATEGORIES
 from app.storage.service import SafetyEvidenceStorage
 
@@ -76,16 +78,23 @@ def _detail(report: SafetyReport, storage: SafetyEvidenceStorage) -> SafetyRepor
     return SafetyReportDetail(**values)
 
 
+logger = logging.getLogger(__name__)
+
+
 class SafetyReportService:
     def __init__(
         self,
         reports: SafetyReportRepository,
         users: UserRepository,
         storage: SafetyEvidenceStorage,
+        notifications: NotificationService | None = None,
     ) -> None:
         self._reports = reports
         self._users = users
         self._storage = storage
+        # Optional so existing tests constructing the service directly keep
+        # working; None simply means no notification is raised.
+        self._notifications = notifications
 
     async def get_dashboard_summary(self, scope: CompanyScope) -> SafetyDashboardSummary:
         counts = await asyncio.gather(
@@ -166,14 +175,29 @@ class SafetyReportService:
         request: AssignSafetyReportRequest,
         actor_uid: str,
     ) -> SafetyReportDetail:
-        return _detail(
-            await self._mutate(
-                self._reports.assign(
-                    scope, report_id, request.manager_id, actor_uid, request.expected_revision
-                )
-            ),
-            self._storage,
+        report = await self._mutate(
+            self._reports.assign(
+                scope, report_id, request.manager_id, actor_uid, request.expected_revision
+            )
         )
+        # Best-effort: the assignment is already committed, so a notification
+        # failure must never surface as a failed assignment.
+        if self._notifications is not None and report.assigned_manager_id:
+            try:
+                await self._notifications.notify(
+                    scope,
+                    user_id=report.assigned_manager_id,
+                    event="safety_report.assigned",
+                    title="Safety report assigned to you",
+                    body=f"{report.title} ({report.severity}) needs your review.",
+                    target_type="safety_report",
+                    target_id=report.id,
+                    actor_uid=actor_uid,
+                    metadata={"severity": report.severity, "category": report.category},
+                )
+            except Exception:
+                logger.exception("Failed to raise safety_report.assigned for %s", report.id)
+        return _detail(report, self._storage)
 
     async def transition(
         self,
@@ -411,4 +435,5 @@ def get_safety_report_service() -> SafetyReportService:
         SafetyReportRepository(client, audit),
         UserRepository(client, audit),
         SafetyEvidenceStorage(),
+        get_notification_service(),
     )

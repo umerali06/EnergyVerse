@@ -1081,3 +1081,98 @@ class CompanyRegistrationResponse(StrictModel):
 
 def without_none(values: dict[str, object | None]) -> dict[str, object]:
     return {key: value for key, value in values.items() if value is not None}
+
+
+# --- Notifications -----------------------------------------------------------
+
+# The events a tenant user can be notified about. Each one is raised by the
+# module that owns the action, so the vocabulary stays closed and a client can
+# switch on it to pick an icon or a deep link.
+NotificationEvent = Literal[
+    "work_order.assigned",
+    "work_order.submitted_for_review",
+    "work_order.closed",
+    "safety_report.assigned",
+    "safety_report.corrective_action_assigned",
+    "permit.approval_requested",
+    "permit.activated",
+    "permit.expiring",
+    "inspection.completed",
+    "report.finalized",
+]
+
+# Where a notification points. Clients map this to their own route table
+# rather than the server hard-coding client URLs.
+NotificationTargetType = Literal[
+    "work_order",
+    "safety_report",
+    "permit",
+    "inspection",
+    "report",
+]
+
+NotificationChannel = Literal["in_app", "email", "push"]
+
+
+class Notification(TenantDoc):
+    """One notification addressed to one user.
+
+    Notifications are personal rather than permission-scoped: the recipient is
+    named on the record and the service only ever returns rows where
+    `user_id` matches the caller, so no new RBAC permission is involved.
+
+    `delivered_channels` records what actually went out. Email and push are
+    best-effort -- a bounced email or a stale device token must never fail the
+    action that triggered the notification -- so this is the audit trail of
+    what really happened, not what was intended.
+    """
+
+    id: str
+    user_id: str
+    event: NotificationEvent
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=1000)
+    target_type: NotificationTargetType
+    target_id: str
+    # Free-form extras a client may render (e.g. an asset tag); never trusted
+    # for authorization.
+    metadata: dict[str, str] = Field(default_factory=dict)
+    delivered_channels: list[NotificationChannel] = Field(default_factory=list)
+    read_at: datetime | None = None
+    created_by: str
+
+
+class NotificationCreate(StrictModel):
+    id: str
+    user_id: str
+    event: NotificationEvent
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=1000)
+    target_type: NotificationTargetType
+    target_id: str
+    metadata: dict[str, str] = Field(default_factory=dict)
+    delivered_channels: list[NotificationChannel] = Field(default_factory=list)
+
+
+class DeviceToken(TenantDoc):
+    """An FCM registration token for one user's device.
+
+    Keyed by a hash of the token rather than the token itself so the document
+    id is safe to log. A token can move between users (a shared site tablet),
+    so registering one that already exists reassigns it rather than failing.
+    """
+
+    id: str
+    user_id: str
+    token: str = Field(min_length=1, max_length=4096)
+    platform: Literal["android", "ios", "web"]
+    created_by: str
+    last_seen_at: datetime
+
+
+class DeviceTokenCreate(StrictModel):
+    id: str
+    user_id: str
+    token: str = Field(min_length=1, max_length=4096)
+    platform: Literal["android", "ios", "web"]
+    last_seen_at: datetime

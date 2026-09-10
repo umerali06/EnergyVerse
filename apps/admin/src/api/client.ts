@@ -9,6 +9,7 @@ import {
   Configuration,
   DashboardApi,
   DocumentsApi,
+  NotificationsApi,
   FacilitiesApi,
   FetchError,
   GeneratedReportsApi,
@@ -101,6 +102,12 @@ import {
   type PlatformStats,
   type QrScanResult,
   type DigitalTwinSceneResponse,
+  type DeviceRegistered,
+  type DeviceUnregistered,
+  type NotificationListPage,
+  type NotificationRead,
+  type NotificationsAllRead,
+  type RegisterDeviceRequest,
   type ReportDashboardSummary,
   type RoleDeleted,
   type RoleDetail,
@@ -303,6 +310,7 @@ export class FevApiClient {
   private readonly company: CompanyApi;
   private readonly dashboard: DashboardApi;
   private readonly documents: DocumentsApi;
+  private readonly notifications: NotificationsApi;
   private readonly facilities: FacilitiesApi;
   private readonly generatedReports: GeneratedReportsApi;
   private readonly inspections: InspectionsApi;
@@ -337,6 +345,7 @@ export class FevApiClient {
     this.company = new CompanyApi(configuration);
     this.dashboard = new DashboardApi(configuration);
     this.documents = new DocumentsApi(configuration);
+    this.notifications = new NotificationsApi(configuration);
     this.facilities = new FacilitiesApi(configuration);
     this.generatedReports = new GeneratedReportsApi(configuration);
     this.inspections = new InspectionsApi(configuration);
@@ -655,6 +664,54 @@ export class FevApiClient {
   getFacility3dScene(facilityId: string, signal?: AbortSignal): Promise<DigitalTwinSceneResponse> {
     return this.execute(() =>
       this.facilities.getFacility3dScene({ facilityId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listNotifications(
+    options: { unreadOnly?: boolean } = {},
+    signal?: AbortSignal,
+  ): Promise<NotificationListPage> {
+    return this.execute(() =>
+      this.notifications.listNotifications(
+        { unreadOnly: options.unreadOnly },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  markNotificationRead(notificationId: string, signal?: AbortSignal): Promise<NotificationRead> {
+    return this.execute(() =>
+      this.notifications.markNotificationRead(
+        { notificationId },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  markAllNotificationsRead(signal?: AbortSignal): Promise<NotificationsAllRead> {
+    return this.execute(() =>
+      this.notifications.markAllNotificationsRead(signal ? { signal } : undefined),
+    );
+  }
+
+  registerNotificationDevice(
+    request: RegisterDeviceRequest,
+    signal?: AbortSignal,
+  ): Promise<DeviceRegistered> {
+    return this.execute(() =>
+      this.notifications.registerNotificationDevice(
+        { registerDeviceRequest: request },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  unregisterNotificationDevice(token: string, signal?: AbortSignal): Promise<DeviceUnregistered> {
+    return this.execute(() =>
+      this.notifications.unregisterNotificationDevice(
+        { token },
+        signal ? { signal } : undefined,
+      ),
     );
   }
 

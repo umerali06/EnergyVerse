@@ -53,6 +53,15 @@ export type DashboardApiClient = Pick<
   | "getDashboardSummary"
 >;
 
+export type NotificationsApiClient = Pick<
+  FevApiClient,
+  | "listNotifications"
+  | "markNotificationRead"
+  | "markAllNotificationsRead"
+  | "registerNotificationDevice"
+  | "unregisterNotificationDevice"
+>;
+
 export type UsersApiClient = Pick<
   FevApiClient,
   "getUser" | "inviteUser" | "listRoles" | "listUsers" | "setUserStatus" | "updateUser"
@@ -195,6 +204,7 @@ export type BillingApiClient = Pick<
 
 export type AuthContextValue = {
   apiClient: BillingApiClient &
+    NotificationsApiClient &
     DocumentsApiClient &
     DashboardApiClient &
     UsersApiClient &
@@ -281,6 +291,7 @@ export function AuthProvider({
 }: {
   apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin"> &
     Partial<BillingApiClient> &
+    Partial<NotificationsApiClient> &
     Partial<DocumentsApiClient> &
     Partial<DashboardApiClient> &
     Partial<UsersApiClient> &
@@ -551,6 +562,7 @@ export function AuthProvider({
       // dashboard or users data without supplying these methods gets an
       // immediate, easy-to-diagnose TypeError rather than a silent gap.
       apiClient: client as BillingApiClient &
+        NotificationsApiClient &
         DocumentsApiClient &
         DashboardApiClient &
         UsersApiClient &

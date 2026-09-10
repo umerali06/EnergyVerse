@@ -246,6 +246,25 @@ function renderShell({
   const apiClient = {
     getCurrentUser: vi.fn(async () => identity),
     registerCompanyAdmin: vi.fn(),
+    listNotifications: vi.fn(async () => ({
+      items: [
+        {
+          id: "notification-1",
+          event: "work_order.assigned",
+          title: "New work order assigned",
+          body: "Replace pump seal was assigned to you.",
+          targetType: "work_order",
+          targetId: "wo-1",
+          metadata: {},
+          deliveredChannels: ["in_app"],
+          readAt: null,
+          createdAt: new Date("2026-09-01T10:00:00Z"),
+        },
+      ],
+      unreadCount: 1,
+    })),
+    markNotificationRead: vi.fn(async () => ({ id: "notification-1", readAt: new Date() })),
+    markAllNotificationsRead: vi.fn(async () => ({ marked: 1 })),
     // Real-shaped fixtures so DashboardPage (mounted at APP_HOME by every test
     // that doesn't override initialPath) resolves to a stable ready state.
     getDashboardSummary: vi.fn(async () => ({
@@ -280,7 +299,7 @@ function renderShell({
       </ToastProvider>
     </ThemeProvider>,
   );
-  return { ...view, gateway };
+  return { ...view, gateway, apiClient };
 }
 
 /** Every entitlement key the catalog defines, i.e. the Enterprise plan. Most
@@ -530,7 +549,38 @@ describe("app shell", () => {
     renderShell();
     const search = await screen.findByRole("button", { name: /Open global search/i });
     expect(search).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Notifications (coming soon)" })).toBeDisabled();
+    // The bell is a real control now, badged with the live unread count.
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" }),
+    ).toBeEnabled();
+  });
+
+  it("opens the notification list and routes to the record it points at", async () => {
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(await screen.findByRole("button", { name: "Notifications (1 unread)" }));
+    const panel = await screen.findByRole("dialog", { name: "Notifications" });
+    expect(within(panel).getByText("New work order assigned")).toBeInTheDocument();
+
+    await user.click(within(panel).getByText("New work order assigned"));
+
+    // The server emits a target type and id, never a URL -- the client owns
+    // its own route table.
+    await waitFor(() => expect(routerControl.current.path).toBe("/work-orders/wo-1"));
+  });
+
+  it("marks a notification read when it is opened", async () => {
+    const user = userEvent.setup();
+    const { apiClient } = renderShell();
+
+    await user.click(await screen.findByRole("button", { name: "Notifications (1 unread)" }));
+    const panel = await screen.findByRole("dialog", { name: "Notifications" });
+    await user.click(within(panel).getByText("New work order assigned"));
+
+    await waitFor(() =>
+      expect(apiClient.markNotificationRead).toHaveBeenCalledWith("notification-1"),
+    );
   });
 
   it("exposes a skip link, landmarks, and a keyboard-reachable nav", async () => {

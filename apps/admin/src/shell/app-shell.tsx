@@ -24,6 +24,7 @@ import { SidebarPlanSummary } from "@/billing/sidebar-plan";
 import { useSubscription } from "@/billing/subscription-context";
 import { APP_HOME } from "@/navigation/routes";
 import { GlobalSearch } from "./global-search";
+import { NotificationBell } from "./notification-bell";
 
 export const sidebarPreferenceKey = "fev.admin.sidebar-collapsed";
 
@@ -477,28 +478,7 @@ function Header({
         <GlobalSearch />
       </div>
       <ThemeToggleIcon />
-      <Tooltip content="Notifications — coming soon (Phase 15)">
-        <button
-          aria-disabled="true"
-          aria-label="Notifications (coming soon)"
-          className="cursor-not-allowed rounded-lg p-2 text-text-muted"
-          disabled
-          type="button"
-        >
-          <svg
-            aria-hidden
-            className="size-5"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.8"
-            viewBox="0 0 24 24"
-          >
-            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
-        </button>
-      </Tooltip>
+      <NotificationBell />
       <UserMenu />
     </header>
   );

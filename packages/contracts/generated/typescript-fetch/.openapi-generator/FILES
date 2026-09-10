@@ -15,6 +15,7 @@ src/apis/DocumentsApi.ts
 src/apis/FacilitiesApi.ts
 src/apis/GeneratedReportsApi.ts
 src/apis/InspectionsApi.ts
+src/apis/NotificationsApi.ts
 src/apis/PermissionsApi.ts
 src/apis/PermitTemplatesApi.ts
 src/apis/PermitsApi.ts
@@ -101,6 +102,8 @@ src/models/DashboardSeriesPoint.ts
 src/models/DashboardSummary.ts
 src/models/DecidePermitApprovalRequest.ts
 src/models/DemoGateResponse.ts
+src/models/DeviceRegistered.ts
+src/models/DeviceUnregistered.ts
 src/models/DigitalTwinHotspotResponse.ts
 src/models/DigitalTwinSceneResponse.ts
 src/models/DocumentDeleted.ts
@@ -125,6 +128,10 @@ src/models/InspectionListItem.ts
 src/models/InspectionListPage.ts
 src/models/InspectionMediaResponse.ts
 src/models/InviteUserRequest.ts
+src/models/NotificationListPage.ts
+src/models/NotificationRead.ts
+src/models/NotificationResponse.ts
+src/models/NotificationsAllRead.ts
 src/models/PermissionCatalog.ts
 src/models/PermissionCatalogGroup.ts
 src/models/PermissionCatalogItem.ts
@@ -155,6 +162,7 @@ src/models/QrScanResult.ts
 src/models/ReadingsInput.ts
 src/models/ReadingsResponse.ts
 src/models/RegenerateGeneratedReportRequest.ts
+src/models/RegisterDeviceRequest.ts
 src/models/ReportDashboardSummary.ts
 src/models/ReportNarrativeResponse.ts
 src/models/ResumePermitRequest.ts

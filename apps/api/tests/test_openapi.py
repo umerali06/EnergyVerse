@@ -143,6 +143,14 @@ EXPECTED_OPERATIONS = {
     "get_document",
     "update_document",
     "delete_document",
+    # Notifications. Gated on authentication alone -- a notification is
+    # addressed to one user, so there is no permission or plan feature to
+    # check beyond being signed in.
+    "list_notifications",
+    "mark_notification_read",
+    "mark_all_notifications_read",
+    "register_notification_device",
+    "unregister_notification_device",
     # Phase 13 billing. `stripe_webhook` is deliberately absent: it is
     # `include_in_schema=False`, since it is Stripe's contract, not a client's.
     "get_billing_catalog",

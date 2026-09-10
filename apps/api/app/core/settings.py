@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     # Defaults to the admin app's own local dev origin; set to the real deployed
     # origin in production so scanned codes resolve there.
     app_base_url: str = "http://localhost:3000"
+    # Transactional email (AWS SES). Unset in local/CI environments, where the
+    # notification service falls back to logging the message rather than
+    # failing the action that triggered it.
+    aws_region: str | None = None
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    ses_from_email: str | None = None
+    ses_from_name: str = "Flacron EnergyVerse"
+    ses_reply_to: str | None = None
+    # Push delivery uses the Firebase Admin SDK's own credentials, so it needs
+    # no separate key -- this only gates it off for local runs.
+    push_notifications_enabled: bool = True
     cors_origins: tuple[str, ...] = (
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -49,6 +61,10 @@ class Settings(BaseSettings):
     @property
     def stripe_configured(self) -> bool:
         return bool(self.stripe_secret_key)
+
+    @property
+    def ses_configured(self) -> bool:
+        return bool(self.aws_access_key_id and self.aws_secret_access_key and self.ses_from_email)
 
     @property
     def firebase_credentials_configured(self) -> bool:

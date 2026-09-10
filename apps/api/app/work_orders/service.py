@@ -1,5 +1,6 @@
 import base64
 import binascii
+import logging
 
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
@@ -20,7 +21,8 @@ from app.models.api import (
     WorkOrderListPage,
 )
 from app.models.base import CompanyScope
-from app.models.entities import WorkOrder, WorkOrderCreate
+from app.models.entities import NotificationEvent, WorkOrder, WorkOrderCreate
+from app.notifications.service import NotificationService, get_notification_service
 
 WORK_ORDER_LIST_DEFAULT_LIMIT = 25
 
@@ -86,15 +88,54 @@ def _to_detail(work_order: WorkOrder) -> WorkOrderDetail:
     )
 
 
+logger = logging.getLogger(__name__)
+
+
 class WorkOrderService:
     def __init__(
         self,
         *,
         work_orders: WorkOrderRepository,
         assets: AssetRepository,
+        notifications: NotificationService | None = None,
     ) -> None:
         self._work_orders = work_orders
         self._assets = assets
+        # Optional so existing tests that construct the service directly keep
+        # working; None simply means no notification is raised.
+        self._notifications = notifications
+
+    async def _notify(
+        self,
+        scope: CompanyScope,
+        *,
+        user_id: str | None,
+        event: NotificationEvent,
+        title: str,
+        body: str,
+        work_order_id: str,
+        actor_uid: str,
+        priority: str | None = None,
+    ) -> None:
+        """Best-effort: a lifecycle change is already committed by the time
+        this runs, so a notification failure must never surface as a failed
+        assignment."""
+        if self._notifications is None or not user_id:
+            return
+        try:
+            await self._notifications.notify(
+                scope,
+                user_id=user_id,
+                event=event,
+                title=title,
+                body=body,
+                target_type="work_order",
+                target_id=work_order_id,
+                actor_uid=actor_uid,
+                metadata={"priority": priority} if priority else {},
+            )
+        except Exception:
+            logger.exception("Failed to raise %s for work order %s", event, work_order_id)
 
     async def _active_work_order(self, scope: CompanyScope, work_order_id: str) -> WorkOrder:
         work_order = await self._work_orders.get(scope, work_order_id)
@@ -211,6 +252,16 @@ class WorkOrderService:
                 "invalid_transition",
                 f"Work order cannot be assigned from status '{error.current.status}'",
             ) from error
+        await self._notify(
+            scope,
+            user_id=work_order.technician_id,
+            event="work_order.assigned",
+            title="New work order assigned",
+            body=f"{work_order.title} was assigned to you.",
+            work_order_id=work_order.id,
+            actor_uid=actor_uid,
+            priority=work_order.priority,
+        )
         return _to_detail(work_order)
 
     async def accept_work_order(
@@ -323,4 +374,5 @@ def get_work_order_service() -> WorkOrderService:
     return WorkOrderService(
         work_orders=WorkOrderRepository(client, audit),
         assets=AssetRepository(client, audit),
+        notifications=get_notification_service(),
     )

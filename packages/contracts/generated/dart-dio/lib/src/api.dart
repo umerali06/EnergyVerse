@@ -21,6 +21,7 @@ import 'package:fev_api_client/src/api/documents_api.dart';
 import 'package:fev_api_client/src/api/facilities_api.dart';
 import 'package:fev_api_client/src/api/generated_reports_api.dart';
 import 'package:fev_api_client/src/api/inspections_api.dart';
+import 'package:fev_api_client/src/api/notifications_api.dart';
 import 'package:fev_api_client/src/api/permissions_api.dart';
 import 'package:fev_api_client/src/api/permit_templates_api.dart';
 import 'package:fev_api_client/src/api/permits_api.dart';
@@ -168,6 +169,12 @@ class FevApiClient {
   /// by doing that all interceptors will not be executed
   InspectionsApi getInspectionsApi() {
     return InspectionsApi(dio, serializers);
+  }
+
+  /// Get NotificationsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  NotificationsApi getNotificationsApi() {
+    return NotificationsApi(dio, serializers);
   }
 
   /// Get PermissionsApi instance, base route and serializer can be overridden by a given but be careful,

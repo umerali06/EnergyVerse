@@ -83,6 +83,8 @@ doc/DashboardSeriesPoint.md
 doc/DashboardSummary.md
 doc/DecidePermitApprovalRequest.md
 doc/DemoGateResponse.md
+doc/DeviceRegistered.md
+doc/DeviceUnregistered.md
 doc/DigitalTwinHotspotResponse.md
 doc/DigitalTwinSceneResponse.md
 doc/DocumentDeleted.md
@@ -111,6 +113,11 @@ doc/InspectionListPage.md
 doc/InspectionMediaResponse.md
 doc/InspectionsApi.md
 doc/InviteUserRequest.md
+doc/NotificationListPage.md
+doc/NotificationRead.md
+doc/NotificationResponse.md
+doc/NotificationsAllRead.md
+doc/NotificationsApi.md
 doc/PermissionCatalog.md
 doc/PermissionCatalogGroup.md
 doc/PermissionCatalogItem.md
@@ -147,6 +154,7 @@ doc/RbacDemoApi.md
 doc/ReadingsInput.md
 doc/ReadingsResponse.md
 doc/RegenerateGeneratedReportRequest.md
+doc/RegisterDeviceRequest.md
 doc/ReportDashboardSummary.md
 doc/ReportNarrativeResponse.md
 doc/ResumePermitRequest.md
@@ -223,6 +231,7 @@ lib/src/api/documents_api.dart
 lib/src/api/facilities_api.dart
 lib/src/api/generated_reports_api.dart
 lib/src/api/inspections_api.dart
+lib/src/api/notifications_api.dart
 lib/src/api/permissions_api.dart
 lib/src/api/permit_templates_api.dart
 lib/src/api/permits_api.dart
@@ -315,6 +324,8 @@ lib/src/model/dashboard_summary.dart
 lib/src/model/date.dart
 lib/src/model/decide_permit_approval_request.dart
 lib/src/model/demo_gate_response.dart
+lib/src/model/device_registered.dart
+lib/src/model/device_unregistered.dart
 lib/src/model/digital_twin_hotspot_response.dart
 lib/src/model/digital_twin_scene_response.dart
 lib/src/model/document_deleted.dart
@@ -339,6 +350,10 @@ lib/src/model/inspection_list_item.dart
 lib/src/model/inspection_list_page.dart
 lib/src/model/inspection_media_response.dart
 lib/src/model/invite_user_request.dart
+lib/src/model/notification_list_page.dart
+lib/src/model/notification_read.dart
+lib/src/model/notification_response.dart
+lib/src/model/notifications_all_read.dart
 lib/src/model/permission_catalog.dart
 lib/src/model/permission_catalog_group.dart
 lib/src/model/permission_catalog_item.dart
@@ -369,6 +384,7 @@ lib/src/model/qr_scan_result.dart
 lib/src/model/readings_input.dart
 lib/src/model/readings_response.dart
 lib/src/model/regenerate_generated_report_request.dart
+lib/src/model/register_device_request.dart
 lib/src/model/report_dashboard_summary.dart
 lib/src/model/report_narrative_response.dart
 lib/src/model/resume_permit_request.dart
@@ -509,6 +525,8 @@ test/dashboard_series_point_test.dart
 test/dashboard_summary_test.dart
 test/decide_permit_approval_request_test.dart
 test/demo_gate_response_test.dart
+test/device_registered_test.dart
+test/device_unregistered_test.dart
 test/digital_twin_hotspot_response_test.dart
 test/digital_twin_scene_response_test.dart
 test/document_deleted_test.dart
@@ -537,6 +555,11 @@ test/inspection_list_page_test.dart
 test/inspection_media_response_test.dart
 test/inspections_api_test.dart
 test/invite_user_request_test.dart
+test/notification_list_page_test.dart
+test/notification_read_test.dart
+test/notification_response_test.dart
+test/notifications_all_read_test.dart
+test/notifications_api_test.dart
 test/permission_catalog_group_test.dart
 test/permission_catalog_item_test.dart
 test/permission_catalog_test.dart
@@ -573,6 +596,7 @@ test/rbac_demo_api_test.dart
 test/readings_input_test.dart
 test/readings_response_test.dart
 test/regenerate_generated_report_request_test.dart
+test/register_device_request_test.dart
 test/report_dashboard_summary_test.dart
 test/report_narrative_response_test.dart
 test/resume_permit_request_test.dart

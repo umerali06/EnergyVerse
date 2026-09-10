@@ -146,6 +146,11 @@ Class | Method | HTTP request | Description
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionArMeasurement**](doc/InspectionsApi.md#updateinspectionarmeasurement) | **PATCH** /api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id} | Update Inspection Ar Measurement
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionMedia**](doc/InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionVoiceNote**](doc/InspectionsApi.md#updateinspectionvoicenote) | **PATCH** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Update Inspection Voice Note
+[*NotificationsApi*](doc/NotificationsApi.md) | [**listNotifications**](doc/NotificationsApi.md#listnotifications) | **GET** /api/v1/notifications | List Notifications
+[*NotificationsApi*](doc/NotificationsApi.md) | [**markAllNotificationsRead**](doc/NotificationsApi.md#markallnotificationsread) | **POST** /api/v1/notifications/read-all | Mark All Notifications Read
+[*NotificationsApi*](doc/NotificationsApi.md) | [**markNotificationRead**](doc/NotificationsApi.md#marknotificationread) | **POST** /api/v1/notifications/{notification_id}/read | Mark Notification Read
+[*NotificationsApi*](doc/NotificationsApi.md) | [**registerNotificationDevice**](doc/NotificationsApi.md#registernotificationdevice) | **POST** /api/v1/notifications/devices | Register Notification Device
+[*NotificationsApi*](doc/NotificationsApi.md) | [**unregisterNotificationDevice**](doc/NotificationsApi.md#unregisternotificationdevice) | **DELETE** /api/v1/notifications/devices/{token} | Unregister Notification Device
 [*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
 [*PermitTemplatesApi*](doc/PermitTemplatesApi.md) | [**createPermitTemplate**](doc/PermitTemplatesApi.md#createpermittemplate) | **POST** /api/v1/permit-templates | Create Permit Template
 [*PermitTemplatesApi*](doc/PermitTemplatesApi.md) | [**deletePermitTemplate**](doc/PermitTemplatesApi.md#deletepermittemplate) | **DELETE** /api/v1/permit-templates/{template_id} | Delete Permit Template
@@ -284,6 +289,8 @@ Class | Method | HTTP request | Description
  - [DashboardSummary](doc/DashboardSummary.md)
  - [DecidePermitApprovalRequest](doc/DecidePermitApprovalRequest.md)
  - [DemoGateResponse](doc/DemoGateResponse.md)
+ - [DeviceRegistered](doc/DeviceRegistered.md)
+ - [DeviceUnregistered](doc/DeviceUnregistered.md)
  - [DigitalTwinHotspotResponse](doc/DigitalTwinHotspotResponse.md)
  - [DigitalTwinSceneResponse](doc/DigitalTwinSceneResponse.md)
  - [DocumentDeleted](doc/DocumentDeleted.md)
@@ -308,6 +315,10 @@ Class | Method | HTTP request | Description
  - [InspectionListPage](doc/InspectionListPage.md)
  - [InspectionMediaResponse](doc/InspectionMediaResponse.md)
  - [InviteUserRequest](doc/InviteUserRequest.md)
+ - [NotificationListPage](doc/NotificationListPage.md)
+ - [NotificationRead](doc/NotificationRead.md)
+ - [NotificationResponse](doc/NotificationResponse.md)
+ - [NotificationsAllRead](doc/NotificationsAllRead.md)
  - [PermissionCatalog](doc/PermissionCatalog.md)
  - [PermissionCatalogGroup](doc/PermissionCatalogGroup.md)
  - [PermissionCatalogItem](doc/PermissionCatalogItem.md)
@@ -338,6 +349,7 @@ Class | Method | HTTP request | Description
  - [ReadingsInput](doc/ReadingsInput.md)
  - [ReadingsResponse](doc/ReadingsResponse.md)
  - [RegenerateGeneratedReportRequest](doc/RegenerateGeneratedReportRequest.md)
+ - [RegisterDeviceRequest](doc/RegisterDeviceRequest.md)
  - [ReportDashboardSummary](doc/ReportDashboardSummary.md)
  - [ReportNarrativeResponse](doc/ReportNarrativeResponse.md)
  - [ResumePermitRequest](doc/ResumePermitRequest.md)

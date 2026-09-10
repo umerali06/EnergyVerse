@@ -18,6 +18,7 @@ from app.api.v1.documents import router as documents_router
 from app.api.v1.facilities import router as facilities_router
 from app.api.v1.generated_reports import router as generated_reports_router
 from app.api.v1.inspections import router as inspections_router
+from app.api.v1.notifications import router as notifications_router
 from app.api.v1.permissions import router as permissions_router
 from app.api.v1.permit_templates import router as permit_templates_router
 from app.api.v1.permits import router as permits_router
@@ -150,6 +151,7 @@ app.include_router(safety_reports_router)
 app.include_router(generated_reports_router)
 app.include_router(documents_router)
 app.include_router(billing_router)
+app.include_router(notifications_router)
 
 
 @app.get(

@@ -87,6 +87,8 @@ import 'package:fev_api_client/src/model/dashboard_series_point.dart';
 import 'package:fev_api_client/src/model/dashboard_summary.dart';
 import 'package:fev_api_client/src/model/decide_permit_approval_request.dart';
 import 'package:fev_api_client/src/model/demo_gate_response.dart';
+import 'package:fev_api_client/src/model/device_registered.dart';
+import 'package:fev_api_client/src/model/device_unregistered.dart';
 import 'package:fev_api_client/src/model/digital_twin_hotspot_response.dart';
 import 'package:fev_api_client/src/model/digital_twin_scene_response.dart';
 import 'package:fev_api_client/src/model/document_deleted.dart';
@@ -111,6 +113,10 @@ import 'package:fev_api_client/src/model/inspection_list_item.dart';
 import 'package:fev_api_client/src/model/inspection_list_page.dart';
 import 'package:fev_api_client/src/model/inspection_media_response.dart';
 import 'package:fev_api_client/src/model/invite_user_request.dart';
+import 'package:fev_api_client/src/model/notification_list_page.dart';
+import 'package:fev_api_client/src/model/notification_read.dart';
+import 'package:fev_api_client/src/model/notification_response.dart';
+import 'package:fev_api_client/src/model/notifications_all_read.dart';
 import 'package:fev_api_client/src/model/permission_catalog.dart';
 import 'package:fev_api_client/src/model/permission_catalog_group.dart';
 import 'package:fev_api_client/src/model/permission_catalog_item.dart';
@@ -141,6 +147,7 @@ import 'package:fev_api_client/src/model/qr_scan_result.dart';
 import 'package:fev_api_client/src/model/readings_input.dart';
 import 'package:fev_api_client/src/model/readings_response.dart';
 import 'package:fev_api_client/src/model/regenerate_generated_report_request.dart';
+import 'package:fev_api_client/src/model/register_device_request.dart';
 import 'package:fev_api_client/src/model/report_dashboard_summary.dart';
 import 'package:fev_api_client/src/model/report_narrative_response.dart';
 import 'package:fev_api_client/src/model/resume_permit_request.dart';
@@ -275,6 +282,8 @@ part 'serializers.g.dart';
   DashboardSummary,
   DecidePermitApprovalRequest,
   DemoGateResponse,
+  DeviceRegistered,
+  DeviceUnregistered,
   DigitalTwinHotspotResponse,
   DigitalTwinSceneResponse,
   DocumentDeleted,
@@ -299,6 +308,10 @@ part 'serializers.g.dart';
   InspectionListPage,
   InspectionMediaResponse,
   InviteUserRequest,
+  NotificationListPage,
+  NotificationRead,
+  NotificationResponse,
+  NotificationsAllRead,
   PermissionCatalog,
   PermissionCatalogGroup,
   PermissionCatalogItem,
@@ -329,6 +342,7 @@ part 'serializers.g.dart';
   ReadingsInput,
   ReadingsResponse,
   RegenerateGeneratedReportRequest,
+  RegisterDeviceRequest,
   ReportDashboardSummary,
   ReportNarrativeResponse,
   ResumePermitRequest,

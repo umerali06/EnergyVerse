@@ -1632,3 +1632,45 @@ class CheckoutSessionRequest(BaseModel):
 class CheckoutSessionResponse(BaseModel):
     session_id: str
     checkout_url: str
+
+
+class NotificationResponse(BaseModel):
+    id: str
+    event: str
+    title: str
+    body: str
+    target_type: str
+    target_id: str
+    metadata: dict[str, str] = Field(default_factory=dict)
+    # What actually went out, not what was intended -- email and push are
+    # best-effort and a failure there never fails the triggering action.
+    delivered_channels: list[str] = Field(default_factory=list)
+    read_at: datetime | None = None
+    created_at: datetime
+
+
+class NotificationListPage(BaseModel):
+    items: list[NotificationResponse] = Field(default_factory=list)
+    unread_count: int = 0
+
+
+class NotificationRead(BaseModel):
+    id: str
+    read_at: datetime | None = None
+
+
+class NotificationsAllRead(BaseModel):
+    marked: int
+
+
+class RegisterDeviceRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=4096)
+    platform: Literal["android", "ios", "web"]
+
+
+class DeviceRegistered(BaseModel):
+    registered: bool
+
+
+class DeviceUnregistered(BaseModel):
+    unregistered: bool

@@ -22,6 +22,7 @@ pypdf = "^6.0.0"
 stripe = "^15.6.1"
 av = "^13.1.0"
 pillow = ">=11.0,<13"
+boto3 = "^1.35.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -30,6 +31,7 @@ ruff = "^0.9.0"
 mypy = "^1.14.0"
 types-openpyxl = "^3.1.5.20260807"
 types-reportlab = "^4.5.1.20260807"
+boto3-stubs = "^1.35.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -41,6 +43,12 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Transactional email is inline-styled HTML: mail clients strip <style> blocks,
+# so every rule has to live on the element and the lines cannot wrap without
+# injecting whitespace into the rendered output.
+"app/email/templates.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

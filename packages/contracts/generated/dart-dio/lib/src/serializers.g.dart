@@ -118,6 +118,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
           DecidePermitApprovalRequestDigitalSignatureAttestationEnum.serializer)
       ..add(DemoGateResponse.serializer)
       ..add(DemoGateResponseOkEnum.serializer)
+      ..add(DeviceRegistered.serializer)
+      ..add(DeviceUnregistered.serializer)
       ..add(DigitalTwinHotspotResponse.serializer)
       ..add(DigitalTwinHotspotResponseCurrentStatusEnum.serializer)
       ..add(DigitalTwinSceneResponse.serializer)
@@ -166,6 +168,10 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(InspectionMediaResponseBeforeAfterTagEnum.serializer)
       ..add(InspectionMediaResponseKindEnum.serializer)
       ..add(InviteUserRequest.serializer)
+      ..add(NotificationListPage.serializer)
+      ..add(NotificationRead.serializer)
+      ..add(NotificationResponse.serializer)
+      ..add(NotificationsAllRead.serializer)
       ..add(PermissionCatalog.serializer)
       ..add(PermissionCatalogGroup.serializer)
       ..add(PermissionCatalogItem.serializer)
@@ -213,6 +219,8 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(ReadingsResponseOperationalStatusEnum.serializer)
       ..add(ReadingsResponsePriorityLevelEnum.serializer)
       ..add(RegenerateGeneratedReportRequest.serializer)
+      ..add(RegisterDeviceRequest.serializer)
+      ..add(RegisterDeviceRequestPlatformEnum.serializer)
       ..add(ReportDashboardSummary.serializer)
       ..add(ReportNarrativeResponse.serializer)
       ..add(ResumePermitRequest.serializer)
@@ -438,6 +446,10 @@ Serializers _$serializers = (new Serializers().toBuilder()
           () => new ListBuilder<InspectionListItem>())
       ..addBuilderFactory(
           const FullType(
+              BuiltList, const [const FullType(NotificationResponse)]),
+          () => new ListBuilder<NotificationResponse>())
+      ..addBuilderFactory(
+          const FullType(
               BuiltList, const [const FullType(PermissionCatalogGroup)]),
           () => new ListBuilder<PermissionCatalogGroup>())
       ..addBuilderFactory(
@@ -605,6 +617,13 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltMap, const [const FullType(String), const FullType(String)]),
+          () => new MapBuilder<String, String>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(UserListItem)]),
           () => new ListBuilder<UserListItem>())
