@@ -123,6 +123,17 @@ export const navGroups: readonly NavGroup[] = [
         requiredFeature: "digital_twin",
       },
       {
+        // Reading a module exposes the facility's real equipment, so it
+        // carries the same permission the asset module does. Enterprise-only
+        // by plan, which the catalog already enforced before the module
+        // existed.
+        label: "VR Training",
+        icon: navIcons.platform,
+        route: "/training",
+        requiredPermission: "assets.read",
+        requiredFeature: "vr_training",
+      },
+      {
         label: "Checklist Templates",
         icon: navIcons.audit,
         route: "/checklist-templates",

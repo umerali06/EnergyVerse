@@ -2637,3 +2637,31 @@ After each micro-task is tested and marked Done, record here how its frontend, b
 | Phase 13.10 — documents transport, page props, sidebar handle, page loader | The documents list showed "Unable to load documents" on every load: `FevApiClient` never gained `listDocuments`/`createDocument`, so `apiClient.listDocuments` was `undefined` and the call threw. Both methods were added with a `ListDocumentsOptions` type mirroring the generated request, and `DocumentsApiClient` joined the `useAuth().apiClient` intersection. The API itself was never at fault — it answered 200 with real documents for Enterprise and 200 with an empty list for Starter. Adjacent to that, `documents-page.tsx` carried prop mismatches that were live defects rather than only type errors: both `Modal`s used `isOpen` instead of `open`, so neither the detail nor the upload dialog could ever open; `Badge` was given a `variant` it does not accept where `StatusPill tone` was meant; `TableShell`'s required `label` (the table's accessible name) was missing; the search `Input` had no label; `Button` was given a non-existent `size`; and `border-surface-border`/`bg-surface-background` are not token classes. The sidebar collapse control moved from the footer to a circular handle on the sidebar's outer edge, so it stops competing with the plan block. `PageLoader` wraps the orbital `LogoLoader` for whole-screen waits, with a docstring reserving it for those — a single loading card should still use `Spinner` so the rest of the page stays usable. | 2026-09-10 |
 | Phase 13.11 — the branded loader on every whole-screen wait | `LogoLoader` (orbital rings, logo card, mono label, gradient bar) had only ever been used by the auth splash in both clients. `PageLoader` now wraps it for admin page-level waits: the QR resolve screen, the signup plan step while the catalog loads, the signup completion page while the webhook is confirmed, and the subscription page. Bare `Spinner` is kept deliberately for partial waits — the dashboard plan card is one card in a working page, and replacing it with a full-screen loader would block content that is already usable; the component's docstring states that boundary. Also fixed the loader's own progress track: `bg-border/60` is another alpha-on-a-bare-CSS-var class that compiles to nothing, so the bar had no track behind its moving gradient — now `bg-elevated`. | 2026-09-10 |
 | Phase 13.12 — nav skeleton and a loader that matches mobile | Two visible consequences of earlier decisions, both reported from screenshots. First, `hasFeature` failing closed while the plan loads meant the sidebar rendered its *ungated* items immediately (Dashboard, Users, Roles, Settings, Audit) and then grew as the subscription arrived. Correct but ugly, so `NavList` now takes `planLoading` and renders `NavSkeleton` until the answer is known — nothing is claimed, then the real nav appears once. The flag is resolved in the one component that already reads the subscription and threaded to both the sidebar and the mobile drawer. Second, the admin `LogoLoader` had drifted from the Flutter original: a rounded-*square* core, a second dashed counter-rotating ring, a pulsing logo, and a gradient progress bar, none of which exist on mobile. It is now a layer-for-layer port of `apps/mobile/lib/design_system/logo.dart` — 120px accent aura, a 100px arc sweeping a faint full-circle track, and a 76px circular glass disc — with the blends written as `color-mix` in globals.css, because Tailwind cannot put an alpha on a bare CSS-var token and silently produces nothing when asked (the same class of bug that left the loader's own progress track invisible). | 2026-09-10 |
+
+### Notifications, AI video analysis, and VR training (2026-09-10)
+
+`app/notifications/` is the fan-out point every other module calls. `notify()`
+writes the in-app record first — the durable, auditable copy — then attempts
+email and push behind `EmailNotifier`/`PushNotifier` protocols, so the service
+is testable without AWS credentials or a Firebase messaging round trip. Both
+outbound channels are best-effort: the lifecycle action that raised the
+notification has already committed, and an undelivered alert must not roll it
+back. Work order assignment and safety report assignment raise events today;
+adding another is a call to `notify()` from the module that owns the action.
+
+Email reuses the branded SES sender and template layer recovered from
+`backup/pre-4.5-wip-20260729`, where it had sat uncommitted since July. Push
+uses the Firebase Admin SDK with the app's existing credentials, so there is no
+second credential to manage.
+
+`app/ai/video_frames.py` sits beside the vision client with the same protocol
+seam. It decodes with PyAV — which bundles ffmpeg, so deployment gains no system
+dependency — and hands the sampled frames to `analyze_video_frames`, which sends
+them as one request so a recurring defect is reported once.
+
+`app/training/` holds the VR training modules and per-trainee progress. Modules
+bind to a facility's own 3D scene, so `apps/admin/src/training/vr-trainer.tsx`
+renders the same digital-twin data the facilities module already serves, with
+`three/examples/jsm/webxr/VRButton` promoting it into a headset session. The
+runner degrades to a desktop walkthrough when WebGL or WebXR is unavailable
+rather than blocking the training.

@@ -22,6 +22,7 @@ from app.db.repositories.inspections import InspectionRepository
 from app.db.repositories.permissions import PermissionRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
+from app.db.repositories.training import TrainingModuleRepository
 from app.db.repositories.users import UserRepository
 from app.db.repositories.work_orders import WorkOrderRepository
 from app.models.base import CompanyScope, utc_now
@@ -46,6 +47,8 @@ from app.models.entities import (
     RolePermissionCreate,
     RoleUpdate,
     SeedCounts,
+    TrainingModuleCreate,
+    TrainingStep,
     UserCreate,
     UserUpdate,
     WorkOrderCreate,
@@ -1239,6 +1242,312 @@ async def _ensure_work_order(
         await work_orders.close(scope, work_order.id, SEED_ACTOR_UID)
 
 
+
+# --- VR training modules ------------------------------------------------------
+#
+# One module per competency the requirements name, each bound to the North
+# Refinery's real 3D scene and its real assets, so a trainee learns the
+# equipment their site actually has. `correct_option` never reaches the client
+# (see TrainingStepResponse), so the answers below stay server-side.
+
+ASSET_TANK_301_ID = f"{ACME_COMPANY_ID}__asset__t-301"
+ASSET_VALVE_401_ID = f"{ACME_COMPANY_ID}__asset__v-401"
+ASSET_MOTOR_501_ID = f"{ACME_COMPANY_ID}__asset__m-501"
+
+MUSTER_POINT = [-20.0, 1.7, 25.0]
+
+DEMO_TRAINING_MODULES = (
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__facility-orientation",
+        title="North Refinery orientation walk",
+        kind="exploration",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "A guided walk of the North Refinery: the process unit, the tank "
+            "farm and the muster point, so a new starter can orient themselves "
+            "before working on site."
+        ),
+        estimated_minutes=8,
+        steps=[
+            TrainingStep(
+                id="step-orientation-entry",
+                order=1,
+                title="Site entry",
+                instruction=(
+                    "You are standing at the North Refinery main gate. Look "
+                    "around to take in the site layout before moving in."
+                ),
+                action="observe",
+                target_position=[0.0, 1.7, 30.0],
+            ),
+            TrainingStep(
+                id="step-orientation-process-unit",
+                order=2,
+                title="Process Unit 1",
+                instruction=(
+                    "Walk to Process Unit 1, where the feed pump and its drive "
+                    "motor are installed."
+                ),
+                action="observe",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-orientation-tank-farm",
+                order=3,
+                title="Tank Farm A",
+                instruction="Continue to Tank Farm A and note the bunding around the tank.",
+                action="observe",
+                target_asset_id=ASSET_TANK_301_ID,
+            ),
+            TrainingStep(
+                id="step-orientation-muster",
+                order=4,
+                title="Muster point",
+                instruction=(
+                    "Finish at the muster point. Confirm you can find your way "
+                    "here from anywhere on site."
+                ),
+                action="acknowledge",
+                target_position=MUSTER_POINT,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__equipment-location",
+        title="Locate critical equipment",
+        kind="equipment_location",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "Find each item of critical equipment by tag. Scored: you are "
+            "expected to know where these are without prompting."
+        ),
+        estimated_minutes=6,
+        pass_threshold=75,
+        steps=[
+            TrainingStep(
+                id="step-locate-p101",
+                order=1,
+                title="Find P-101",
+                instruction="Locate Feed Pump 101 (tag P-101) and select it.",
+                action="locate",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-locate-t301",
+                order=2,
+                title="Find T-301",
+                instruction="Locate Crude Storage Tank 301 (tag T-301) and select it.",
+                action="locate",
+                target_asset_id=ASSET_TANK_301_ID,
+            ),
+            TrainingStep(
+                id="step-locate-v401",
+                order=3,
+                title="Find V-401",
+                instruction="Locate Pressure Relief Valve 401 (tag V-401) and select it.",
+                action="locate",
+                target_asset_id=ASSET_VALVE_401_ID,
+            ),
+            TrainingStep(
+                id="step-locate-m501",
+                order=4,
+                title="Find M-501",
+                instruction="Locate Pump Drive Motor 501 (tag M-501) and select it.",
+                action="locate",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__loto-procedure",
+        title="Lock-out / tag-out on the feed pump",
+        kind="safety_procedure",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "Isolate Feed Pump 101 safely before maintenance. Every scored "
+            "step must be right: an out-of-order isolation is how people get "
+            "hurt."
+        ),
+        estimated_minutes=10,
+        pass_threshold=100,
+        steps=[
+            TrainingStep(
+                id="step-loto-permit",
+                order=1,
+                title="Confirm the permit",
+                instruction=(
+                    "Before touching anything, confirm a valid permit to work "
+                    "is in place for P-101."
+                ),
+                action="acknowledge",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-loto-first-action",
+                order=2,
+                title="First isolation action",
+                instruction="What is the first action once the permit is confirmed?",
+                action="choose",
+                target_asset_id=ASSET_MOTOR_501_ID,
+                options=[
+                    "Notify the control room and request shutdown",
+                    "Close the suction valve",
+                    "Remove the coupling guard",
+                    "Drain the casing",
+                ],
+                correct_option="Notify the control room and request shutdown",
+            ),
+            TrainingStep(
+                id="step-loto-isolate",
+                order=3,
+                title="Isolate the drive motor",
+                instruction=(
+                    "Isolate Pump Drive Motor 501 at the local isolator and "
+                    "apply your personal lock."
+                ),
+                action="sequence",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+            TrainingStep(
+                id="step-loto-verify",
+                order=4,
+                title="Prove dead",
+                instruction=(
+                    "Attempt a start from the local station to prove the "
+                    "isolation holds, then return the selector to off."
+                ),
+                action="sequence",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+            TrainingStep(
+                id="step-loto-tag",
+                order=5,
+                title="Tag the isolation",
+                instruction="Attach your tag showing your name, the date and the reason.",
+                action="acknowledge",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__gas-release-drill",
+        title="Emergency drill: gas release at the tank farm",
+        kind="emergency_drill",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "A timed drill. Gas is detected at Tank Farm A: raise the alarm, "
+            "take the correct escape route and reach the muster point."
+        ),
+        estimated_minutes=5,
+        pass_threshold=100,
+        steps=[
+            TrainingStep(
+                id="step-drill-detect",
+                order=1,
+                title="Gas detected",
+                instruction="The gas alarm sounds near T-301. Identify the source area.",
+                action="locate",
+                target_asset_id=ASSET_TANK_301_ID,
+                time_limit_seconds=30,
+            ),
+            TrainingStep(
+                id="step-drill-raise-alarm",
+                order=2,
+                title="Raise the alarm",
+                instruction="What do you do first?",
+                action="choose",
+                options=[
+                    "Raise the alarm and evacuate upwind",
+                    "Investigate the leak more closely",
+                    "Attempt to close the tank valve",
+                    "Return to your vehicle for a gas monitor",
+                ],
+                correct_option="Raise the alarm and evacuate upwind",
+                time_limit_seconds=20,
+            ),
+            TrainingStep(
+                id="step-drill-route",
+                order=3,
+                title="Escape upwind",
+                instruction="Take the upwind escape route. Do not pass downwind of the tank.",
+                action="sequence",
+                target_position=MUSTER_POINT,
+                time_limit_seconds=60,
+            ),
+            TrainingStep(
+                id="step-drill-muster",
+                order=4,
+                title="Report at muster",
+                instruction="Reach the muster point and report yourself present.",
+                action="acknowledge",
+                target_position=MUSTER_POINT,
+                time_limit_seconds=60,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__seal-replacement",
+        title="Maintenance simulation: replace the P-101 mechanical seal",
+        kind="maintenance_simulation",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "Carry out a mechanical seal replacement on Feed Pump 101 in the "
+            "correct order, from isolation through to handback."
+        ),
+        estimated_minutes=15,
+        pass_threshold=80,
+        steps=[
+            TrainingStep(
+                id="step-seal-isolation",
+                order=1,
+                title="Confirm isolation",
+                instruction="Confirm P-101 is isolated and locked off before opening anything.",
+                action="acknowledge",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-drain",
+                order=2,
+                title="Drain and depressurise",
+                instruction="Drain the casing and confirm zero pressure at the gauge.",
+                action="sequence",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-remove",
+                order=3,
+                title="Remove the seal",
+                instruction="Remove the coupling guard, then withdraw the seal cartridge.",
+                action="sequence",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-fit",
+                order=4,
+                title="Fit the replacement",
+                instruction="Fit the new cartridge and torque the gland nuts evenly.",
+                action="sequence",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-handback",
+                order=5,
+                title="Hand back",
+                instruction="What must happen before the pump is returned to service?",
+                action="choose",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+                options=[
+                    "Remove locks, close the permit and record the work",
+                    "Start the pump and watch for leaks",
+                    "Leave the isolation in place for the next shift",
+                    "Refit the guard only",
+                ],
+                correct_option="Remove locks, close the permit and record the work",
+            ),
+        ],
+    ),
+)
+
 async def run_seed(
     client: AsyncClient | None = None,
     *,
@@ -1261,6 +1570,7 @@ async def run_seed(
     inspections = InspectionRepository(firestore_client, audit)
     work_orders = WorkOrderRepository(firestore_client, audit)
     documents = DocumentRepository(firestore_client, audit)
+    training_modules = TrainingModuleRepository(firestore_client, audit)
 
     await asyncio.gather(
         _ensure_company(
@@ -1377,6 +1687,10 @@ async def run_seed(
 
     for doc_seed in DEMO_DOCUMENTS:
         await _ensure_document(documents, acme_scope, doc_seed)
+
+    for module_seed in DEMO_TRAINING_MODULES:
+        if await training_modules.get(acme_scope, module_seed.id) is None:
+            await training_modules.create(acme_scope, module_seed, SEED_ACTOR_UID)
 
     if with_auth_users:
         password = demo_password or settings.seed_demo_password

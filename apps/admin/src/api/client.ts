@@ -10,6 +10,7 @@ import {
   DashboardApi,
   DocumentsApi,
   NotificationsApi,
+  TrainingApi,
   FacilitiesApi,
   FetchError,
   GeneratedReportsApi,
@@ -108,6 +109,10 @@ import {
   type NotificationRead,
   type NotificationsAllRead,
   type RegisterDeviceRequest,
+  type TrainingModuleListPage,
+  type TrainingModuleResponse,
+  type TrainingProgressListPage,
+  type TrainingProgressResponse,
   type ReportDashboardSummary,
   type RoleDeleted,
   type RoleDetail,
@@ -311,6 +316,7 @@ export class FevApiClient {
   private readonly dashboard: DashboardApi;
   private readonly documents: DocumentsApi;
   private readonly notifications: NotificationsApi;
+  private readonly training: TrainingApi;
   private readonly facilities: FacilitiesApi;
   private readonly generatedReports: GeneratedReportsApi;
   private readonly inspections: InspectionsApi;
@@ -346,6 +352,7 @@ export class FevApiClient {
     this.dashboard = new DashboardApi(configuration);
     this.documents = new DocumentsApi(configuration);
     this.notifications = new NotificationsApi(configuration);
+    this.training = new TrainingApi(configuration);
     this.facilities = new FacilitiesApi(configuration);
     this.generatedReports = new GeneratedReportsApi(configuration);
     this.inspections = new InspectionsApi(configuration);
@@ -712,6 +719,70 @@ export class FevApiClient {
         { token },
         signal ? { signal } : undefined,
       ),
+    );
+  }
+
+  listTrainingModules(
+    options: { facilityId?: string; kind?: string } = {},
+    signal?: AbortSignal,
+  ): Promise<TrainingModuleListPage> {
+    return this.execute(() =>
+      this.training.listTrainingModules(
+        { facilityId: options.facilityId, kind: options.kind },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  getTrainingModule(moduleId: string, signal?: AbortSignal): Promise<TrainingModuleResponse> {
+    return this.execute(() =>
+      this.training.getTrainingModule({ moduleId }, signal ? { signal } : undefined),
+    );
+  }
+
+  listTrainingProgress(
+    options: { moduleId?: string } = {},
+    signal?: AbortSignal,
+  ): Promise<TrainingProgressListPage> {
+    return this.execute(() =>
+      this.training.listTrainingProgress(
+        { moduleId: options.moduleId },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  startTrainingModule(moduleId: string, signal?: AbortSignal): Promise<TrainingProgressResponse> {
+    return this.execute(() =>
+      this.training.startTrainingModule({ moduleId }, signal ? { signal } : undefined),
+    );
+  }
+
+  completeTrainingStep(
+    moduleId: string,
+    stepId: string,
+    correct: boolean | null,
+    selectedOption: string | null = null,
+    signal?: AbortSignal,
+  ): Promise<TrainingProgressResponse> {
+    return this.execute(() =>
+      this.training.completeTrainingStep(
+        {
+          moduleId,
+          stepId,
+          completeTrainingStepRequest: { correct, selectedOption },
+        },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  completeTrainingModule(
+    moduleId: string,
+    signal?: AbortSignal,
+  ): Promise<TrainingProgressResponse> {
+    return this.execute(() =>
+      this.training.completeTrainingModule({ moduleId }, signal ? { signal } : undefined),
     );
   }
 

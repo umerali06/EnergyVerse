@@ -167,3 +167,23 @@ while Gallery retains file selection. Focused camera plus Assets/detail tests:
 Camera initialization failures no longer leave a permanent spinner: browser
 permission denial, missing/busy cameras, and unsupported constraints render
 actionable messages plus in-place retry. Focused camera tests: 8 passed.
+
+Client feedback round (2026-09-10): the six defects raised in the video
+assessment were fixed (safety failure-vs-empty state, Untitled inspections,
+inspector identifiers, 3D panel losing the selected asset, stale tier-management
+copy, dashboard/3D readability), and the admin production build was repaired --
+`next build` had been failing outright on 17 lint errors with 62 TypeScript
+errors behind them. The 3D digital twin was found to be rendering three
+hard-coded sample assets to every tenant, because the page fetched its scene
+through an unauthenticated relative URL that could never succeed; it now uses
+the authenticated client and reports failure instead of inventing data.
+
+Then the remaining unbuilt scope from that assessment: AI video analysis
+(D-096), notifications across in-app/email/push (D-097), and VR training as
+WebXR over the existing 3D scene (D-098). `scripts.backfill_inspection_titles`
+names inspections created before titles were derived.
+
+Still open and explicitly not delivered: AR measurement remains unvalidated on
+physical hardware (D-063), and the Claude vision path has still never run
+against a live `ANTHROPIC_API_KEY` -- both need hardware/credentials rather than
+code.

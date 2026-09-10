@@ -22,5 +22,6 @@ export * from './RbacDemoApi';
 export * from './RolesApi';
 export * from './SafetyReportsApi';
 export * from './SystemApi';
+export * from './TrainingApi';
 export * from './UsersApi';
 export * from './WorkOrdersApi';

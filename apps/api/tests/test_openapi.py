@@ -151,6 +151,16 @@ EXPECTED_OPERATIONS = {
     "mark_all_notifications_read",
     "register_notification_device",
     "unregister_notification_device",
+    # VR training. Reading a module needs assets.read (it exposes the
+    # facility's real equipment); recording progress needs only a signed-in
+    # user, since progress is personal. The whole router sits behind the
+    # vr_training entitlement.
+    "list_training_modules",
+    "get_training_module",
+    "list_training_progress",
+    "start_training_module",
+    "complete_training_step",
+    "complete_training_module",
     # Phase 13 billing. `stripe_webhook` is deliberately absent: it is
     # `include_in_schema=False`, since it is Stripe's contract, not a client's.
     "get_billing_catalog",

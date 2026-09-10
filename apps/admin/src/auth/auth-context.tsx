@@ -53,6 +53,16 @@ export type DashboardApiClient = Pick<
   | "getDashboardSummary"
 >;
 
+export type TrainingApiClient = Pick<
+  FevApiClient,
+  | "listTrainingModules"
+  | "getTrainingModule"
+  | "listTrainingProgress"
+  | "startTrainingModule"
+  | "completeTrainingStep"
+  | "completeTrainingModule"
+>;
+
 export type NotificationsApiClient = Pick<
   FevApiClient,
   | "listNotifications"
@@ -205,6 +215,7 @@ export type BillingApiClient = Pick<
 export type AuthContextValue = {
   apiClient: BillingApiClient &
     NotificationsApiClient &
+    TrainingApiClient &
     DocumentsApiClient &
     DashboardApiClient &
     UsersApiClient &
@@ -292,6 +303,7 @@ export function AuthProvider({
   apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin"> &
     Partial<BillingApiClient> &
     Partial<NotificationsApiClient> &
+    Partial<TrainingApiClient> &
     Partial<DocumentsApiClient> &
     Partial<DashboardApiClient> &
     Partial<UsersApiClient> &
@@ -563,6 +575,7 @@ export function AuthProvider({
       // immediate, easy-to-diagnose TypeError rather than a silent gap.
       apiClient: client as BillingApiClient &
         NotificationsApiClient &
+        TrainingApiClient &
         DocumentsApiClient &
         DashboardApiClient &
         UsersApiClient &

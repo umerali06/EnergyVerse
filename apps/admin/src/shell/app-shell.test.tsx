@@ -117,6 +117,9 @@ const allNavLabels = [
   "Dashboard",
   "Assets",
   "Inspections",
+  // Enterprise-only by plan, and every role in this table holds `assets.read`,
+  // so it shows for all of them under ENTERPRISE_FEATURES.
+  "VR Training",
   "Work Orders",
   "Permits",
   "Safety",

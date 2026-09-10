@@ -31,6 +31,7 @@ import 'package:fev_api_client/src/api/rbac_demo_api.dart';
 import 'package:fev_api_client/src/api/roles_api.dart';
 import 'package:fev_api_client/src/api/safety_reports_api.dart';
 import 'package:fev_api_client/src/api/system_api.dart';
+import 'package:fev_api_client/src/api/training_api.dart';
 import 'package:fev_api_client/src/api/users_api.dart';
 import 'package:fev_api_client/src/api/work_orders_api.dart';
 
@@ -229,6 +230,12 @@ class FevApiClient {
   /// by doing that all interceptors will not be executed
   SystemApi getSystemApi() {
     return SystemApi(dio, serializers);
+  }
+
+  /// Get TrainingApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  TrainingApi getTrainingApi() {
+    return TrainingApi(dio, serializers);
   }
 
   /// Get UsersApi instance, base route and serializer can be overridden by a given but be careful,

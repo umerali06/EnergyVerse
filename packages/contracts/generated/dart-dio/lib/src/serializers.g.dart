@@ -71,6 +71,7 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(CompanyRegistrationRequest.serializer)
       ..add(CompanyRegistrationResponse.serializer)
       ..add(CompleteInspectionRequest.serializer)
+      ..add(CompleteTrainingStepRequest.serializer)
       ..add(ControlPermitRequest.serializer)
       ..add(CorrectiveActionResponse.serializer)
       ..add(CorrectiveActionResponsePriorityEnum.serializer)
@@ -256,6 +257,11 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(SubmitPermitRequestIssuerAttestationEnum.serializer)
       ..add(SubmitWorkOrderForReviewRequest.serializer)
       ..add(SubscriptionResponse.serializer)
+      ..add(TrainingModuleListPage.serializer)
+      ..add(TrainingModuleResponse.serializer)
+      ..add(TrainingProgressListPage.serializer)
+      ..add(TrainingProgressResponse.serializer)
+      ..add(TrainingStepResponse.serializer)
       ..add(TransitionSafetyReportRequest.serializer)
       ..add(TransitionSafetyReportRequestStatusEnum.serializer)
       ..add(UpdateAnnotationRequest.serializer)
@@ -621,9 +627,30 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
       ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(num)]),
+          () => new ListBuilder<num>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
           const FullType(
               BuiltMap, const [const FullType(String), const FullType(String)]),
           () => new MapBuilder<String, String>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(TrainingModuleResponse)]),
+          () => new ListBuilder<TrainingModuleResponse>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(TrainingProgressResponse)]),
+          () => new ListBuilder<TrainingProgressResponse>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(TrainingStepResponse)]),
+          () => new ListBuilder<TrainingStepResponse>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(UserListItem)]),
           () => new ListBuilder<UserListItem>())

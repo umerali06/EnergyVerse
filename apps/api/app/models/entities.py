@@ -1176,3 +1176,104 @@ class DeviceTokenCreate(StrictModel):
     token: str = Field(min_length=1, max_length=4096)
     platform: Literal["android", "ios", "web"]
     last_seen_at: datetime
+
+
+# --- VR training --------------------------------------------------------------
+
+# The five competencies the requirements name. The kind drives how the WebXR
+# runner scores a module, so it is a closed vocabulary rather than free text.
+TrainingModuleKind = Literal[
+    "exploration",
+    "equipment_location",
+    "safety_procedure",
+    "emergency_drill",
+    "maintenance_simulation",
+]
+
+# What a trainee must do to clear one step. `locate` and `sequence` are the two
+# that can be failed; the rest are acknowledgements.
+TrainingStepAction = Literal["observe", "locate", "acknowledge", "sequence", "choose"]
+
+TrainingProgressStatus = Literal["not_started", "in_progress", "completed", "failed"]
+
+
+class TrainingStep(StrictModel):
+    """One instruction inside a module.
+
+    A step either points at a real asset (`target_asset_id`, resolved against
+    the facility's own 3D scene so training uses live equipment rather than a
+    fabricated mock-up) or at a fixed position in the scene.
+    """
+
+    id: str
+    order: int = Field(ge=1)
+    title: str = Field(min_length=1, max_length=200)
+    instruction: str = Field(min_length=1, max_length=1000)
+    action: TrainingStepAction
+    target_asset_id: str | None = None
+    target_position: list[float] | None = None
+    # For `choose` steps: the options offered and which one is correct.
+    options: list[str] = Field(default_factory=list)
+    correct_option: str | None = None
+    # Seconds allowed before an emergency drill step counts as failed. Null
+    # means untimed, which is every non-drill step.
+    time_limit_seconds: int | None = Field(default=None, ge=1)
+
+
+class TrainingModule(TenantDoc):
+    """A guided VR scenario bound to one facility's 3D scene."""
+
+    id: str
+    title: str = Field(min_length=1, max_length=200)
+    kind: TrainingModuleKind
+    facility_id: str
+    description: str = Field(min_length=1, max_length=2000)
+    steps: list[TrainingStep] = Field(default_factory=list)
+    estimated_minutes: int = Field(ge=1)
+    # Percentage of scored steps needed to pass.
+    pass_threshold: int = Field(default=80, ge=0, le=100)
+    created_by: str
+    deleted_at: datetime | None = None
+
+
+class TrainingModuleCreate(StrictModel):
+    id: str
+    title: str = Field(min_length=1, max_length=200)
+    kind: TrainingModuleKind
+    facility_id: str
+    description: str = Field(min_length=1, max_length=2000)
+    steps: list[TrainingStep] = Field(default_factory=list)
+    estimated_minutes: int = Field(ge=1)
+    pass_threshold: int = Field(default=80, ge=0, le=100)
+
+
+class TrainingProgress(TenantDoc):
+    """One trainee's run of one module.
+
+    Progress is personal, like a notification: the service only ever returns
+    rows whose `user_id` matches the caller, so no new RBAC permission gates a
+    trainee reading their own record.
+    """
+
+    id: str
+    module_id: str
+    user_id: str
+    status: TrainingProgressStatus = "in_progress"
+    completed_step_ids: list[str] = Field(default_factory=list)
+    # Scored steps answered correctly, over scored steps attempted.
+    correct_count: int = Field(default=0, ge=0)
+    scored_count: int = Field(default=0, ge=0)
+    score: int | None = Field(default=None, ge=0, le=100)
+    attempts: int = Field(default=1, ge=1)
+    started_at: datetime
+    completed_at: datetime | None = None
+    created_by: str
+
+
+class TrainingProgressCreate(StrictModel):
+    id: str
+    module_id: str
+    user_id: str
+    status: TrainingProgressStatus = "in_progress"
+    started_at: datetime
+    attempts: int = Field(default=1, ge=1)

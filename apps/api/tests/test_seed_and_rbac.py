@@ -241,6 +241,7 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "inspections",
             "work_orders",
             "documents",
+            "training_modules",
         }
 
         company = client.documents("companies")[ACME_COMPANY_ID]

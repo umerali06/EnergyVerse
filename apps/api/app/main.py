@@ -27,6 +27,7 @@ from app.api.v1.qr import router as qr_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
 from app.api.v1.roles import router as roles_router
 from app.api.v1.safety_reports import router as safety_reports_router
+from app.api.v1.training import router as training_router
 from app.api.v1.users import router as users_router
 from app.api.v1.work_orders import router as work_orders_router
 from app.core.errors import (
@@ -152,6 +153,7 @@ app.include_router(generated_reports_router)
 app.include_router(documents_router)
 app.include_router(billing_router)
 app.include_router(notifications_router)
+app.include_router(training_router)
 
 
 @app.get(

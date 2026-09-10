@@ -62,6 +62,7 @@ import 'package:fev_api_client/src/model/company_profile.dart';
 import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
 import 'package:fev_api_client/src/model/complete_inspection_request.dart';
+import 'package:fev_api_client/src/model/complete_training_step_request.dart';
 import 'package:fev_api_client/src/model/control_permit_request.dart';
 import 'package:fev_api_client/src/model/corrective_action_response.dart';
 import 'package:fev_api_client/src/model/create_annotation_request.dart';
@@ -171,6 +172,11 @@ import 'package:fev_api_client/src/model/signature_stroke_response.dart';
 import 'package:fev_api_client/src/model/submit_permit_request.dart';
 import 'package:fev_api_client/src/model/submit_work_order_for_review_request.dart';
 import 'package:fev_api_client/src/model/subscription_response.dart';
+import 'package:fev_api_client/src/model/training_module_list_page.dart';
+import 'package:fev_api_client/src/model/training_module_response.dart';
+import 'package:fev_api_client/src/model/training_progress_list_page.dart';
+import 'package:fev_api_client/src/model/training_progress_response.dart';
+import 'package:fev_api_client/src/model/training_step_response.dart';
 import 'package:fev_api_client/src/model/transition_safety_report_request.dart';
 import 'package:fev_api_client/src/model/update_annotation_request.dart';
 import 'package:fev_api_client/src/model/update_ar_measurement_request.dart';
@@ -257,6 +263,7 @@ part 'serializers.g.dart';
   CompanyRegistrationRequest,
   CompanyRegistrationResponse,
   CompleteInspectionRequest,
+  CompleteTrainingStepRequest,
   ControlPermitRequest,
   CorrectiveActionResponse,
   CreateAnnotationRequest,
@@ -366,6 +373,11 @@ part 'serializers.g.dart';
   SubmitPermitRequest,
   SubmitWorkOrderForReviewRequest,
   SubscriptionResponse,
+  TrainingModuleListPage,
+  TrainingModuleResponse,
+  TrainingProgressListPage,
+  TrainingProgressResponse,
+  TrainingStepResponse,
   TransitionSafetyReportRequest,
   UpdateAnnotationRequest,
   UpdateArMeasurementRequest,

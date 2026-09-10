@@ -1674,3 +1674,60 @@ class DeviceRegistered(BaseModel):
 
 class DeviceUnregistered(BaseModel):
     unregistered: bool
+
+
+class TrainingStepResponse(BaseModel):
+    id: str
+    order: int
+    title: str
+    instruction: str
+    action: str
+    target_asset_id: str | None = None
+    target_position: list[float] | None = None
+    options: list[str] = Field(default_factory=list)
+    # Deliberately not exposed: `correct_option` stays server-side so the
+    # answer cannot be read out of the payload the trainee's client receives.
+    time_limit_seconds: int | None = None
+
+
+class TrainingModuleResponse(BaseModel):
+    id: str
+    title: str
+    kind: str
+    facility_id: str
+    description: str
+    steps: list[TrainingStepResponse] = Field(default_factory=list)
+    estimated_minutes: int
+    pass_threshold: int
+
+
+class TrainingModuleListPage(BaseModel):
+    items: list[TrainingModuleResponse] = Field(default_factory=list)
+
+
+class TrainingProgressResponse(BaseModel):
+    id: str
+    module_id: str
+    status: str
+    completed_step_ids: list[str] = Field(default_factory=list)
+    correct_count: int = 0
+    scored_count: int = 0
+    score: int | None = None
+    attempts: int = 1
+    started_at: datetime
+    completed_at: datetime | None = None
+
+
+class TrainingProgressListPage(BaseModel):
+    items: list[TrainingProgressResponse] = Field(default_factory=list)
+
+
+class CompleteTrainingStepRequest(BaseModel):
+    # For `choose` steps the client sends what the trainee picked and the
+    # server decides whether it was right -- the correct answer is never sent
+    # out, so the client has nothing to compare against.
+    selected_option: str | None = None
+    # For `locate`/`sequence` steps, whether the trainee reached the target.
+    # Ignored for `choose` (the server judges) and for steps that cannot be
+    # answered wrongly at all.
+    correct: bool | None = None

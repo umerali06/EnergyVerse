@@ -198,6 +198,12 @@ Class | Method | HTTP request | Description
 [*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**uploadSafetyEvidence**](doc/SafetyReportsApi.md#uploadsafetyevidence) | **POST** /api/v1/safety-reports/{report_id}/evidence | Upload Safety Evidence
 [*SystemApi*](doc/SystemApi.md) | [**getHealth**](doc/SystemApi.md#gethealth) | **GET** /health | Health
 [*SystemApi*](doc/SystemApi.md) | [**getRoot**](doc/SystemApi.md#getroot) | **GET** / | Root
+[*TrainingApi*](doc/TrainingApi.md) | [**completeTrainingModule**](doc/TrainingApi.md#completetrainingmodule) | **POST** /api/v1/training/modules/{module_id}/complete | Complete Training Module
+[*TrainingApi*](doc/TrainingApi.md) | [**completeTrainingStep**](doc/TrainingApi.md#completetrainingstep) | **POST** /api/v1/training/modules/{module_id}/steps/{step_id}/complete | Complete Training Step
+[*TrainingApi*](doc/TrainingApi.md) | [**getTrainingModule**](doc/TrainingApi.md#gettrainingmodule) | **GET** /api/v1/training/modules/{module_id} | Get Training Module
+[*TrainingApi*](doc/TrainingApi.md) | [**listTrainingModules**](doc/TrainingApi.md#listtrainingmodules) | **GET** /api/v1/training/modules | List Training Modules
+[*TrainingApi*](doc/TrainingApi.md) | [**listTrainingProgress**](doc/TrainingApi.md#listtrainingprogress) | **GET** /api/v1/training/progress | List Training Progress
+[*TrainingApi*](doc/TrainingApi.md) | [**startTrainingModule**](doc/TrainingApi.md#starttrainingmodule) | **POST** /api/v1/training/modules/{module_id}/start | Start Training Module
 [*UsersApi*](doc/UsersApi.md) | [**getUser**](doc/UsersApi.md#getuser) | **GET** /api/v1/users/{user_id} | Get User
 [*UsersApi*](doc/UsersApi.md) | [**inviteUser**](doc/UsersApi.md#inviteuser) | **POST** /api/v1/users/invite | Invite User
 [*UsersApi*](doc/UsersApi.md) | [**listUsers**](doc/UsersApi.md#listusers) | **GET** /api/v1/users | List Users
@@ -264,6 +270,7 @@ Class | Method | HTTP request | Description
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
  - [CompleteInspectionRequest](doc/CompleteInspectionRequest.md)
+ - [CompleteTrainingStepRequest](doc/CompleteTrainingStepRequest.md)
  - [ControlPermitRequest](doc/ControlPermitRequest.md)
  - [CorrectiveActionResponse](doc/CorrectiveActionResponse.md)
  - [CreateAnnotationRequest](doc/CreateAnnotationRequest.md)
@@ -373,6 +380,11 @@ Class | Method | HTTP request | Description
  - [SubmitPermitRequest](doc/SubmitPermitRequest.md)
  - [SubmitWorkOrderForReviewRequest](doc/SubmitWorkOrderForReviewRequest.md)
  - [SubscriptionResponse](doc/SubscriptionResponse.md)
+ - [TrainingModuleListPage](doc/TrainingModuleListPage.md)
+ - [TrainingModuleResponse](doc/TrainingModuleResponse.md)
+ - [TrainingProgressListPage](doc/TrainingProgressListPage.md)
+ - [TrainingProgressResponse](doc/TrainingProgressResponse.md)
+ - [TrainingStepResponse](doc/TrainingStepResponse.md)
  - [TransitionSafetyReportRequest](doc/TransitionSafetyReportRequest.md)
  - [UpdateAnnotationRequest](doc/UpdateAnnotationRequest.md)
  - [UpdateArMeasurementRequest](doc/UpdateArMeasurementRequest.md)

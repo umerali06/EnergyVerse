@@ -39,3 +39,8 @@ export const MATERIAL_ACCENT = "#0284C7";
 export const HOTSPOT_HEALTHY = "#10B981";
 export const HOTSPOT_WARNING = "#F59E0B";
 export const HOTSPOT_CRITICAL = "#EF4444";
+
+/** VR training target markers: the ring a trainee must reach, and the colour
+ * it takes once that step is behind them. */
+export const TARGET_ACTIVE = "#FB4402";
+export const TARGET_CLEARED = "#57C983";
