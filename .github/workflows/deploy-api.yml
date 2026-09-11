@@ -1,0 +1,129 @@
+name: Deploy API to ECS
+
+# Auto-deploy on every push to main that touches the backend or its contracts.
+# The paths filter keeps a frontend-only or docs-only commit from rebuilding and
+# redeploying the API for no reason; workflow_dispatch is there so you can still
+# force a deploy by hand (a rollback, or after changing a secret).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - "packages/contracts/**"
+      - "infra/aws/ecs-task-definition.json"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+# Two deploys of the same branch must not race each other onto the same
+# service. A newer commit cancels an in-flight older one.
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: fev-api
+  ECS_CLUSTER: fev-cluster
+  ECS_SERVICE: fev-api-service
+  ECS_TASK_DEFINITION: infra/aws/ecs-task-definition.json
+  CONTAINER_NAME: fev-api
+
+jobs:
+  deploy:
+    name: Build, push, and roll out
+    runs-on: ubuntu-latest
+
+    # Required for requesting the OIDC token below. No long-lived AWS keys are
+    # stored in GitHub; the role is assumed per-run and expires with the job.
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deploying a commit that cannot pass its own tests is worse than not
+      # deploying. CI runs these on the same commit, but this workflow must not
+      # depend on that race resolving first.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: poetry install
+
+      - name: Verify before deploying
+        working-directory: apps/api
+        run: |
+          poetry run ruff check .
+          poetry run mypy app scripts
+          poetry run pytest -q
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          # The commit SHA is the tag. `latest` is also pushed for convenience,
+          # but the task definition is pinned to the SHA below so a rollback is
+          # just re-running an older workflow rather than guessing what `latest`
+          # pointed at.
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: apps/api
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
+            .
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Render task definition with the new image
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          # Waits for the rollout to reach a steady state. Combined with the
+          # circuit breaker configured on the service, a task that will not pass
+          # its health check rolls back instead of leaving the service degraded.
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+      - name: Smoke-test the deployed API
+        # A green rollout only means the container started. This proves the
+        # public URL actually serves a healthy response.
+        run: |
+          for attempt in 1 2 3 4 5; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.API_HEALTH_URL }}" || echo "000")
+            echo "attempt $attempt -> HTTP $status"
+            if [ "$status" = "200" ]; then
+              echo "API is healthy."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "API did not return 200 from ${{ secrets.API_HEALTH_URL }}"
+          exit 1

@@ -1,0 +1,26 @@
+# Never let local credentials or local state into an image layer.
+.env
+.env.*
+!.env.example
+*.json.key
+*service-account*.json
+
+# Python/dev noise
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Tests do not run in the production image; the dev dependency group that runs
+# them is not installed there either.
+tests/
+
+# Docs and tooling that have no runtime role
+*.md
+Dockerfile
+.dockerignore
