@@ -131,9 +131,7 @@ def _insert_user(
 
 
 def test_list_requires_users_manage(wiring: dict[str, Any]) -> None:
-    response = _request(
-        _identity(permissions=frozenset({"reports.read"})), "GET", "/api/v1/users"
-    )
+    response = _request(_identity(permissions=frozenset({"reports.read"})), "GET", "/api/v1/users")
     assert response.status_code == 403
     assert response.json()["error"] == "forbidden"
 
@@ -143,9 +141,7 @@ def test_list_returns_real_tenant_users_with_role_fields(wiring: dict[str, Any])
     assert response.status_code == 200
     body = response.json()
     assert len(body["items"]) == 7
-    inspector = next(
-        item for item in body["items"] if item["id"] == "demo-acme-field_inspector"
-    )
+    inspector = next(item for item in body["items"] if item["id"] == "demo-acme-field_inspector")
     assert inspector["email"] == "field_inspector@acme.example.invalid"
     assert inspector["role_key"] == "field_inspector"
     assert inspector["role_name"] == "Field Inspector"
@@ -153,9 +149,7 @@ def test_list_returns_real_tenant_users_with_role_fields(wiring: dict[str, Any])
 
 
 def test_tenants_are_isolated_on_list_and_get(wiring: dict[str, Any]) -> None:
-    response = _request(
-        _identity(company_id=BETA_COMPANY_ID), "GET", "/api/v1/users?limit=50"
-    )
+    response = _request(_identity(company_id=BETA_COMPANY_ID), "GET", "/api/v1/users?limit=50")
     assert response.status_code == 200
     ids = {item["id"] for item in response.json()["items"]}
     assert ids == {"demo-beta-company-admin"}
@@ -170,14 +164,10 @@ def test_tenants_are_isolated_on_list_and_get(wiring: dict[str, Any]) -> None:
 
 
 def test_get_user_returns_effective_permissions(wiring: dict[str, Any]) -> None:
-    response = _request(
-        _identity(), "GET", "/api/v1/users/demo-acme-hse_manager"
-    )
+    response = _request(_identity(), "GET", "/api/v1/users/demo-acme-hse_manager")
     assert response.status_code == 200
     body = response.json()
-    assert set(body["permissions"]) == set(
-        SYSTEM_ROLE_TEMPLATES["hse_manager"].permission_keys
-    )
+    assert set(body["permissions"]) == set(SYSTEM_ROLE_TEMPLATES["hse_manager"].permission_keys)
 
 
 def test_search_matches_name_or_email(wiring: dict[str, Any]) -> None:
@@ -200,17 +190,11 @@ def test_role_and_status_filters(wiring: dict[str, Any], monkeypatch: pytest.Mon
     )
     inspector_role_id = role_id(ACME_COMPANY_ID, "field_inspector")
 
-    by_role = _request(
-        _identity(), "GET", f"/api/v1/users?role_id={inspector_role_id}"
-    )
-    assert {item["id"] for item in by_role.json()["items"]} == {
-        "demo-acme-field_inspector"
-    }
+    by_role = _request(_identity(), "GET", f"/api/v1/users?role_id={inspector_role_id}")
+    assert {item["id"] for item in by_role.json()["items"]} == {"demo-acme-field_inspector"}
 
     by_status = _request(_identity(), "GET", "/api/v1/users?status=inactive")
-    assert {item["id"] for item in by_status.json()["items"]} == {
-        "demo-acme-executive"
-    }
+    assert {item["id"] for item in by_status.json()["items"]} == {"demo-acme-executive"}
 
 
 def test_pagination_cursor_walks_without_overlap(wiring: dict[str, Any]) -> None:
@@ -291,8 +275,7 @@ def test_invite_creates_auth_user_firestore_doc_claims_and_audit(
 
     audits = asyncio.run(AuditLogRepository(client).list(scope))
     assert any(
-        entry.action == "user.provisioned" and entry.target_id == body["id"]
-        for entry in audits
+        entry.action == "user.provisioned" and entry.target_id == body["id"] for entry in audits
     )
 
 

@@ -98,10 +98,12 @@ class InspectionVoiceNotesSection extends StatefulWidget {
   final bool editable;
 
   @override
-  State<InspectionVoiceNotesSection> createState() => _InspectionVoiceNotesSectionState();
+  State<InspectionVoiceNotesSection> createState() =>
+      _InspectionVoiceNotesSectionState();
 }
 
-class _InspectionVoiceNotesSectionState extends State<InspectionVoiceNotesSection> {
+class _InspectionVoiceNotesSectionState
+    extends State<InspectionVoiceNotesSection> {
   final AudioPlayer _player = AudioPlayer();
   String? _playingId;
   StreamSubscription<void>? _completeSubscription;
@@ -146,7 +148,8 @@ class _InspectionVoiceNotesSectionState extends State<InspectionVoiceNotesSectio
 
   Future<void> _remove(_VoiceItem item) {
     if (item.isLocalOnly) {
-      return MediaProvider.repositoryOf(context).removeBeforeSync(item.localId!);
+      return MediaProvider.repositoryOf(context)
+          .removeBeforeSync(item.localId!);
     }
     return SyncProvider.repositoryOf(context).enqueueDetachVoiceNote(
       inspectionId: widget.inspectionId,
@@ -167,7 +170,8 @@ class _InspectionVoiceNotesSectionState extends State<InspectionVoiceNotesSectio
     return SyncProvider.repositoryOf(context).enqueueEditVoiceNote(
       inspectionId: widget.inspectionId,
       voiceNoteId: item.id,
-      request: UpdateVoiceNoteRequest((b) => b..checklistItemId = checklistItemId),
+      request:
+          UpdateVoiceNoteRequest((b) => b..checklistItemId = checklistItemId),
     );
   }
 
@@ -200,8 +204,9 @@ class _InspectionVoiceNotesSectionState extends State<InspectionVoiceNotesSectio
     return StreamBuilder<List<MediaQueueRecord>>(
       stream: mediaRepository.watchMediaForInspection(widget.inspectionId),
       builder: (context, snapshot) {
-        final queued =
-            (snapshot.data ?? const []).where((row) => row.kind == 'audio').toList();
+        final queued = (snapshot.data ?? const [])
+            .where((row) => row.kind == 'audio')
+            .toList();
         final items = <_VoiceItem>[
           ...widget.serverVoiceNotes.map(_VoiceItem.synced),
           ...queued.map(_VoiceItem.queued),
@@ -219,7 +224,8 @@ class _InspectionVoiceNotesSectionState extends State<InspectionVoiceNotesSectio
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('VOICE NOTES',
-                    style: TextStyle(color: context.semantic.textMuted, letterSpacing: 1)),
+                    style: TextStyle(
+                        color: context.semantic.textMuted, letterSpacing: 1)),
                 if (totalCount > 0)
                   Text(
                     '$uploadedCount of $totalCount uploaded',
@@ -232,7 +238,8 @@ class _InspectionVoiceNotesSectionState extends State<InspectionVoiceNotesSectio
             if (items.isEmpty)
               const EmptyState(
                 title: 'No voice notes yet',
-                description: 'Record a hands-free note to attach to this inspection.',
+                description:
+                    'Record a hands-free note to attach to this inspection.',
               )
             else
               ...items.map(
@@ -246,7 +253,8 @@ class _InspectionVoiceNotesSectionState extends State<InspectionVoiceNotesSectio
                     playing: _playingId == item.id,
                     onTogglePlay: () => unawaited(_togglePlay(item)),
                     onRemove: () => unawaited(_remove(item)),
-                    onSetChecklistItem: (id) => unawaited(_setChecklistItem(item, id)),
+                    onSetChecklistItem: (id) =>
+                        unawaited(_setChecklistItem(item, id)),
                   ),
                 ),
               ),
@@ -294,7 +302,9 @@ class _VoiceNoteTile extends StatelessWidget {
         children: [
           IconButton(
             key: Key('voice-play-${item.id}'),
-            icon: Icon(playing ? Icons.pause_circle_outline : Icons.play_circle_outline),
+            icon: Icon(playing
+                ? Icons.pause_circle_outline
+                : Icons.play_circle_outline),
             onPressed: onTogglePlay,
           ),
           const SizedBox(width: DsSpacing.s2),
@@ -302,7 +312,8 @@ class _VoiceNoteTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(formatVoiceNoteDuration(Duration(milliseconds: item.durationMs))),
+                Text(formatVoiceNoteDuration(
+                    Duration(milliseconds: item.durationMs))),
                 if (linked != null)
                   Text(
                     linked.label,
@@ -336,7 +347,8 @@ class _VoiceNoteTile extends StatelessWidget {
               itemBuilder: (context) => [
                 if (item.isLocalOnly)
                   const PopupMenuItem(
-                      value: 'checklist:', child: Text('Unlink checklist item')),
+                      value: 'checklist:',
+                      child: Text('Unlink checklist item')),
                 for (final checklistItem in checklistItems)
                   PopupMenuItem(
                     value: 'checklist:${checklistItem.id}',

@@ -75,15 +75,15 @@ class UserManagementService:
 
     def _to_list_item(self, user: User, roles_by_id: dict[str, Role]) -> UserListItem:
         role = roles_by_id.get(user.role_id)
-        if role is None:
-            raise LookupError(f"role {user.role_id} not found for user {user.id}")
+        role_key = role.key if role else (user.role_id or "unknown")
+        role_name = role.name if role else (user.role_id or "Unknown Role")
         return UserListItem(
             id=user.id,
             email=user.email,
             display_name=user.display_name,
             role_id=user.role_id,
-            role_key=role.key,
-            role_name=role.name,
+            role_key=role_key,
+            role_name=role_name,
             status=user.status,
             created_at=user.created_at,
             updated_at=user.updated_at,
@@ -95,9 +95,7 @@ class UserManagementService:
         }
         users = await self._users.list(scope)
         return sum(
-            1
-            for user in users
-            if user.status == "active" and user.role_id in admin_role_ids
+            1 for user in users if user.status == "active" and user.role_id in admin_role_ids
         )
 
     async def list_users(
@@ -149,9 +147,7 @@ class UserManagementService:
         page = users[:limit]
         roles_by_id = {role.id: role for role in await self._roles.list(scope)}
         items = [self._to_list_item(user, roles_by_id) for user in page]
-        next_cursor = (
-            _encode_cursor(page[-1].id) if len(users) > limit and page else None
-        )
+        next_cursor = _encode_cursor(page[-1].id) if len(users) > limit and page else None
         return UserListPage(items=items, next_cursor=next_cursor)
 
     async def get_user(self, scope: CompanyScope, user_id: str) -> UserDetail:

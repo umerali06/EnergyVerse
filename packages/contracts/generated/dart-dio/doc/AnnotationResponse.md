@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **createdAt** | [**DateTime**](DateTime.md) |  |
 **createdBy** | **String** |  |
 **damageType** | **String** |  | [optional]
+**frameTimestampSeconds** | **num** |  | [optional]
 **id** | **String** |  |
 **mediaLocalId** | **String** |  |
 **note** | **String** |  | [optional]

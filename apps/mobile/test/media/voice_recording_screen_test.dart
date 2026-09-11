@@ -29,7 +29,8 @@ Widget fakeRecorderBuilder(
           child: const Text('Simulate finished recording'),
         ),
         ElevatedButton(
-          onPressed: () => onError(voiceRecordingErrorMessage(Exception('permission denied'))),
+          onPressed: () => onError(
+              voiceRecordingErrorMessage(Exception('permission denied'))),
           child: const Text('Simulate mic permission denied'),
         ),
       ],
@@ -47,10 +48,11 @@ Future<void> pumpRecordingScreen(WidgetTester tester) async {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                final result = await Navigator.of(context).push<VoiceRecordingResult>(
+                final result =
+                    await Navigator.of(context).push<VoiceRecordingResult>(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        const VoiceRecordingScreen(recorderBuilder: fakeRecorderBuilder),
+                    builder: (_) => const VoiceRecordingScreen(
+                        recorderBuilder: fakeRecorderBuilder),
                   ),
                 );
                 recordedResult = result;
@@ -92,7 +94,8 @@ void main() {
   group('formatVoiceNoteDuration', () {
     test('formats as mm:ss, zero-padded', () {
       expect(formatVoiceNoteDuration(const Duration(seconds: 5)), '00:05');
-      expect(formatVoiceNoteDuration(const Duration(minutes: 2, seconds: 3)), '02:03');
+      expect(formatVoiceNoteDuration(const Duration(minutes: 2, seconds: 3)),
+          '02:03');
       expect(formatVoiceNoteDuration(const Duration(minutes: 10)), '10:00');
     });
   });
@@ -125,7 +128,8 @@ void main() {
     expect(find.text('Simulate mic permission denied'), findsOneWidget);
   });
 
-  testWidgets('a simulated recording pops the screen with the VoiceRecordingResult',
+  testWidgets(
+      'a simulated recording pops the screen with the VoiceRecordingResult',
       (tester) async {
     await pumpRecordingScreen(tester);
 
@@ -134,10 +138,12 @@ void main() {
 
     expect(recordedResult?.path, '/tmp/note.m4a');
     expect(recordedResult?.durationMs, 42000);
-    expect(find.text('Open recorder'), findsOneWidget); // back on the host screen
+    expect(
+        find.text('Open recorder'), findsOneWidget); // back on the host screen
   });
 
-  testWidgets('renders a graceful message when mic permission is denied', (tester) async {
+  testWidgets('renders a graceful message when mic permission is denied',
+      (tester) async {
     await pumpRecordingScreen(tester);
 
     await tester.tap(find.text('Simulate mic permission denied'));

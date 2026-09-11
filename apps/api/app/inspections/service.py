@@ -3,6 +3,11 @@ import binascii
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from app.ai.video_frames import (
+    VideoDecodeError,
+    VideoFrameExtractor,
+    get_video_frame_extractor,
+)
 from app.ai.vision_client import AiClientError, VisionAnalysisClient, get_vision_client
 from app.audit.service import AuditService
 from app.db.firestore import get_firestore_client
@@ -107,6 +112,29 @@ class InspectionServiceError(Exception):
         self.details = details
 
 
+INSPECTION_TYPE_LABELS: dict[str, str] = {
+    "routine": "Routine inspection",
+    "scheduled": "Scheduled inspection",
+    "ad_hoc": "Ad-hoc inspection",
+}
+
+
+def derive_title(title: str | None, asset_name: str, inspection_type: str) -> str:
+    """Give every inspection a human-readable title.
+
+    A title is optional on the wire (offline clients create drafts before the
+    inspector has typed anything), but a record that reaches a reviewer with no
+    title reads as "Untitled". When the caller supplies nothing usable we name
+    the inspection after the asset it was raised against, which is the detail a
+    reviewer actually scans for.
+    """
+    supplied = (title or "").strip()
+    if supplied:
+        return supplied
+    label = INSPECTION_TYPE_LABELS.get(inspection_type, "Inspection")
+    return f"{label} - {asset_name}"
+
+
 def _encode_cursor(inspection_id: str) -> str:
     return base64.urlsafe_b64encode(inspection_id.encode()).decode()
 
@@ -163,9 +191,7 @@ def _to_detail(inspection: Inspection, storage: InspectionMediaStorage) -> Inspe
         checklist_items_snapshot=[
             item.model_dump() for item in inspection.checklist_items_snapshot
         ],
-        checklist_responses=[
-            response.model_dump() for response in inspection.checklist_responses
-        ],
+        checklist_responses=[response.model_dump() for response in inspection.checklist_responses],
         gps_lat=inspection.gps_lat,
         gps_lng=inspection.gps_lng,
         client_created_at=inspection.client_created_at,
@@ -193,6 +219,7 @@ class InspectionService:
         users: UserRepository,
         storage: InspectionMediaStorage | None = None,
         ai_client: VisionAnalysisClient | None = None,
+        frame_extractor: VideoFrameExtractor | None = None,
     ) -> None:
         self._inspections = inspections
         self._assets = assets
@@ -200,6 +227,7 @@ class InspectionService:
         self._users = users
         self._storage = storage or get_inspection_media_storage()
         self._ai_client = ai_client or get_vision_client()
+        self._frame_extractor = frame_extractor or get_video_frame_extractor()
 
     async def _active_asset(self, scope: CompanyScope, asset_id: str) -> Asset:
         asset = await self._assets.get(scope, asset_id)
@@ -250,7 +278,7 @@ class InspectionService:
             inspector_id=actor_uid,
             status="draft",
             inspection_type=request.inspection_type,
-            title=request.title,
+            title=derive_title(request.title, asset.name, request.inspection_type),
             notes=request.notes,
             gps_lat=request.gps_lat,
             gps_lng=request.gps_lng,
@@ -324,9 +352,7 @@ class InspectionService:
         inspection = await self._active_inspection(scope, inspection_id)
         return _to_detail(inspection, self._storage)
 
-    def _value_matches_type(
-        self, value: object, item_type: str, options: list[str] | None
-    ) -> bool:
+    def _value_matches_type(self, value: object, item_type: str, options: list[str] | None) -> bool:
         if item_type == "boolean":
             return isinstance(value, bool)
         if item_type == "numeric":
@@ -417,9 +443,7 @@ class InspectionService:
             gps_lng = request.gps_lng if "gps_lng" in provided else current.gps_lng
             self._validate_gps(gps_lat, gps_lng)
         if request.checklist_responses is not None:
-            stamped = self._validate_responses(
-                current, request.checklist_responses, actor_uid
-            )
+            stamped = self._validate_responses(current, request.checklist_responses, actor_uid)
             provided["checklist_responses"] = self._merge_checklist_responses(
                 current.checklist_responses, stamped
             )
@@ -598,6 +622,7 @@ class InspectionService:
                 scope,
                 updated.asset_id,
                 new_status=new_status,
+                new_condition=updated.readings.condition,
                 inspection_id=inspection_id,
                 actor_uid=actor_uid,
             )
@@ -755,9 +780,7 @@ class InspectionService:
         (voice notes have none of those) plus `duration_ms`."""
         current = await self._active_inspection(scope, inspection_id)
 
-        existing = next(
-            (v for v in current.voice_notes if v.local_id == request.local_id), None
-        )
+        existing = next((v for v in current.voice_notes if v.local_id == request.local_id), None)
         if existing is not None:
             if (
                 existing.filename == request.filename
@@ -1061,16 +1084,23 @@ class InspectionService:
     async def analyze_media(
         self, scope: CompanyScope, inspection_id: str, media_id: str, actor_uid: str
     ) -> InspectionDetail:
-        """Runs Claude vision analysis on one already-attached photo (spec 8
-        "AI Photo & Video Analysis", Phase 7.10) -- `media_id` is the media
-        item's server id, matching `update_media`/`detach_media`'s own path
-        parameter convention; internally resolved to the `local_id`
-        `Annotation.media_local_id` actually references. Video is out of
-        scope for this phase (no frame-extraction pipeline exists). Every
-        finding lands as its own `Annotation(source="ai", confidence=...)`,
-        never auto-confirmed; `AiAnalysis` carries the run's summary/
-        recommendations/risk level and starts `reviewed=False` until the
-        inspector explicitly reviews it."""
+        """Runs Claude vision analysis on one already-attached photo or video
+        (spec 8 "AI Photo & Video Analysis") -- `media_id` is the media item's
+        server id, matching `update_media`/`detach_media`'s own path parameter
+        convention; internally resolved to the `local_id`
+        `Annotation.media_local_id` actually references.
+
+        A photo is sent as a single image. A video is first sampled into
+        frames (Claude's vision API takes images, not clips) and those frames
+        are analysed together in one request, so a defect recurring across
+        frames is reported once rather than per frame; each finding carries the
+        offset of the frame it was seen in, without which its normalized
+        coordinates would be meaningless.
+
+        Every finding lands as its own `Annotation(source="ai",
+        confidence=...)`, never auto-confirmed; `AiAnalysis` carries the run's
+        summary/recommendations/risk level and starts `reviewed=False` until
+        the inspector explicitly reviews it."""
         current = await self._active_inspection(scope, inspection_id)
         media = next((m for m in current.media if m.id == media_id), None)
         if media is None:
@@ -1080,17 +1110,30 @@ class InspectionService:
                 "No media item with that id exists on this inspection",
                 {"media_id": media_id},
             )
-        if media.kind != "photo":
+        if media.kind not in ("photo", "video"):
             raise InspectionServiceError(
                 422,
                 "ai_analysis_unsupported_media_kind",
-                "AI analysis currently supports photos only",
+                "AI analysis supports photos and videos only",
                 {"kind": media.kind},
             )
 
-        image_bytes = self._storage.download_bytes(media.path)
+        media_bytes = self._storage.download_bytes(media.path)
+        frames_analyzed: int | None = None
         try:
-            result = await self._ai_client.analyze_photo(image_bytes, media.content_type)
+            if media.kind == "video":
+                # Claude's vision API takes images, so the clip is sampled into
+                # frames first; the count is recorded on the analysis so a
+                # reviewer knows how much of the clip the summary is based on.
+                frames = self._frame_extractor.extract(media_bytes, media.content_type)
+                frames_analyzed = len(frames)
+                result = await self._ai_client.analyze_video_frames(frames)
+            else:
+                result = await self._ai_client.analyze_photo(media_bytes, media.content_type)
+        except VideoDecodeError as error:
+            raise InspectionServiceError(
+                422, "ai_analysis_video_undecodable", str(error)
+            ) from error
         except AiClientError as error:
             raise InspectionServiceError(502, "ai_analysis_failed", str(error)) from error
 
@@ -1106,6 +1149,9 @@ class InspectionService:
                 note=finding.note,
                 source="ai",
                 confidence=finding.confidence,
+                frame_timestamp_seconds=(
+                    finding.frame_timestamp_seconds if media.kind == "video" else None
+                ),
                 created_by=actor_uid,
                 created_at=now,
             )
@@ -1119,6 +1165,8 @@ class InspectionService:
             recommendations=result.recommendations,
             risk_level=result.risk_level,
             annotation_ids=[a.id for a in new_annotations],
+            media_kind=media.kind,
+            frames_analyzed=frames_analyzed,
             created_by=actor_uid,
             created_at=now,
         )

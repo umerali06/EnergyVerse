@@ -124,7 +124,6 @@ export function CurrentUserToJSONTyped(value?: CurrentUser | null, ignoreDiscrim
 
     return {
 
-            ...value,
         'company_id': value['companyId'],
         'company_locale': value['companyLocale'],
         'company_name': value['companyName'],

@@ -23,7 +23,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = useCallback((message: string, tone: StatusTone = "info") => {
     const id = Date.now() + Math.random();
     setItems((current) => [...current, { id, message, tone }]);
-    window.setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 3200);
+    setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 3200);
   }, []);
   const value = useMemo<ToastApi>(
     () => ({

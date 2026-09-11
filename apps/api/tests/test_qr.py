@@ -128,9 +128,7 @@ def test_resolve_cross_tenant_code_returns_404(wiring: dict[str, Any]) -> None:
     created = _create_asset(_identity(), asset_tag="QR-CROSS").json()
     code = created["qr_code_id"]
 
-    response = _request(
-        _identity(company_id=BETA_COMPANY_ID), "GET", f"/api/v1/qr/{code}/resolve"
-    )
+    response = _request(_identity(company_id=BETA_COMPANY_ID), "GET", f"/api/v1/qr/{code}/resolve")
     assert response.status_code == 404
     assert response.json()["error"] == "qr_code_not_found"
 
@@ -144,9 +142,7 @@ def test_resolve_without_assets_read_returns_403(wiring: dict[str, Any]) -> None
     created = _create_asset(_identity(), asset_tag="QR-FORBIDDEN").json()
     code = created["qr_code_id"]
 
-    response = _request(
-        _identity(permissions=frozenset()), "GET", f"/api/v1/qr/{code}/resolve"
-    )
+    response = _request(_identity(permissions=frozenset()), "GET", f"/api/v1/qr/{code}/resolve")
     assert response.status_code == 403
 
 

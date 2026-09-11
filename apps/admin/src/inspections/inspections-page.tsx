@@ -18,7 +18,7 @@ import {
   type StatusTone,
 } from "@/design-system";
 
-import { useInspectionsData } from "./inspections-data";
+import { inspectorName, useInspectionsData } from "./inspections-data";
 
 function statusTone(status: string): StatusTone {
   switch (status) {
@@ -69,7 +69,9 @@ export function InspectionsPage({
           <Badge>{statusLabel(inspection.inspectionType)}</Badge>
         </td>
         <td className="p-3 text-bodySmall font-semibold">{inspection.title ?? "Untitled"}</td>
-        <td className="p-3 font-mono text-caption text-text-secondary">{inspection.inspectorId}</td>
+        <td className="p-3 text-caption text-text-secondary">
+          {inspectorName(data.users.items, inspection.inspectorId)}
+        </td>
         <td
           className="p-3 font-mono text-caption text-text-muted"
           title={inspection.updatedAt.toISOString()}

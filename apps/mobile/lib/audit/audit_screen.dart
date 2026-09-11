@@ -21,12 +21,15 @@ String _formatValue(dynamic value, {int indent = 0}) {
   if (value is Map) {
     if (value.isEmpty) return '$pad(empty)';
     return value.entries
-        .map((entry) => '$pad${entry.key}: ${_formatValue(entry.value, indent: indent + 1).trimLeft()}')
+        .map((entry) =>
+            '$pad${entry.key}: ${_formatValue(entry.value, indent: indent + 1).trimLeft()}')
         .join('\n');
   }
   if (value is List) {
     if (value.isEmpty) return '$pad(none)';
-    return value.map((item) => '$pad- ${_formatValue(item).trimLeft()}').join('\n');
+    return value
+        .map((item) => '$pad- ${_formatValue(item).trimLeft()}')
+        .join('\n');
   }
   return '$pad$value';
 }
@@ -65,7 +68,8 @@ class _AuditScreenState extends State<AuditScreen> {
       context: context,
       firstDate: DateTime(now.year - 2),
       lastDate: now,
-      initialDateRange: DateTimeRange(start: controller.fromDate, end: controller.toDate),
+      initialDateRange:
+          DateTimeRange(start: controller.fromDate, end: controller.toDate),
     );
     if (picked != null) {
       await controller.setDateRange(picked.start, picked.end);
@@ -119,9 +123,11 @@ class _AuditScreenState extends State<AuditScreen> {
               Expanded(
                 child: AppSelect<String?>(
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('All actions')),
+                    const DropdownMenuItem(
+                        value: null, child: Text('All actions')),
                     for (final action in controller.actions)
-                      DropdownMenuItem(value: action, child: Text(describeAction(action))),
+                      DropdownMenuItem(
+                          value: action, child: Text(describeAction(action))),
                   ],
                   label: 'Action',
                   onChanged: controller.setActionFilter,
@@ -132,9 +138,11 @@ class _AuditScreenState extends State<AuditScreen> {
               Expanded(
                 child: AppSelect<String?>(
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('All targets')),
+                    const DropdownMenuItem(
+                        value: null, child: Text('All targets')),
                     for (final targetType in controller.targetTypes)
-                      DropdownMenuItem(value: targetType, child: Text(targetType)),
+                      DropdownMenuItem(
+                          value: targetType, child: Text(targetType)),
                   ],
                   label: 'Target type',
                   onChanged: controller.setTargetTypeFilter,
@@ -168,7 +176,8 @@ class _AuditScreenState extends State<AuditScreen> {
                 onPressed: controller.retry,
                 variant: AppButtonVariant.ghost,
               ),
-              description: "Couldn't load the audit log. Check your connection and try again.",
+              description:
+                  "Couldn't load the audit log. Check your connection and try again.",
               title: 'Something went wrong',
             )
           else if (controller.items.isEmpty)
@@ -217,7 +226,8 @@ class _AuditRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(iconFor(actionIconFor(entry.action)), color: context.semantic.textMuted),
+              Icon(iconFor(actionIconFor(entry.action)),
+                  color: context.semantic.textMuted),
               const SizedBox(width: DsSpacing.s3),
               Expanded(
                 child: Column(
@@ -272,12 +282,14 @@ class _AuditDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metadata = _plainMetadata(entry.metadata);
-    final hasBeforeAfter = metadata.containsKey('before') || metadata.containsKey('after');
+    final hasBeforeAfter =
+        metadata.containsKey('before') || metadata.containsKey('after');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(describeAction(entry.action), style: Theme.of(context).textTheme.titleLarge),
+        Text(describeAction(entry.action),
+            style: Theme.of(context).textTheme.titleLarge),
         Text(
           formatCompanyDateTime(entry.createdAt),
           style: TextStyle(
@@ -298,20 +310,23 @@ class _AuditDetailBody extends StatelessWidget {
         const SizedBox(height: DsSpacing.s4),
         Text(
           formatTarget(entry.targetType, entry.targetId),
-          style: TextStyle(fontFamily: DsTypography.mono, color: context.semantic.textMuted),
+          style: TextStyle(
+              fontFamily: DsTypography.mono, color: context.semantic.textMuted),
         ),
         const SizedBox(height: DsSpacing.s4),
         if (hasBeforeAfter) ...[
           if (metadata.containsKey('before')) ...[
             Text('BEFORE', style: Theme.of(context).textTheme.labelSmall),
             const SizedBox(height: DsSpacing.s2),
-            Text(_formatValue(metadata['before']), style: TextStyle(fontFamily: DsTypography.mono)),
+            Text(_formatValue(metadata['before']),
+                style: TextStyle(fontFamily: DsTypography.mono)),
             const SizedBox(height: DsSpacing.s3),
           ],
           if (metadata.containsKey('after')) ...[
             Text('AFTER', style: Theme.of(context).textTheme.labelSmall),
             const SizedBox(height: DsSpacing.s2),
-            Text(_formatValue(metadata['after']), style: TextStyle(fontFamily: DsTypography.mono)),
+            Text(_formatValue(metadata['after']),
+                style: TextStyle(fontFamily: DsTypography.mono)),
           ],
         ] else if (metadata.isEmpty)
           Text(
@@ -321,7 +336,8 @@ class _AuditDetailBody extends StatelessWidget {
         else ...[
           Text('DETAILS', style: Theme.of(context).textTheme.labelSmall),
           const SizedBox(height: DsSpacing.s2),
-          Text(_formatValue(metadata), style: TextStyle(fontFamily: DsTypography.mono)),
+          Text(_formatValue(metadata),
+              style: TextStyle(fontFamily: DsTypography.mono)),
         ],
         const SizedBox(height: DsSpacing.s4),
       ],

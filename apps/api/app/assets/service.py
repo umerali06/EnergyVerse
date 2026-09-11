@@ -39,22 +39,26 @@ SORT_OPTIONS = frozenset({"name", "-name", "created_at", "-created_at", "asset_t
 MEDIA_RULES: dict[str, tuple[frozenset[str], int]] = {
     "photo": (frozenset({"image/jpeg", "image/png", "image/webp", "image/heic"}), 10 * 1024 * 1024),
     "document": (
-        frozenset({
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-        }),
+        frozenset(
+            {
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+            }
+        ),
         25 * 1024 * 1024,
     ),
     "manual": (
-        frozenset({
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }),
+        frozenset(
+            {
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            }
+        ),
         50 * 1024 * 1024,
     ),
 }
@@ -104,6 +108,7 @@ def _to_list_item(asset: Asset) -> AssetListItem:
         gps_lat=asset.gps_lat,
         gps_lng=asset.gps_lng,
         current_status=asset.current_status,
+        current_condition=asset.current_condition,
         created_at=asset.created_at,
         updated_at=asset.updated_at,
     )
@@ -254,8 +259,7 @@ class AssetManagementService:
             raise AssetManagementError(
                 422,
                 "invalid_sort",
-                "sort must be one of name, -name, created_at, -created_at, "
-                "asset_tag, -asset_tag",
+                "sort must be one of name, -name, created_at, -created_at, asset_tag, -asset_tag",
             )
         # Push at most one equality filter down to the Firestore-level, indexed
         # query (priority facility_id > category > current_status); any other
@@ -331,12 +335,8 @@ class AssetManagementService:
         """
         await self._active_asset(scope, asset_id)
         rows = await self._inspections.query(scope, asset_id=asset_id)
-        completed = [
-            row for row in rows if row.deleted_at is None and row.status == "completed"
-        ]
-        completed.sort(
-            key=lambda row: (row.completed_at or row.updated_at, row.id), reverse=True
-        )
+        completed = [row for row in rows if row.deleted_at is None and row.status == "completed"]
+        completed.sort(key=lambda row: (row.completed_at or row.updated_at, row.id), reverse=True)
 
         if cursor:
             last_id = _decode_cursor(cursor)
@@ -369,9 +369,7 @@ class AssetManagementService:
             name=asset.name,
         )
 
-    async def resolve_qr_code(
-        self, scope: CompanyScope, code: str, actor_uid: str
-    ) -> QrScanResult:
+    async def resolve_qr_code(self, scope: CompanyScope, code: str, actor_uid: str) -> QrScanResult:
         """Company-scoped resolve: a code from another tenant, or no match at
         all, returns the identical 404 (never 403) so a scan can't be used to
         probe whether a code exists (D-042)."""
@@ -454,9 +452,7 @@ class AssetManagementService:
         if "area_id" in provided and request.area_id is not None:
             await self._require_area_in_facility(scope, request.area_id, facility_id)
         elif (
-            "facility_id" in provided
-            and "area_id" not in provided
-            and current.area_id is not None
+            "facility_id" in provided and "area_id" not in provided and current.area_id is not None
         ):
             # Facility changed but area didn't -- the existing area must still
             # belong to the new facility, or the hierarchy would be broken.
@@ -501,7 +497,9 @@ class AssetManagementService:
         content_type = file.content_type or ""
         if content_type not in allowed_types:
             raise AssetManagementError(
-                422, "invalid_media_type", f"File type is not allowed for {kind}s",
+                422,
+                "invalid_media_type",
+                f"File type is not allowed for {kind}s",
                 {"content_type": content_type, "allowed_types": sorted(allowed_types)},
             )
         data = await file.read(max_bytes + 1)
@@ -509,13 +507,13 @@ class AssetManagementService:
             raise AssetManagementError(422, "empty_media", "Uploaded file is empty")
         if len(data) > max_bytes:
             raise AssetManagementError(
-                413, "media_too_large", f"{kind.title()} exceeds the size limit",
+                413,
+                "media_too_large",
+                f"{kind.title()} exceeds the size limit",
                 {"max_bytes": max_bytes},
             )
         filename = Path(file.filename or "upload").name
-        path = self._storage.upload(
-            scope.company_id, asset_id, kind, filename, data, content_type
-        )
+        path = self._storage.upload(scope.company_id, asset_id, kind, filename, data, content_type)
         media = AssetMedia(
             id=f"media_{uuid4().hex}",
             path=path,

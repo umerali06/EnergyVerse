@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { Button, Card, Input, Logo, MotionSection, StatusPill } from "@/design-system";
+import { APP_HOME } from "@/navigation/routes";
 
 import { useAuth } from "./auth-context";
 import { safeInternalPath } from "./route-guards";
@@ -472,7 +473,7 @@ export function RbacDemoScreen({ reducedMotionOverride }: { reducedMotionOverrid
             <span className="font-mono text-bodySmall">/api/v1/_rbac-demo/single</span>.
           </p>
           <div className="mt-7">
-            <Button onClick={() => router.push("/")} variant="ghost">
+            <Button onClick={() => router.push(APP_HOME)} variant="ghost">
               Back to Home
             </Button>
           </div>

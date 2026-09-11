@@ -25,6 +25,7 @@ REAL_AUTH_CONFIGURED = bool(
 )
 def test_real_firebase_password_sign_in_and_me() -> None:
     reset_firestore_client_for_testing()
+
     async def exercise_auth_chain() -> None:
         await run_seed(with_auth_users=True)
         email = "field_inspector@acme.example.invalid"

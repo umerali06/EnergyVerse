@@ -86,7 +86,6 @@ export function CompanyRegistrationRequestToJSONTyped(value?: CompanyRegistratio
 
     return {
 
-            ...value,
         'company_name': value['companyName'],
         'display_name': value['displayName'],
         'email': value['email'],

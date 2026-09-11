@@ -66,9 +66,7 @@ class CompanyProfileService:
             try:
                 logo_url = self._storage.signed_url_for(company.logo_path)
             except Exception:
-                logger.exception(
-                    "Failed to generate signed URL for company %s logo", company.id
-                )
+                logger.exception("Failed to generate signed URL for company %s logo", company.id)
         return CompanyProfile(
             id=company.id,
             name=company.name,

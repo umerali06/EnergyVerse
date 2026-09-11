@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/dashboard_fixtures.dart';
+import 'support/subscription_fixtures.dart';
 
 const session = AuthSession(
   uid: 'firebase-uid',
@@ -77,6 +78,10 @@ class FakeApi implements ApiContract {
   int requests = 0;
 
   @override
+  Future<SubscriptionResponse> getSubscription() async =>
+      subscriptionResponseFixture();
+
+  @override
   Future<CurrentUser> getCurrentUser() async {
     requests += 1;
     return result;
@@ -107,11 +112,17 @@ class FakeApi implements ApiContract {
       emptyDashboardActivityPage();
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) async =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) async =>
       dashboardSeriesFixture(windowDays: window);
 
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() async => assetDashboardSummaryFixture();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() async =>
+      assetDashboardSummaryFixture();
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() async =>
+      safetyDashboardSummaryFixture();
 
   @override
   Future<UserListPage> getUsers({
@@ -150,7 +161,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
 
   @override
@@ -171,7 +183,8 @@ class FakeApi implements ApiContract {
   Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      throw UnimplementedError();
 
   @override
   Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
@@ -187,7 +200,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
 
   @override
   Future<AreaListPage> getAreas({
@@ -214,7 +228,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> getInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
@@ -228,7 +243,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> startInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> completeInspection(
@@ -238,7 +254,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> cancelInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
@@ -263,7 +280,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> detachInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -282,7 +300,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) =>
+  Future<InspectionDetail> detachInspectionVoiceNote(
+          String inspectionId, String voiceNoteId) =>
       throw UnimplementedError();
 
   @override
@@ -301,7 +320,8 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) =>
+  Future<InspectionDetail> deleteInspectionAnnotation(
+          String inspectionId, String annotationId) =>
       throw UnimplementedError();
 
   @override
@@ -325,11 +345,13 @@ class FakeApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> analyzeInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> analyzeInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> reviewInspectionAiAnalysis(String inspectionId, String analysisId) =>
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+          String inspectionId, String analysisId) =>
       throw UnimplementedError();
 
   @override
@@ -342,6 +364,55 @@ class FakeApi implements ApiContract {
 
   @override
   Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> createWorkOrder(CreateWorkOrderRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> assignWorkOrder(
+    String workOrderId,
+    AssignWorkOrderRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) =>
       throw UnimplementedError();
 }
 
@@ -400,7 +471,12 @@ void main() {
         permissions: roleMatrix['company_admin']!,
         roleKey: 'company_admin',
       );
-      for (final key in ['nav-/', 'nav-/assets', 'nav-/work-orders', 'nav-more']) {
+      for (final key in [
+        'nav-/',
+        'nav-/assets',
+        'nav-/work-orders',
+        'nav-more'
+      ]) {
         expect(find.byKey(Key(key)), findsOneWidget);
       }
       await tester.tap(find.byKey(const Key('nav-more')));
@@ -462,16 +538,28 @@ void main() {
     });
   });
 
-  testWidgets('tapping a bottom destination routes to its Coming soon page', (
-    tester,
-  ) async {
-    await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
-    await tester.tap(find.byKey(const Key('nav-/work-orders')));
-    await tester.pumpAndSettle();
-    expect(find.text('Work is coming soon'), findsOneWidget);
-    final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(bar.selectedIndex, 2);
-  });
+  testWidgets(
+    'tapping the Work bottom destination routes to the real Work Orders screen and marks it active',
+    (tester) async {
+      // Work Orders (Phase 8.2) is no longer a Coming-soon stand-in -- Home,
+      // Assets, and Work are now all real screens; the generic
+      // ComingSoonScreen mechanism itself stays covered by the "More
+      // destination" test below (/reports).
+      await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
+      await tester.tap(find.byKey(const Key('nav-/work-orders')));
+      await tester.pumpAndSettle();
+      expect(find.text('Work Orders'), findsOneWidget);
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 2);
+      // WorkOrdersScreen holds a live Drift watch-stream subscription;
+      // cancelling it on dispose schedules a zero-duration internal Timer
+      // that flutter_test's pending-timer check (run before any
+      // addTearDown) would otherwise trip on -- flush it inline, mirroring
+      // `inspections_screen_test.dart`'s `disposeApp` helper.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
 
   testWidgets('a More destination routes and marks the More tab active', (
     tester,
@@ -479,9 +567,14 @@ void main() {
     await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
     await tester.tap(find.byKey(const Key('nav-more')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('more-/reports')));
+    // The sheet scrolls; ensure the target is on screen before tapping or the
+    // hit lands on whatever occupies that position instead.
+    final reports = find.byKey(const Key('more-/reports'));
+    await tester.ensureVisible(reports);
     await tester.pumpAndSettle();
-    expect(find.text('Reports is coming soon'), findsOneWidget);
+    await tester.tap(reports);
+    await tester.pumpAndSettle();
+    expect(find.text('Reports unavailable'), findsOneWidget);
     expect(find.byType(BottomSheet), findsNothing);
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
     expect(bar.selectedIndex, 3);
@@ -518,10 +611,12 @@ void main() {
 
   testWidgets('theme toggle switches the persisted theme mode', (tester) async {
     await pumpShell(tester, permissions: roleMatrix['field_inspector']!);
-    final before = Theme.of(tester.element(find.byType(NavigationBar))).brightness;
+    final before =
+        Theme.of(tester.element(find.byType(NavigationBar))).brightness;
     await tester.tap(find.byKey(const Key('theme-toggle')));
     await tester.pumpAndSettle();
-    final after = Theme.of(tester.element(find.byType(NavigationBar))).brightness;
+    final after =
+        Theme.of(tester.element(find.byType(NavigationBar))).brightness;
     expect(after, isNot(before));
   });
 }

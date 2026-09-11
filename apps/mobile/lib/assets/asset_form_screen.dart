@@ -7,8 +7,17 @@ import '../design_system/primitives.dart';
 import '../design_system/tokens_generated.dart';
 
 const _categories = [
-  'Pumps', 'Compressors', 'Pipelines', 'Tanks', 'Motors', 'Valves',
-  'Electrical Panels', 'Generators', 'Transformers', 'Wellheads', 'Other',
+  'Pumps',
+  'Compressors',
+  'Pipelines',
+  'Tanks',
+  'Motors',
+  'Valves',
+  'Electrical Panels',
+  'Generators',
+  'Transformers',
+  'Wellheads',
+  'Other',
 ];
 
 class AssetFormScreen extends StatefulWidget {
@@ -47,17 +56,26 @@ class _AssetFormScreenState extends State<AssetFormScreen> {
   Future<void> _load() async {
     final api = AuthProvider.of(context).api;
     try {
-      final results = await Future.wait([api.getFacilities(limit: 100), api.getAreas(limit: 100)]);
+      final results = await Future.wait(
+          [api.getFacilities(limit: 100), api.getAreas(limit: 100)]);
       facilities = (results[0] as FacilityListPage).items.toList();
       areas = (results[1] as AreaListPage).items.toList();
       if (widget.assetId != null) {
         final asset = await api.getAsset(widget.assetId!);
-        name.text = asset.name; tag.text = asset.assetTag;
-        manufacturer.text = asset.manufacturer ?? ''; model.text = asset.model ?? '';
-        serial.text = asset.serialNumber ?? ''; description.text = asset.description ?? '';
-        lat.text = asset.gpsLat?.toString() ?? ''; lng.text = asset.gpsLng?.toString() ?? '';
-        facilityId = asset.facilityId; areaId = asset.areaId; category = asset.category;
+        name.text = asset.name;
+        tag.text = asset.assetTag;
+        manufacturer.text = asset.manufacturer ?? '';
+        model.text = asset.model ?? '';
+        serial.text = asset.serialNumber ?? '';
+        description.text = asset.description ?? '';
+        lat.text = asset.gpsLat?.toString() ?? '';
+        lng.text = asset.gpsLng?.toString() ?? '';
+        facilityId = asset.facilityId;
+        areaId = asset.areaId;
+        category = asset.category;
         status = asset.currentStatus.name;
+      } else if (facilities.isNotEmpty && facilityId == null) {
+        facilityId = facilities.first.id;
       }
     } catch (_) {
       error = 'Could not load the asset form.';
@@ -66,7 +84,9 @@ class _AssetFormScreenState extends State<AssetFormScreen> {
   }
 
   Future<void> _save() async {
-    if (name.text.trim().length < 2 || tag.text.trim().isEmpty || facilityId == null) {
+    if (name.text.trim().length < 2 ||
+        tag.text.trim().isEmpty ||
+        facilityId == null) {
       setState(() => error = 'Name, asset tag, and facility are required.');
       return;
     }
@@ -78,7 +98,10 @@ class _AssetFormScreenState extends State<AssetFormScreen> {
       setState(() => error = 'Enter valid latitude and longitude together.');
       return;
     }
-    setState(() { saving = true; error = null; });
+    setState(() {
+      saving = true;
+      error = null;
+    });
     final api = AuthProvider.of(context).api;
     try {
       late AssetDetail saved;
@@ -95,25 +118,38 @@ class _AssetFormScreenState extends State<AssetFormScreen> {
           ..description = description.text.isEmpty ? null : description.text
           ..gpsLat = latitude
           ..gpsLng = longitude
-          ..currentStatus = CreateAssetRequestCurrentStatusEnum.valueOf(status)));
+          ..currentStatus = switch (status.toLowerCase()) {
+            'warning' => CreateAssetRequestCurrentStatusEnum.warning,
+            'critical' => CreateAssetRequestCurrentStatusEnum.critical,
+            _ => CreateAssetRequestCurrentStatusEnum.healthy,
+          }));
       } else {
-        saved = await api.updateAsset(widget.assetId!, UpdateAssetRequest((b) => b
-          ..name = name.text.trim()
-          ..assetTag = tag.text.trim()
-          ..facilityId = facilityId
-          ..areaId = areaId
-          ..category = category
-          ..manufacturer = manufacturer.text.isEmpty ? null : manufacturer.text
-          ..model = model.text.isEmpty ? null : model.text
-          ..serialNumber = serial.text.isEmpty ? null : serial.text
-          ..description = description.text.isEmpty ? null : description.text
-          ..gpsLat = latitude
-          ..gpsLng = longitude
-          ..currentStatus = UpdateAssetRequestCurrentStatusEnum.valueOf(status)));
+        saved = await api.updateAsset(
+            widget.assetId!,
+            UpdateAssetRequest((b) => b
+              ..name = name.text.trim()
+              ..assetTag = tag.text.trim()
+              ..facilityId = facilityId
+              ..areaId = areaId
+              ..category = category
+              ..manufacturer =
+                  manufacturer.text.isEmpty ? null : manufacturer.text
+              ..model = model.text.isEmpty ? null : model.text
+              ..serialNumber = serial.text.isEmpty ? null : serial.text
+              ..description = description.text.isEmpty ? null : description.text
+              ..gpsLat = latitude
+              ..gpsLng = longitude
+              ..currentStatus = switch (status.toLowerCase()) {
+                'warning' => UpdateAssetRequestCurrentStatusEnum.warning,
+                'critical' => UpdateAssetRequestCurrentStatusEnum.critical,
+                _ => UpdateAssetRequestCurrentStatusEnum.healthy,
+              }));
       }
       if (mounted) Navigator.of(context).pop(saved.id);
-    } catch (_) {
-      if (mounted) setState(() => error = 'Could not save the asset.');
+    } catch (e) {
+      if (mounted) {
+        setState(() => error = e is ApiException ? e.message : 'Could not save the asset.');
+      }
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -121,7 +157,16 @@ class _AssetFormScreenState extends State<AssetFormScreen> {
 
   @override
   void dispose() {
-    for (final controller in [name, tag, manufacturer, model, serial, description, lat, lng]) {
+    for (final controller in [
+      name,
+      tag,
+      manufacturer,
+      model,
+      serial,
+      description,
+      lat,
+      lng
+    ]) {
       controller.dispose();
     }
     super.dispose();
@@ -130,42 +175,104 @@ class _AssetFormScreenState extends State<AssetFormScreen> {
   @override
   Widget build(BuildContext context) {
     if (loading) return const Center(child: CircularProgressIndicator());
-    final matchingAreas = areas.where((area) => area.facilityId == facilityId).toList();
+    final matchingAreas =
+        areas.where((area) => area.facilityId == facilityId).toList();
     return ListView(
       padding: const EdgeInsets.all(DsSpacing.s6),
       children: [
-        Text(widget.assetId == null ? 'Create asset' : 'Edit asset', style: Theme.of(context).textTheme.headlineMedium),
-        if (error != null) Padding(padding: const EdgeInsets.only(top: DsSpacing.s3), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+        Text(widget.assetId == null ? 'Create asset' : 'Edit asset',
+            style: Theme.of(context).textTheme.headlineMedium),
+        if (error != null)
+          Padding(
+              padding: const EdgeInsets.only(top: DsSpacing.s3),
+              child: Text(error!,
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.error))),
         const SizedBox(height: DsSpacing.s4),
-        AppCard(child: Column(children: [
+        AppCard(
+            child: Column(children: [
           AppTextField(label: 'Name', controller: name),
           const SizedBox(height: DsSpacing.s3),
           AppTextField(label: 'Asset tag', controller: tag),
           const SizedBox(height: DsSpacing.s3),
-          AppSelect<String>(label: 'Category', items: [for (final value in _categories) DropdownMenuItem(value: value, child: Text(value))], onChanged: (value) => setState(() => category = value!), value: category),
+          AppSelect<String>(
+              label: 'Category',
+              items: [
+                for (final value in _categories)
+                  DropdownMenuItem(value: value, child: Text(value))
+              ],
+              onChanged: (value) => setState(() => category = value!),
+              value: category),
           const SizedBox(height: DsSpacing.s3),
-          AppSelect<String>(label: 'Status', items: [for (final value in ['Healthy', 'Warning', 'Critical']) DropdownMenuItem(value: value, child: Text(value))], onChanged: (value) => setState(() => status = value!), value: status),
+          AppSelect<String>(
+              label: 'Status',
+              items: [
+                for (final value in ['Healthy', 'Warning', 'Critical'])
+                  DropdownMenuItem(value: value, child: Text(value))
+              ],
+              onChanged: (value) => setState(() => status = value!),
+              value: status),
         ])),
         const SizedBox(height: DsSpacing.s4),
-        AppCard(child: Column(children: [
+        AppCard(
+            child: Column(children: [
           AppTextField(label: 'Manufacturer', controller: manufacturer),
-          const SizedBox(height: DsSpacing.s3), AppTextField(label: 'Model', controller: model),
-          const SizedBox(height: DsSpacing.s3), AppTextField(label: 'Serial number', controller: serial),
-          const SizedBox(height: DsSpacing.s3), AppTextField(label: 'Description', controller: description, maxLines: 4),
+          const SizedBox(height: DsSpacing.s3),
+          AppTextField(label: 'Model', controller: model),
+          const SizedBox(height: DsSpacing.s3),
+          AppTextField(label: 'Serial number', controller: serial),
+          const SizedBox(height: DsSpacing.s3),
+          AppTextField(
+              label: 'Description', controller: description, maxLines: 4),
         ])),
         const SizedBox(height: DsSpacing.s4),
-        AppCard(child: Column(children: [
-          AppSelect<String>(label: 'Facility', items: [for (final item in facilities) DropdownMenuItem(value: item.id, child: Text(item.name))], onChanged: (value) => setState(() { facilityId = value; areaId = null; }), value: facilityId),
+        AppCard(
+            child: Column(children: [
+          AppSelect<String>(
+              label: 'Facility',
+              items: [
+                for (final item in facilities)
+                  DropdownMenuItem(value: item.id, child: Text(item.name))
+              ],
+              onChanged: (value) => setState(() {
+                    facilityId = value;
+                    areaId = null;
+                  }),
+              value: facilityId),
           const SizedBox(height: DsSpacing.s3),
-          AppSelect<String?>(label: 'Area (optional)', items: [const DropdownMenuItem(value: null, child: Text('No area')), for (final item in matchingAreas) DropdownMenuItem(value: item.id, child: Text(item.name))], onChanged: (value) => setState(() => areaId = value), value: areaId),
-          const SizedBox(height: DsSpacing.s3), AppTextField(label: 'GPS latitude', controller: lat, keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true)),
-          const SizedBox(height: DsSpacing.s3), AppTextField(label: 'GPS longitude', controller: lng, keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true)),
+          AppSelect<String?>(
+              label: 'Area (optional)',
+              items: [
+                const DropdownMenuItem(value: null, child: Text('No area')),
+                for (final item in matchingAreas)
+                  DropdownMenuItem(value: item.id, child: Text(item.name))
+              ],
+              onChanged: (value) => setState(() => areaId = value),
+              value: areaId),
+          const SizedBox(height: DsSpacing.s3),
+          AppTextField(
+              label: 'GPS latitude',
+              controller: lat,
+              keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true, signed: true)),
+          const SizedBox(height: DsSpacing.s3),
+          AppTextField(
+              label: 'GPS longitude',
+              controller: lng,
+              keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true, signed: true)),
         ])),
         const SizedBox(height: DsSpacing.s5),
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          AppButton(label: 'Cancel', onPressed: () => Navigator.of(context).maybePop(), variant: AppButtonVariant.ghost),
+          AppButton(
+              label: 'Cancel',
+              onPressed: () => Navigator.of(context).maybePop(),
+              variant: AppButtonVariant.ghost),
           const SizedBox(width: DsSpacing.s3),
-          AppButton(label: widget.assetId == null ? 'Create asset' : 'Save changes', loading: saving, onPressed: saving ? null : _save),
+          AppButton(
+              label: widget.assetId == null ? 'Create asset' : 'Save changes',
+              loading: saving,
+              onPressed: saving ? null : _save),
         ]),
       ],
     );

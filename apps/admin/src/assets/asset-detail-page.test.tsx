@@ -111,6 +111,7 @@ function renderDetail({
     permissions: new Set(["assets.read", "facilities.read", "areas.read"]),
   };
   const apiClient = {
+    registerCompanyAdmin: vi.fn(),
     getCurrentUser: vi.fn(async () => identity),
     getAsset,
     getAssetHistory,

@@ -307,6 +307,51 @@ class FacilityDeleted(BaseModel):
     deleted: bool = True
 
 
+class CameraPreset(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=100)
+    position: list[float] = Field(min_length=3, max_length=3)
+    target: list[float] = Field(min_length=3, max_length=3)
+
+
+class DigitalTwinHotspotResponse(BaseModel):
+    id: str
+    asset_id: str
+    asset_name: str
+    asset_tag: str
+    category: str
+    current_status: Literal["Healthy", "Warning", "Critical"]
+    current_condition: Literal["Excellent", "Good", "Fair", "Poor", "Critical"] | None = None
+    position: list[float] = Field(min_length=3, max_length=3)
+    radius: float = Field(default=1.0, gt=0)
+    label: str | None = None
+
+
+class DigitalTwinSceneResponse(BaseModel):
+    facility_id: str
+    facility_name: str
+    model_3d_url: str | None = None
+    scene_type: str = "procedural_refinery"
+    camera_presets: list[CameraPreset] = Field(default_factory=list)
+    hotspots: list[DigitalTwinHotspotResponse] = Field(default_factory=list)
+    updated_at: datetime
+
+
+class UpdateDigitalTwinHotspotRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    asset_id: str = Field(min_length=1, max_length=100)
+    position: list[float] = Field(min_length=3, max_length=3)
+    radius: float = Field(default=1.0, gt=0)
+    label: str | None = Field(default=None, max_length=200)
+
+
+class UpdateDigitalTwinSceneRequest(BaseModel):
+    model_3d_url: str | None = Field(default=None, max_length=1000)
+    scene_type: str = Field(default="procedural_refinery", max_length=100)
+    camera_presets: list[CameraPreset] | None = None
+    hotspots: list[UpdateDigitalTwinHotspotRequest] | None = None
+
+
 class AreaDetail(BaseModel):
     id: str
     facility_id: str
@@ -357,6 +402,10 @@ class AssetListItem(BaseModel):
     gps_lat: float | None = None
     gps_lng: float | None = None
     current_status: Literal["Healthy", "Warning", "Critical"]
+    # The five-state condition the requirements name, from the most recent
+    # completed inspection. `current_status` is the 3-state rollup driving the
+    # dashboard KPI; this is the term a human reads. Null until first inspected.
+    current_condition: Literal["Excellent", "Good", "Fair", "Poor", "Critical"] | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -516,6 +565,7 @@ class AnnotationResponse(BaseModel):
     note: str | None = None
     source: Literal["manual", "ai"] = "manual"
     confidence: float | None = None
+    frame_timestamp_seconds: float | None = None
     created_by: str
     created_at: datetime
 
@@ -592,6 +642,8 @@ class AiAnalysisResponse(BaseModel):
     recommendations: str | None = None
     risk_level: Literal["low", "medium", "high", "critical"] | None = None
     annotation_ids: list[str] = Field(default_factory=list)
+    media_kind: Literal["photo", "video"] = "photo"
+    frames_analyzed: int | None = None
     reviewed: bool = False
     reviewed_by: str | None = None
     reviewed_at: datetime | None = None
@@ -868,6 +920,289 @@ class QrScanResult(BaseModel):
     work_orders_total: int = 0
 
 
+PermitType = Literal[
+    "hot_work",
+    "confined_space",
+    "electrical_isolation_loto",
+    "excavation",
+    "working_at_height",
+    "general_maintenance",
+]
+
+
+class PermitChecklistTemplateItemInput(BaseModel):
+    id: str | None = Field(default=None, max_length=200)
+    label: str = Field(min_length=1, max_length=300)
+    required: bool = True
+    help_text: str | None = Field(default=None, max_length=1000)
+
+
+class PermitApprovalTemplateStepInput(BaseModel):
+    id: str | None = Field(default=None, max_length=200)
+    label: str = Field(min_length=1, max_length=200)
+    approver_role_id: str = Field(min_length=1, max_length=200)
+    required: bool = True
+
+
+class PermitChecklistTemplateItemResponse(BaseModel):
+    id: str
+    label: str
+    required: bool
+    help_text: str | None = None
+
+
+class PermitApprovalTemplateStepResponse(BaseModel):
+    id: str
+    label: str
+    approver_role_id: str
+    required: bool
+
+
+class PermitTemplateListItem(BaseModel):
+    id: str
+    name: str
+    permit_type: PermitType
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class PermitTemplateDetail(PermitTemplateListItem):
+    description: str | None = None
+    checklist_items: list[PermitChecklistTemplateItemResponse]
+    approval_steps: list[PermitApprovalTemplateStepResponse]
+
+
+class PermitTemplateListPage(BaseModel):
+    items: list[PermitTemplateListItem]
+    next_cursor: str | None = None
+
+
+class CreatePermitTemplateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    permit_type: PermitType
+    description: str | None = Field(default=None, max_length=2000)
+    checklist_items: list[PermitChecklistTemplateItemInput] = Field(min_length=1, max_length=100)
+    approval_steps: list[PermitApprovalTemplateStepInput] = Field(min_length=1, max_length=20)
+
+
+class UpdatePermitTemplateRequest(BaseModel):
+    expected_version: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    permit_type: PermitType | None = None
+    description: str | None = Field(default=None, max_length=2000)
+    checklist_items: list[PermitChecklistTemplateItemInput] | None = Field(
+        default=None, min_length=1, max_length=100
+    )
+    approval_steps: list[PermitApprovalTemplateStepInput] | None = Field(
+        default=None, min_length=1, max_length=20
+    )
+
+
+class PermitTemplateDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+PermitRiskBand = Literal["low", "medium", "high", "critical"]
+
+
+class PermitRiskAssessmentInput(BaseModel):
+    id: str | None = Field(default=None, max_length=200)
+    hazard: str = Field(min_length=1, max_length=500)
+    persons_at_risk: str = Field(min_length=1, max_length=500)
+    initial_likelihood: int = Field(ge=1, le=5)
+    initial_severity: int = Field(ge=1, le=5)
+    controls: str = Field(min_length=1, max_length=2000)
+    residual_likelihood: int = Field(ge=1, le=5)
+    residual_severity: int = Field(ge=1, le=5)
+
+
+class PermitRiskAssessmentResponse(BaseModel):
+    id: str
+    hazard: str
+    persons_at_risk: str
+    initial_likelihood: int
+    initial_severity: int
+    initial_score: int
+    initial_band: PermitRiskBand
+    controls: str
+    residual_likelihood: int
+    residual_severity: int
+    residual_score: int
+    residual_band: PermitRiskBand
+
+
+class PermitChecklistSnapshotResponse(BaseModel):
+    id: str
+    template_item_id: str
+    label: str
+    required: bool
+    help_text: str | None = None
+    completed: bool
+    completed_by: str | None = None
+    completed_at: datetime | None = None
+
+
+class PermitApprovalSnapshotResponse(BaseModel):
+    id: str
+    template_step_id: str
+    label: str
+    approver_role_id: str
+    required: bool
+    status: Literal["pending", "approved", "rejected"]
+    signed_by: str | None = None
+    signed_at: datetime | None = None
+    rejection_reason: str | None = None
+
+
+class PermitDigitalSignatureResponse(BaseModel):
+    signer_id: str
+    signed_at: datetime
+    meaning: str
+
+
+class PermitWorkerAcknowledgementResponse(BaseModel):
+    worker_id: str
+    client_mutation_id: str
+    client_signed_at: datetime
+    received_at: datetime
+    signed_at: datetime
+    device_id: str | None = None
+    meaning: str
+
+
+class PermitListItem(BaseModel):
+    id: str
+    permit_number: str
+    title: str
+    permit_type: PermitType
+    status: Literal[
+        "draft",
+        "pending_approval",
+        "pending_signatures",
+        "active",
+        "closed",
+        "expired",
+        "suspended",
+        "revoked",
+    ]
+    facility_id: str
+    valid_from: datetime
+    valid_until: datetime
+    worker_count: int
+    highest_residual_risk: PermitRiskBand
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class PermitDetail(PermitListItem):
+    description: str
+    area_id: str | None = None
+    asset_id: str | None = None
+    template_id: str
+    template_name: str
+    template_version: int
+    checklist_snapshot: list[PermitChecklistSnapshotResponse]
+    approval_snapshot: list[PermitApprovalSnapshotResponse]
+    risk_assessment: list[PermitRiskAssessmentResponse]
+    worker_ids: list[str]
+    issuer_signature: PermitDigitalSignatureResponse | None = None
+    submitted_at: datetime | None = None
+    worker_acknowledgements: list[PermitWorkerAcknowledgementResponse]
+    activated_by: str | None = None
+    activated_at: datetime | None = None
+    suspended_by: str | None = None
+    suspended_at: datetime | None = None
+    suspension_reason: str | None = None
+    revoked_by: str | None = None
+    revoked_at: datetime | None = None
+    revocation_reason: str | None = None
+    closed_by: str | None = None
+    closed_at: datetime | None = None
+    closeout_notes: str | None = None
+    expired_at: datetime | None = None
+
+
+class PermitListPage(BaseModel):
+    items: list[PermitListItem]
+    next_cursor: str | None = None
+
+
+class CreatePermitRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=3000)
+    permit_type: PermitType
+    facility_id: str = Field(min_length=1, max_length=200)
+    area_id: str | None = Field(default=None, max_length=200)
+    asset_id: str | None = Field(default=None, max_length=200)
+    valid_from: datetime
+    valid_until: datetime
+    template_id: str = Field(min_length=1, max_length=200)
+    risk_assessment: list[PermitRiskAssessmentInput] = Field(min_length=1, max_length=100)
+    worker_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class UpdatePermitRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, min_length=1, max_length=3000)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    risk_assessment: list[PermitRiskAssessmentInput] | None = Field(
+        default=None, min_length=1, max_length=100
+    )
+    worker_ids: list[str] | None = Field(default=None, min_length=1, max_length=100)
+
+
+class PermitDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+class SubmitPermitRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    completed_checklist_item_ids: list[str] = Field(max_length=100)
+    issuer_attestation: Literal[True]
+
+
+class DecidePermitApprovalRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    decision: Literal["approve", "reject"]
+    digital_signature_attestation: Literal[True]
+    rejection_reason: str | None = Field(default=None, min_length=3, max_length=1000)
+
+
+class AcknowledgePermitRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    client_mutation_id: str = Field(min_length=8, max_length=200)
+    client_signed_at: datetime
+    device_id: str | None = Field(default=None, min_length=1, max_length=200)
+    worker_attestation: Literal[True]
+
+
+class ActivatePermitRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    activation_attestation: Literal[True]
+
+
+class ControlPermitRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    reason: str = Field(min_length=3, max_length=1000)
+
+
+class ResumePermitRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    resume_attestation: Literal[True]
+
+
+class ClosePermitRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    closeout_notes: str = Field(min_length=3, max_length=2000)
+    close_attestation: Literal[True]
+
+
 class WorkOrderListItem(BaseModel):
     id: str
     asset_id: str
@@ -931,10 +1266,310 @@ class WorkOrderDeleted(BaseModel):
     deleted: bool = True
 
 
+SafetyCategory = Literal[
+    "near_miss",
+    "unsafe_condition",
+    "unsafe_behavior",
+    "fire",
+    "gas_leak",
+    "chemical_spill",
+    "environmental_incident",
+    "equipment_failure",
+    "injury",
+]
+SafetyStatus = Literal[
+    "reported",
+    "under_review",
+    "corrective_action",
+    "resolved",
+    "closed",
+    "cancelled",
+]
+
+
+class SafetyCategoryCount(BaseModel):
+    category: SafetyCategory
+    count: int
+
+
+class SafetyDashboardSummary(BaseModel):
+    total: int
+    by_category: list[SafetyCategoryCount]
+
+
+class PermitDashboardSummary(BaseModel):
+    active: int
+
+
+class ReportDashboardSummary(BaseModel):
+    total: int
+    drafts: int
+    finalized: int
+
+
+class SafetyReportListItem(BaseModel):
+    id: str
+    title: str
+    category: SafetyCategory
+    severity: Literal["low", "medium", "high", "critical"]
+    status: SafetyStatus
+    reporter_id: str
+    assigned_manager_id: str | None = None
+    occurred_at: datetime
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class SafetyReportListPage(BaseModel):
+    items: list[SafetyReportListItem]
+    next_cursor: str | None = None
+
+
+class SafetyReportDetail(SafetyReportListItem):
+    description: str
+    gps_lat: float | None = None
+    gps_lng: float | None = None
+    assigned_at: datetime | None = None
+    resolved_at: datetime | None = None
+    closed_at: datetime | None = None
+    closed_by: str | None = None
+    cancelled_at: datetime | None = None
+    created_by: str
+    evidence: list["SafetyEvidenceResponse"] = Field(default_factory=list)
+    corrective_actions: list["CorrectiveActionResponse"] = Field(default_factory=list)
+
+
+class SafetyEvidenceResponse(BaseModel):
+    id: str
+    filename: str
+    kind: Literal["photo", "video"]
+    content_type: str
+    size: int
+    uploaded_by: str
+    uploaded_at: datetime
+    url: str
+
+
+class CorrectiveActionResponse(BaseModel):
+    id: str
+    description: str
+    assignee_id: str
+    due_date: datetime
+    priority: Literal["low", "medium", "high", "critical"]
+    status: Literal["open", "in_progress", "completed", "cancelled"]
+    completion_notes: str | None = None
+    cancellation_reason: str | None = None
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    completed_by: str | None = None
+    cancelled_at: datetime | None = None
+    cancelled_by: str | None = None
+
+
+class CreateSafetyReportRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=5000)
+    category: SafetyCategory
+    severity: Literal["low", "medium", "high", "critical"]
+    occurred_at: datetime
+    gps_lat: float | None = Field(default=None, ge=-90, le=90)
+    gps_lng: float | None = Field(default=None, ge=-180, le=180)
+
+
+class AssignSafetyReportRequest(BaseModel):
+    manager_id: str = Field(min_length=1, max_length=200)
+    expected_revision: int | None = None
+
+
+class TransitionSafetyReportRequest(BaseModel):
+    status: Literal["under_review", "corrective_action", "resolved", "cancelled"]
+    expected_revision: int | None = None
+
+
+class CreateCorrectiveActionRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=2000)
+    assignee_id: str = Field(min_length=1, max_length=200)
+    due_date: datetime
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+
+
+class UpdateCorrectiveActionRequest(BaseModel):
+    status: Literal["in_progress", "completed"]
+    completion_notes: str | None = Field(default=None, max_length=2000)
+
+
+class CancelCorrectiveActionRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class SafetyReportDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+ReportType = Literal[
+    "inspection",
+    "maintenance",
+    "safety",
+    "executive_summary",
+    "asset_health",
+]
+
+
+class ReportNarrativeResponse(BaseModel):
+    summary: str
+    findings: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+    risk_score: float | None = None
+
+
+class GeneratedReportListItem(BaseModel):
+    id: str
+    report_type: ReportType
+    source_id: str | None = None
+    title: str
+    status: Literal["draft", "finalized"]
+    revision: int
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    finalized_by: str | None = None
+    finalized_at: datetime | None = None
+
+
+class GeneratedReportListPage(BaseModel):
+    items: list[GeneratedReportListItem]
+    next_cursor: str | None = None
+
+
+class GeneratedReportDetail(GeneratedReportListItem):
+    source_snapshot: dict[str, Any]
+    source_revision: int | None = None
+    narrative: ReportNarrativeResponse
+    ai_model: str
+    finalization_attestation: bool
+
+
+class GeneratedReportExportResponse(BaseModel):
+    report_id: str
+    format: Literal["pdf", "docx", "xlsx"]
+    filename: str
+    content_type: str
+    size: int
+    generated_by: str
+    generated_at: datetime
+    url: str
+
+
+class CreateGeneratedReportRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    report_type: ReportType
+    source_id: str | None = Field(default=None, min_length=1, max_length=200)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class UpdateGeneratedReportRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    summary: str | None = Field(default=None, min_length=1, max_length=10000)
+    findings: list[str] | None = Field(default=None, max_length=100)
+    recommendations: list[str] | None = Field(default=None, max_length=100)
+    risk_score: float | None = Field(default=None, ge=0, le=100)
+    expected_revision: int = Field(ge=1)
+
+
+class FinalizeGeneratedReportRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+    finalization_attestation: Literal[True]
+
+
+class RegenerateGeneratedReportRequest(BaseModel):
+    expected_revision: int = Field(ge=1)
+
+
+class DocumentListItem(BaseModel):
+    id: str
+    title: str
+    document_code: str
+    category: Literal["sop", "manual", "safety_policy", "certificate", "drawing", "report"]
+    description: str | None = None
+    facility_id: str | None = None
+    asset_id: str | None = None
+    file_path: str
+    filename: str
+    file_format: Literal["pdf", "docx", "png", "xlsx", "txt"]
+    file_size_bytes: int
+    version: int
+    status: Literal["active", "archived", "under_review"]
+    tags: list[str] = Field(default_factory=list)
+    download_url: str | None = None
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class DocumentDetail(DocumentListItem):
+    pass
+
+
+class DocumentListPage(BaseModel):
+    items: list[DocumentListItem]
+    next_cursor: str | None = None
+
+
+class CreateDocumentRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=200)
+    document_code: str = Field(min_length=1, max_length=100)
+    category: Literal["sop", "manual", "safety_policy", "certificate", "drawing", "report"]
+    description: str | None = Field(default=None, max_length=2000)
+    facility_id: str | None = Field(default=None, max_length=200)
+    asset_id: str | None = Field(default=None, max_length=200)
+    file_path: str = Field(min_length=1, max_length=1000)
+    filename: str = Field(min_length=1, max_length=300)
+    file_format: Literal["pdf", "docx", "png", "xlsx", "txt"] = "pdf"
+    file_size_bytes: int = Field(ge=0)
+    status: Literal["active", "archived", "under_review"] = "active"
+    tags: list[str] = Field(default_factory=list)
+
+
+class UpdateDocumentRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    document_code: str | None = Field(default=None, min_length=1, max_length=100)
+    category: (
+        Literal["sop", "manual", "safety_policy", "certificate", "drawing", "report"] | None
+    ) = None
+    description: str | None = Field(default=None, max_length=2000)
+    facility_id: str | None = Field(default=None, max_length=200)
+    asset_id: str | None = Field(default=None, max_length=200)
+    status: Literal["active", "archived", "under_review"] | None = None
+    tags: list[str] | None = None
+
+
+class GeneratedReportDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
+class DocumentDeleted(BaseModel):
+    id: str
+    deleted: bool = True
+
+
 def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
     descriptions = {
         201: "Resource created",
+        400: "Request was malformed or referenced an unknown plan",
         401: "Authentication failed",
+        # Phase 13: the entitlement gate. Distinct from 403 -- the caller is
+        # allowed, but the company's plan does not include the module, so the
+        # body carries the tier that unlocks it.
+        402: "Company's subscription does not include this capability",
         403: "Authenticated caller is not authorized",
         404: "Resource was not found",
         409: "Request conflicts with current state",
@@ -942,7 +1577,162 @@ def error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
         422: "Request validation failed",
         500: "Unexpected server error",
         502: "An upstream service (e.g. the AI vision provider) failed or is unreachable",
+        503: "A required upstream dependency (e.g. billing) is not configured",
     }
     return {
         code: {"model": ErrorEnvelope, "description": descriptions[code]} for code in status_codes
     }
+
+
+# --- Phase 13 billing (D-090) --------------------------------------------
+
+
+class BillingPlanQuotasResponse(BaseModel):
+    """`None` means unlimited. An unentitled company reports 0, not None."""
+
+    facilities: int | None
+    assets: int | None
+    seats: int | None
+
+
+class BillingPlanResponse(BaseModel):
+    tier: str
+    name: str
+    audience: str
+    list_monthly_cents: int
+    annual_total_cents: int
+    monthly_cents: int
+    quotas: BillingPlanQuotasResponse
+    features: list[str]
+    digital_twin_scope: str
+    support: str
+    custom_quoted: bool
+
+
+class BillingCatalogResponse(BaseModel):
+    trial_days: int
+    plans: list[BillingPlanResponse]
+
+
+class SubscriptionResponse(BaseModel):
+    """What the shell needs to decide which modules to render. `features` is the
+    authoritative list -- the client must not derive it from `tier` itself."""
+
+    tier: str
+    plan_name: str | None
+    status: str
+    is_entitled: bool
+    features: list[str]
+    trial_ends_at: datetime | None
+    trial_days_remaining: int | None
+    current_period_end: datetime | None
+    quotas: BillingPlanQuotasResponse
+
+
+class CheckoutSessionRequest(BaseModel):
+    tier: str
+    interval: str
+
+
+class CheckoutSessionResponse(BaseModel):
+    session_id: str
+    checkout_url: str
+
+
+class NotificationResponse(BaseModel):
+    id: str
+    event: str
+    title: str
+    body: str
+    target_type: str
+    target_id: str
+    metadata: dict[str, str] = Field(default_factory=dict)
+    # What actually went out, not what was intended -- email and push are
+    # best-effort and a failure there never fails the triggering action.
+    delivered_channels: list[str] = Field(default_factory=list)
+    read_at: datetime | None = None
+    created_at: datetime
+
+
+class NotificationListPage(BaseModel):
+    items: list[NotificationResponse] = Field(default_factory=list)
+    unread_count: int = 0
+
+
+class NotificationRead(BaseModel):
+    id: str
+    read_at: datetime | None = None
+
+
+class NotificationsAllRead(BaseModel):
+    marked: int
+
+
+class RegisterDeviceRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=4096)
+    platform: Literal["android", "ios", "web"]
+
+
+class DeviceRegistered(BaseModel):
+    registered: bool
+
+
+class DeviceUnregistered(BaseModel):
+    unregistered: bool
+
+
+class TrainingStepResponse(BaseModel):
+    id: str
+    order: int
+    title: str
+    instruction: str
+    action: str
+    target_asset_id: str | None = None
+    target_position: list[float] | None = None
+    options: list[str] = Field(default_factory=list)
+    # Deliberately not exposed: `correct_option` stays server-side so the
+    # answer cannot be read out of the payload the trainee's client receives.
+    time_limit_seconds: int | None = None
+
+
+class TrainingModuleResponse(BaseModel):
+    id: str
+    title: str
+    kind: str
+    facility_id: str
+    description: str
+    steps: list[TrainingStepResponse] = Field(default_factory=list)
+    estimated_minutes: int
+    pass_threshold: int
+
+
+class TrainingModuleListPage(BaseModel):
+    items: list[TrainingModuleResponse] = Field(default_factory=list)
+
+
+class TrainingProgressResponse(BaseModel):
+    id: str
+    module_id: str
+    status: str
+    completed_step_ids: list[str] = Field(default_factory=list)
+    correct_count: int = 0
+    scored_count: int = 0
+    score: int | None = None
+    attempts: int = 1
+    started_at: datetime
+    completed_at: datetime | None = None
+
+
+class TrainingProgressListPage(BaseModel):
+    items: list[TrainingProgressResponse] = Field(default_factory=list)
+
+
+class CompleteTrainingStepRequest(BaseModel):
+    # For `choose` steps the client sends what the trainee picked and the
+    # server decides whether it was right -- the correct answer is never sent
+    # out, so the client has nothing to compare against.
+    selected_option: str | None = None
+    # For `locate`/`sequence` steps, whether the trainee reached the target.
+    # Ignored for `choose` (the server judges) and for steps that cannot be
+    # answered wrongly at all.
+    correct: bool | None = None

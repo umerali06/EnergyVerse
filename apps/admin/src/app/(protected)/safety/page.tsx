@@ -4,8 +4,8 @@ import { protectedPage } from "@/seo/site";
 
 export const metadata: Metadata = protectedPage("Safety");
 
-import { ComingSoonScreen } from "@/shell/app-shell";
+import { SafetyPage } from "@/safety/safety-page";
 
 export default function Page() {
-  return <ComingSoonScreen moduleName="Safety" />;
+  return <SafetyPage />;
 }

@@ -27,6 +27,13 @@ void main() {
       // TODO
     });
 
+    // Get Facility 3D Scene
+    //
+    //Future<DigitalTwinSceneResponse> getFacility3dScene(String facilityId) async
+    test('test getFacility3dScene', () async {
+      // TODO
+    });
+
     // List Facilities
     //
     //Future<FacilityListPage> listFacilities({ String search, String status, String sort, String cursor, int limit }) async
@@ -38,6 +45,13 @@ void main() {
     //
     //Future<FacilityDetail> updateFacility(String facilityId, UpdateFacilityRequest updateFacilityRequest) async
     test('test updateFacility', () async {
+      // TODO
+    });
+
+    // Update Facility 3D Scene
+    //
+    //Future<DigitalTwinSceneResponse> updateFacility3dScene(String facilityId, UpdateDigitalTwinSceneRequest updateDigitalTwinSceneRequest) async
+    test('test updateFacility3dScene', () async {
       // TODO
     });
   });

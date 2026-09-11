@@ -32,6 +32,11 @@ void main() {
       // TODO
     });
 
+    // num frameTimestampSeconds
+    test('to test the property `frameTimestampSeconds`', () async {
+      // TODO
+    });
+
     // String id
     test('to test the property `id`', () async {
       // TODO

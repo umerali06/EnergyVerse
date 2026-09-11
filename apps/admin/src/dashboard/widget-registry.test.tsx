@@ -2,6 +2,21 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { PermissionProvider } from "@/auth/permissions";
+import { SubscriptionProvider } from "@/billing/subscription-context";
+
+/** Fully-entitled plan: these cases are about permissions and rendering, not
+ * billing. `useSubscription` fails closed without a provider (D-093). */
+const allFeatures = {
+  tier: "enterprise",
+  planName: "Enterprise",
+  status: "active",
+  isEntitled: true,
+  features: ["assets", "inspections", "reports", "safety_reports", "permits", "work_orders"],
+  trialEndsAt: null,
+  trialDaysRemaining: null,
+  currentPeriodEnd: null,
+  quotas: { facilities: null, assets: null, seats: null },
+};
 
 import {
   __resetWidgetRegistryForTests,
@@ -20,7 +35,9 @@ beforeEach(() => {
 function renderGrid(subscriptionTier?: string, permissions: string[] = ["assets.read"]) {
   return render(
     <PermissionProvider initialPermissions={permissions}>
-      <DashboardWidgetGrid subscriptionTier={subscriptionTier} />
+      <SubscriptionProvider initialSubscription={allFeatures}>
+        <DashboardWidgetGrid subscriptionTier={subscriptionTier} />
+      </SubscriptionProvider>
     </PermissionProvider>,
   );
 }
@@ -78,6 +95,65 @@ describe("dashboard widget registry", () => {
     });
     const { container } = renderGrid(undefined, ["assets.read"]);
     expect(container.querySelector('[data-testid="dashboard-widget-grid"]')).not.toBeInTheDocument();
+  });
+
+  it("hides a widget whose module the plan omits, even with the permission", () => {
+    // The bug this guards: the work-order widget calls the gated
+    // /api/v1/work-orders route, so on a plan without that module it rendered
+    // and then failed with a 402 toast on the dashboard. Permission alone must
+    // not be enough (D-093).
+    registerWidget({
+      id: "gated-work-orders",
+      title: "Assigned work",
+      requiredPermission: "work_orders.read",
+      requiredFeature: "work_orders",
+      size: "md",
+      render: () => <p>work order widget</p>,
+    });
+    registerWidget({
+      id: "ungated-assets",
+      title: "Assets",
+      requiredPermission: "assets.read",
+      requiredFeature: "assets",
+      size: "md",
+      render: () => <p>asset widget</p>,
+    });
+
+    render(
+      <PermissionProvider initialPermissions={["work_orders.read", "assets.read"]}>
+        <SubscriptionProvider
+          initialSubscription={{ ...allFeatures, features: ["assets"] }}
+        >
+          <DashboardWidgetGrid />
+        </SubscriptionProvider>
+      </PermissionProvider>,
+    );
+
+    expect(screen.queryByText("work order widget")).not.toBeInTheDocument();
+    expect(screen.getByText("asset widget")).toBeInTheDocument();
+  });
+
+  it("renders no gated widget until the plan is known", () => {
+    registerWidget({
+      id: "pending-assets",
+      title: "Assets",
+      requiredPermission: "assets.read",
+      requiredFeature: "assets",
+      size: "md",
+      render: () => <p>asset widget</p>,
+    });
+
+    render(
+      <PermissionProvider initialPermissions={["assets.read"]}>
+        <SubscriptionProvider initialSubscription={null}>
+          <DashboardWidgetGrid />
+        </SubscriptionProvider>
+      </PermissionProvider>,
+    );
+
+    // Fails closed while loading rather than flashing a module the tenant may
+    // not have.
+    expect(screen.queryByText("asset widget")).not.toBeInTheDocument();
   });
 
   it("gates a widget by minimum subscription tier", () => {

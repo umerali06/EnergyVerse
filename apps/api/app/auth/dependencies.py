@@ -109,8 +109,7 @@ async def get_current_user(
             detail={
                 "error": "company_suspended",
                 "message": (
-                    "This organization has been suspended. "
-                    "Contact your platform administrator."
+                    "This organization has been suspended. Contact your platform administrator."
                 ),
             },
         )

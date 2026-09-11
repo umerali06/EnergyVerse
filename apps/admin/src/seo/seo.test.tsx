@@ -7,6 +7,8 @@ import sitemap from "@/app/sitemap";
 import { Logo, ThemeProvider } from "@/design-system";
 import { designTokens } from "@/design-system/tokens.generated";
 
+import { privateRoutePrefixes } from "@/navigation/routes";
+
 import { protectedPage, publicPage, publicRoutes, site } from "./site";
 
 // Colocated route metadata (server page files export it declaratively).
@@ -16,13 +18,16 @@ import { metadata as signupMeta } from "@/app/(public)/signup/page";
 import { metadata as missingMeta } from "@/app/(protected)/[...missing]/page";
 import { metadata as assetsMeta } from "@/app/(protected)/assets/page";
 import { metadata as documentsMeta } from "@/app/(protected)/documents/page";
-import { metadata as dashboardMeta } from "@/app/(protected)/page";
+import { metadata as dashboardMeta } from "@/app/(protected)/dashboard/page";
 import { metadata as rbacMeta } from "@/app/(protected)/rbac-demo/page";
 import { metadata as reportsMeta } from "@/app/(protected)/reports/page";
 import { metadata as settingsMeta } from "@/app/(protected)/settings/page";
 import { metadata as verifyMeta } from "@/app/verify-email/page";
+import { metadata as aboutMeta } from "@/app/(marketing)/about/page";
+import { metadata as landingMeta } from "@/app/(marketing)/page";
+import { metadata as pricingMeta } from "@/app/(marketing)/pricing/page";
 
-const publicMetas = { loginMeta, signupMeta, forgotMeta };
+const publicMetas = { landingMeta, pricingMeta, aboutMeta, loginMeta, signupMeta, forgotMeta };
 const protectedMetas = {
   dashboardMeta,
   assetsMeta,
@@ -61,24 +66,41 @@ describe("seo metadata", () => {
     for (const title of titles) expect(title.length).toBeGreaterThan(2);
   });
 
-  it("disallows the app in robots.txt while allowing public routes and the sitemap", () => {
+  it("disallows the app in robots.txt while allowing the public site and the sitemap", () => {
     const rules = robots().rules;
     const rule = Array.isArray(rules) ? rules[0] : rules;
-    expect(rule?.disallow).toContain("/");
+    // "/" is the marketing landing page now, so the app shell is excluded by
+    // explicit prefix instead of a blanket disallow.
+    expect(rule?.disallow).not.toContain("/");
+    expect(rule?.disallow).toContain("/dashboard");
+    expect(rule?.disallow).toContain("/settings");
+    expect(rule?.disallow).toContain("/verify-email");
     for (const route of publicRoutes) expect(rule?.allow).toContain(route);
+    expect(rule?.allow).toContain("/");
     expect(robots().sitemap).toBe(`${site.baseUrl}/sitemap.xml`);
+  });
+
+  it("never lists a private route in the sitemap and ranks the landing page first", () => {
+    const entries = sitemap();
+    for (const prefix of privateRoutePrefixes) {
+      expect(entries.map((entry) => entry.url)).not.toContain(`${site.baseUrl}${prefix}`);
+    }
+    expect(entries.find((entry) => entry.url === site.baseUrl)?.priority).toBe(1);
   });
 
   it("lists exactly the public routes in the sitemap", () => {
     const urls = sitemap().map((entry) => entry.url);
-    expect(urls).toEqual(publicRoutes.map((route) => `${site.baseUrl}${route}`));
+    expect(urls).toEqual(
+      publicRoutes.map((route) => (route === "/" ? site.baseUrl : `${site.baseUrl}${route}`)),
+    );
   });
 
   it("builds the PWA manifest from brand tokens", () => {
     const m = manifest();
     expect(m.name).toBe(site.name);
     expect(m.short_name).toBe("FEV");
-    expect(m.theme_color).toBe(designTokens.color.theme.dark.background);
+    expect(m.theme_color).toBe(designTokens.color.theme.light.background);
+    expect(m.start_url).toBe("/dashboard");
     expect(m.icons?.map((icon) => icon.src)).toEqual([
       "/brand/icon-192.png",
       "/brand/icon-512.png",

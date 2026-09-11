@@ -59,6 +59,12 @@ export interface AnnotationResponse {
     damageType?: AnnotationResponseDamageTypeEnum | null;
     /**
      *
+     * @type {number}
+     * @memberof AnnotationResponse
+     */
+    frameTimestampSeconds?: number | null;
+    /**
+     *
      * @type {string}
      * @memberof AnnotationResponse
      */
@@ -164,6 +170,7 @@ export function AnnotationResponseFromJSONTyped(json: any, ignoreDiscriminator: 
         'createdAt': (new Date(json['created_at'])),
         'createdBy': json['created_by'],
         'damageType': json['damage_type'] == null ? undefined : json['damage_type'],
+        'frameTimestampSeconds': json['frame_timestamp_seconds'] == null ? undefined : json['frame_timestamp_seconds'],
         'id': json['id'],
         'mediaLocalId': json['media_local_id'],
         'note': json['note'] == null ? undefined : json['note'],
@@ -189,6 +196,7 @@ export function AnnotationResponseToJSONTyped(value?: AnnotationResponse | null,
         'created_at': ((value['createdAt']).toISOString()),
         'created_by': value['createdBy'],
         'damage_type': value['damageType'],
+        'frame_timestamp_seconds': value['frameTimestampSeconds'],
         'id': value['id'],
         'media_local_id': value['mediaLocalId'],
         'note': value['note'],

@@ -68,7 +68,8 @@ class UsersController extends ChangeNotifier {
       items = page.items.toList();
       _nextCursor = page.nextCursor;
       listStatus = LoadStatus.ready;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[UsersController] _load error: $e');
       if (requestId != _requestId) return;
       listStatus = LoadStatus.error;
     }

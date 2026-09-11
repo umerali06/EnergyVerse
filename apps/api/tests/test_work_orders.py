@@ -9,9 +9,14 @@ from app.audit.service import AuditService
 from app.auth.dependencies import get_current_user
 from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
+from app.db.repositories.device_tokens import DeviceTokenRepository
+from app.db.repositories.notifications import NotificationRepository
+from app.db.repositories.users import UserRepository
 from app.db.repositories.work_orders import WorkOrderRepository
 from app.main import app
+from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
+from app.notifications.service import NotificationService
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
 from app.rbac.dependencies import get_access_denial_audit
 from app.work_orders.service import WorkOrderService, get_work_order_service
@@ -23,6 +28,7 @@ from scripts.seed import (
     run_seed,
 )
 from tests.fakes.firestore import FakeAsyncClient
+from tests.fakes.notifications import FakeEmailNotifier, FakePushNotifier
 
 BETA_COMPANY_ID = "beta-utilities"
 ASSET_COMPRESSOR_ID = f"{ACME_COMPANY_ID}__asset__c-201"
@@ -34,13 +40,21 @@ def wiring() -> dict[str, Any]:
     asyncio.run(run_seed(client))
 
     audit = AuditService(AuditLogRepository(client))
+    notifications = NotificationService(
+        notifications=NotificationRepository(client, audit),
+        device_tokens=DeviceTokenRepository(client, audit),
+        users=UserRepository(client, audit),
+        email=FakeEmailNotifier(),
+        push=FakePushNotifier(),
+    )
     service = WorkOrderService(
         work_orders=WorkOrderRepository(client, audit),
         assets=AssetRepository(client, audit),
+        notifications=notifications,
     )
     app.dependency_overrides[get_work_order_service] = lambda: service
     app.dependency_overrides[get_access_denial_audit] = lambda: audit
-    yield {"client": client}
+    yield {"client": client, "notifications": notifications}
     app.dependency_overrides.pop(get_work_order_service, None)
     app.dependency_overrides.pop(get_access_denial_audit, None)
 
@@ -94,9 +108,7 @@ def _create_work_order(identity: CurrentUser, **overrides: Any) -> Any:
 def _assign(identity: CurrentUser, work_order_id: str, **overrides: Any) -> Any:
     payload: dict[str, Any] = {"technician_id": MAINTENANCE_TECHNICIAN_UID}
     payload.update(overrides)
-    return _request(
-        identity, "PATCH", f"/api/v1/work-orders/{work_order_id}/assign", json=payload
-    )
+    return _request(identity, "PATCH", f"/api/v1/work-orders/{work_order_id}/assign", json=payload)
 
 
 def _accept(identity: CurrentUser, work_order_id: str) -> Any:
@@ -364,9 +376,7 @@ def test_submit_for_review_rejects_stale_expected_revision(wiring: dict[str, Any
     created = _create_work_order(_identity()).json()
     assert _assign(_identity(), created["id"]).status_code == 200
     assert _accept(_technician_identity(), created["id"]).status_code == 200
-    response = _submit_for_review(
-        _technician_identity(), created["id"], expected_revision=99
-    )
+    response = _submit_for_review(_technician_identity(), created["id"], expected_revision=99)
     assert response.status_code == 409
     assert response.json()["error"] == "revision_conflict"
 
@@ -444,3 +454,37 @@ def test_delete_work_order_soft_deletes(wiring: dict[str, Any]) -> None:
 
     fetched = _request(_identity(), "GET", f"/api/v1/work-orders/{created['id']}")
     assert fetched.status_code == 404
+
+
+def test_assigning_a_work_order_notifies_the_technician(wiring: dict[str, Any]) -> None:
+    created = _create_work_order(_identity()).json()
+
+    assigned = _assign(_identity(), created["id"])
+    assert assigned.status_code == 200
+
+    inbox = asyncio.run(
+        wiring["notifications"].list_for_user(
+            CompanyScope(company_id=ACME_COMPANY_ID), MAINTENANCE_TECHNICIAN_UID
+        )
+    )
+    assert len(inbox) == 1
+    assert inbox[0].event == "work_order.assigned"
+    assert inbox[0].target_type == "work_order"
+    assert inbox[0].target_id == created["id"]
+    assert inbox[0].read_at is None
+
+
+def test_assigning_a_work_order_to_yourself_raises_no_notification(
+    wiring: dict[str, Any],
+) -> None:
+    created = _create_work_order(_identity(uid=MAINTENANCE_TECHNICIAN_UID)).json()
+
+    _assign(_identity(uid=MAINTENANCE_TECHNICIAN_UID), created["id"])
+
+    inbox = asyncio.run(
+        wiring["notifications"].list_for_user(
+            CompanyScope(company_id=ACME_COMPANY_ID), MAINTENANCE_TECHNICIAN_UID
+        )
+    )
+    # Being told about your own action is noise, not news.
+    assert inbox == []

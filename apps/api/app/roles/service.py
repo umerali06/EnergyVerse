@@ -89,9 +89,7 @@ class RoleManagementService:
             return None
         return role
 
-    async def _permission_keys_for_role(
-        self, scope: CompanyScope, role_id: str
-    ) -> frozenset[str]:
+    async def _permission_keys_for_role(self, scope: CompanyScope, role_id: str) -> frozenset[str]:
         mappings = await self._role_permissions.list_for_role(scope, role_id)
         return frozenset(mapping.permission_id for mapping in mappings)
 

@@ -12,8 +12,10 @@ Method | HTTP request | Description
 [**createFacility**](FacilitiesApi.md#createfacility) | **POST** /api/v1/facilities | Create Facility
 [**deleteFacility**](FacilitiesApi.md#deletefacility) | **DELETE** /api/v1/facilities/{facility_id} | Delete Facility
 [**getFacility**](FacilitiesApi.md#getfacility) | **GET** /api/v1/facilities/{facility_id} | Get Facility
+[**getFacility3dScene**](FacilitiesApi.md#getfacility3dscene) | **GET** /api/v1/facilities/{facility_id}/3d-scene | Get Facility 3D Scene
 [**listFacilities**](FacilitiesApi.md#listfacilities) | **GET** /api/v1/facilities | List Facilities
 [**updateFacility**](FacilitiesApi.md#updatefacility) | **PATCH** /api/v1/facilities/{facility_id} | Update Facility
+[**updateFacility3dScene**](FacilitiesApi.md#updatefacility3dscene) | **PUT** /api/v1/facilities/{facility_id}/3d-scene | Update Facility 3D Scene
 
 
 # **createFacility**
@@ -139,6 +141,47 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **getFacility3dScene**
+> DigitalTwinSceneResponse getFacility3dScene(facilityId)
+
+Get Facility 3D Scene
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getFacilitiesApi();
+final String facilityId = facilityId_example; // String |
+
+try {
+    final response = api.getFacility3dScene(facilityId);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling FacilitiesApi->getFacility3dScene: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **facilityId** | **String**|  |
+
+### Return type
+
+[**DigitalTwinSceneResponse**](DigitalTwinSceneResponse.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **listFacilities**
 > FacilityListPage listFacilities(search, status, sort, cursor, limit)
 
@@ -219,6 +262,49 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**FacilityDetail**](FacilityDetail.md)
+
+### Authorization
+
+[HTTPBearer](../README.md#HTTPBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateFacility3dScene**
+> DigitalTwinSceneResponse updateFacility3dScene(facilityId, updateDigitalTwinSceneRequest)
+
+Update Facility 3D Scene
+
+### Example
+```dart
+import 'package:fev_api_client/api.dart';
+
+final api = FevApiClient().getFacilitiesApi();
+final String facilityId = facilityId_example; // String |
+final UpdateDigitalTwinSceneRequest updateDigitalTwinSceneRequest = ; // UpdateDigitalTwinSceneRequest |
+
+try {
+    final response = api.updateFacility3dScene(facilityId, updateDigitalTwinSceneRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling FacilitiesApi->updateFacility3dScene: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **facilityId** | **String**|  |
+ **updateDigitalTwinSceneRequest** | [**UpdateDigitalTwinSceneRequest**](UpdateDigitalTwinSceneRequest.md)|  |
+
+### Return type
+
+[**DigitalTwinSceneResponse**](DigitalTwinSceneResponse.md)
 
 ### Authorization
 

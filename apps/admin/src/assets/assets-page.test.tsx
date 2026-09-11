@@ -27,7 +27,7 @@ vi.mock("next/navigation", () => ({
 const session: AuthSession = {
   email: "company_admin@acme.example.invalid",
   emailVerified: true,
-  getIdToken: vi.fn(async () => "id-token"),
+  getIdToken: vi.fn(async (..._args: unknown[]) => "id-token"),
   uid: "demo-acme-company_admin",
 };
 
@@ -110,9 +110,9 @@ function DashboardWithPermissions({ children }: { children: React.ReactNode }) {
 function renderAssets({
   roleKey = "company_admin",
   permissions = roleMatrix.company_admin,
-  listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null })),
-  listFacilities = vi.fn(async () => ({ items: [facilityItem()], nextCursor: null })),
-  listAreas = vi.fn(async () => ({ items: [areaItem()], nextCursor: null })),
+  listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null })),
+  listFacilities = vi.fn(async (..._args: unknown[]) => ({ items: [facilityItem()], nextCursor: null })),
+  listAreas = vi.fn(async (..._args: unknown[]) => ({ items: [areaItem()], nextCursor: null })),
   gated = false,
 }: {
   roleKey?: string;
@@ -132,7 +132,8 @@ function renderAssets({
     permissions: new Set(permissions),
   };
   const apiClient = {
-    getCurrentUser: vi.fn(async () => identity),
+    registerCompanyAdmin: vi.fn(),
+    getCurrentUser: vi.fn(async (..._args: unknown[]) => identity),
     listAssets,
     listFacilities,
     listAreas,
@@ -171,7 +172,7 @@ describe("assets page", () => {
   });
 
   it("shows an honest empty state when no assets match", async () => {
-    renderAssets({ listAssets: vi.fn(async () => ({ items: [], nextCursor: null })) });
+    renderAssets({ listAssets: vi.fn(async (..._args: unknown[]) => ({ items: [], nextCursor: null })) });
     expect(await screen.findByText("No assets found")).toBeInTheDocument();
   });
 
@@ -202,7 +203,7 @@ describe("assets page", () => {
   });
 
   it("re-fetches with the search term", async () => {
-    const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+    const listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null }));
     renderAssets({ listAssets });
     await screen.findByText("Feed Pump");
     const user = userEvent.setup();
@@ -213,7 +214,7 @@ describe("assets page", () => {
   });
 
   it("re-fetches when the category filter changes", async () => {
-    const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+    const listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null }));
     renderAssets({ listAssets });
     await screen.findByText("Feed Pump");
     const user = userEvent.setup();
@@ -224,7 +225,7 @@ describe("assets page", () => {
   });
 
   it("re-fetches when the status filter changes", async () => {
-    const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+    const listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null }));
     renderAssets({ listAssets });
     await screen.findByText("Feed Pump");
     const user = userEvent.setup();
@@ -235,7 +236,7 @@ describe("assets page", () => {
   });
 
   it("re-fetches when the sort changes", async () => {
-    const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+    const listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null }));
     renderAssets({ listAssets });
     await screen.findByText("Feed Pump");
     const user = userEvent.setup();
@@ -244,15 +245,15 @@ describe("assets page", () => {
   });
 
   it("cascades the area filter from the selected facility and clears it on facility change", async () => {
-    const listFacilities = vi.fn(async () => ({
+    const listFacilities = vi.fn(async (..._args: unknown[]) => ({
       items: [facilityItem(), facilityItem({ id: "facility-2", name: "Beta Plant" })],
       nextCursor: null,
     }));
-    const listAreas = vi.fn(async () => ({
+    const listAreas = vi.fn(async (..._args: unknown[]) => ({
       items: [areaItem(), areaItem({ id: "area-2", facilityId: "facility-2", name: "Bay 3" })],
       nextCursor: null,
     }));
-    const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+    const listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null }));
     renderAssets({ listAssets, listAreas, listFacilities });
     await screen.findByText("Feed Pump");
     const user = userEvent.setup();
@@ -278,7 +279,7 @@ describe("assets page", () => {
   });
 
   it("clears all active filters", async () => {
-    const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+    const listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null }));
     renderAssets({ listAssets });
     await screen.findByText("Feed Pump");
     const user = userEvent.setup();
@@ -297,7 +298,7 @@ describe("assets page", () => {
   it("hydrates the status filter from the URL on mount (dashboard KPI deep link)", async () => {
     mockSearchParams = new URLSearchParams("status=Critical");
     try {
-      const listAssets = vi.fn(async () => ({ items: [assetItem()], nextCursor: null }));
+      const listAssets = vi.fn(async (..._args: unknown[]) => ({ items: [assetItem()], nextCursor: null }));
       renderAssets({ listAssets });
       await screen.findByText("Feed Pump");
       expect(listAssets.mock.calls[0]?.[0]).toMatchObject({ currentStatus: "Critical" });

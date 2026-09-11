@@ -120,9 +120,7 @@ class AdminCompanyService:
             self._to_summary(company, len(users))
             for company, users in zip(page, counts, strict=True)
         ]
-        next_cursor = (
-            _encode_cursor(page[-1].id) if len(companies) > limit and page else None
-        )
+        next_cursor = _encode_cursor(page[-1].id) if len(companies) > limit and page else None
         return PlatformCompanyPage(items=items, next_cursor=next_cursor)
 
     async def get_company(self, company_id: str) -> PlatformCompanyDetail:

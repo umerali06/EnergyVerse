@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { APP_HOME } from "./routes";
+
 /**
  * Single source of truth for the application shell navigation.
  *
@@ -22,6 +24,13 @@ export type NavItem = {
   icon: ReactNode;
   route: string;
   requiredPermission?: string;
+  /** Entitlement key the company's plan must include (Phase 13, D-093).
+   *
+   * Independent of `requiredPermission`: a Company Admin holds
+   * `work_orders.read` on every tier, but a Starter tenant has no work-order
+   * module at all, so the item is hidden rather than shown-and-refused. Items
+   * without one are part of every paid plan. */
+  requiredFeature?: string;
   /** Module exists on the roadmap but its screen is not built yet. */
   comingSoon?: boolean;
 };
@@ -87,7 +96,7 @@ export const navIcons = {
 export const navGroups: readonly NavGroup[] = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", icon: navIcons.dashboard, route: "/" }],
+    items: [{ label: "Dashboard", icon: navIcons.dashboard, route: APP_HOME }],
   },
   {
     label: "Operations",
@@ -97,31 +106,53 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.assets,
         route: "/assets",
         requiredPermission: "assets.read",
+        requiredFeature: "assets",
       },
       {
         label: "Inspections",
         icon: navIcons.inspections,
         route: "/inspections",
         requiredPermission: "inspections.read",
+        requiredFeature: "inspections",
+      },
+      {
+        label: "3D Digital Twin",
+        icon: navIcons.platform,
+        route: "/digital-twin",
+        requiredPermission: "facilities.read",
+        requiredFeature: "digital_twin",
+      },
+      {
+        // Reading a module exposes the facility's real equipment, so it
+        // carries the same permission the asset module does. Enterprise-only
+        // by plan, which the catalog already enforced before the module
+        // existed.
+        label: "VR Training",
+        icon: navIcons.platform,
+        route: "/training",
+        requiredPermission: "assets.read",
+        requiredFeature: "vr_training",
       },
       {
         label: "Checklist Templates",
         icon: navIcons.audit,
         route: "/checklist-templates",
         requiredPermission: "checklist_templates.read",
+        requiredFeature: "inspections",
       },
       {
         label: "Work Orders",
         icon: navIcons.workOrders,
         route: "/work-orders",
         requiredPermission: "work_orders.read",
-        comingSoon: true,
+        requiredFeature: "work_orders",
       },
       {
         label: "Permits",
         icon: navIcons.permits,
         route: "/permits",
         requiredPermission: "permits.read",
+        requiredFeature: "permits",
         comingSoon: true,
       },
     ],
@@ -134,6 +165,7 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.safety,
         route: "/safety",
         requiredPermission: "safety.read",
+        requiredFeature: "safety_reports",
         comingSoon: true,
       },
       {
@@ -141,12 +173,14 @@ export const navGroups: readonly NavGroup[] = [
         icon: navIcons.reports,
         route: "/reports",
         requiredPermission: "reports.read",
+        requiredFeature: "reports",
         comingSoon: true,
       },
       {
         label: "Documents",
         icon: navIcons.documents,
         route: "/documents",
+        requiredFeature: "documents",
         comingSoon: true,
       },
     ],
@@ -197,11 +231,28 @@ export const navGroups: readonly NavGroup[] = [
 ];
 
 /** Filters the nav to what the current permission set may see; empty groups drop. */
-export function visibleNavGroups(can: (permission: string) => boolean): NavGroup[] {
+/**
+ * Nav filtered by both gates: the person's permissions and the company's plan.
+ *
+ * Both must pass. They answer different questions and neither implies the
+ * other — a Company Admin holds `work_orders.read` on every tier while a
+ * Starter tenant has no work-order module, and an Operations tenant has the
+ * module while its Field Inspector cannot close a work order. `hasFeature`
+ * defaults to allowing everything so existing callers (and tests that predate
+ * Phase 13) keep their behaviour.
+ */
+export function visibleNavGroups(
+  can: (permission: string) => boolean,
+  hasFeature: (feature: string | undefined) => boolean = () => true,
+): NavGroup[] {
   return navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.requiredPermission || can(item.requiredPermission)),
+      items: group.items.filter(
+        (item) =>
+          (!item.requiredPermission || can(item.requiredPermission)) &&
+          hasFeature(item.requiredFeature),
+      ),
     }))
     .filter((group) => group.items.length > 0);
 }
@@ -216,6 +267,8 @@ export function findNavItem(pathname: string): { group: NavGroup; item: NavItem 
 }
 
 export function isRouteActive(itemRoute: string, pathname: string): boolean {
+  // "/" is the public marketing landing page, never a nav item, so plain
+  // prefix matching is safe for every route in navGroups.
   if (itemRoute === "/") return pathname === "/";
   return pathname === itemRoute || pathname.startsWith(`${itemRoute}/`);
 }

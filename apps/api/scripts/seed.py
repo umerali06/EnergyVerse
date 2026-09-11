@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from google.cloud.firestore_v1.async_client import AsyncClient
 
@@ -16,11 +17,15 @@ from app.db.repositories.assets import AssetRepository
 from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.checklist_templates import ChecklistTemplateRepository
 from app.db.repositories.companies import CompanyRepository
+from app.db.repositories.documents import DocumentRepository
 from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.inspections import InspectionRepository
 from app.db.repositories.permissions import PermissionRepository
+from app.db.repositories.permit_templates import PermitTemplateRepository
+from app.db.repositories.permits import PermitRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
+from app.db.repositories.training import TrainingModuleRepository
 from app.db.repositories.users import UserRepository
 from app.db.repositories.work_orders import WorkOrderRepository
 from app.models.base import CompanyScope, utc_now
@@ -34,16 +39,27 @@ from app.models.entities import (
     ChecklistTemplateItem,
     CompanyCreate,
     CompanyUpdate,
+    DocumentCreate,
     FacilityCreate,
     FacilityUpdate,
     InspectionCreate,
     PermissionCreate,
     PermissionUpdate,
+    PermitApprovalSnapshotStep,
+    PermitApprovalTemplateStep,
+    PermitChecklistSnapshotItem,
+    PermitChecklistTemplateItem,
+    PermitCreate,
+    PermitRiskAssessmentItem,
+    PermitRiskBand,
+    PermitTemplateCreate,
     RoleCreate,
     RolePermission,
     RolePermissionCreate,
     RoleUpdate,
     SeedCounts,
+    TrainingModuleCreate,
+    TrainingStep,
     UserCreate,
     UserUpdate,
     WorkOrderCreate,
@@ -586,8 +602,104 @@ DEMO_WORK_ORDERS = (
 )
 
 
+@dataclass(frozen=True)
+class DemoDocumentSeed:
+    id: str
+    title: str
+    document_code: str
+    category: str
+    description: str
+    file_path: str
+    filename: str
+    file_format: str
+    file_size_bytes: int
+    facility_id: str | None = None
+    asset_id: str | None = None
+    tags: tuple[str, ...] = field(default_factory=tuple)
+
+
+DEMO_DOCUMENTS = (
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:sop-001"),
+        title="High Pressure Feed Pump Operation & Safety SOP",
+        document_code="DOC-SOP-001",
+        category="sop",
+        description=(
+            "Standard operating procedure for pre-start inspection, startup sequence, normal "
+            "operation, and emergency shutdown of Feed Pump P-101."
+        ),
+        file_path="sops/DOC-SOP-001_feed_pump_sop.pdf",
+        filename="DOC-SOP-001_feed_pump_sop.pdf",
+        file_format="pdf",
+        file_size_bytes=2450120,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        asset_id=ASSET_FEED_PUMP_ID,
+        tags=("SOP", "P-101", "Safety", "High Pressure"),
+    ),
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:man-201"),
+        title="Ariel JGK/4 Compressor Technical Specification & Maintenance Manual",
+        document_code="DOC-MAN-201",
+        category="manual",
+        description=(
+            "Original OEM technical specifications, lubrication guidelines, torque settings, "
+            "and preventive maintenance manual for Reciprocating Compressor C-201."
+        ),
+        file_path="manuals/DOC-MAN-201_ariel_compressor_manual.pdf",
+        filename="DOC-MAN-201_ariel_compressor_manual.pdf",
+        file_format="pdf",
+        file_size_bytes=8910400,
+        facility_id=FACILITY_COMPRESSOR_STATION_ID,
+        asset_id=f"{ACME_COMPANY_ID}__asset__c-201",
+        tags=("Manual", "Compressor", "Ariel", "C-201"),
+    ),
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:pol-101"),
+        title="Site HSE Safety Policy & Hazardous Chemical Exposure Standard",
+        document_code="DOC-POL-101",
+        category="safety_policy",
+        description=(
+            "Site-wide health, safety, and environmental compliance regulations governing PPE, "
+            "chemical spill containment, and emergency evacuation protocols."
+        ),
+        file_path="policies/DOC-POL-101_hse_safety_policy.pdf",
+        filename="DOC-POL-101_hse_safety_policy.pdf",
+        file_format="pdf",
+        file_size_bytes=1840000,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        tags=("HSE", "Policy", "Safety", "Compliance"),
+    ),
+    DemoDocumentSeed(
+        id=_deterministic_id("doc:crt-301"),
+        title="Crude Tank T-301 Annual API 653 Integrity Certificate",
+        document_code="DOC-CRT-301",
+        category="certificate",
+        description=(
+            "Certified third-party inspection compliance certificate confirming shell "
+            "thickness, foundation stability, and roof seal integrity per API 653 standards."
+        ),
+        file_path="certificates/DOC-CRT-301_api653_inspection.pdf",
+        filename="DOC-CRT-301_api653_inspection.pdf",
+        file_format="pdf",
+        file_size_bytes=1120000,
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        asset_id=f"{ACME_COMPANY_ID}__asset__t-301",
+        tags=("Certificate", "API 653", "Tank 301", "Compliance"),
+    ),
+)
+
+
 def role_id(company_id: str, role_key: str) -> str:
     return system_role_id(company_id, role_key)
+
+
+def _seed_time(*, hours: int) -> datetime:
+    """A timestamp relative to now, so seeded permits are always current.
+
+    Permits expire on a wall-clock window; fixed dates would leave every demo
+    permit expired within days of being written.
+    """
+    return utc_now() + timedelta(hours=hours)
 
 
 def role_permission_id(company_id: str, role_key: str, permission_key: str) -> str:
@@ -607,6 +719,7 @@ async def _ensure_company(
         existing.name != payload.name
         or existing.status != payload.status
         or existing.subscription_tier != payload.subscription_tier
+        or existing.subscription_status != payload.subscription_status
     ):
         await repository.update(
             scope,
@@ -614,6 +727,7 @@ async def _ensure_company(
                 name=payload.name,
                 status=payload.status,
                 subscription_tier=payload.subscription_tier,
+                subscription_status=payload.subscription_status,
             ),
             SEED_ACTOR_UID,
         )
@@ -1037,6 +1151,365 @@ async def _ensure_inspection(
         )
 
 
+PERMIT_TEMPLATE_HOT_WORK_ID = f"{ACME_COMPANY_ID}__permit_template__hot-work"
+PERMIT_TEMPLATE_CONFINED_SPACE_ID = f"{ACME_COMPANY_ID}__permit_template__confined-space"
+
+PERMIT_ACTIVE_ID = f"{ACME_COMPANY_ID}__permit__hot-work-flare-line"
+PERMIT_PENDING_ID = f"{ACME_COMPANY_ID}__permit__confined-space-t301"
+PERMIT_DRAFT_ID = f"{ACME_COMPANY_ID}__permit__hot-work-draft"
+
+
+def _permit_templates() -> tuple[PermitTemplateCreate, ...]:
+    """Two real templates so the permit register is usable out of the box.
+
+    Approval steps address roles rather than people, matching how the module
+    resolves an approver at runtime -- a template outlives any individual.
+    """
+    return (
+        PermitTemplateCreate(
+            id=PERMIT_TEMPLATE_HOT_WORK_ID,
+            name="Hot Work Permit",
+            permit_type="hot_work",
+            description=(
+                "Welding, grinding, cutting or any ignition source in a "
+                "classified area."
+            ),
+            checklist_items=[
+                PermitChecklistTemplateItem(
+                    id="hw-gas-test",
+                    label="Atmospheric gas test completed and recorded (LEL < 5%)",
+                    help_text="Re-test if work is suspended for more than 30 minutes.",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-isolation",
+                    label="Equipment isolated, drained and purged",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-fire-watch",
+                    label="Fire watch assigned and extinguisher within 10 m",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-combustibles",
+                    label="Combustible material removed or protected within 15 m",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-ppe",
+                    label="Flame-resistant PPE and eye protection verified",
+                ),
+            ],
+            approval_steps=[
+                PermitApprovalTemplateStep(
+                    id="hw-approval-operations",
+                    label="Operations Manager authorisation",
+                    approver_role_id=role_id(ACME_COMPANY_ID, "operations_manager"),
+                ),
+                PermitApprovalTemplateStep(
+                    id="hw-approval-hse",
+                    label="HSE Manager authorisation",
+                    approver_role_id=role_id(ACME_COMPANY_ID, "hse_manager"),
+                ),
+            ],
+        ),
+        PermitTemplateCreate(
+            id=PERMIT_TEMPLATE_CONFINED_SPACE_ID,
+            name="Confined Space Entry Permit",
+            permit_type="confined_space",
+            description="Entry into any tank, vessel, pit or other confined space.",
+            checklist_items=[
+                PermitChecklistTemplateItem(
+                    id="cs-atmosphere",
+                    label="Oxygen 19.5-23.5%, LEL < 5%, H2S < 10 ppm verified",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-isolation",
+                    label="All lines blinded and energy sources locked out",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-attendant",
+                    label="Standby attendant posted at the entry point",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-rescue",
+                    label="Rescue plan briefed and retrieval equipment rigged",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-comms",
+                    label="Continuous communication method agreed and tested",
+                ),
+            ],
+            approval_steps=[
+                PermitApprovalTemplateStep(
+                    id="cs-approval-hse",
+                    label="HSE Manager authorisation",
+                    approver_role_id=role_id(ACME_COMPANY_ID, "hse_manager"),
+                ),
+            ],
+        ),
+    )
+
+
+def _risk(
+    item_id: str,
+    hazard: str,
+    persons: str,
+    controls: str,
+    initial: tuple[int, int],
+    residual: tuple[int, int],
+) -> PermitRiskAssessmentItem:
+    """Build one 5x5 risk row, deriving score and band the way the module does."""
+
+    def band(score: int) -> PermitRiskBand:
+        if score >= 15:
+            return "critical"
+        if score >= 8:
+            return "high"
+        if score >= 4:
+            return "medium"
+        return "low"
+
+    initial_score = initial[0] * initial[1]
+    residual_score = residual[0] * residual[1]
+    return PermitRiskAssessmentItem(
+        id=item_id,
+        hazard=hazard,
+        persons_at_risk=persons,
+        initial_likelihood=initial[0],
+        initial_severity=initial[1],
+        initial_score=initial_score,
+        initial_band=band(initial_score),
+        controls=controls,
+        residual_likelihood=residual[0],
+        residual_severity=residual[1],
+        residual_score=residual_score,
+        residual_band=band(residual_score),
+    )
+
+
+def _snapshot(
+    template: PermitTemplateCreate, completed: bool
+) -> tuple[list[PermitChecklistSnapshotItem], list[PermitApprovalSnapshotStep]]:
+    """Freeze a template onto a permit, exactly as the service does on create."""
+    checklist = [
+        PermitChecklistSnapshotItem(
+            id=f"snap-{item.id}",
+            template_item_id=item.id,
+            label=item.label,
+            required=item.required,
+            help_text=item.help_text,
+            completed=completed,
+            completed_by=FIELD_INSPECTOR_UID if completed else None,
+            completed_at=_seed_time(hours=-6) if completed else None,
+        )
+        for item in template.checklist_items
+    ]
+    approvals = [
+        PermitApprovalSnapshotStep(
+            id=f"snap-{step.id}",
+            template_step_id=step.id,
+            label=step.label,
+            approver_role_id=step.approver_role_id,
+            required=step.required,
+        )
+        for step in template.approval_steps
+    ]
+    return checklist, approvals
+
+
+def _demo_permits() -> tuple[tuple[PermitCreate, dict[str, object]], ...]:
+    """Three permits spanning the lifecycle the requirements ask to be shown:
+    one active, one waiting on approval, one still being drafted.
+
+    Each is paired with the extra fields its state implies, applied after
+    creation because `PermitCreate` only carries what a draft legitimately has.
+    """
+    hot_work, confined_space = _permit_templates()
+
+    active_checklist, active_approvals = _snapshot(hot_work, completed=True)
+    for step in active_approvals:
+        step.status = "approved"
+        step.signed_by = SEED_ACTOR_UID
+        step.signed_at = _seed_time(hours=-5)
+
+    pending_checklist, pending_approvals = _snapshot(confined_space, completed=True)
+
+    draft_checklist, draft_approvals = _snapshot(hot_work, completed=False)
+
+    return (
+        (
+            PermitCreate(
+                id=PERMIT_ACTIVE_ID,
+                permit_number="PTW-2026-0118",
+                title="Flare line weld repair",
+                description=(
+                    "Replace the cracked 6-inch flare header spool downstream "
+                    "of the knock-out drum."
+                ),
+                permit_type="hot_work",
+                facility_id=FACILITY_NORTH_REFINERY_ID,
+                asset_id=ASSET_FEED_PUMP_ID,
+                valid_from=_seed_time(hours=-4),
+                valid_until=_seed_time(hours=8),
+                template_id=hot_work.id,
+                template_name=hot_work.name,
+                template_version=1,
+                checklist_snapshot=active_checklist,
+                approval_snapshot=active_approvals,
+                risk_assessment=[
+                    _risk(
+                        "risk-ignition",
+                        "Ignition of residual hydrocarbon in the flare header",
+                        "Welder, fire watch, nearby operators",
+                        "Purge to < 5% LEL, continuous gas monitoring, fire "
+                        "watch posted with extinguisher and hose reel.",
+                        initial=(4, 5),
+                        residual=(1, 5),
+                    ),
+                    _risk(
+                        "risk-burns",
+                        "Contact burns and arc-eye from welding operations",
+                        "Welder and assisting technician",
+                        "Flame-resistant PPE, welding screens, dedicated "
+                        "assistant briefed on the work pack.",
+                        initial=(3, 3),
+                        residual=(1, 3),
+                    ),
+                ],
+                worker_ids=[MAINTENANCE_TECHNICIAN_UID, FIELD_INSPECTOR_UID],
+            ),
+            {
+                "status": "active",
+                "submitted_at": _seed_time(hours=-6),
+                "activated_by": SEED_ACTOR_UID,
+                "activated_at": _seed_time(hours=-4),
+            },
+        ),
+        (
+            PermitCreate(
+                id=PERMIT_PENDING_ID,
+                permit_number="PTW-2026-0119",
+                title="Tank T-301 internal inspection entry",
+                description=(
+                    "Internal visual inspection of tank T-301 following the "
+                    "scheduled drain and clean."
+                ),
+                permit_type="confined_space",
+                facility_id=FACILITY_NORTH_REFINERY_ID,
+                asset_id=f"{ACME_COMPANY_ID}__asset__t-301",
+                valid_from=_seed_time(hours=12),
+                valid_until=_seed_time(hours=24),
+                template_id=confined_space.id,
+                template_name=confined_space.name,
+                template_version=1,
+                checklist_snapshot=pending_checklist,
+                approval_snapshot=pending_approvals,
+                risk_assessment=[
+                    _risk(
+                        "risk-atmosphere",
+                        "Oxygen deficiency or residual hydrocarbon vapour",
+                        "Entrant and standby attendant",
+                        "Continuous four-gas monitoring, forced-air "
+                        "ventilation, entry aborted on any alarm.",
+                        initial=(4, 5),
+                        residual=(2, 5),
+                    ),
+                    _risk(
+                        "risk-rescue",
+                        "Entrant incapacitated with no means of retrieval",
+                        "Entrant",
+                        "Tripod and winch rigged, attendant in continuous "
+                        "contact, rescue team briefed before entry.",
+                        initial=(3, 5),
+                        residual=(1, 5),
+                    ),
+                ],
+                worker_ids=[FIELD_INSPECTOR_UID],
+            ),
+            {"status": "pending_approval", "submitted_at": _seed_time(hours=-1)},
+        ),
+        (
+            PermitCreate(
+                id=PERMIT_DRAFT_ID,
+                permit_number="PTW-2026-0120",
+                title="Compressor skid pipework modification",
+                description=(
+                    "Cut and re-route the 2-inch instrument air line on "
+                    "compressor skid C-201."
+                ),
+                permit_type="hot_work",
+                facility_id=FACILITY_COMPRESSOR_STATION_ID,
+                asset_id=f"{ACME_COMPANY_ID}__asset__c-201",
+                valid_from=_seed_time(hours=48),
+                valid_until=_seed_time(hours=56),
+                template_id=hot_work.id,
+                template_name=hot_work.name,
+                template_version=1,
+                checklist_snapshot=draft_checklist,
+                approval_snapshot=draft_approvals,
+                risk_assessment=[
+                    _risk(
+                        "risk-stored-energy",
+                        "Stored pressure released during the cut",
+                        "Fitter and nearby operators",
+                        "Isolate, depressurise and verify at zero before any "
+                        "cut; double-block-and-bleed confirmed.",
+                        initial=(3, 4),
+                        residual=(1, 4),
+                    ),
+                ],
+                worker_ids=[MAINTENANCE_TECHNICIAN_UID],
+            ),
+            {},
+        ),
+    )
+
+
+async def _ensure_document(
+    documents: DocumentRepository,
+    scope: CompanyScope,
+    seed: DemoDocumentSeed,
+) -> None:
+    existing = await documents.get(scope, seed.id)
+    if existing is None:
+        await documents.create(
+            scope,
+            DocumentCreate(
+                id=seed.id,
+                title=seed.title,
+                document_code=seed.document_code,
+                category=seed.category,
+                description=seed.description,
+                facility_id=seed.facility_id,
+                asset_id=seed.asset_id,
+                file_path=seed.file_path,
+                filename=seed.filename,
+                file_format=seed.file_format,
+                file_size_bytes=seed.file_size_bytes,
+                status="active",
+                tags=list(seed.tags),
+            ),
+            SEED_ACTOR_UID,
+        )
+        return
+    if (
+        existing.title != seed.title
+        or existing.document_code != seed.document_code
+        or existing.category != seed.category
+        or existing.description != seed.description
+    ):
+        await documents.update_metadata(
+            scope,
+            seed.id,
+            {
+                "title": seed.title,
+                "document_code": seed.document_code,
+                "category": seed.category,
+                "description": seed.description,
+                "tags": list(seed.tags),
+            },
+            SEED_ACTOR_UID,
+        )
+
+
 async def _ensure_work_order(
     work_orders: WorkOrderRepository,
     assets: AssetRepository,
@@ -1101,6 +1574,312 @@ async def _ensure_work_order(
         await work_orders.close(scope, work_order.id, SEED_ACTOR_UID)
 
 
+
+# --- VR training modules ------------------------------------------------------
+#
+# One module per competency the requirements name, each bound to the North
+# Refinery's real 3D scene and its real assets, so a trainee learns the
+# equipment their site actually has. `correct_option` never reaches the client
+# (see TrainingStepResponse), so the answers below stay server-side.
+
+ASSET_TANK_301_ID = f"{ACME_COMPANY_ID}__asset__t-301"
+ASSET_VALVE_401_ID = f"{ACME_COMPANY_ID}__asset__v-401"
+ASSET_MOTOR_501_ID = f"{ACME_COMPANY_ID}__asset__m-501"
+
+MUSTER_POINT = [-20.0, 1.7, 25.0]
+
+DEMO_TRAINING_MODULES = (
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__facility-orientation",
+        title="North Refinery orientation walk",
+        kind="exploration",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "A guided walk of the North Refinery: the process unit, the tank "
+            "farm and the muster point, so a new starter can orient themselves "
+            "before working on site."
+        ),
+        estimated_minutes=8,
+        steps=[
+            TrainingStep(
+                id="step-orientation-entry",
+                order=1,
+                title="Site entry",
+                instruction=(
+                    "You are standing at the North Refinery main gate. Look "
+                    "around to take in the site layout before moving in."
+                ),
+                action="observe",
+                target_position=[0.0, 1.7, 30.0],
+            ),
+            TrainingStep(
+                id="step-orientation-process-unit",
+                order=2,
+                title="Process Unit 1",
+                instruction=(
+                    "Walk to Process Unit 1, where the feed pump and its drive "
+                    "motor are installed."
+                ),
+                action="observe",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-orientation-tank-farm",
+                order=3,
+                title="Tank Farm A",
+                instruction="Continue to Tank Farm A and note the bunding around the tank.",
+                action="observe",
+                target_asset_id=ASSET_TANK_301_ID,
+            ),
+            TrainingStep(
+                id="step-orientation-muster",
+                order=4,
+                title="Muster point",
+                instruction=(
+                    "Finish at the muster point. Confirm you can find your way "
+                    "here from anywhere on site."
+                ),
+                action="acknowledge",
+                target_position=MUSTER_POINT,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__equipment-location",
+        title="Locate critical equipment",
+        kind="equipment_location",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "Find each item of critical equipment by tag. Scored: you are "
+            "expected to know where these are without prompting."
+        ),
+        estimated_minutes=6,
+        pass_threshold=75,
+        steps=[
+            TrainingStep(
+                id="step-locate-p101",
+                order=1,
+                title="Find P-101",
+                instruction="Locate Feed Pump 101 (tag P-101) and select it.",
+                action="locate",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-locate-t301",
+                order=2,
+                title="Find T-301",
+                instruction="Locate Crude Storage Tank 301 (tag T-301) and select it.",
+                action="locate",
+                target_asset_id=ASSET_TANK_301_ID,
+            ),
+            TrainingStep(
+                id="step-locate-v401",
+                order=3,
+                title="Find V-401",
+                instruction="Locate Pressure Relief Valve 401 (tag V-401) and select it.",
+                action="locate",
+                target_asset_id=ASSET_VALVE_401_ID,
+            ),
+            TrainingStep(
+                id="step-locate-m501",
+                order=4,
+                title="Find M-501",
+                instruction="Locate Pump Drive Motor 501 (tag M-501) and select it.",
+                action="locate",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__loto-procedure",
+        title="Lock-out / tag-out on the feed pump",
+        kind="safety_procedure",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "Isolate Feed Pump 101 safely before maintenance. Every scored "
+            "step must be right: an out-of-order isolation is how people get "
+            "hurt."
+        ),
+        estimated_minutes=10,
+        pass_threshold=100,
+        steps=[
+            TrainingStep(
+                id="step-loto-permit",
+                order=1,
+                title="Confirm the permit",
+                instruction=(
+                    "Before touching anything, confirm a valid permit to work "
+                    "is in place for P-101."
+                ),
+                action="acknowledge",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-loto-first-action",
+                order=2,
+                title="First isolation action",
+                instruction="What is the first action once the permit is confirmed?",
+                action="choose",
+                target_asset_id=ASSET_MOTOR_501_ID,
+                options=[
+                    "Notify the control room and request shutdown",
+                    "Close the suction valve",
+                    "Remove the coupling guard",
+                    "Drain the casing",
+                ],
+                correct_option="Notify the control room and request shutdown",
+            ),
+            TrainingStep(
+                id="step-loto-isolate",
+                order=3,
+                title="Isolate the drive motor",
+                instruction=(
+                    "Isolate Pump Drive Motor 501 at the local isolator and "
+                    "apply your personal lock."
+                ),
+                action="sequence",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+            TrainingStep(
+                id="step-loto-verify",
+                order=4,
+                title="Prove dead",
+                instruction=(
+                    "Attempt a start from the local station to prove the "
+                    "isolation holds, then return the selector to off."
+                ),
+                action="sequence",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+            TrainingStep(
+                id="step-loto-tag",
+                order=5,
+                title="Tag the isolation",
+                instruction="Attach your tag showing your name, the date and the reason.",
+                action="acknowledge",
+                target_asset_id=ASSET_MOTOR_501_ID,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__gas-release-drill",
+        title="Emergency drill: gas release at the tank farm",
+        kind="emergency_drill",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "A timed drill. Gas is detected at Tank Farm A: raise the alarm, "
+            "take the correct escape route and reach the muster point."
+        ),
+        estimated_minutes=5,
+        pass_threshold=100,
+        steps=[
+            TrainingStep(
+                id="step-drill-detect",
+                order=1,
+                title="Gas detected",
+                instruction="The gas alarm sounds near T-301. Identify the source area.",
+                action="locate",
+                target_asset_id=ASSET_TANK_301_ID,
+                time_limit_seconds=30,
+            ),
+            TrainingStep(
+                id="step-drill-raise-alarm",
+                order=2,
+                title="Raise the alarm",
+                instruction="What do you do first?",
+                action="choose",
+                options=[
+                    "Raise the alarm and evacuate upwind",
+                    "Investigate the leak more closely",
+                    "Attempt to close the tank valve",
+                    "Return to your vehicle for a gas monitor",
+                ],
+                correct_option="Raise the alarm and evacuate upwind",
+                time_limit_seconds=20,
+            ),
+            TrainingStep(
+                id="step-drill-route",
+                order=3,
+                title="Escape upwind",
+                instruction="Take the upwind escape route. Do not pass downwind of the tank.",
+                action="sequence",
+                target_position=MUSTER_POINT,
+                time_limit_seconds=60,
+            ),
+            TrainingStep(
+                id="step-drill-muster",
+                order=4,
+                title="Report at muster",
+                instruction="Reach the muster point and report yourself present.",
+                action="acknowledge",
+                target_position=MUSTER_POINT,
+                time_limit_seconds=60,
+            ),
+        ],
+    ),
+    TrainingModuleCreate(
+        id=f"{ACME_COMPANY_ID}__training__seal-replacement",
+        title="Maintenance simulation: replace the P-101 mechanical seal",
+        kind="maintenance_simulation",
+        facility_id=FACILITY_NORTH_REFINERY_ID,
+        description=(
+            "Carry out a mechanical seal replacement on Feed Pump 101 in the "
+            "correct order, from isolation through to handback."
+        ),
+        estimated_minutes=15,
+        pass_threshold=80,
+        steps=[
+            TrainingStep(
+                id="step-seal-isolation",
+                order=1,
+                title="Confirm isolation",
+                instruction="Confirm P-101 is isolated and locked off before opening anything.",
+                action="acknowledge",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-drain",
+                order=2,
+                title="Drain and depressurise",
+                instruction="Drain the casing and confirm zero pressure at the gauge.",
+                action="sequence",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-remove",
+                order=3,
+                title="Remove the seal",
+                instruction="Remove the coupling guard, then withdraw the seal cartridge.",
+                action="sequence",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-fit",
+                order=4,
+                title="Fit the replacement",
+                instruction="Fit the new cartridge and torque the gland nuts evenly.",
+                action="sequence",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+            ),
+            TrainingStep(
+                id="step-seal-handback",
+                order=5,
+                title="Hand back",
+                instruction="What must happen before the pump is returned to service?",
+                action="choose",
+                target_asset_id=ASSET_FEED_PUMP_ID,
+                options=[
+                    "Remove locks, close the permit and record the work",
+                    "Start the pump and watch for leaks",
+                    "Leave the isolation in place for the next shift",
+                    "Refit the guard only",
+                ],
+                correct_option="Remove locks, close the permit and record the work",
+            ),
+        ],
+    ),
+)
+
 async def run_seed(
     client: AsyncClient | None = None,
     *,
@@ -1122,6 +1901,10 @@ async def run_seed(
     checklist_templates = ChecklistTemplateRepository(firestore_client, audit)
     inspections = InspectionRepository(firestore_client, audit)
     work_orders = WorkOrderRepository(firestore_client, audit)
+    documents = DocumentRepository(firestore_client, audit)
+    training_modules = TrainingModuleRepository(firestore_client, audit)
+    permit_templates = PermitTemplateRepository(firestore_client, audit)
+    permits = PermitRepository(firestore_client, audit)
 
     await asyncio.gather(
         _ensure_company(
@@ -1130,7 +1913,11 @@ async def run_seed(
                 id=ACME_COMPANY_ID,
                 name="Acme Energy",
                 status="active",
-                subscription_tier="demo",
+                # Phase 13: the demo tenant must exercise every module, so it
+                # carries the richest plan. "demo" was never a published tier,
+                # so it resolved to no entitlements once the gate went live.
+                subscription_tier="enterprise",
+                subscription_status="active",
             ),
         ),
         _ensure_company(
@@ -1139,7 +1926,12 @@ async def run_seed(
                 id=SECOND_COMPANY_ID,
                 name="Beta Utilities",
                 status="active",
-                subscription_tier="demo",
+                # Deliberately the entry tier: the second tenant already proves
+                # multi-tenant isolation, and on Starter it also demonstrates
+                # plan gating -- its admin holds work_orders.read and still
+                # gets a 402, with no Work Orders or Permits in either client.
+                subscription_tier="starter",
+                subscription_status="active",
             ),
         ),
     )
@@ -1227,6 +2019,30 @@ async def run_seed(
     for work_order_seed in DEMO_WORK_ORDERS:
         await _ensure_work_order(work_orders, assets, acme_scope, work_order_seed)
 
+    for doc_seed in DEMO_DOCUMENTS:
+        await _ensure_document(documents, acme_scope, doc_seed)
+
+    for module_seed in DEMO_TRAINING_MODULES:
+        if await training_modules.get(acme_scope, module_seed.id) is None:
+            await training_modules.create(acme_scope, module_seed, SEED_ACTOR_UID)
+
+    # Permits were never seeded, so the register rendered empty on a fresh
+    # tenant and the module looked unbuilt.
+    for template_seed in _permit_templates():
+        if await permit_templates.get(acme_scope, template_seed.id) is None:
+            await permit_templates.create(acme_scope, template_seed, SEED_ACTOR_UID)
+
+    for permit_seed, extra in _demo_permits():
+        if await permits.get(acme_scope, permit_seed.id) is not None:
+            continue
+        await permits.create(acme_scope, permit_seed, SEED_ACTOR_UID)
+        if extra:
+            # `PermitCreate` only carries what a draft legitimately has, so the
+            # approved/active state is stamped on afterwards.
+            await firestore_client.collection("permits").document(permit_seed.id).update(
+                {**extra, "updated_at": utc_now()}
+            )
+
     if with_auth_users:
         password = demo_password or settings.seed_demo_password
         if not password:
@@ -1272,15 +2088,24 @@ async def run_seed(
         acme_areas,
         acme_assets,
         acme_checklist_templates,
-        acme_inspections,
-        acme_work_orders,
     ) = await asyncio.gather(
         facilities.list(acme_scope),
         areas.list(acme_scope),
         assets.list(acme_scope),
         checklist_templates.list(acme_scope),
+    )
+    (
+        acme_inspections,
+        acme_work_orders,
+        acme_documents,
+        acme_permit_templates,
+        acme_permits,
+    ) = await asyncio.gather(
         inspections.list(acme_scope),
         work_orders.list(acme_scope),
+        documents.list(acme_scope),
+        permit_templates.list(acme_scope),
+        permits.list(acme_scope),
     )
     return SeedCounts(
         companies=sum(
@@ -1301,6 +2126,9 @@ async def run_seed(
         checklist_templates=len(acme_checklist_templates),
         inspections=len(acme_inspections),
         work_orders=len(acme_work_orders),
+        documents=len(acme_documents),
+        permit_templates=len(acme_permit_templates),
+        permits=len(acme_permits),
     )
 
 

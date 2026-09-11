@@ -119,18 +119,18 @@ void main() {
     expect(find.text('Saved'), findsOneWidget);
   });
 
-  testWidgets('theme controller toggles and persists light mode', (
+  testWidgets('theme controller toggles and persists dark mode', (
     tester,
   ) async {
     final controller = AppThemeController();
     await controller.load();
-    expect(controller.mode, ThemeMode.dark);
+    expect(controller.mode, ThemeMode.light);
 
     await controller.toggle();
 
-    expect(controller.mode, ThemeMode.light);
+    expect(controller.mode, ThemeMode.dark);
     final preferences = await SharedPreferences.getInstance();
-    expect(preferences.getString('fev-theme'), 'light');
+    expect(preferences.getString('fev-theme'), 'dark');
     controller.dispose();
   });
 
@@ -155,7 +155,7 @@ void main() {
     expect(opacity.opacity, 1);
   });
 
-  testWidgets('dev showcase renders in dark and light themes', (tester) async {
+  testWidgets('dev showcase renders in light and dark themes', (tester) async {
     final controller = AppThemeController();
     await tester.pumpWidget(
       AppThemeScope(
@@ -176,14 +176,14 @@ void main() {
     expect(find.text('FEV Design System'), findsOneWidget);
     expect(
       Theme.of(tester.element(find.text('FEV Design System'))).brightness,
-      Brightness.dark,
+      Brightness.light,
     );
 
-    await controller.setMode(ThemeMode.light);
+    await controller.setMode(ThemeMode.dark);
     await tester.pump(const Duration(milliseconds: 250));
     expect(
       Theme.of(tester.element(find.text('FEV Design System'))).brightness,
-      Brightness.light,
+      Brightness.dark,
     );
     controller.dispose();
   });

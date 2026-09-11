@@ -27,7 +27,8 @@ abstract class MediaUploader {
 }
 
 class FirebaseMediaUploader implements MediaUploader {
-  FirebaseMediaUploader({FirebaseStorage? storage}) : _storageOverride = storage;
+  FirebaseMediaUploader({FirebaseStorage? storage})
+      : _storageOverride = storage;
 
   /// Resolved lazily, only when `upload()`/`delete()` actually run --
   /// `FirebaseStorage.instance` throws without a real `Firebase.

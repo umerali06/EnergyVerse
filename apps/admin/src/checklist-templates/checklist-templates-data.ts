@@ -11,70 +11,74 @@ const PAGE_SIZE = 25;
 
 /** Fetches the company's checklist templates (paginated, filterable by
  * category), mirroring the 4.1/4.2 `useAssetsData` shape. */
+import { useCachedQuery } from "@/cache/cache-context";
+
 export function useChecklistTemplatesData() {
   const { apiClient } = useAuth();
-  const [category, setCategory] = useState<string | null>(null);
-  const [list, setList] = useState<{
-    status: AsyncStatus;
-    items: ChecklistTemplateListItem[];
-    nextCursor: string | null;
-    loadingMore: boolean;
-  }>({ status: "loading", items: [], nextCursor: null, loadingMore: false });
+  const [category, setCategoryState] = useState<string | null>(null);
+  const [extraItems, setExtraItems] = useState<ChecklistTemplateListItem[]>([]);
+  const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const requestId = useRef(0);
+  const filterKey = JSON.stringify({ category });
 
-  const fetchTemplates = useCallback(
-    async (currentCategory: string | null) => {
-      const id = ++requestId.current;
-      setList({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-      try {
-        const page = await apiClient.listChecklistTemplates({
-          category: currentCategory ?? undefined,
-          limit: PAGE_SIZE,
-        });
-        if (requestId.current === id) {
-          setList({
-            status: "ready",
-            items: page.items,
-            nextCursor: page.nextCursor ?? null,
-            loadingMore: false,
-          });
-        }
-      } catch {
-        if (requestId.current === id) {
-          setList({ status: "error", items: [], nextCursor: null, loadingMore: false });
-        }
-      }
-    },
-    [apiClient],
+  const templatesQuery = useCachedQuery<{ items: ChecklistTemplateListItem[]; nextCursor?: string | null }>(
+    `checklist-templates:list:${filterKey}`,
+    () =>
+      apiClient.listChecklistTemplates({
+        category: category ?? undefined,
+        limit: PAGE_SIZE,
+      }),
   );
 
+  const currentNextCursor =
+    extraNextCursor !== undefined
+      ? extraNextCursor
+      : (templatesQuery.data?.nextCursor ?? null);
+
   const loadMore = useCallback(async () => {
-    const cursor = list.nextCursor;
-    if (!cursor || list.loadingMore) return;
-    setList((current) => ({ ...current, loadingMore: true }));
+    const cursor = currentNextCursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
     try {
       const page = await apiClient.listChecklistTemplates({
         category: category ?? undefined,
         cursor,
         limit: PAGE_SIZE,
       });
-      setList((current) => ({
-        status: "ready",
-        items: [...current.items, ...page.items],
-        nextCursor: page.nextCursor ?? null,
-        loadingMore: false,
-      }));
+      setExtraItems((prev) => [...prev, ...page.items]);
+      setExtraNextCursor(page.nextCursor ?? null);
     } catch {
-      setList((current) => ({ ...current, loadingMore: false }));
+      // Toast handles error
+    } finally {
+      setLoadingMore(false);
     }
-  }, [apiClient, category, list.loadingMore, list.nextCursor]);
+  }, [apiClient, category, currentNextCursor, loadingMore]);
 
-  useEffect(() => {
-    void fetchTemplates(category);
-  }, [fetchTemplates, category]);
+  const setCategory = useCallback((cat: string | null) => {
+    setExtraItems([]);
+    setExtraNextCursor(undefined);
+    setCategoryState(cat);
+  }, []);
 
-  const retry = useCallback(() => void fetchTemplates(category), [fetchTemplates, category]);
+  const listStatus: AsyncStatus = templatesQuery.loading
+    ? "loading"
+    : templatesQuery.error
+      ? "error"
+      : "ready";
 
-  return { category, setCategory, list, retry, loadMore };
+  const allItems = [...(templatesQuery.data?.items ?? []), ...extraItems];
+
+  return {
+    category,
+    setCategory,
+    list: {
+      status: listStatus,
+      items: allItems,
+      nextCursor: currentNextCursor,
+      loadingMore,
+    },
+    retry: templatesQuery.refetch,
+    loadMore,
+  };
 }

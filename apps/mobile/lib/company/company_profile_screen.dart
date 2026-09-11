@@ -25,7 +25,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _controller ??= CompanyController(api: AuthProvider.of(context).api)..start();
+    _controller ??= CompanyController(api: AuthProvider.of(context).api)
+      ..start();
   }
 
   @override
@@ -45,7 +46,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
         key: const Key('company-settings-scroll'),
         padding: const EdgeInsets.all(DsSpacing.s6),
         children: [
-          Text('Company Settings', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Company Settings',
+              style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: DsSpacing.s2),
           Text(
             "Your organization's profile and tenant-wide settings.",
@@ -63,7 +65,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                 onPressed: () => controller.retry(),
                 variant: AppButtonVariant.ghost,
               ),
-              description: "Couldn't load company settings. Check your connection and try again.",
+              description:
+                  "Couldn't load company settings. Check your connection and try again.",
               title: 'Something went wrong',
             )
           else if (controller.profile != null)
@@ -91,7 +94,8 @@ class _CompanyProfileBody extends StatelessWidget {
               if (profile.logoUrl != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(DsRadius.sm),
-                  child: Image.network(profile.logoUrl!, height: 64, fit: BoxFit.contain),
+                  child: Image.network(profile.logoUrl!,
+                      height: 64, fit: BoxFit.contain),
                 ),
                 const SizedBox(height: DsSpacing.s3),
               ],
@@ -102,19 +106,22 @@ class _CompanyProfileBody extends StatelessWidget {
                 spacing: DsSpacing.s2,
                 runSpacing: DsSpacing.s2,
                 children: [
-                  if (profile.industry != null) AppBadge(label: profile.industry!),
+                  if (profile.industry != null)
+                    AppBadge(label: profile.industry!),
                   AppBadge(label: profile.timezone),
                   AppBadge(label: profile.locale),
                 ],
               ),
               if (profile.contactEmail != null) ...[
                 const SizedBox(height: DsSpacing.s3),
-                Text('Contact email', style: Theme.of(context).textTheme.labelSmall),
+                Text('Contact email',
+                    style: Theme.of(context).textTheme.labelSmall),
                 Text(profile.contactEmail!),
               ],
               if (profile.contactPhone != null) ...[
                 const SizedBox(height: DsSpacing.s3),
-                Text('Contact phone', style: Theme.of(context).textTheme.labelSmall),
+                Text('Contact phone',
+                    style: Theme.of(context).textTheme.labelSmall),
                 Text(profile.contactPhone!),
               ],
             ],
@@ -129,7 +136,8 @@ class _CompanyProfileBody extends StatelessWidget {
               const SizedBox(height: DsSpacing.s3),
               Row(
                 children: [
-                  StatusPill(label: profile.subscriptionTier, status: AppStatus.info),
+                  StatusPill(
+                      label: profile.subscriptionTier, status: AppStatus.info),
                   const SizedBox(width: DsSpacing.s2),
                   Expanded(
                     child: Text(

@@ -152,8 +152,6 @@ def test_create_update_and_soft_delete_facility(wiring: dict[str, Any]) -> None:
 
 
 def test_delete_facility_with_children_returns_409(wiring: dict[str, Any]) -> None:
-    response = _request(
-        _identity(), "DELETE", f"/api/v1/facilities/{FACILITY_NORTH_REFINERY_ID}"
-    )
+    response = _request(_identity(), "DELETE", f"/api/v1/facilities/{FACILITY_NORTH_REFINERY_ID}")
     assert response.status_code == 409
     assert response.json()["error"] == "facility_has_children"

@@ -69,6 +69,28 @@
 | D-064 | AR/manual measurement data model, screenshot evidence, and mutation protocol (Phase 7.9 Step 2) | **`Inspection.ar_measurements[]` (replacing the 7.1 `list[dict]` placeholder) holds one `ArMeasurement` per capture: `id`, `method` (`ar`\|`manual`), `distance_meters` (always meters, fixed-unit convention per D-058), optional `label`/`note`/`checklist_item_id`, optional `media_local_id` (an existing `InspectionMedia` item as visual evidence), and `points: list[AnnotationPoint]` reusing D-054's normalized-point shape but left genuinely optional — `ar_flutter_plugin_2` exposes no 2D screen-tap coordinate alongside its 3D hit-test result, so exact overlay markers are not fabricated; the screenshot alone is the AR method's evidence requirement (`media_local_id` mandatory, `points` not). Mutation protocol mirrors D-054/D-055's annotations exactly: three routes (create/update/delete), idempotent by client-generated `id`, no `expected_revision` (measurement traffic must never collide with checklist-autosave). Update is deliberately narrow — only `label`/`note`/`checklist_item_id` are mutable; method/distance/screenshot/points are immutable once created (delete-and-recreate fixes a mistake, same posture as media's checklist-link-only update). An AR screenshot is a plain `InspectionMedia` photo through the *existing* 7.4 pipeline (no new storage subfolder, no new `MediaKind`, no `MediaQueue` schema change) — a measurement simply references its `local_id`, exactly how an annotation references the photo it's drawn on, decoupling the measurement record from the screenshot's own upload completion. Mobile captures the screenshot via `ARSessionManager.snapshot()` (extracting bytes from the plugin's own `MemoryImage` return) and reuses `LocalMediaRepository.enqueueCapture` unmodified.** | **RESOLVED — LOCKED** | 2026-08-10 |
 | D-065 | AI photo analysis data model, Claude vision integration, and mutation protocol (Phase 7.10) | **`Inspection.ai_analysis[]` (replacing the 7.1 `dict \| None` placeholder) holds one `AiAnalysis` per run: `id`, `media_local_id`, `model`, `summary`, optional `recommendations`/`risk_level`, `annotation_ids` (the findings it produced), `reviewed`/`reviewed_by`/`reviewed_at`, `created_by`, `created_at`. Every detected finding is persisted as its own `Annotation(source="ai", confidence=...)` — the exact mechanism D-054 reserved `source`/`confidence` for; no new overlay model, no new review UI primitive. `app/ai/vision_client.py`'s `ClaudeVisionClient` is the first third-party HTTP/SDK call in this backend (every prior integration is Firebase) — a forced tool-use call (`report_photo_analysis`) constrains the model to return `summary` + `findings[]` (`shape`, 1-2 normalized points, optional `damage_type` from the same enum `Annotation` uses, `confidence`, optional `note`); a `VisionAnalysisClient` protocol is what `InspectionService` depends on so tests inject a `FakeAiClient`, no real API key required for CI. Two new routes deliberately don't mirror create/update/delete or attach/detach: `POST .../media/{media_id}/analyze` (triggers a fresh run, identified by the media item's server id like `update_inspection_media`) and `POST .../ai-analysis/{analysis_id}/review` (marks reviewed — the "confirm" half of D-008; "override" is simply editing/deleting the resulting annotations through the existing endpoints, no separate action). `InspectionRepository.append_ai_analysis` writes the new annotations and the analysis record in one atomic Firestore update. Mobile/admin: `analyzeMedia`/`reviewAiAnalysis` are direct, immediate, ONLINE-ONLY calls, never queued through the offline outbox like every other mutation — there is no honest optimistic echo for an AI response that doesn't exist yet, and the action requires live connectivity to a paid third-party API regardless.** | **RESOLVED — LOCKED** | 2026-08-10 |
 | D-066 | Work order lifecycle model and the `work_orders.close` permission split (Phase 8.1) | **New `WorkOrder` (`TenantDoc`), scope chosen from the original spec's remaining sections (§12) after the product owner picked "Work Orders" over Permit-to-Work/Notifications. Lifecycle: `open → assigned → in_progress → pending_review → closed`, plus a terminal `cancelled` reachable from any non-terminal state — mirrors `Inspection`'s draft/in_progress/completed+cancelled shape (D-045), adapted for the spec's explicit Assign/Accept/Supervisor-Review steps. A new `work_orders.close` permission is deliberately distinct from the pre-existing `work_orders.write` — granted to `operations_manager`/`company_admin`/`super_admin` but never to `maintenance_technician`, so the assigned technician can submit their completed repair for review but cannot close it themselves; enforced at the route layer (`require_permission("work_orders.close")` on `POST .../close` only). Independently, `WorkOrderService.accept_work_order`/`submit_work_order_for_review` enforce a self-only check (`current.technician_id == actor_uid`, else 403 `not_assigned_technician`) — "Accept Task" and "submit for review" are personal acknowledgments, not supervisory actions, so even a `company_admin`/`operations_manager` cannot accept or submit on a technician's behalf. Mutation protocol mirrors D-064/D-055's idempotent-by-id, no-`expected_revision`-on-bodyless-actions shape for `accept`/`close`/`cancel`; `assign`/`submit-for-review` accept an optional `expected_revision` since they carry a real body. `media` is reserved, always-empty on the entity until a future sub-phase gives "Upload Photos" a real shape, matching how `Inspection.ar_measurements`/`ai_analysis` were reserved ahead of their own phases. Backend-only for 8.1, mirroring how Phase 7.1 established the Inspection foundation before any client UI — mobile/admin work-order screens are deferred to future sub-phases.** | **RESOLVED — LOCKED** | 2026-08-11 |
+| D-067 | Work order mobile offline architecture: separate outbox/sync engine, not a reuse of inspections' (Phase 8.2) | **Chose a fully separate `LocalWorkOrders`/`WorkOrderOutbox`/`WorkOrderSyncEngine` triple over extending inspections' existing `LocalInspections`/`Outbox`/`SyncEngine` — same "unrelated domain entity, its own table" rationale D-051 already established for `MediaQueue` vs `Outbox`, applied one layer up to the sync engine itself, and chosen specifically to avoid an invasive, high-risk refactor of the working, already-well-tested inspections engine for a domain with only 2 mutation types instead of 18. `WorkOrderOutbox` carries only `accept`/`submit_for_review` — the technician's two field actions — since assign/close/cancel/create/delete are always-online supervisor actions taken from the admin app and structurally never need to queue offline. A genuine correctness gap was found and fixed mid-phase, not late-discovered: `WorkOrderSyncEngine._alreadyApplied`'s `accept` case initially copied `SyncEngine`'s `start` case verbatim (a bare status check), but a work order's technician can change out from under a queued `accept` via reassignment — unlike an inspection's inspector, fixed at creation — so a genuine "someone else was reassigned and accepted while I was offline" conflict would have been silently swallowed as success. Fixed by additionally comparing the fresh server `technicianId` against this device's own still-unmutated local row's `technicianId` (`accept`'s optimistic write never touches `technicianId`, only `status`/`acceptedAt`). A second, related gap: `markConflict` initially overwrote `completionNotes`/`laborHours`/`materialsUsed` from the server snapshot on any conflict, destroying exactly the technician's own submitted content that `resolveConflict(keepLocal: true)` needs to still be there to re-submit — fixed to only sync status-machinery fields (`status`/`technicianId`/`acceptedAt`) from the snapshot, mirroring how inspections' own `markConflict` already left title/notes/checklist responses alone for the identical reason.** | **RESOLVED — LOCKED** | 2026-08-11 |
+| D-068 | Safety-report lifecycle and closure authority (Phase 5.1) | **Safety incidents follow `reported → under_review → corrective_action → resolved → closed`, with terminal `cancelled` reachable from any pre-resolution state. Reporter identity is always server-derived. Field Inspectors receive `safety.write` to report incidents; Operations Managers remain `safety.read` only. A new `safety.close` permission is granted only to HSE Manager, Company Admin, and Super Admin and gates assignment, lifecycle management, deletion, and final closure, preventing a reporter from closing their own incident. Every mutation is tenant-scoped, revision-aware where it carries a body, and fully audited.** | **RESOLVED — LOCKED** | 2026-08-16 |
+| D-069 | Safety evidence storage and corrective-action accountability (Phase 5.2) | **Safety evidence is private, server-mediated Firebase Storage under `companies/{company_id}/safety-reports/{report_id}/evidence/`; photos accept JPEG/PNG/WebP/HEIC up to 10 MiB and videos MP4/MOV/WebM up to 250 MiB. Evidence is immutable after report closure/cancellation. Corrective actions are typed records with assignee, due date, priority, lifecycle (`open → in_progress → completed`, or manager-only `cancelled` with mandatory reason), completion notes, and server-stamped accountability fields. Assigned users may progress/complete only their own actions; `safety.close` holders create/cancel/manage any action. Transition to `resolved` requires at least one action and every non-cancelled action completed.** | **RESOLVED — LOCKED** | 2026-08-16 |
+| D-083 | AI report generation safety, snapshot, finalization, and export boundary (Phase 9.1) | **A generated report is a tenant-scoped snapshot, not a live projection. MVP report types are the five named in source brief §13: inspection, maintenance, safety, executive summary, and asset health. `reports.generate` authorizes draft creation only when the caller also holds the source domain's read permission; `reports.read` authorizes the tenant report library. AI-produced narrative is explicitly advisory and editable, and a draft containing inspection AI findings cannot finalize until every included analysis is reviewed. Finalization is an explicit human attestation that stamps authenticated reviewer identity/time and makes the report snapshot immutable. PDF/DOCX/XLSX exports are deterministic renderings of that finalized snapshot, stored privately under `companies/{company_id}/reports/{report_id}/exports/` and downloaded only through fresh signed URLs; no public or persisted download URL is allowed. Drafts may be regenerated or deleted, finalized reports may not. Every generation, edit, finalization, export, and deletion is audited.** | **RESOLVED — LOCKED** | 2026-08-20 |
+| D-084 | Report snapshot assembly and regeneration protocol (Phase 9.2) | **`GeneratedReport.source_snapshot` stores the complete JSON-compatible company/source view used by the narrative model, with `source_revision` retained where the source aggregate has one. Inspection, maintenance, safety, and asset-health reports require a source ID; executive summaries forbid one and snapshot bounded real tenant metrics. `ReportNarrativeClient` is the provider-neutral boundary and Claude forced-tool output supplies `summary`, `findings[]`, `recommendations[]`, and optional 0–100 `risk_score`. Regeneration is an explicit online-only, expected-revision mutation that re-reads current authoritative sources and atomically replaces snapshot+narrative+model provenance; it is never a silent live update. Finalization is separately attested and terminal.** | **RESOLVED — LOCKED** | 2026-08-20 |
+| D-085 | Finalized report artifact rendering and storage protocol (Phase 9.3) | **Only finalized `GeneratedReport` snapshots may be exported. PDF, DOCX, and XLSX are deterministic server renderings of stored report data, never new AI generations. Each format uses a fixed tenant-private object path below `companies/{company_id}/reports/{report_id}/exports/`; re-export replaces that format and its provenance without mutating the finalized snapshot revision. Persisted metadata contains path, filename, content type, byte size, authenticated generator, and time, but never a signed URL. The API returns a fresh signed URL only after a scoped `reports.read` check and records every successful export in append-only audit history.** | **RESOLVED — LOCKED** | 2026-08-20 |
+| D-086 | Static 3D Digital Twin & Spatial Asset Viewport (Phase 10) | **Static 3D Digital Twin is modeled as tenant-scoped 3D scene aggregates in collection `digital_twin_scenes`, synthesizing default camera presets (`Overhead Overview`, `Pump Skid Station`, `Tank Farm Area`) and spatial grid placement for facility assets, enriching each hotspot node with live status (`Healthy`/`Warning`/`Critical`). Read and write operations are gated by `facilities.read` and `facilities.write` with audit logging (`digital_twin_scene.updated`). Admin portal uses Three.js WebGL viewport with procedural refinery geometry, color-coded status halos, 3D-to-2D projected badges, and spatial asset drawer. Mobile client uses custom spatial node viewport painter, camera presets, status filters, and asset detail bottom sheet.** | **RESOLVED — LOCKED** | 2026-08-22 |
+| D-087 | Public marketing surface and the app's home route (Phase 12.1) | **The product is sold self-service, so `/` is a public, indexable marketing landing page — not the signed-in dashboard. An unguarded `(marketing)` route group owns `/`, `/pricing`, and `/about` as static server components; the app shell's home moves to `/dashboard`, addressed everywhere through the single `APP_HOME` constant in `src/navigation/routes.ts`. Marketing pages are never auth-gated in either direction: an authenticated visitor may read them, and the header only swaps its call to action. robots.txt stops blanket-disallowing `/` and instead excludes an explicit list of private prefixes, with the sitemap covering marketing plus auth entry points. Marketing lives inside the existing Next.js app rather than a separate site, so it shares the locked design tokens and brand assets and can be lifted out later without changing the app. Pricing tiers are structural placeholders until the product owner sets list prices.** | **RESOLVED — LOCKED** | 2026-09-07 |
+| D-088 | Marketing accent policy and token-safe translucency (Phase 12.2) | **Brand orange is the primary call to action on the public marketing site — a deliberate, surface-scoped revision of D-016's "rare orange accent", which continues to govern the authenticated app shell, where actions stay navy. Marketing motion must never cost server rendering: sections declare `data-reveal` and one observer in the group layout reveals them, with the hidden state CSS-gated behind a `js-anim` class set pre-paint so a no-JS visitor gets visible content. All motion is disabled under `prefers-reduced-motion`. Translucent surfaces use `color-mix` over token variables, never Tailwind opacity modifiers: the config maps theme colors to bare `var(--color-*)` references, so `bg-surface/70` silently compiles to nothing.** | **RESOLVED — LOCKED** | 2026-09-07 |
+| D-089 | Marketing depicts the product, and publishes the access model (Phase 12.4) | **The landing page argues from this platform's specifics, not from generic SaaS structure. The hero is a stylised depiction of a real workflow — an offline PSV inspection syncing to a supervisor's work-order review — rendered in markup with `role="img"` and a label that says it is an illustration; no fabricated screenshot, customer, logo, or metric may appear. Every record id, facility, and role shown must match what the seed actually creates. The full role/permission matrix and the separation-of-duties gates are published before any sales conversation, because a buyer evaluating an operations platform needs the access model up front. Figures on the page must be verifiable properties of the shipped product; commercial numbers stay flagged until the owner sets them.** | **RESOLVED — LOCKED** | 2026-09-07 |
+| D-090 | Subscription entitlements are a second, independent gate (Phase 13.1) | **`app/billing/plans.py` is the single source of truth for tiers: prices in cents, quotas, and a feature set per tier, taken from requirements §22.1. Entitlements gate the *company*, permissions gate the *person*, and both are enforced server-side and independently — a Company Admin holds `work_orders.write` on every tier, but a Starter tenant has no work-order module. An entitlement failure returns **402** carrying the tier that unlocks the module, never a bare 403, because the tenant can buy it. Feature sets are strictly nested up the tier order so an upgrade can never remove access. `past_due` still grants access — retries run for weeks and locking an operator out of live permit and safety records over a failed card is unsafe — while `canceled`, `incomplete`, and an `unassigned` tier grant nothing regardless of status. Quotas are asserted in services, which own the row count; an unentitled company reports a quota of 0, not unlimited.** | **RESOLVED — LOCKED** | 2026-09-08 |
+| D-091 | Stripe integration shape: lookup keys, live-read reconciliation, signature as the gate (Phase 13.3) | **One module imports Stripe; everything else takes plain values, so billing logic tests without a key. Prices are addressed by deterministic lookup key (`fev_<tier>_<interval>`) rather than stored ids, so no price id is committed and one code path serves test and live accounts. Amounts are only ever created from the plan catalog by `scripts/stripe_sync.py`, never typed into the Stripe dashboard. Webhook reconciliation re-reads the live subscription instead of trusting the event body, making redelivery idempotent and out-of-order delivery harmless without a processed-event ledger. A subscription's tier comes only from our own `fev_tier` metadata; an unlabelled subscription keeps the existing tier rather than inferring one from the price. The webhook is unauthenticated and signature verification is its only gate — a forged event could grant a paid tier — and it answers 200 for verified-but-ignored events while letting reconciliation failures surface so Stripe retries.** | **RESOLVED — LOCKED** | 2026-09-08 |
+| D-092 | Checkout precedes email verification; the redirect is not the confirmation (Phase 13.4) | **Signup is details -> pay -> use. A company created seconds ago always has an unverified admin, so `POST /billing/checkout` and `GET /billing/subscription` deliberately drop the verified-email requirement while keeping `company.settings` on checkout; paying is not access to tenant data, and every module route keeps its own verification gate. The steps between registering and a usable workspace live in a `(billing)` route group guarded on 'the account exists', not on 'the email is verified'. The plan picker renders from the server's own catalog so it cannot offer an unpublished tier. Stripe's success redirect is treated as unconfirmed: the completion page polls the subscription until the webhook has reconciled, and if it never arrives the visitor is given a re-check and a way onward rather than a dead end.** | **RESOLVED — LOCKED** | 2026-09-10 |
+| D-093 | The client never derives entitlements from the tier; both gates must pass (Phase 13.5) | **`SubscriptionProvider` is the single client-side source of what a company may do, and it uses the API's `features` list verbatim — never a tier-to-feature mapping in the client, which would let a repricing silently disagree with the server. `hasFeature` fails closed while loading and on error, matching the 402. Nav items carry `requiredFeature` alongside `requiredPermission` and both must pass: they answer different questions and neither implies the other, so a Starter tenant's Company Admin holds `work_orders.read` and still never sees the module. Modules absent from a plan are hidden rather than shown-and-refused. `useSubscription` throws without a provider rather than defaulting permissive, because a forgotten provider must not silently unlock everything. A past-due plan keeps access and shows a warning; only `canceled` removes entitlement.** | **RESOLVED — LOCKED** | 2026-09-10 |
+| D-094 | The entitlement gate is enforced at the router, and account surfaces stay ungated (Phase 13.7) | **`require_feature` is a router-level dependency on every module router, not a per-route decoration, so a new endpoint inherits the gate instead of silently escaping it. Auth, billing, dashboard, users, roles, company and audit are deliberately never gated: an unpaid or cancelled company must still be able to sign in, see why it is blocked, and pay. Seeded companies carry real published tiers — Acme `enterprise`, Beta `starter` — because the previous `demo` tier resolved to no entitlements once the gate went live, and a second tenant on the entry plan demonstrates gating with the existing demo logins. Tests default to an entitled Enterprise tenant through a shared conftest override, and the helper that builds those entitlements routes through `resolve_entitlements` so it cannot grant features the production path would withhold.** | **RESOLVED — LOCKED** | 2026-09-10 |
+| D-095 | Generator output is corrected at generation time, never by hand (Phase 13.8) | **openapi-generator emits a `...value` spread in `*ToJSON` for schemas declaring `additionalProperties: false`, so the three models built on the API's `StrictModel` sent camelCase duplicates alongside the wire names and the server rejected them with 422 — browser signup was impossible while the same body from curl succeeded. The spread is stripped by `gen-clients.mjs` after generation rather than edited into the committed output, because the clients are regenerated and a hand-fix would silently disappear. The server model is left strict: forbidding unexpected fields on a registration payload is the correct posture, and the client is what was wrong. A serialization test asserts the exact wire shape and was verified to fail when the spread returns.** | **RESOLVED — LOCKED** | 2026-09-10 |
+| D-096 | AI video analysis samples frames server-side and scores them as one request | **Claude's vision API takes images, not clips, so a video is decoded by a PyAV-backed `VideoFrameExtractor` (PyAV bundles its own ffmpeg, so no system binary is required) and the sampled frames are sent together in a single request rather than one request per frame -- a defect recurring across frames is then reported once instead of N times. Sampling is spread evenly across the clip's duration, not the leading frames, so a fault appearing late in a recording is still seen. Every finding carries `frame_timestamp_seconds`, without which its normalized coordinates are meaningless on a clip. `InspectionService` depends on the extractor protocol rather than the PyAV class, so inspection tests stay CI-safe; the real decoder is covered separately against clips generated in-process, so no binary fixture enters the repository. An undecodable upload is a 422, kept distinct from a 502 upstream AI failure, because the two are separately actionable.** | **RESOLVED — LOCKED** | 2026-09-10 |
+| D-097 | Notifications are personal, and email/push are best-effort | **A notification is addressed to one user, so the endpoints are gated on authentication alone rather than a new RBAC permission -- every read path filters on `user_id == current_user.uid`, the same posture as `/auth/me`. Marking another user's notification read returns 404 rather than 403, so the endpoint cannot be used to probe whether an id exists. Fan-out writes the in-app record first as the durable auditable copy, then attempts email and push; both failures are swallowed because the action that produced the notification has already committed and must not be rolled back over an undelivered alert. `delivered_channels` records what actually went out rather than what was intended. Only assignment and permit approval/expiry escalate beyond in-app, so routine traffic does not train people to ignore their inbox. Device tokens are keyed by SHA-256 so the raw token never lands in a document path or log; a token FCM reports as unregistered is pruned, and re-registering an existing token reassigns it so a shared site tablet stops pushing the previous holder's alerts.** | **RESOLVED — LOCKED** | 2026-09-10 |
+| D-098 | VR training ships as WebXR over the existing Three.js scene, not Unity | **The product owner chose WebXR on 2026-09-10 over the previously stated Unity direction. Rationale: the trainer reuses the facility's real digital-twin scene and asset records, so a trainee learns their own site rather than a fabricated mock-up, and the same build serves a headset and a desktop browser -- a site without headsets still gets the training instead of nothing. Unity remains possible later behind the same API. Scoring is server-side and narrow: only `locate`, `sequence` and `choose` steps are scored, and a `choose` step's answer is never sent to the client (the runner reports the selection and the server judges it), so a tampered client cannot declare itself correct. A module passes on its own `pass_threshold`, which makes a completion record evidence of competency rather than attendance. Starting an in-progress module resumes it so a dropped headset connection does not lose the run; starting a completed one opens a fresh attempt, because competency lapses and the earlier result is history.** | **RESOLVED — LOCKED** | 2026-09-10 |
+| D-099 | The asset carries the five-state condition, not just the three-state rollup | **The requirements name Excellent/Good/Fair/Poor/Critical, and inspection readings have recorded exactly that since Phase 7.7 -- but the value was collapsed to the 3-state `current_status` at rollup and then discarded, so every asset screen could only ever show Healthy/Warning/Critical. That is the terminology mismatch the client reported. `Asset` now also stores `current_condition`, set from the same completed inspection. `current_status` is unchanged and still drives the dashboard KPI; the condition is what a human reads, and the asset list shows it in preference to the rollup. The rollup's early-return had to change with it: comparing only the 3-state status would silently drop an Excellent-to-Good change, since both map to Healthy. Null until an asset has been inspected, so the field never invents a condition nobody recorded.** | **RESOLVED — LOCKED** | 2026-09-11 |
+| D-100 | Global search covers every module the requirements name, and its hits open records | **Three of the eight declared categories -- inspections, safety reports and generated reports -- had icons, routes and a place in the type union but were never fetched, so the palette silently returned nothing for them. All three now search, and QR codes join them: a QR code is a printed label rather than a record of its own, so searching one resolves to the asset it labels and says so in the result. Hits also stopped dropping the record they found -- assets, work orders and permits opened bare list pages, the same defect as the 3D panel's buttons. Safety has no per-report route, so its id travels as `?reportId=` and the page opens it on arrival, which is also what makes the notification bell's safety links work.** | **RESOLVED — LOCKED** | 2026-09-11 |
+| D-101 | The demo tenant seeds permits, and permit tests measure deltas | **Permit templates and permits were never seeded, so a fresh tenant's register rendered empty and the module looked unbuilt -- which is exactly what the client reported. The seed now writes two real templates (hot work, confined space) and three permits spanning the lifecycle the requirements ask to be demonstrated: one active, one pending approval, one draft. Validity windows are relative to now rather than fixed dates, so seeded permits are never born expired. Two existing tests assumed a tenant with no permits; rather than pin them to the new numbers they now measure a delta from a baseline, so seed data and assertions cannot drift apart again.** | **RESOLVED — LOCKED** | 2026-09-11 |
 
 ## Decision Details
 
@@ -156,8 +178,9 @@
 - **Decision owner:** Product owner
 - **Brand:** Electric blue `#2563EB` is primary, energy orange `#F97316` is
   accent, and the dark industrial layers are `#0A0E1A`, `#111827`, and
-  `#1A2234`. Dark is the default; an accessible light theme is supported and the
-  user's choice persists locally.
+  `#1A2234`. Light is the default (revised 2026-09-07 by the product owner,
+  superseding the original dark default); the dark theme remains fully supported
+  and the user's choice persists locally.
 - **Typography:** Inter is the technical sans family and JetBrains Mono is used
   for identifiers/codes. Both are bundled under the OFL so rendering does not
   depend on a network font request.
@@ -1914,6 +1937,456 @@
   `work_orders.close`, rather than overloading `.write` with an implicit
   hierarchy the RBAC model doesn't otherwise have.
 
+### D-067 — Work Order Mobile Offline Architecture: Separate Outbox/Sync Engine (Phase 8.2)
+
+- **Decision owner:** Product owner, via `AskUserQuestion` at phase
+  start — chose "mobile + admin together" over splitting into separate
+  sub-phases, and chose offline-first via the outbox over a Phase
+  7.10-style online-only direct call for the technician's accept/
+  submit-for-review actions.
+- **A fully separate `LocalWorkOrders`/`WorkOrderOutbox`/
+  `WorkOrderSyncEngine` triple, not an extension of inspections'
+  existing `LocalInspections`/`Outbox`/`SyncEngine`.** Same rationale
+  D-051 already established for `MediaQueue` living apart from
+  `Outbox` — an unrelated domain entity gets its own table — applied one
+  layer up to the sync engine class itself this time. The alternative
+  (genericizing `SyncEngine` to serve both domains) was rejected as an
+  invasive, high-risk refactor of a working, already-thoroughly-tested
+  engine, for a domain (`WorkOrderOutbox`) with only 2 mutation types
+  (`accept`, `submit_for_review`) against inspections' 18 — `assign`/
+  `close`/`cancel`/`create`/`delete` are always-online supervisor
+  actions taken from the admin app and structurally never need to queue
+  offline at all.
+- **A genuine correctness gap found and fixed mid-phase, not
+  late-discovered: `accept`'s "already applied" check needed more than
+  a bare status comparison.** `WorkOrderSyncEngine._alreadyApplied`'s
+  first draft copied `SyncEngine._alreadyApplied`'s `start` case
+  verbatim (`current.status.name == 'inProgress'`) — correct for
+  inspections, where the inspector is fixed at creation and can never
+  change, but wrong for work orders, whose technician CAN change out
+  from under a queued `accept` via reassignment. Under the original
+  logic, "Technician A queues an accept while offline, gets reassigned
+  to Technician B, B accepts online, A's device replays its stale
+  accept and gets `invalid_transition`" would have been silently
+  swallowed as success (A's local cache adopting B's state with no
+  conflict surfaced) purely because the status happened to coincidentally
+  match. Fixed by additionally comparing the fresh server
+  `technicianId` against this device's own local row's `technicianId`
+  — which `accept`'s own optimistic write never touches (only `status`/
+  `acceptedAt` are set locally), so it still reflects who actually
+  queued this mutation at the moment the comparison runs, before either
+  `applyMutationSuccess` or `markConflict` gets a chance to overwrite it.
+- **A second, related gap in the same review pass: `markConflict` was
+  overwriting the technician's own submitted content.** The first draft
+  synced `completionNotes`/`laborHours`/`materialsUsed`/`submittedAt`
+  from the server snapshot on every conflict, alongside the status
+  fields — destroying the technician's real entered data before
+  `resolveConflict(keepLocal: true)` ever got a chance to re-submit it.
+  Fixed to only sync the status-machinery fields
+  (`status`/`technicianId`/`acceptedAt`) from the snapshot, exactly
+  mirroring how inspections' own `markConflict` already left `title`/
+  `notes`/`checklist_responses` untouched for the identical reason — the
+  server's conflicting version of the content fields lives only in
+  `conflictServerSnapshot`, read by the `!keepLocal` ("discard mine")
+  path instead.
+- **Consequences:** Any future offline mutation whose "already applied"
+  determination depends on a mutable, reassignable field (not just a
+  status enum) must compare that field explicitly, the same way `accept`
+  now does — a bare status check is only safe when the acting entity is
+  fixed for the record's lifetime, as inspections' inspector is.
+  Similarly, any future `markConflict` implementation must sync only the
+  fields the conflict genuinely needs corrected (typically status/
+  ownership machinery), never the caller's own real content fields,
+  or "keep mine" silently has nothing left to keep.
+
+### D-087 — Public Marketing Surface and the App's Home Route (Phase 12.1)
+
+- **Decision owner:** Product owner
+- **Problem:** `/` resolved to the protected dashboard, so every anonymous
+  visitor was bounced to `/login`. The platform already supports self-service
+  registration (`POST /api/v1/auth/register` creates a company, installs the
+  seven system roles, and makes the caller its `company_admin`) and `/signup`
+  existed, but nothing linked to it — there was no way to learn what the product
+  is or to start a trial. The JSON-LD `Organization`/`SoftwareApplication`
+  graph, `metadataBase`, and OG image were already in the root layout, all of it
+  sitting behind a login wall where no crawler could index anything.
+- **Where marketing lives:** Inside the existing Next.js app, as an unguarded
+  `(marketing)` route group, rather than a separate marketing site. It reuses
+  the locked D-016/D-017 tokens, fonts, and brand assets, so the public pages
+  and the product look like one thing. A future CMS-driven site can take over
+  the root domain by repointing `NEXT_PUBLIC_SITE_URL`; the group lifts out
+  without touching the app shell.
+- **Server components, not client:** The three pages are static server
+  components and import nothing from the `"use client"` design-system modules.
+  Firebase auth state is browser-only (D-011), so anything that touches the auth
+  context cannot render for a crawler. `MarketingHeader` is the single client
+  component in the group and reads auth status only to choose its CTA.
+- **Never gated in either direction:** Marketing pages are not wrapped in
+  `PublicOnly`. An authenticated visitor reads the same page and sees "Go to
+  dashboard" instead of "Log in"/"Start free trial". While the session is
+  restoring, neither CTA renders, so a returning user never sees "Log in" flash
+  before the correct affordance.
+- **The app's home is a constant:** `/` can no longer stand for "the
+  dashboard", so `APP_HOME` (`/dashboard`) in `src/navigation/routes.ts` is the
+  one place that decides where an authenticated user lands. Every consumer moved
+  onto it: the Dashboard nav item, the post-login `next` fallback, the
+  verify-email exit, the 403/404/coming-soon "back" affordances, and the PWA
+  `start_url`. Two test harnesses keep a `"/dashboard"` literal because
+  `vi.hoisted` runs before module imports.
+- **Crawler posture inverted:** robots.txt previously disallowed `/`, which is
+  now the page most in need of indexing. It allows the marketing and auth routes
+  and disallows an explicit list of private prefixes (`privateRoutePrefixes`),
+  kept by hand because several private routes are not nav items (`/qr`,
+  `/rbac-demo`, `/verify-email`, `/design-system`). The sitemap ranks the
+  landing page 1.0 and emits its root URL as the bare origin so it matches the
+  page's own canonical tag rather than adding a trailing slash.
+- **Pricing is a structure, not a commitment:** `src/marketing/pricing-plans.ts`
+  carries three tiers whose feature rows map to modules that exist today, but
+  the tier names, per-user prices, and seat limits are placeholders flagged in
+  the file. They must be replaced before the page is published publicly.
+- **Consequences:** `/` no longer requires authentication, so any future
+  assumption that "a page in the app implies a session" is wrong at the root.
+  Adding a private top-level segment now requires adding it to
+  `privateRoutePrefixes`, or it will be crawlable. Marketing copy is committed
+  source, so content edits are code changes and ship on the app's release
+  cadence — acceptable at this scale, and the trigger for extracting a CMS later
+  if it stops being.
+
+### D-088 — Marketing Accent Policy and Token-Safe Translucency (Phase 12.2)
+
+- **Decision owner:** Product owner
+- **Orange is the public site's action color:** D-016 locked "rare orange
+  accent" for the product interface, where a dense operational screen needs
+  restraint and navy carries the actions. A marketing page has the opposite job
+  — one obvious thing to click — so `CtaLink` defaults to an
+  `accent-500 → accent-600` gradient on `accent-ink`. This is scoped to the
+  `(marketing)` group; the app shell's `Button` is untouched and its primary
+  action remains navy. `accent-ink` (not white) keeps the pair above AA on the
+  bright orange.
+- **Motion may not cost server rendering:** The reveal-on-scroll effect is an
+  attribute (`data-reveal`) plus one `IntersectionObserver` mounted in the group
+  layout, not a client wrapper per section. Wrapping sections in a motion
+  component would have turned the page content into client components and given
+  up the static rendering Phase 12.1 exists to protect.
+- **A reveal must fail visible:** The hidden state lives behind a `js-anim`
+  class that the pre-paint bootstrap adds. Without JavaScript the class never
+  appears, so the content renders normally instead of being stranded at
+  `opacity: 0` — the standard failure mode of SSR-ed enter animations. The
+  observer also reveals anything already above the fold immediately and
+  unobserves each element after showing it, because a section that re-hides on
+  scroll-up reads as a glitch.
+- **Reduced motion is honored per effect, not globally suppressed:** Reveals
+  resolve to their finished state, the CTA sheen and panel hairline are removed
+  outright, and hover lifts are dropped. The reading-progress bar is kept —
+  progress is information, not decoration — and only loses its transition.
+- **Translucency comes from `color-mix`, not Tailwind opacity:** The Tailwind
+  config maps `surface`, `background`, `elevated`, and `border` to bare
+  `var(--color-*)` references. Tailwind cannot inject an alpha channel into an
+  opaque `var()`, so `bg-surface/70` and every sibling compile to **no rule at
+  all** and leave the element fully transparent — a silent failure, not an
+  error. The marketing site uses `mk-glass`, `mk-surface-soft`, `mk-chip`, and
+  `mk-accent-soft`, each `color-mix(in oklab, var(--color-*) N%, transparent)`,
+  keeping the value token-derived.
+- **Consequences:** Any new marketing surface must reach for the `mk-*`
+  translucency utilities rather than an opacity modifier. The same latent bug
+  exists in 15 pre-existing app-shell files (`bg-surface/80` on the sticky
+  header, `bg-surface/95` on the 403 card, `bg-elevated/60` in several lists),
+  which therefore render with no background; that is recorded here but
+  deliberately not changed in this phase. The real fix at the source would be
+  emitting the theme tokens as channel triplets so
+  `rgb(var(--x) / <alpha-value>)` works, which is a design-token generator
+  change affecting both clients.
+
+### D-089 — Marketing Depicts the Product, and Publishes the Access Model (Phase 12.4)
+
+- **Decision owner:** Product owner
+- **Problem:** The first landing page was structurally generic — a hero with a
+  bulleted card beside it, three "your tools are scattered" boxes, six
+  identical feature tiles. It could have advertised any B2B tool, which is the
+  opposite of useful to an operations lead deciding whether this fits how their
+  site runs.
+- **The hero depicts a workflow, not a value proposition:** `HeroShowcase`
+  renders a field device part-way through a monthly relief-valve inspection at
+  Tank Farm A with no connection, three changes queued in its outbox, and the
+  supervisor panel receiving the resulting work order. It states the platform's
+  central claim — crew works offline, supervisor gets the same record — in one
+  picture. Built in markup with CSS keyframes and one SVG `animateMotion`, so
+  the hero stays a server component.
+- **No fabricated evidence:** The depiction is labelled as an illustration
+  through `role="img"` and its `aria-label`, never presented as a capture. No
+  invented customer names, logos, testimonials, or performance metrics appear
+  anywhere on the site. Every identifier shown (`INS-2291`, `WO-1042`,
+  `PTW-118`, `RPT-0043`, North Refinery, Tank Farm A, PSV-114) is consistent
+  with the demo tenant the seed creates, so nothing implies a customer the
+  product does not have. Figures must be verifiable properties of the shipped
+  system.
+- **The record chain replaces the problem cards:** `RecordChain` walks one
+  asset from a failed seat-leak test to an attested export, naming the acting
+  role and the permission the API checks at each step. It doubles as the
+  clearest statement of separation of duties: `work_orders.write` progresses
+  the job, `work_orders.close` accepts it, and they are held by different
+  people.
+- **The access model is published pre-sales:** `RoleMatrix` shows all seven
+  built-in roles with the real permission-key counts of
+  `SYSTEM_ROLE_TEMPLATES` and what each can and cannot do. Competitors gate
+  this behind a demo call; showing it is a differentiator for buyers whose real
+  question is "who can approve what". The counts are duplicated from the Python
+  templates and must be updated with them — the component carries that note.
+- **Consequences:** Marketing content is now coupled to product truth. A change
+  to a system role template, a permission key, or the seeded demo hierarchy
+  makes a claim on the landing page wrong, and the role matrix in particular
+  needs updating alongside `apps/api/app/rbac/constants.py`. That coupling is
+  accepted deliberately: a page that can go stale against the product is
+  preferable to one that says nothing checkable.
+
+### D-090 — Subscription Entitlements Are a Second, Independent Gate (Phase 13.1)
+
+- **Decision owner:** Product owner
+- **Two gates, never conflated:** `require_permission` answers "may this
+  person do it"; `require_feature` answers "has this company paid for it".
+  They stack on a route and neither implies the other. Collapsing them into one
+  check — say, stripping `work_orders.*` from a Starter tenant's roles — would
+  have made the role templates plan-dependent and the RBAC model unexplainable.
+- **402, not 403:** a permission failure is final, so 403 is right. An
+  entitlement failure is a purchase decision, so it returns 402 with
+  `required_tier` and `required_tier_name` in the body, letting the client
+  render an upgrade prompt naming a real plan. Both share the `access.denied`
+  audit action, distinguished by `gate`, so one query answers "what was this
+  user refused, and why".
+- **One catalog:** prices, quotas, and feature sets live only in
+  `app/billing/plans.py`. The API enforces from it, the portal renders from it,
+  and the Stripe Prices are created from it, so the amount charged cannot drift
+  from the amount published. The admin TypeScript copy is a mirror with its own
+  test pinning the same figures.
+- **Feature sets are strictly nested:** `BASE ⊂ OPERATIONS ⊂ ENTERPRISE`, with a
+  test asserting it. A non-nested catalog would let an upgrade silently remove a
+  module, which is worse than not upgrading.
+- **`past_due` still grants access.** Stripe retries a failed enterprise invoice
+  for weeks, and an operator locked out of live permits and safety findings
+  because a corporate card expired is a safety problem, not a billing lever.
+  The portal shows a payment banner; `canceled` is the hard stop.
+- **Failing closed everywhere else:** an unknown status string parses to
+  `incomplete`; an `unassigned` tier grants nothing even if some process stamps
+  the status `active`; a company document that cannot be loaded yields 402
+  rather than 500; and an unentitled company's quota is 0, not unlimited, so a
+  half-finished signup cannot write tenant data.
+- **Quotas belong to services:** `assert_within_quota` takes the current row
+  count as an argument and does no I/O, because only the service knows how to
+  count its own collection. The dependency layer stays free of queries.
+- **Consequence — a commercial decision now shapes the product surface.**
+  Following §22.1 literally, Starter and Field have no work-order module, which
+  leaves the Maintenance Technician role with nothing to do on those tiers even
+  though §22.2 prices that seat. Confirmed with the product owner on
+  2026-09-08; revisit if that seat is ever sold at Starter.
+
+### D-091 — Stripe Integration Shape (Phase 13.3)
+
+- **Decision owner:** Product owner
+- **One import site.** Only `app/billing/stripe_gateway.py` imports `stripe`.
+  The checkout service and the webhook reconciler take a `StripeGateway`
+  protocol, so their whole surface is tested with a fake — no key, no network,
+  no recorded cassettes. Same boundary as `ReportNarrativeClient` (D-084).
+- **Prices by lookup key, not id.** `fev_operations_annual` is deterministic,
+  unique per Stripe account mode, and survives a Price being archived and
+  recreated. Nothing commits a `price_...`, and the identical code path works
+  against test and live keys with no per-environment mapping to maintain.
+- **The catalog is upstream of Stripe.** `scripts/stripe_sync.py` creates
+  Products and Prices *from* `app/billing/plans.py`. Nobody types an amount into
+  the Stripe dashboard, so the amount charged cannot drift from the amount
+  published. Prices are immutable in Stripe, so a repricing archives the old
+  Price and recreates it under the same lookup key; existing subscriptions
+  continue on the archived Price until deliberately migrated, and the script
+  never deletes.
+- **Reconciliation re-reads rather than trusting the event.** Any relevant
+  webhook triggers `retrieve_subscription` and the company document is written
+  from that absolute state. This buys idempotency (a redelivered event writes
+  the same thing) and order-independence (Stripe does not guarantee delivery
+  order, and an `updated` arriving before a `created` would otherwise regress a
+  tenant's plan) without a processed-event ledger. One extra read per event is
+  trivial against the cost of a wrong tier.
+- **Tier comes from our metadata only.** `fev_tier` is stamped on the
+  subscription at checkout and read back from there. Inferring the tier from the
+  price amount would let a repricing silently re-plan every tenant, so an
+  unlabelled subscription keeps whatever tier the company already had and logs a
+  warning.
+- **The webhook's only gate is the signature.** It cannot be authenticated —
+  Stripe calls it — and a forged event could grant a paid tier for free, so
+  signature verification is the security boundary of the entire billing flow. A
+  missing `STRIPE_WEBHOOK_SECRET` rejects everything rather than trusting
+  unverified input. Verified-but-uninteresting events answer 200 so Stripe stops
+  retrying; a reconciliation failure on a verified event is allowed to surface
+  as 500 precisely so Stripe *does* retry, since dropping it would leave a
+  paying tenant unentitled.
+- **Fail closed on configuration.** No secret key raises rather than no-opping:
+  a billing call that silently "succeeds" without charging is worse than an
+  outage, and the route answers 503.
+- **Consequence:** the Stripe account is now a downstream artifact of the
+  catalog. Editing a price in the dashboard will be reverted by the next sync
+  run, which is intended — the repository is the source of truth for
+  commercials.
+
+### D-092 — Checkout Precedes Email Verification (Phase 13.4)
+
+- **Decision owner:** Product owner
+- **The conflict.** Registration creates the company and signs the new admin
+  in, but their email is unverified, and every protected route sits behind
+  `require_verified_email`. Left alone, that puts a mailbox round trip between
+  the person and the one action that makes them a customer — and the required
+  flow is details, then pay, then use.
+- **The carve-out.** `require_billing_admin` authorizes
+  `POST /billing/checkout` from `get_current_user` rather than
+  `require_verified_email`, and `get_entitlements` does the same because the
+  completion page polls the subscription while still unverified. Both keep
+  their real gates: checkout still demands `company.settings`, and every module
+  route stacks `require_permission`, which does enforce verification. Paying is
+  not reading tenant data, so nothing else is relaxed.
+- **Its own route group.** `(billing)` holds `/signup/plan` and
+  `/signup/complete` under `RequireAccount`. `(public)`'s `PublicOnly` would
+  bounce them away the instant registration signs the admin in, and
+  `(protected)`'s `RequireAuth` would demand the verification they do not have
+  yet. The guard's question is "does this account exist", not "is it verified".
+- **One redirect, self-correcting.** `PublicOnly` sends an unverified user to
+  the billing step instead of `/verify-email`, preserving any `?plan=` chosen on
+  the pricing page. The billing step forwards to `/verify-email` as soon as a
+  subscription exists, so a returning unverified user with an active plan still
+  lands in the right place. One extra hop beats racing two redirects.
+- **The picker is server-driven.** Plans and prices come from
+  `GET /billing/catalog` — the same catalog the API enforces and the sync script
+  builds Stripe from — so the client cannot offer a tier that will not sell, and
+  a repricing needs no client release.
+- **The redirect is not the confirmation.** Stripe returns the browser to
+  `success_url` before it has necessarily delivered
+  `checkout.session.completed`. Treating that redirect as proof of payment would
+  let an unentitled tenant into the app. The completion page polls
+  `GET /billing/subscription` until the webhook has reconciled; a transient API
+  failure is not treated as a failed payment, and after a bounded number of
+  attempts the visitor gets an explicit "still confirming" state with both a
+  re-check and a way onward — never a spinner that lies.
+- **Consequences.** A company can exist in `incomplete` state indefinitely if
+  someone abandons checkout: it holds no entitlements, so it can do nothing, but
+  it does occupy an email address. Reclaiming those is deliberately out of scope
+  until there is evidence it matters. And because the billing routes are the one
+  place a caller can act while unverified, any new route added to `(billing)` or
+  gated by `require_billing_admin` must be re-checked against that.
+
+### D-093 — Entitlements Come From the Server, and Both Gates Must Pass (Phase 13.5)
+
+- **Decision owner:** Product owner
+- **One source, and it is the API.** `SubscriptionProvider` consumes the
+  `features` array from `GET /billing/subscription` as-is. The obvious
+  alternative — ship the tier-to-feature table to the client and switch on
+  `tier` — would put the mapping in two languages and let a repricing or a new
+  module make the client disagree with the server about what a customer bought.
+- **Fail closed, including while loading.** `hasFeature` answers `false` until
+  the plan is known and on error. Rendering optimistically would flash Work
+  Orders at a Starter tenant and then retract it, or hide a module an
+  Enterprise tenant pays for. Matching the API's 402 posture means the worst
+  case is a brief absence, never a false promise.
+- **Two independent gates.** `requiredPermission` asks "may this person do
+  it"; `requiredFeature` asks "has this company paid for it". Neither implies
+  the other: a Starter tenant's Company Admin holds `work_orders.read` while
+  its plan has no work-order module, and an Operations tenant has the module
+  while its Field Inspector cannot close a work order. `visibleNavGroups`
+  requires both, with the feature predicate defaulting to allow-all so callers
+  written before Phase 13 are unaffected.
+- **Hidden, not shown-and-refused.** A module the plan omits is absent from the
+  nav rather than present and erroring on click. The product owner asked for no
+  irrelevant content, and an upgrade path belongs on the pricing page, not
+  behind a dead menu item.
+- **`useSubscription` throws without a provider.** A permissive default would
+  mean a forgotten provider silently unlocks every module — the exact failure
+  the gate exists to prevent. The cost is that four test harnesses had to
+  supply a subscription, which is the right trade: those harnesses now exercise
+  the real composition.
+- **Past due keeps access.** Only `canceled` removes entitlement. Stripe
+  retries a failed enterprise invoice for weeks, and locking an operator out of
+  its permit and safety records over an expired corporate card would be both
+  dangerous and commercially absurd. The plan card warns, and its copy
+  deliberately does not imply lockout.
+- **Honest numbers on the plan card.** Limits come from the resolved
+  entitlements; an unlimited quota renders as text rather than a 0%-full bar;
+  and a count the page has not loaded shows a dash, never a fabricated zero.
+- **Consequences.** Adding a module now means adding its entitlement key to the
+  catalog *and* to its nav item, or it will be visible on every tier. And
+  because the shell waits for the subscription before rendering gated nav, a
+  slow `/billing/subscription` shows a briefly sparse sidebar — accepted over
+  the alternative of guessing.
+
+### D-094 — The Entitlement Gate Is Enforced at the Router (Phase 13.7)
+
+- **Decision owner:** Product owner
+- **The gap.** Phase 13.1 built `require_feature` and 13.5/13.6 hid gated
+  modules in the portal and the app, which made the product *look* correct. But
+  the dependency was attached to no route. Hiding a nav item is UX; a Starter
+  tenant could still `POST /api/v1/work-orders` with curl and be served. The
+  server half existed only as a helper nobody called.
+- **Router-level, not per-route.** The gate is a dependency on the router, so
+  every current and future endpoint under it inherits enforcement. Decorating
+  routes individually would mean each new endpoint is ungated until someone
+  remembers — the failure mode that produced this gap in the first place.
+- **What is deliberately not gated.** Auth, billing, dashboard, users, roles,
+  company settings, and audit. A company whose subscription lapsed must still
+  sign in, read its own plan, see the dashboard explaining the state, and reach
+  checkout. Gating those would trap an unpaid customer with no route to paying,
+  which is both hostile and commercially self-defeating.
+- **Seeded tenants carry real plans.** `subscription_tier="demo"` was never a
+  published tier, so once the gate was live it resolved to no entitlements and
+  the demo data became unusable. Acme is `enterprise`/`active` so it exercises
+  every module. Beta is `starter`/`active` on purpose: it already proved
+  multi-tenant isolation, and on the entry tier it also demonstrates gating —
+  `company_admin@beta.example.invalid` holds `work_orders.read` and still gets
+  a 402, with no Work Orders or Permits in either client.
+- **Tests default to entitled.** A shared `tests/conftest.py` overrides
+  `get_entitlements` to an Enterprise tenant, because the gate otherwise
+  resolves a company through Firestore the suite does not have. The helper
+  builds that through `resolve_entitlements` rather than constructing
+  `Entitlements` directly — an earlier version handed out the plan's features
+  regardless of status, which made a cancelled company look entitled and would
+  have hidden exactly the regression these tests exist to catch.
+- **Consequences.** Adding a module means adding its router to the gated set,
+  or it ships available on every tier. And because entitlements are resolved
+  per request, every gated route now reads the company document; that read is
+  the same one the dashboard already performs and is accepted as the cost of
+  enforcing on the server rather than trusting the client.
+
+### D-095 — Generator Output Is Corrected at Generation Time (Phase 13.8)
+
+- **Decision owner:** Product owner
+- **The symptom.** Every browser signup returned 422 "Request validation
+  failed", while the identical payload sent with curl returned 201. The form
+  data was valid against every declared constraint.
+- **The cause.** openapi-generator's typescript-fetch templates emit
+  `...value,` inside `*ToJSON` for any schema carrying
+  `additionalProperties: false`. It treats the keyword as "this model has
+  additional properties" and passes the source object through, so the request
+  body contained both the wire names and the camelCase originals
+  (`companyName` *and* `company_name`). `additionalProperties: false` is
+  exactly what the API's `StrictModel` (`extra="forbid"`) emits, so the server
+  rejected the duplicates. Three of 185 models were affected — and they were
+  precisely the three strictest, which is why the failure looked arbitrary.
+  Only `CompanyRegistrationRequest` broke anything: the other two are response
+  models and travel through `FromJSON`.
+- **Fixed in the generation step.** `gen-clients.mjs` strips the spread after
+  running the generator, alongside the whitespace normalisation already there.
+  Editing the committed output instead would work exactly until the next
+  `pnpm generate` and then fail silently — which is the worst kind of fix for a
+  bug whose symptom is a generic 422.
+- **The server stays strict.** The alternative was relaxing
+  `CompanyRegistrationRequest` to ignore unknown fields. Rejected: forbidding
+  unexpected fields on a registration payload is the right posture, and the
+  client was the thing that was wrong. Weakening the model would also have hidden
+  the same class of bug on every future strict request model.
+- **Guarded by a test that was proven to fail.** `serialization.test.ts` asserts
+  the registration body is exactly the four declared wire fields with no
+  camelCase key. The spread was deliberately reintroduced to confirm the test
+  catches it, then reverted — a regression guard nobody has watched fail is
+  only a guess.
+- **Consequences.** `pnpm generate` is now load-bearing for correctness, not
+  just convenience: anyone regenerating clients outside that script gets the
+  broken output back. The strip is narrow on purpose — it removes only a line
+  that is exactly `...value,` — so it cannot quietly alter anything else the
+  generator emits.
+
 ## Locked Principles
 
 These principles are reaffirmed alongside the resolved decisions and apply to all phases:
@@ -1925,6 +2398,94 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
 5. **Audit-log every critical action:** All mutations to safety-critical data are logged with actor, timestamp, and before/after state.
 
 ## Session Review
+
+- **2026-08-20 — Phase 9.4c.1 completed:** Replaced the mobile Reports placeholder
+  with a `reports.read`-gated generated-client library, type/status filtering,
+  cursor pagination, draft export gating, and fresh signed PDF/DOCX/XLSX launch
+  through an injectable `url_launcher` seam. Flutter analysis and focused
+  controller/widget/shell tests passed. Phase 9.4c.2 is next.
+
+- **2026-08-20 — Phase 9.4b.2 completed:** Added the protected report detail and
+  frozen source view, revision-safe human narrative editing, explicit regeneration,
+  mandatory human finalization attestation, immutable finalized presentation,
+  and confirmed draft deletion. Ten combined report tests, lint, and the 33-route
+  production build passed. Phase 9.4c mobile is next.
+
+- **2026-08-20 — Phase 9.4b.1 completed:** Added the admin advisory-report
+  creation route with `reports.generate` gating, the D-083 source permission
+  matrix, live tenant source selectors, executive-summary no-source semantics,
+  and generated-contract creation. Combined report tests, lint, and the 33-route
+  production build passed. Phase 9.4b.2 detail/review/finalization is next.
+
+- **2026-08-20 — Phase 9.4a completed:** Replaced the admin Reports placeholder
+  with a generated-client tenant library, type/status filters, pagination states,
+  and finalized-only PDF/DOCX/XLSX actions that request and immediately follow a
+  fresh signed URL. Focused interaction tests, lint, and the production build
+  passed. Phase 9.4b admin authoring/review is next.
+
+- **2026-08-20 — Phase 9.3 completed:** Added finalized-only deterministic
+  PDF/DOCX/XLSX renderers, fixed tenant-private export paths, persisted artifact
+  and generator provenance, fresh signed downloads, audited re-export, and the
+  generated contract operation. D-085 locks artifacts as renderings of the
+  immutable snapshot rather than new AI output. Structural tests and visual QA
+  passed for every format. Phase 9.4 is next but not started.
+
+- **2026-08-20 — Phase 9.2 completed:** Added the audited tenant report
+  aggregate, bounded source assembly for all five report types, injectable
+  structured Claude narrative boundary, revision-safe human edit/regeneration,
+  explicit immutable finalization, unreviewed-inspection-AI gate, seven API
+  operations, and regenerated TypeScript/Dart clients. D-084 locks regeneration
+  as an explicit snapshot replacement rather than a live projection. Phase 9.3
+  is next but not started.
+
+- **2026-08-20 — Phase 9 selected and 9.1 completed:** The product owner
+  authorized the recommended sequence, selecting AI report generation before
+  the static 3D facility view. D-083 locks tenant-scoped source snapshots,
+  source-permission checks, advisory/editable AI narrative, an explicit human
+  finalization attestation, immutable finalized snapshots, and private
+  server-mediated PDF/DOCX/XLSX exports. Phase 9.2 was designated as the next
+  sole active slice and has since been completed.
+
+- **2026-08-20 — post-Phase-8 sequencing audit:** Reconciled the repository,
+  source brief, phase tracker, and persistent summaries. Every defined slice
+  through Phase 8 is complete. Corrected stale Phase 0/5/6 status text and the
+  Phase 2 parent summary without changing product scope. Phase 9 remains
+  deliberately undefined. AI report generation and the static 3D facility view
+  are the remaining unimplemented MVP capabilities identified in the brief;
+  choosing and decomposing the next one remains an open product-owner decision,
+  so no implementation was started and no new locked decision was introduced.
+
+- **2026-08-16 — Phase 5.3 split and admin slice completed:** Refined the
+  combined client row into independently gated 5.3a (admin) and 5.3b (offline
+  mobile) to preserve the one-micro-task protocol without changing product
+  scope. The admin `/safety` placeholder is replaced by the real typed HSE
+  workflow; mobile remains unstarted until 5.3a's test/build/documentation gate
+  is closed.
+
+- **2026-08-16 — Phase 5.2 opened:** The source brief requires photo/video
+  evidence and corrective actions but does not define their storage boundary,
+  size/type limits, action lifecycle, or resolution gate. Implementation is
+  paused for product-owner confirmation because those choices affect private
+  evidence security and whether an incident can be resolved with outstanding
+  safety work.
+
+- **2026-08-16 — Phase 5/6 ordering confirmed:** The product owner instructed
+  continuation after the audit's recommended order, confirming Phase 5 as Safety
+  Reports and Phase 6 as Permit-to-Work. Phase 5.1 is the backend/data/contract
+  foundation. Two consequential details absent from source brief §10 remain open
+  and must be resolved before its schema is implemented: the incident status
+  lifecycle and whether closure is restricted to HSE/Company Admin authority or
+  also allowed to Operations Managers.
+
+- **2026-08-16 — implementation audit and sequencing gate:** Reconciled the
+  15-page source brief and pasted transcription with the repository and persistent
+  records. Confirmed D-001/D-002/D-003 are already locked and corrected stale
+  summary text in `PROJECT_CONTEXT.md`/`ARCHITECTURE.md`. No new product decision
+  was made. Phase 5 remains active but undefined, so implementation is paused at
+  the existing no-invented-requirements gate pending the product owner's selection
+  of the next capability and micro-task scope. The three full local suites were
+  started concurrently for audit but each exceeded the 120-second command window;
+  this run therefore does not supersede the latest recorded green CI evidence.
 
 - **2026-07-15 — Phase 0.3:** D-001 through D-003 remain locked. The Firebase Admin SDK/Firestore health implementation conforms to those decisions; no new product decision was introduced.
 - **2026-07-15 — Phase 0.4:** Added and locked D-004 through D-006. Effective permission resolution is represented as `frozenset[str]`; the exact starter catalog and seven role templates remain a single source of truth in code.
@@ -2452,3 +3013,379 @@ These principles are reaffirmed alongside the resolved decisions and apply to al
   backfill `work_orders.close` onto its existing `operations_manager`
   role, per every prior permission-addition precedent (D-029, D-036,
   etc.).
+
+- **2026-08-11 — Phase 8.2 (work order mobile + admin UI):** Continued in
+  the same session as 8.1 once the product owner confirmed scope
+  directly (`AskUserQuestion`: mobile + admin together, mirroring how
+  every Phase 7 sub-phase bundled mobile capture with its admin review
+  screen; offline-first via the outbox for the technician's accept/
+  submit-for-review actions, matching inspections' D-046/D-047
+  precedent over a Phase 7.10-style online-only call). Added and locked
+  D-067: a fully separate `LocalWorkOrders`/`WorkOrderOutbox`/
+  `WorkOrderSyncEngine` triple rather than extending inspections' own —
+  same rationale as D-051's `MediaQueue`, chosen to avoid an invasive
+  refactor of the working inspections engine for a 2-mutation-type
+  domain. Admin's work-orders UI was built by a delegated background
+  agent while mobile was built directly in this session; a real
+  incident occurred mid-phase when that agent ran `git stash` (with
+  `--include-untracked`) against the same shared working tree to get a
+  clean tsc baseline, momentarily reverting every uncommitted file on
+  disk (including this session's own in-progress mobile work) — no work
+  was actually lost (the stash captured everything and was recovered via
+  `git stash pop`), but it's now recorded as a standing lesson: never run
+  a concurrent agent with git/shell access against the same uncommitted
+  working tree without either committing first or isolating that agent
+  in its own worktree. Two genuine correctness gaps were found and fixed
+  during the sync-engine test-writing pass, not late-discovered: `accept`'s
+  "already applied" check needed to compare `technicianId` (not just
+  status) to correctly distinguish a genuine reassignment conflict from
+  "my own accept already landed"; and `markConflict` was overwriting the
+  technician's own submitted `completionNotes`/`laborHours`/
+  `materialsUsed` from the server snapshot, which would have silently
+  destroyed exactly the content `resolveConflict(keepLocal: true)` needs
+  to still be there to re-submit. Mobile (257 tests all green, including
+  8 new `work_order_sync_engine_test.dart` cases covering accept/submit
+  dispatch, both already-applied paths, both genuine-conflict paths, and
+  both `resolveConflict` directions, plus 4 new list/detail widget tests)
+  and admin (22 new tests across `work-orders-page.test.tsx`/
+  `work-order-detail-page.test.tsx`) all green; `flutter analyze` clean
+  (one pre-existing-pattern cosmetic `unused_element_parameter` warning
+  on a private `_InfoRow` widget, matching `inspection_detail_screen.dart`'s
+  own identical convention); admin ESLint clean, production build
+  compiled all 31 routes (bundle budget unchanged, 342.8 KB), full
+  `pnpm test` suite green. One pre-existing `app_shell_test.dart` case
+  ("tapping a bottom destination routes to its Coming soon page") was
+  retargeted a second time — Phase 4.2 already retargeted it once from
+  `/assets` to `/work-orders` when Assets stopped being a Coming-soon
+  stand-in; now that Work Orders is ALSO a real screen, the test asserts
+  the real Work Orders screen renders and the bottom-nav tab activates
+  correctly instead, since no primary bottom-nav destination is left
+  comingSoon at all — the generic ComingSoonScreen mechanism itself
+  stays covered by the adjacent "More destination" test (`/reports`).
+  No backend/contract changes were needed this phase — Phase 8.1 already
+  shipped the complete API surface and generated clients. Phase 8 (data
+  model, mobile technician flow, admin supervisor flow) is now
+  **COMPLETE** per its own scope description in `PHASE_TRACKER.md`.
+
+- **D-070 — Safety binary evidence has a separate durable queue; assigned
+  action mutations use the record outbox (2026-08-19):** Safety photos and
+  videos never share the lightweight `SafetyOutbox`. Picker output is copied
+  into application documents and recorded in `SafetyEvidenceQueue`, which
+  waits for its parent report to sync before server-mediated multipart upload.
+  This prevents a 250 MiB video from blocking incident/action records and
+  ensures temporary camera paths cannot disappear during offline periods.
+  Corrective-action start/completion remains small JSON and therefore uses
+  `SafetyOutbox` with an explicit `target_id`. Both paths apply the server's
+  returned `SafetyReportDetail` as authoritative, retain failed content for
+  retry, and are wiped with the safety cache when the authenticated user
+  changes. This mirrors D-051's proven inspection-media isolation while
+  preserving the safety backend's private-storage boundary.
+
+- **D-071 — Safety dashboard metrics use Firestore aggregations over active
+  reports (2026-08-19):** The brief explicitly requires a Safety Incidents KPI
+  and Safety Incidents by Type chart. The new summary uses tenant-scoped
+  `count()` aggregation queries for the total and all nine canonical
+  categories, always filtering `deleted_at == null`, and is gated by
+  `safety.read`. Both clients register real total/chart widgets and remove the
+  reserved Safety tile. No additional KPI was invented and no report documents
+  or production mock values are read to compute the summary.
+
+- **D-072 — Permit-to-Work production policy baseline (approved 2026-08-19):**
+  The product owner approved the proposed baseline by directing implementation
+  to continue. Permits use a 5×5 likelihood/severity matrix and retain both
+  initial and residual risk; residual High/Critical risk blocks submission.
+  Tenant-managed, versioned templates are scoped by permit type and snapshotted
+  onto each permit. Every assigned worker must acknowledge and digitally sign
+  before activation. Approval steps are configurable and sequential, with the
+  default Operations Manager → HSE Manager chain. Issuer, approvers, and every
+  assigned worker sign; signer identity and time are server-derived. Validity
+  start/end are mandatory, expiry is automatic, and an expired permit cannot be
+  used. Lifecycle is Draft → Pending Approval → Pending Signatures → Active →
+  Closed, with Expired, Suspended, and Revoked exceptional terminal/control
+  states. Worker acknowledgement/signature is offline-capable; approval and
+  activation require connectivity to prevent authorization races. Phase 6.2
+  adds a dedicated `permits.write` permission, separate from the existing
+  `permits.approve`, so preparing a permit never implicitly authorizes it.
+
+- **D-073 — Permit templates are tenant-owned, versioned aggregates (locked
+  2026-08-19):** Permit checklist items and ordered approval steps are embedded
+  in one tenant-scoped template aggregate. Approval steps reference tenant role
+  IDs rather than built-in role keys, preserving custom-role support. The server
+  owns template, checklist-item, and approval-step IDs; clients cannot create
+  identity collisions. Updates require `expected_version`, reject stale writes
+  with HTTP 409, and increment the version atomically at the repository boundary.
+  Deletes are soft deletes, and every create/update/delete is audited. Phase
+  6.2b will snapshot the selected template into each permit so later template
+  edits cannot change an issued permit's safety controls or approval chain.
+
+- **D-074 — Permit drafts freeze safety inputs and use server-owned risk
+  arithmetic (locked 2026-08-19):** A permit stores the selected template's ID,
+  name, version, checklist items, and ordered approval steps as an immutable
+  snapshot at creation. Later template changes cannot alter the permit. Every
+  risk item uses 1–5 likelihood × 1–5 severity; the server derives score and
+  band as Low 1–4, Medium 5–9, High 10–16, Critical 17–25 for both initial and
+  residual risk, and rejects residual scores higher than initial scores. Phase
+  6.3 will use the stored server-derived residual bands for the D-072 submission
+  block. Permit location references and active assigned workers must resolve in
+  the same tenant. Draft updates require `expected_revision`; template, permit
+  type, location, snapshots, permit number, and lifecycle status cannot be
+  rewritten through the generic draft PATCH boundary.
+
+- **D-075 — Submission and approval are signed, ordered transitions (locked
+  2026-08-19):** Submission atomically confirms the permit's snapshotted
+  checklist, records an issuer attestation using authenticated identity and
+  server time, and moves Draft → Pending Approval only when validity remains
+  usable and every residual risk is Low or Medium. Approvals consume required
+  snapshot steps strictly in order and require both `permits.approve` and the
+  exact tenant role ID named by the current step; this supports custom roles
+  without hardcoded role-name checks. Operations Manager receives
+  `permits.approve` because D-072 makes that role the default first approver.
+  Approval signatures and rejection signatures use authenticated identity and
+  server time. Final required approval moves to Pending Signatures. Rejection
+  requires a reason and returns to Draft; a later submission resets the step
+  states while the append-only audit trail retains the rejected attempt.
+
+- **D-076 — Worker acknowledgement is replay-safe; activation stays online
+  (locked 2026-08-19):** An assigned active user may acknowledge through the
+  `permits.read` route because field workers must not receive permit-authoring
+  authority. The request carries `client_mutation_id`, client signing time, and
+  optional device ID for durable offline replay, but authenticated user identity
+  and server receipt time form the authoritative digital signature. Replaying an
+  already-applied mutation is a no-op even with its old revision. A different
+  worker using a stale revision receives 409 and must rebase, preventing a lost
+  acknowledgement. Client signing time must follow final approval and cannot be
+  more than five minutes ahead of server time. Activation is a separate
+  `permits.write` transition requiring connectivity, all assigned-worker
+  acknowledgements, and `valid_from <= server_now < valid_until`; it records the
+  authenticated activator and server time.
+
+- **D-077 — Permit control states are explicit, terminal where required, and
+  server-time reconciled (locked 2026-08-19):** `permits.approve` governs
+  suspend, resume, revoke, and close. Suspend is allowed only from Active and
+  requires a reason; resume is allowed only from Suspended while validity is
+  still open. Revoke requires a reason and is terminal from Pending Approval,
+  Pending Signatures, Active, or Suspended. Close requires attested closeout
+  notes and is terminal from Active. Expired, Revoked, and Closed cannot return
+  to an operational state. Draft PATCH/DELETE is now explicitly rejected for
+  every non-Draft status. Pending Approval, Pending Signatures, Active, and
+  Suspended automatically become Expired when `valid_until <= server_now`.
+  Reconciliation happens before API list/detail/transition responses and through
+  `scripts.expire_permits` for recurring scheduler execution across all tenants;
+  every automatic transition is audited as `system:permit-expiry`.
+
+- **D-078 — Admin permit-template editing preserves backend safety semantics
+  (locked 2026-08-19):** `/permits` initially hosts the template management
+  surface while the permit-record control center is built in 6.4b. Checklist
+  and approval arrays are visibly ordered and use explicit move controls rather
+  than ambiguous drag-only behavior. Approval roles come from the tenant's real
+  role catalog and are submitted by immutable role ID, preserving custom-role
+  support. Edit requests always carry the loaded `expectedVersion`; a 409 is
+  rendered as a reload-required concurrency message. Read-only users can filter
+  and inspect the list but receive no mutation navigation or controls. The form
+  performs no role/template calls at all without `permits.write`. Protected SEO
+  metadata is declared separately for list, create, and edit routes.
+
+- **D-079 — Admin permit drafts use live tenant selectors and defer detail
+  navigation until the detail surface exists (locked 2026-08-19):** The permit
+  register resolves display data from real paginated permit/facility APIs and
+  sends permit-type/facility filters to the backend. Draft creation loads active
+  tenant facilities and users, type-matched permit templates, then facility-
+  scoped areas/assets; area selection narrows the visible asset choices. Browser
+  `datetime-local` values represent the operator's local wall time and are
+  converted to `Date` instants by the generated-client boundary. Client risk
+  calculations provide immediate 5×5 guidance and reject a residual score above
+  its initial score, while backend validation and calculation remain
+  authoritative. Users without `permits.write` trigger no creation-resource
+  calls. During 6.4b.1 creation returned to the real register and rows did not
+  link to an absent detail page, avoiding interim placeholder behavior. D-080
+  supersedes that temporary navigation boundary now that 6.4b.2 provides the
+  real detail route and lifecycle surface.
+
+- **D-080 — Admin lifecycle controls mirror server state and never predict a
+  successful transition (locked 2026-08-19):** `/permits/[id]` renders the
+  immutable checklist, approval, risk, validity, signature, acknowledgement,
+  status, and revision fields returned by `PermitDetail`. Controls are the
+  intersection of the current status and `permits.write`/`permits.approve`;
+  backend RBAC and transition validation remain authoritative. Issuance,
+  approval, activation, resume, and close require explicit attestations;
+  rejection, suspension, revocation, and closeout require their domain reason
+  or notes. Every mutation sends the loaded revision and replaces the complete
+  view only with the server response. Any failure, including a 409 race,
+  triggers an authoritative detail reload rather than locally guessing the new
+  state. Worker acknowledgement remains a field/mobile responsibility; admin
+  shows its progress and cannot activate until the returned count is complete.
+
+- **D-081 — Mobile permit acknowledgement has its own durable, identity-stable
+  synchronization boundary (locked 2026-08-20):** Assigned permits are fetched
+  through every server cursor page and stored as complete generated
+  `PermitDetail` snapshots in schema-v13 Drift tables. Successfully synced
+  records that disappear from the authoritative assigned-worker result are
+  removed, while pending/error/conflict records are retained until resolved.
+  The cache and outbox are wiped when the authenticated UID changes. Only the
+  assigned worker's acknowledgement is offline-capable; approval, activation,
+  and exceptional lifecycle controls remain online admin responsibilities.
+  Every acknowledgement is atomically queued with a client mutation ID,
+  client-signed UTC time, optional device ID, attestation, and expected
+  revision. Automatic replay pauses when connectivity is explicitly offline,
+  retries transient failures with backoff, treats the server's matching
+  mutation as an already-applied success, and pauses permanent failures for an
+  operator retry. A genuine revision collision stores and displays the full
+  current server snapshot while preserving the original signed mutation. The
+  worker must explicitly discard it or rebase it; rebase changes only the
+  expected revision and preserves mutation ID, signing time, and device
+  provenance so retries cannot manufacture a second signature event.
+
+- **D-082 — Active Permits is a server-reconciled, permission-scoped KPI
+  (locked 2026-08-20):** The dashboard card counts only non-deleted permits
+  whose authoritative status remains `active` after the same due-expiry
+  reconciliation used by permit list/detail reads. It is exposed through the
+  generated `GET /api/v1/dashboard/permits-summary` contract and independently
+  requires `permits.read`; holding general `reports.read` does not reveal the
+  count. The server scopes every read by `company_id`, and clients render no
+  fallback number. Loading, retry, and permission-hidden behavior are local to
+  the pluggable widget. The card opens the real permit register without
+  claiming a status filter the register API does not support. This replaces
+  the reserved permit placeholder in both clients and closes Phase 6.
+
+## Session Review — 2026-08-26 Asset List Empty-Filter Compatibility
+
+No new product or architecture decision was introduced. The existing typed
+client and server-owned query boundaries remain authoritative. A transport
+compatibility defect was corrected at the asset-list HTTP boundary: nullable
+filters serialized by the generated Dart/Dio client as empty strings are
+normalized to absent values before the tenant-scoped Firestore query is built.
+The shared mobile `ApiService` additionally removes those generator artifacts
+from every outgoing query, because empty optional datetime values fail FastAPI
+validation before an endpoint can normalize them. Explicit non-empty values are
+unchanged.
+
+Asset detail remains a named route, but its resource identity is now encoded in
+the URL (`/assets/detail?id=...`) as well as passed as an in-memory navigation
+argument. The route prefers the compatible argument when present, falls back to
+the query parameter after browser restoration, and fails closed to the branded
+404 when neither contains a usable ID.
+
+The Flutter web client self-hosts the Firebase App, Auth, and Storage ESM builds
+at the exact Firebase JS SDK version declared compatible by FlutterFire (12.15.0
+for the current lockfile). FlutterFire receives the
+same module namespaces through its documented `window.firebase_*` integration,
+but app startup no longer depends on reaching `gstatic.com`. Firebase service
+API traffic remains online and unchanged; this only removes the runtime SDK-code
+download dependency.
+
+Work Order list queries now follow the same index-readiness posture as the Asset
+directory: the committed Firestore indexes are the optimized production path,
+while a bounded tenant/filter query with local `created_at` sorting prevents a
+new or partially deployed environment from returning HTTP 500 during composite
+index creation. Tenant scope and the 5,000-record cap remain unchanged.
+
+Asset reference-photo capture reuses the established Phase 7.4 `camera` plugin
+boundary rather than `ImagePicker(ImageSource.camera)`, whose web implementation
+is a file input. The asset flow is deliberately photo-only: it exposes a live
+preview and shutter, returns one `MediaCaptureResult`, then uses the existing
+server-mediated asset upload. Gallery remains an explicit separate action.
+Camera initialization is recoverable in place: the capture view owns explicit
+initializing/error/ready states and retries the plugin after the operator changes
+browser permission or releases a busy device. Raw plugin errors remain debug-only;
+stable actionable categories are shown to operators.
+
+## Session Review — 2026-09-07 Public Marketing Site and Light Default Theme
+
+- **D-087 — the front door is a page, not a login form.** The app shipped with
+  self-service registration and full SEO scaffolding, but `/` resolved to the
+  protected dashboard, so an anonymous visitor could only ever see `/login` and
+  the structured data indexed nothing. `/`, `/pricing`, and `/about` are now
+  unguarded static server components in a `(marketing)` group; the dashboard
+  moved to `/dashboard` behind the single `APP_HOME` constant. robots.txt
+  inverted from "disallow `/`" to an explicit private-prefix list, and the
+  sitemap now ranks the landing page first with its URL matching the page's
+  canonical form. Marketing pages stay readable when signed in — only the
+  header CTA changes, and it renders nothing while the session restores.
+- **D-009 revision — light is the default theme.** The original decision made
+  dark the default in both clients. The product owner reversed that on
+  2026-09-07: both the admin portal and the Flutter app now start in light mode,
+  dark remains fully supported, and the user's choice still persists locally. A
+  pre-paint inline bootstrap script reads the stored preference so a user who
+  chose dark no longer sees a light flash on reload, and the PWA manifest's
+  splash colors follow the light surface.
+
+- **D-088 — the public site earns brand orange, and Tailwind opacity was
+  silently doing nothing.** Marketing CTAs moved to the brand orange gradient
+  with a sheen sweep and a 2px lift, sections reveal on scroll through one
+  observer over `data-reveal` attributes, and a reading-progress bar rides the
+  header's bottom edge. Building it surfaced a real defect: because the theme
+  colors are bare `var(--color-*)` references, `bg-surface/70` compiles to
+  nothing, so those elements had been rendering with no background whatsoever.
+  Marketing now uses `color-mix` utilities; the same pattern still affects 15
+  app-shell files, left untouched and recorded for a later pass.
+
+- **D-089 — the landing page now argues from this product's specifics.** The
+  generic hero card, problem trio, and uniform feature grid are gone. In their
+  place: an animated depiction of an offline relief-valve inspection syncing to
+  a supervisor's work-order review, the full record chain from failed check to
+  attested export with the gating permission at every step, a bento module grid,
+  and the seven-role access matrix published before any sales call. The rule
+  that came with it is the important part — the page may only show things the
+  product can actually produce, so no fabricated screenshots, customers, or
+  metrics, and every identifier matches the seeded demo tenant.
+
+- **D-090 — paying for it and being allowed to do it are different questions.**
+  Phase 13.1 adds the commercial half of access control: a plan catalog carrying
+  the requirements document's real prices and quotas, subscription state on the
+  company, and a `require_feature` dependency that stacks beside
+  `require_permission` and answers 402 with the tier that unlocks the module.
+  The published pricing page was corrected in the same pass — it had been
+  showing placeholder commercials roughly thirty times below the real figures.
+  Stripe itself is not wired yet: the catalog, the entitlement resolution, and
+  the enforcement are done and tested, and the gateway waits on test keys.
+
+- **D-091 — the repository is the source of truth for what customers are
+  charged.** Phase 13.3 wires Stripe with the plan catalog upstream of it: a
+  sync script creates the Products and Prices from `plans.py`, prices are
+  addressed by deterministic lookup key so no id is committed, and reconciliation
+  re-reads the live subscription rather than trusting a webhook body — which is
+  what makes redelivery idempotent and out-of-order delivery harmless. Verified
+  against the real test-mode account: twelve objects created, all eight prices
+  read back at the catalogued amounts, six checkout sessions opened with the
+  right price, card collection and metadata, and a live subscription confirmed
+  as a 7-day trialing Operations plan.
+
+- **D-092 — you can pay before you have clicked the link in your email.** The
+  signup funnel is details, then plan, then Stripe, then use. That required
+  admitting an unverified admin to exactly two billing routes, so
+  `require_billing_admin` keeps `company.settings` and drops only the
+  verified-email check; every module gate still enforces it. The other half of
+  the decision is distrusting Stripe's success redirect: it fires before the
+  webhook necessarily lands, so the completion page polls the subscription and,
+  if confirmation never arrives, says so plainly with a re-check and a way
+  onward instead of a spinner that implies success.
+
+- **D-093 — the client is told what the company bought; it never works it out.**
+  Phase 13.5 filters the admin nav by the company's plan as well as the person's
+  permissions, so a Starter or Field tenant simply has no Work Orders or Permits
+  in its sidebar even though its admin holds those permissions. The entitlement
+  list comes from the API verbatim rather than from a tier table in the client,
+  and the gate fails closed while loading — a brief absence beats a false
+  promise. The dashboard's raw-tier pill became a real plan card: status, trial
+  countdown, and usage against each quota, with unlimited shown as text and an
+  unloaded count shown as a dash rather than a zero.
+
+- **D-094 — the gate was decorative until this phase.** `require_feature` had
+  been defined since 13.1 and both clients hid gated modules, but the dependency
+  was attached to no route: a Starter tenant could still call the work-order API
+  directly. It is now a router-level dependency on all twelve module routers,
+  while auth, billing, dashboard and administration stay ungated so an unpaid
+  company can still sign in, understand why it is blocked, and pay. The seed's
+  `demo` tier resolved to no entitlements once the gate was live, so Acme is now
+  Enterprise and Beta is deliberately Starter — the second tenant demonstrates
+  gating with the logins that already exist.
+
+- **D-095 — the strictest models were the only ones whose client could not talk
+  to them.** Browser signup 422'd while curl with the same body returned 201.
+  openapi-generator emits a `...value` spread for schemas declaring
+  `additionalProperties: false`, so the body carried `companyName` beside
+  `company_name`, and `StrictModel`'s `extra="forbid"` rejected it. Fixed in
+  `gen-clients.mjs` rather than in the committed output, since the clients are
+  regenerated; the server model stays strict because the client was what was
+  wrong. The guarding test was confirmed to fail with the spread put back.
+

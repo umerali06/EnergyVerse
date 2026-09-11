@@ -276,6 +276,23 @@ void main() {
     expect(summary.windowDays, 7);
   });
 
+  test('omits generated empty optional query parameters', () async {
+    final adapter = _StubAdapter((options) async {
+      expect(options.path, '/api/v1/inspections');
+      expect(options.queryParameters, {
+        'asset_id': 'asset-1',
+        'limit': 25,
+      });
+      return _jsonBody({'items': <Object>[], 'next_cursor': null}, 200);
+    });
+    final dio = Dio()..httpClientAdapter = adapter;
+    final api = ApiService(baseUrl: 'http://api.test', dio: dio);
+
+    final page = await api.getInspections(assetId: 'asset-1');
+
+    expect(page.items, isEmpty);
+  });
+
   test(
     'maps a dashboard endpoint failure through the unified envelope and feedback — same seam every method shares',
     () async {

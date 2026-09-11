@@ -97,9 +97,7 @@ def _insert_events(
 
 
 def test_requires_audit_read_permission(fake_client: FakeAsyncClient) -> None:
-    response = _get(
-        _identity(permissions=frozenset({"reports.read"})), "/api/v1/audit-logs"
-    )
+    response = _get(_identity(permissions=frozenset({"reports.read"})), "/api/v1/audit-logs")
     assert response.status_code == 403
     assert response.json()["error"] == "forbidden"
 
@@ -114,14 +112,10 @@ def test_tenant_isolation(fake_client: FakeAsyncClient) -> None:
     _insert_events(fake_client, ACME_COMPANY_ID, 3, action="acme.only")
     _insert_events(fake_client, BETA_COMPANY_ID, 3, action="beta.only")
 
-    acme_view_of_beta_action = _get(
-        _identity(), "/api/v1/audit-logs?limit=50&action=beta.only"
-    )
+    acme_view_of_beta_action = _get(_identity(), "/api/v1/audit-logs?limit=50&action=beta.only")
     assert acme_view_of_beta_action.json()["items"] == []
 
-    acme_view_of_own_action = _get(
-        _identity(), "/api/v1/audit-logs?limit=50&action=acme.only"
-    )
+    acme_view_of_own_action = _get(_identity(), "/api/v1/audit-logs?limit=50&action=acme.only")
     items = acme_view_of_own_action.json()["items"]
     assert len(items) == 3
     assert all(item["action"] == "acme.only" for item in items)
@@ -171,14 +165,12 @@ def test_actor_action_target_type_filters(fake_client: FakeAsyncClient) -> None:
     ).json()["items"]
     assert {item["action"] for item in by_actor} == {"widget.created"}
 
-    by_action = _get(
-        _identity(), "/api/v1/audit-logs?limit=50&action=widget.deleted"
-    ).json()["items"]
+    by_action = _get(_identity(), "/api/v1/audit-logs?limit=50&action=widget.deleted").json()[
+        "items"
+    ]
     assert {item["target_type"] for item in by_action} == {"gadget"}
 
-    by_target = _get(
-        _identity(), "/api/v1/audit-logs?limit=50&target_type=widget"
-    ).json()["items"]
+    by_target = _get(_identity(), "/api/v1/audit-logs?limit=50&target_type=widget").json()["items"]
     assert {item["action"] for item in by_target} == {"widget.created"}
 
     combined = _get(
@@ -238,9 +230,7 @@ def test_invalid_cursor_is_rejected(fake_client: FakeAsyncClient) -> None:
 def test_date_range_too_wide_is_rejected(fake_client: FakeAsyncClient) -> None:
     today = utc_now().date()
     too_far = (utc_now() - timedelta(days=800)).date()
-    response = _get(
-        _identity(), f"/api/v1/audit-logs?from_date={too_far}&to_date={today}"
-    )
+    response = _get(_identity(), f"/api/v1/audit-logs?from_date={too_far}&to_date={today}")
     assert response.status_code == 422
     assert response.json()["error"] == "date_range_too_wide"
 
@@ -265,9 +255,7 @@ def test_deleted_actor_enrichment_does_not_crash(fake_client: FakeAsyncClient) -
 def test_facets_return_distinct_actions_and_target_types(
     fake_client: FakeAsyncClient,
 ) -> None:
-    _insert_events(
-        fake_client, ACME_COMPANY_ID, 1, action="facet.one", target_type="alpha"
-    )
+    _insert_events(fake_client, ACME_COMPANY_ID, 1, action="facet.one", target_type="alpha")
     _insert_events(
         fake_client,
         ACME_COMPANY_ID,

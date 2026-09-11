@@ -1,6 +1,10 @@
 "use client";
 
-import type { ChecklistTemplateDetail, InspectionDetail } from "@fev/api-client";
+import type {
+  AnnotationResponse,
+  ChecklistTemplateDetail,
+  InspectionDetail,
+} from "@fev/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -83,6 +87,19 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Offsets, formatted `m:ss`, of the video findings that carry one. */
+function frameFindings(annotations: readonly AnnotationResponse[]): string[] {
+  return annotations
+    .map((annotation) => annotation.frameTimestampSeconds)
+    .filter((seconds): seconds is number => seconds != null)
+    .sort((a, b) => a - b)
+    .map((seconds) => {
+      const minutes = Math.floor(seconds / 60);
+      const rest = Math.floor(seconds % 60);
+      return `${minutes}:${String(rest).padStart(2, "0")}`;
+    });
+}
+
 export function InspectionDetailPage({
   inspectionId,
   reducedMotionOverride,
@@ -100,6 +117,7 @@ export function InspectionDetailPage({
   }>({ status: "loading", inspection: null });
   const [template, setTemplate] = useState<ChecklistTemplateDetail | null>(null);
   const [showAnnotations, setShowAnnotations] = useState(true);
+  const [inspectorLabel, setInspectorLabel] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -116,6 +134,25 @@ export function InspectionDetailPage({
       active = false;
     };
   }, [apiClient, inspectionId]);
+
+  // Resolve the inspector's identifier to their name. Best-effort: the raw
+  // identifier stays on screen if the directory lookup fails or is forbidden,
+  // so the record is never left without an attributable inspector.
+  useEffect(() => {
+    let active = true;
+    const uid = state.inspection?.inspectorId;
+    setInspectorLabel(uid ?? null);
+    if (!uid) return;
+    apiClient
+      .getUser(uid)
+      .then((user) => {
+        if (active) setInspectorLabel(user.displayName || uid);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [apiClient, state.inspection?.inspectorId]);
 
   useEffect(() => {
     let active = true;
@@ -203,7 +240,7 @@ export function InspectionDetailPage({
             <Card className="mt-6 grid gap-6 p-5">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Asset" value={state.inspection.assetId} />
-                <Field label="Inspector" value={state.inspection.inspectorId} />
+                <Field label="Inspector" value={inspectorLabel ?? state.inspection.inspectorId} />
                 <Field
                   label="Started"
                   value={
@@ -368,6 +405,14 @@ export function InspectionDetailPage({
                               {damageTypes.join(", ")}
                             </p>
                           )}
+                          {item.kind === "video" && frameFindings(itemAnnotations).length > 0 && (
+                            // A clip cannot carry an overlay on its tile, so the
+                            // offsets are listed instead -- a reviewer needs to
+                            // know where in the recording to look.
+                            <p className="font-mono text-caption text-text-secondary">
+                              Findings at {frameFindings(itemAnnotations).join(", ")}
+                            </p>
+                          )}
                         </li>
                       );
                     })}
@@ -383,7 +428,7 @@ export function InspectionDetailPage({
                 </p>
                 {(state.inspection.aiAnalysis ?? []).length === 0 ? (
                   <p className="mt-1 text-bodySmall text-text-muted">
-                    No photos have been analyzed yet.
+                    No photos or videos have been analyzed yet.
                   </p>
                 ) : (
                   <ul className="mt-2 grid gap-3">
@@ -400,6 +445,16 @@ export function InspectionDetailPage({
                             <StatusPill tone={riskLevelTone(analysis.riskLevel)}>
                               {statusLabel(analysis.riskLevel)} risk
                             </StatusPill>
+                          )}
+                          {analysis.mediaKind === "video" && (
+                            // Coverage matters on a clip: the summary is based
+                            // on sampled frames, not the whole recording.
+                            <Badge>
+                              Video
+                              {analysis.framesAnalyzed
+                                ? ` · ${analysis.framesAnalyzed} frames analysed`
+                                : ""}
+                            </Badge>
                           )}
                         </div>
                         <p className="text-bodySmall text-text-primary">{analysis.summary}</p>

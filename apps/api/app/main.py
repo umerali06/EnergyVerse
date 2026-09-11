@@ -10,16 +10,24 @@ from app.api.v1.areas import router as areas_router
 from app.api.v1.assets import router as assets_router
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.billing import router as billing_router
 from app.api.v1.checklist_templates import router as checklist_templates_router
 from app.api.v1.company import router as company_router
 from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.documents import router as documents_router
 from app.api.v1.facilities import router as facilities_router
+from app.api.v1.generated_reports import router as generated_reports_router
 from app.api.v1.inspections import router as inspections_router
+from app.api.v1.notifications import router as notifications_router
 from app.api.v1.permissions import router as permissions_router
+from app.api.v1.permit_templates import router as permit_templates_router
+from app.api.v1.permits import router as permits_router
 from app.api.v1.platform import router as platform_router
 from app.api.v1.qr import router as qr_router
 from app.api.v1.rbac_demo import router as rbac_demo_router
 from app.api.v1.roles import router as roles_router
+from app.api.v1.safety_reports import router as safety_reports_router
+from app.api.v1.training import router as training_router
 from app.api.v1.users import router as users_router
 from app.api.v1.work_orders import router as work_orders_router
 from app.core.errors import (
@@ -72,6 +80,14 @@ app = FastAPI(
             "name": "checklist-templates",
             "description": "Company-scoped, per-category inspection checklist templates",
         },
+        {
+            "name": "permit_templates",
+            "description": "Versioned tenant Permit-to-Work checklist and approval templates",
+        },
+        {
+            "name": "permits",
+            "description": "Tenant-scoped Permit-to-Work records and risk assessments",
+        },
         {"name": "company", "description": "Company profile, branding, and tenant-wide settings"},
         {"name": "audit", "description": "Company audit trail — read-only compliance view"},
         {
@@ -85,6 +101,14 @@ app = FastAPI(
                 "(closing requires work_orders.close, distinct from work_orders.write)"
             ),
         },
+        {
+            "name": "safety_reports",
+            "description": "Tenant-scoped safety incidents and controlled HSE lifecycle",
+        },
+        {
+            "name": "generated_reports",
+            "description": "Tenant-scoped advisory AI report drafts and human finalization",
+        },
     ],
 )
 app.add_exception_handler(ApiError, api_error_response)
@@ -94,6 +118,12 @@ app.add_exception_handler(Exception, unhandled_exception_response)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
+    # Allow any localhost/127.0.0.1 port so Flutter web dev (random port) can reach the API.
+    allow_origin_regex=(
+        r"http://(localhost|127\.0\.0\.1)(:\d+)?"
+        if settings.cors_allow_all_localhost
+        else None
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -111,11 +141,19 @@ app.include_router(areas_router)
 app.include_router(assets_router)
 app.include_router(inspections_router)
 app.include_router(checklist_templates_router)
+app.include_router(permit_templates_router)
+app.include_router(permits_router)
 app.include_router(qr_router)
 app.include_router(company_router)
 app.include_router(audit_router)
 app.include_router(platform_router)
 app.include_router(work_orders_router)
+app.include_router(safety_reports_router)
+app.include_router(generated_reports_router)
+app.include_router(documents_router)
+app.include_router(billing_router)
+app.include_router(notifications_router)
+app.include_router(training_router)
 
 
 @app.get(

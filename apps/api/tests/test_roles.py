@@ -180,9 +180,7 @@ def test_list_roles_accepts_users_manage_or_roles_manage(wiring: dict[str, Any])
     )
     assert via_roles_manage.status_code == 200
 
-    neither = _request(
-        _identity(permissions=frozenset({"reports.read"})), "GET", "/api/v1/roles"
-    )
+    neither = _request(_identity(permissions=frozenset({"reports.read"})), "GET", "/api/v1/roles")
     assert neither.status_code == 403
 
 
@@ -213,9 +211,7 @@ def test_get_role_returns_full_permission_set(wiring: dict[str, Any]) -> None:
     response = _request(_identity(), "GET", f"/api/v1/roles/{hse_role_id}")
     assert response.status_code == 200
     body = response.json()
-    assert set(body["permission_keys"]) == set(
-        SYSTEM_ROLE_TEMPLATES["hse_manager"].permission_keys
-    )
+    assert set(body["permission_keys"]) == set(SYSTEM_ROLE_TEMPLATES["hse_manager"].permission_keys)
     assert body["is_system"] is True
     assert body["assigned_user_count"] == 1
 
@@ -253,9 +249,7 @@ def test_create_role_rejects_unknown_permission_key(wiring: dict[str, Any]) -> N
 
 
 def test_create_role_rejects_platform_admin(wiring: dict[str, Any]) -> None:
-    response = _create_role(
-        _identity(), name="Sneaky Super", permission_keys=["platform.admin"]
-    )
+    response = _create_role(_identity(), name="Sneaky Super", permission_keys=["platform.admin"])
     assert response.status_code == 403
     assert response.json()["error"] == "platform_admin_not_grantable"
 
@@ -354,9 +348,7 @@ def test_update_role_permission_diff_writes_audit_entry(wiring: dict[str, Any]) 
     assert response.status_code == 200
     assert set(response.json()["permission_keys"]) == {"assets.read", "assets.write"}
 
-    audits = asyncio.run(
-        AuditLogRepository(client).list(CompanyScope(company_id=ACME_COMPANY_ID))
-    )
+    audits = asyncio.run(AuditLogRepository(client).list(CompanyScope(company_id=ACME_COMPANY_ID)))
     entry = next(
         log
         for log in audits

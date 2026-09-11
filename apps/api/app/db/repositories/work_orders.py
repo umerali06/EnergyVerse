@@ -54,15 +54,31 @@ class WorkOrderRepository(TenantRepository[WorkOrder]):
             query = query.where(filter=FieldFilter("facility_id", "==", facility_id))
         elif status is not None:
             query = query.where(filter=FieldFilter("status", "==", status))
-        query = query.order_by("created_at", direction="DESCENDING")
 
-        results = []
-        async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
-            data = snapshot.to_dict()
-            if data is not None and data.get("company_id") == scope.company_id:
-                results.append(self.model_type.model_validate(data))
-            if len(results) >= WORK_ORDER_QUERY_CAP:
-                break
+        results: list[WorkOrder] = []
+        try:
+            ordered_query = query.order_by("created_at", direction="DESCENDING")
+            async for snapshot in ordered_query.stream(
+                timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS
+            ):
+                data = snapshot.to_dict()
+                if data is not None and data.get("company_id") == scope.company_id:
+                    results.append(self.model_type.model_validate(data))
+                if len(results) >= WORK_ORDER_QUERY_CAP:
+                    break
+        except Exception:
+            # A newly provisioned environment may serve traffic before the
+            # composite indexes below finish building. Keep the tenant/filter
+            # query bounded and sort locally, matching AssetRepository's
+            # established compatibility fallback, instead of returning HTTP 500.
+            results.clear()
+            async for snapshot in query.stream(timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS):
+                data = snapshot.to_dict()
+                if data is not None and data.get("company_id") == scope.company_id:
+                    results.append(self.model_type.model_validate(data))
+                if len(results) >= WORK_ORDER_QUERY_CAP:
+                    break
+            results.sort(key=lambda work_order: work_order.created_at, reverse=True)
         return results
 
     async def soft_delete(

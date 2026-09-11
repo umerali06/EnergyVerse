@@ -1,9 +1,10 @@
 "use client";
 
 import type { RoleSummary, UserDetail, UserListItem } from "@fev/api-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
+import { useCachedQuery } from "@/cache/cache-context";
 
 export type AsyncStatus = "loading" | "error" | "ready";
 
@@ -17,62 +18,41 @@ export type UserFilters = {
 const PAGE_SIZE = 25;
 const DEFAULT_FILTERS: UserFilters = { search: "", roleId: null, status: null, sort: "name" };
 
-/**
- * Fetches the company's users (paginated, filtered, sorted) and its
- * assignable role catalog through the single FevApiClient instance
- * AuthProvider owns, mirroring the Phase 2.2 dashboard data hook.
- */
 export function useUsersData() {
   const { apiClient } = useAuth();
   const [filters, setFilters] = useState<UserFilters>(DEFAULT_FILTERS);
-  const [list, setList] = useState<{
-    status: AsyncStatus;
-    items: UserListItem[];
-    nextCursor: string | null;
-    loadingMore: boolean;
-  }>({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-  const [roles, setRoles] = useState<{ status: AsyncStatus; items: RoleSummary[] }>({
-    status: "loading",
-    items: [],
-  });
+  const [extraItems, setExtraItems] = useState<UserListItem[]>([]);
+  const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const requestId = useRef(0);
+  const filterKey = JSON.stringify(filters);
 
-  const fetchUsers = useCallback(
-    async (current: UserFilters) => {
-      const id = ++requestId.current;
-      setList({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-      try {
-        const page = await apiClient.listUsers({
-          search: current.search.trim() || undefined,
-          roleId: current.roleId ?? undefined,
-          status: current.status ?? undefined,
-          sort: current.sort,
-          limit: PAGE_SIZE,
-        });
-        if (requestId.current === id) {
-          setList({
-            status: "ready",
-            items: page.items,
-            nextCursor: page.nextCursor ?? null,
-            loadingMore: false,
-          });
-        }
-      } catch {
-        // FevApiClient already surfaced the unified-envelope toast; this
-        // local state just drives the retry-capable error UI.
-        if (requestId.current === id) {
-          setList({ status: "error", items: [], nextCursor: null, loadingMore: false });
-        }
-      }
-    },
-    [apiClient],
+  const usersQuery = useCachedQuery<{ items: UserListItem[]; nextCursor?: string | null }>(
+    `users:list:${filterKey}`,
+    () =>
+      apiClient.listUsers({
+        search: filters.search.trim() || undefined,
+        roleId: filters.roleId ?? undefined,
+        status: filters.status ?? undefined,
+        sort: filters.sort,
+        limit: PAGE_SIZE,
+      }),
   );
 
+  const rolesQuery = useCachedQuery<{ items: RoleSummary[] }>(
+    "roles:list",
+    () => apiClient.listRoles(),
+  );
+
+  const currentNextCursor =
+    extraNextCursor !== undefined
+      ? extraNextCursor
+      : (usersQuery.data?.nextCursor ?? null);
+
   const loadMore = useCallback(async () => {
-    const cursor = list.nextCursor;
-    if (!cursor || list.loadingMore) return;
-    setList((current) => ({ ...current, loadingMore: true }));
+    const cursor = currentNextCursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
     try {
       const page = await apiClient.listUsers({
         search: filters.search.trim() || undefined,
@@ -82,72 +62,72 @@ export function useUsersData() {
         cursor,
         limit: PAGE_SIZE,
       });
-      setList((current) => ({
-        status: "ready",
-        items: [...current.items, ...page.items],
-        nextCursor: page.nextCursor ?? null,
-        loadingMore: false,
-      }));
+      setExtraItems((prev) => [...prev, ...page.items]);
+      setExtraNextCursor(page.nextCursor ?? null);
     } catch {
-      setList((current) => ({ ...current, loadingMore: false }));
+      // Toast handles error
+    } finally {
+      setLoadingMore(false);
     }
-  }, [apiClient, filters, list.loadingMore, list.nextCursor]);
+  }, [apiClient, filters, currentNextCursor, loadingMore]);
 
-  const fetchRoles = useCallback(async () => {
-    setRoles({ status: "loading", items: [] });
-    try {
-      const page = await apiClient.listRoles();
-      setRoles({ status: "ready", items: page.items });
-    } catch {
-      setRoles({ status: "error", items: [] });
-    }
-  }, [apiClient]);
+  const listStatus = usersQuery.loading ? "loading" : usersQuery.error ? "error" : "ready";
+  const roleStatus = rolesQuery.loading ? "loading" : rolesQuery.error ? "error" : "ready";
 
-  useEffect(() => {
-    void fetchUsers(filters);
-  }, [fetchUsers, filters]);
+  const allItems = [...(usersQuery.data?.items ?? []), ...extraItems];
 
-  useEffect(() => {
-    void fetchRoles();
-  }, [fetchRoles]);
-
-  const refresh = useCallback(() => void fetchUsers(filters), [fetchUsers, filters]);
-
-  const getUser = useCallback((userId: string) => apiClient.getUser(userId), [apiClient]);
-
-  const inviteUser = useCallback(
-    (input: { email: string; displayName: string; roleId: string }): Promise<UserDetail> =>
-      apiClient.inviteUser(input),
-    [apiClient],
-  );
-
-  const updateUser = useCallback(
-    (userId: string, input: { displayName?: string; roleId?: string }): Promise<UserDetail> =>
-      apiClient.updateUser(userId, input),
-    [apiClient],
-  );
-
-  const setUserStatus = useCallback(
-    (userId: string, status: "active" | "inactive"): Promise<UserDetail> =>
-      apiClient.setUserStatus(userId, { status }),
-    [apiClient],
-  );
+  const resetPaging = useCallback(() => {
+    setExtraItems([]);
+    setExtraNextCursor(undefined);
+  }, []);
 
   return {
     filters,
-    setSearch: (search: string) => setFilters((current) => ({ ...current, search })),
-    setRoleFilter: (roleId: string | null) => setFilters((current) => ({ ...current, roleId })),
-    setStatusFilter: (status: string | null) => setFilters((current) => ({ ...current, status })),
-    setSort: (sort: string) => setFilters((current) => ({ ...current, sort })),
-    list,
-    retryUsers: refresh,
+    setSearch: (search: string) => {
+      resetPaging();
+      setFilters((current) => ({ ...current, search }));
+    },
+    setRoleFilter: (roleId: string | null) => {
+      resetPaging();
+      setFilters((current) => ({ ...current, roleId }));
+    },
+    setStatusFilter: (status: string | null) => {
+      resetPaging();
+      setFilters((current) => ({ ...current, status }));
+    },
+    setSort: (sort: string) => {
+      resetPaging();
+      setFilters((current) => ({ ...current, sort }));
+    },
+    list: {
+      status: listStatus,
+      items: allItems,
+      nextCursor: currentNextCursor,
+      loadingMore,
+    },
+    retryUsers: usersQuery.refetch,
     loadMore,
-    roles,
-    retryRoles: () => void fetchRoles(),
-    refresh,
-    getUser,
-    inviteUser,
-    updateUser,
-    setUserStatus,
+    roles: {
+      status: roleStatus,
+      items: rolesQuery.data?.items ?? [],
+    },
+    retryRoles: rolesQuery.refetch,
+    refresh: usersQuery.refetch,
+    getUser: useCallback((userId: string) => apiClient.getUser(userId), [apiClient]),
+    inviteUser: useCallback(
+      (input: { email: string; displayName: string; roleId: string }): Promise<UserDetail> =>
+        apiClient.inviteUser(input),
+      [apiClient],
+    ),
+    updateUser: useCallback(
+      (userId: string, input: { displayName?: string; roleId?: string }): Promise<UserDetail> =>
+        apiClient.updateUser(userId, input),
+      [apiClient],
+    ),
+    setUserStatus: useCallback(
+      (userId: string, status: "active" | "inactive"): Promise<UserDetail> =>
+        apiClient.setUserStatus(userId, { status }),
+      [apiClient],
+    ),
   };
 }

@@ -102,7 +102,8 @@ class VoiceRecordingScreen extends StatefulWidget {
 class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
   String? _errorMessage;
 
-  void _onRecorded(VoiceRecordingResult result) => Navigator.of(context).pop(result);
+  void _onRecorded(VoiceRecordingResult result) =>
+      Navigator.of(context).pop(result);
 
   void _onError(String message) => setState(() => _errorMessage = message);
 
@@ -113,7 +114,8 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(child: widget.recorderBuilder(context, _onRecorded, _onError)),
+            Expanded(
+                child: widget.recorderBuilder(context, _onRecorded, _onError)),
             if (_errorMessage != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -176,7 +178,8 @@ class _AudioRecorderViewState extends State<_AudioRecorderView> {
     try {
       final granted = await _recorder.hasPermission();
       if (!mounted) return;
-      setState(() => _phase = granted ? _RecorderPhase.idle : _RecorderPhase.denied);
+      setState(
+          () => _phase = granted ? _RecorderPhase.idle : _RecorderPhase.denied);
     } catch (error) {
       widget.onError(voiceRecordingErrorMessage(error));
       if (mounted) setState(() => _phase = _RecorderPhase.denied);
@@ -187,9 +190,11 @@ class _AudioRecorderViewState extends State<_AudioRecorderView> {
     try {
       final directory = await getTemporaryDirectory();
       final path = p.join(directory.path, '${_uuid.v4()}.m4a');
-      await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
-      _amplitudeSubscription =
-          _recorder.onAmplitudeChanged(const Duration(milliseconds: 200)).listen((amplitude) {
+      await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: path);
+      _amplitudeSubscription = _recorder
+          .onAmplitudeChanged(const Duration(milliseconds: 200))
+          .listen((amplitude) {
         if (!mounted) return;
         setState(() => _level = normalizeVoiceAmplitude(amplitude.current));
       });
@@ -266,7 +271,8 @@ class _AudioRecorderViewState extends State<_AudioRecorderView> {
     final size = _recordedSizeBytes;
     if (path == null || size == null) return;
     if (size > kMaxVoiceNoteSizeBytes) {
-      widget.onError('That recording is too large (voice notes are capped at 10 minutes).');
+      widget.onError(
+          'That recording is too large (voice notes are capped at 10 minutes).');
       return;
     }
     widget.onRecorded(
@@ -293,7 +299,8 @@ class _AudioRecorderViewState extends State<_AudioRecorderView> {
   Widget build(BuildContext context) {
     switch (_phase) {
       case _RecorderPhase.checkingPermission:
-        return const Center(child: AppLoader(label: 'Checking microphone access'));
+        return const Center(
+            child: AppLoader(label: 'Checking microphone access'));
       case _RecorderPhase.denied:
         return Center(
           child: Padding(
@@ -301,7 +308,8 @@ class _AudioRecorderViewState extends State<_AudioRecorderView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.mic_off_outlined, size: 40, color: context.semantic.textMuted),
+                Icon(Icons.mic_off_outlined,
+                    size: 40, color: context.semantic.textMuted),
                 const SizedBox(height: DsSpacing.s3),
                 Text(
                   'Microphone access was denied. Enable it in system settings to '
@@ -353,12 +361,15 @@ class _AudioRecorderViewState extends State<_AudioRecorderView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(formatVoiceNoteDuration(_elapsed), style: const TextStyle(fontSize: 32)),
+              Text(formatVoiceNoteDuration(_elapsed),
+                  style: const TextStyle(fontSize: 32)),
               const SizedBox(height: DsSpacing.s4),
               IconButton(
                 key: const Key('preview-playback'),
                 iconSize: 48,
-                icon: Icon(_playing ? Icons.pause_circle_outline : Icons.play_circle_outline),
+                icon: Icon(_playing
+                    ? Icons.pause_circle_outline
+                    : Icons.play_circle_outline),
                 onPressed: () => unawaited(_togglePlayback()),
               ),
               const SizedBox(height: DsSpacing.s5),

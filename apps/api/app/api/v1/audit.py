@@ -44,9 +44,7 @@ def _resolve_range(
 ) -> tuple[datetime, datetime]:
     if from_date is None and to_date is None:
         return default_range(now)
-    start = _day_bounds(from_date, end_of_day=False) if from_date else now - timedelta(
-        days=730
-    )
+    start = _day_bounds(from_date, end_of_day=False) if from_date else now - timedelta(days=730)
     end = _day_bounds(to_date, end_of_day=True) if to_date else now
     return start, end
 

@@ -13,17 +13,25 @@ import 'package:fev_api_client/src/api/areas_api.dart';
 import 'package:fev_api_client/src/api/assets_api.dart';
 import 'package:fev_api_client/src/api/audit_api.dart';
 import 'package:fev_api_client/src/api/auth_api.dart';
+import 'package:fev_api_client/src/api/billing_api.dart';
 import 'package:fev_api_client/src/api/checklist_templates_api.dart';
 import 'package:fev_api_client/src/api/company_api.dart';
 import 'package:fev_api_client/src/api/dashboard_api.dart';
+import 'package:fev_api_client/src/api/documents_api.dart';
 import 'package:fev_api_client/src/api/facilities_api.dart';
+import 'package:fev_api_client/src/api/generated_reports_api.dart';
 import 'package:fev_api_client/src/api/inspections_api.dart';
+import 'package:fev_api_client/src/api/notifications_api.dart';
 import 'package:fev_api_client/src/api/permissions_api.dart';
+import 'package:fev_api_client/src/api/permit_templates_api.dart';
+import 'package:fev_api_client/src/api/permits_api.dart';
 import 'package:fev_api_client/src/api/platform_api.dart';
 import 'package:fev_api_client/src/api/qr_api.dart';
 import 'package:fev_api_client/src/api/rbac_demo_api.dart';
 import 'package:fev_api_client/src/api/roles_api.dart';
+import 'package:fev_api_client/src/api/safety_reports_api.dart';
 import 'package:fev_api_client/src/api/system_api.dart';
+import 'package:fev_api_client/src/api/training_api.dart';
 import 'package:fev_api_client/src/api/users_api.dart';
 import 'package:fev_api_client/src/api/work_orders_api.dart';
 
@@ -116,6 +124,12 @@ class FevApiClient {
     return AuthApi(dio, serializers);
   }
 
+  /// Get BillingApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  BillingApi getBillingApi() {
+    return BillingApi(dio, serializers);
+  }
+
   /// Get ChecklistTemplatesApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   ChecklistTemplatesApi getChecklistTemplatesApi() {
@@ -134,10 +148,22 @@ class FevApiClient {
     return DashboardApi(dio, serializers);
   }
 
+  /// Get DocumentsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  DocumentsApi getDocumentsApi() {
+    return DocumentsApi(dio, serializers);
+  }
+
   /// Get FacilitiesApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   FacilitiesApi getFacilitiesApi() {
     return FacilitiesApi(dio, serializers);
+  }
+
+  /// Get GeneratedReportsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  GeneratedReportsApi getGeneratedReportsApi() {
+    return GeneratedReportsApi(dio, serializers);
   }
 
   /// Get InspectionsApi instance, base route and serializer can be overridden by a given but be careful,
@@ -146,10 +172,28 @@ class FevApiClient {
     return InspectionsApi(dio, serializers);
   }
 
+  /// Get NotificationsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  NotificationsApi getNotificationsApi() {
+    return NotificationsApi(dio, serializers);
+  }
+
   /// Get PermissionsApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   PermissionsApi getPermissionsApi() {
     return PermissionsApi(dio, serializers);
+  }
+
+  /// Get PermitTemplatesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  PermitTemplatesApi getPermitTemplatesApi() {
+    return PermitTemplatesApi(dio, serializers);
+  }
+
+  /// Get PermitsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  PermitsApi getPermitsApi() {
+    return PermitsApi(dio, serializers);
   }
 
   /// Get PlatformApi instance, base route and serializer can be overridden by a given but be careful,
@@ -176,10 +220,22 @@ class FevApiClient {
     return RolesApi(dio, serializers);
   }
 
+  /// Get SafetyReportsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  SafetyReportsApi getSafetyReportsApi() {
+    return SafetyReportsApi(dio, serializers);
+  }
+
   /// Get SystemApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   SystemApi getSystemApi() {
     return SystemApi(dio, serializers);
+  }
+
+  /// Get TrainingApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  TrainingApi getTrainingApi() {
+    return TrainingApi(dio, serializers);
   }
 
   /// Get UsersApi instance, base route and serializer can be overridden by a given but be careful,

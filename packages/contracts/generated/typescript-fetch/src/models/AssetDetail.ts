@@ -62,6 +62,12 @@ export interface AssetDetail {
      * @type {string}
      * @memberof AssetDetail
      */
+    currentCondition?: AssetDetailCurrentConditionEnum | null;
+    /**
+     *
+     * @type {string}
+     * @memberof AssetDetail
+     */
     currentStatus: AssetDetailCurrentStatusEnum;
     /**
      *
@@ -171,6 +177,18 @@ export interface AssetDetail {
 /**
  * @export
  */
+export const AssetDetailCurrentConditionEnum = {
+    Excellent: 'Excellent',
+    Good: 'Good',
+    Fair: 'Fair',
+    Poor: 'Poor',
+    Critical: 'Critical'
+} as const;
+export type AssetDetailCurrentConditionEnum = typeof AssetDetailCurrentConditionEnum[keyof typeof AssetDetailCurrentConditionEnum];
+
+/**
+ * @export
+ */
 export const AssetDetailCurrentStatusEnum = {
     Healthy: 'Healthy',
     Warning: 'Warning',
@@ -209,6 +227,7 @@ export function AssetDetailFromJSONTyped(json: any, ignoreDiscriminator: boolean
         'category': json['category'],
         'categoryOther': json['category_other'] == null ? undefined : json['category_other'],
         'createdAt': (new Date(json['created_at'])),
+        'currentCondition': json['current_condition'] == null ? undefined : json['current_condition'],
         'currentStatus': json['current_status'],
         'description': json['description'] == null ? undefined : json['description'],
         'documents': json['documents'] == null ? undefined : ((json['documents'] as Array<any>).map(AssetMediaResponseFromJSON)),
@@ -246,6 +265,7 @@ export function AssetDetailToJSONTyped(value?: AssetDetail | null, ignoreDiscrim
         'category': value['category'],
         'category_other': value['categoryOther'],
         'created_at': ((value['createdAt']).toISOString()),
+        'current_condition': value['currentCondition'],
         'current_status': value['currentStatus'],
         'description': value['description'],
         'documents': value['documents'] == null ? undefined : ((value['documents'] as Array<any>).map(AssetMediaResponseToJSON)),

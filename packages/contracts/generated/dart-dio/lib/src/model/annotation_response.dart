@@ -18,6 +18,7 @@ part 'annotation_response.g.dart';
 /// * [createdAt]
 /// * [createdBy]
 /// * [damageType]
+/// * [frameTimestampSeconds]
 /// * [id]
 /// * [mediaLocalId]
 /// * [note]
@@ -42,6 +43,9 @@ abstract class AnnotationResponse
   @BuiltValueField(wireName: r'damage_type')
   AnnotationResponseDamageTypeEnum? get damageType;
   // enum damageTypeEnum {  corrosion,  rust,  crack,  surface_damage,  paint_deterioration,  missing_bolt,  broken_component,  leak,  wear,  other,  };
+
+  @BuiltValueField(wireName: r'frame_timestamp_seconds')
+  num? get frameTimestampSeconds;
 
   @BuiltValueField(wireName: r'id')
   String get id;
@@ -118,6 +122,13 @@ class _$AnnotationResponseSerializer
         object.damageType,
         specifiedType:
             const FullType.nullable(AnnotationResponseDamageTypeEnum),
+      );
+    }
+    if (object.frameTimestampSeconds != null) {
+      yield r'frame_timestamp_seconds';
+      yield serializers.serialize(
+        object.frameTimestampSeconds,
+        specifiedType: const FullType.nullable(num),
       );
     }
     yield r'id';
@@ -217,6 +228,14 @@ class _$AnnotationResponseSerializer
           ) as AnnotationResponseDamageTypeEnum?;
           if (valueDes == null) continue;
           result.damageType = valueDes;
+          break;
+        case r'frame_timestamp_seconds':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(num),
+          ) as num?;
+          if (valueDes == null) continue;
+          result.frameTimestampSeconds = valueDes;
           break;
         case r'id':
           final valueDes = serializers.deserialize(

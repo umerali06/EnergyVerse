@@ -46,6 +46,14 @@ AssetDashboardSummary assetDashboardSummaryFixture({
   );
 }
 
+SafetyDashboardSummary safetyDashboardSummaryFixture({int total = 0}) {
+  return SafetyDashboardSummary(
+    (builder) => builder
+      ..total = total
+      ..byCategory = ListBuilder([]),
+  );
+}
+
 DashboardActivitySeries dashboardSeriesFixture({int windowDays = 30}) {
   return DashboardActivitySeries(
     (builder) => builder
@@ -54,7 +62,10 @@ DashboardActivitySeries dashboardSeriesFixture({int windowDays = 30}) {
         for (var i = 0; i < windowDays; i++)
           DashboardSeriesPoint(
             (pointBuilder) => pointBuilder
-              ..date = Date.now().toDateTime().subtract(Duration(days: windowDays - 1 - i)).toDate()
+              ..date = Date.now()
+                  .toDateTime()
+                  .subtract(Duration(days: windowDays - 1 - i))
+                  .toDate()
               ..count = 0,
           ),
       ]),

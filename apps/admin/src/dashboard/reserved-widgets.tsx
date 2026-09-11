@@ -4,32 +4,13 @@ import { registerWidget } from "./widget-registry";
 
 /**
  * Honest empty-state widgets for modules that don't exist yet (Work Orders,
- * Permits, Safety & Incidents). This is the Phase 2.2 "reserved KPI region"
+ * Work Orders). This is the Phase 2.2 "reserved KPI region"
  * contract, now expressed as ordinary registrations instead of a hardcoded
  * dashboard-page array -- when a future phase builds one of these modules,
  * it deletes that module's entry here and registers its own real widget the
  * same way `asset-widgets.tsx` does (see ARCHITECTURE.md Phase 4.4).
  */
-const RESERVED_MODULES = [
-  {
-    id: "reserved.work-orders",
-    label: "Work Orders",
-    permission: "work_orders.read",
-    copy: "Work order metrics appear once the Work Orders module is enabled.",
-  },
-  {
-    id: "reserved.permits",
-    label: "Permits",
-    permission: "permits.read",
-    copy: "Permit metrics appear once the Permits module is enabled.",
-  },
-  {
-    id: "reserved.safety",
-    label: "Safety & Incidents",
-    permission: "safety.read",
-    copy: "Safety and incident metrics appear once the Safety module is enabled.",
-  },
-] as const;
+const RESERVED_MODULES: readonly { id: string; label: string; permission: string; copy: string }[] = [];
 
 for (const reservedModule of RESERVED_MODULES) {
   registerWidget({

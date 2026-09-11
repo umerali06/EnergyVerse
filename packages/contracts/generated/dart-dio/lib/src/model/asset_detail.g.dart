@@ -6,6 +6,47 @@ part of 'asset_detail.dart';
 // BuiltValueGenerator
 // **************************************************************************
 
+const AssetDetailCurrentConditionEnum
+    _$assetDetailCurrentConditionEnum_excellent =
+    const AssetDetailCurrentConditionEnum._('excellent');
+const AssetDetailCurrentConditionEnum _$assetDetailCurrentConditionEnum_good =
+    const AssetDetailCurrentConditionEnum._('good');
+const AssetDetailCurrentConditionEnum _$assetDetailCurrentConditionEnum_fair =
+    const AssetDetailCurrentConditionEnum._('fair');
+const AssetDetailCurrentConditionEnum _$assetDetailCurrentConditionEnum_poor =
+    const AssetDetailCurrentConditionEnum._('poor');
+const AssetDetailCurrentConditionEnum
+    _$assetDetailCurrentConditionEnum_critical =
+    const AssetDetailCurrentConditionEnum._('critical');
+
+AssetDetailCurrentConditionEnum _$assetDetailCurrentConditionEnumValueOf(
+    String name) {
+  switch (name) {
+    case 'excellent':
+      return _$assetDetailCurrentConditionEnum_excellent;
+    case 'good':
+      return _$assetDetailCurrentConditionEnum_good;
+    case 'fair':
+      return _$assetDetailCurrentConditionEnum_fair;
+    case 'poor':
+      return _$assetDetailCurrentConditionEnum_poor;
+    case 'critical':
+      return _$assetDetailCurrentConditionEnum_critical;
+    default:
+      throw new ArgumentError(name);
+  }
+}
+
+final BuiltSet<AssetDetailCurrentConditionEnum>
+    _$assetDetailCurrentConditionEnumValues = new BuiltSet<
+        AssetDetailCurrentConditionEnum>(const <AssetDetailCurrentConditionEnum>[
+  _$assetDetailCurrentConditionEnum_excellent,
+  _$assetDetailCurrentConditionEnum_good,
+  _$assetDetailCurrentConditionEnum_fair,
+  _$assetDetailCurrentConditionEnum_poor,
+  _$assetDetailCurrentConditionEnum_critical,
+]);
+
 const AssetDetailCurrentStatusEnum _$assetDetailCurrentStatusEnum_healthy =
     const AssetDetailCurrentStatusEnum._('healthy');
 const AssetDetailCurrentStatusEnum _$assetDetailCurrentStatusEnum_warning =
@@ -35,9 +76,48 @@ final BuiltSet<AssetDetailCurrentStatusEnum>
   _$assetDetailCurrentStatusEnum_critical,
 ]);
 
+Serializer<AssetDetailCurrentConditionEnum>
+    _$assetDetailCurrentConditionEnumSerializer =
+    new _$AssetDetailCurrentConditionEnumSerializer();
 Serializer<AssetDetailCurrentStatusEnum>
     _$assetDetailCurrentStatusEnumSerializer =
     new _$AssetDetailCurrentStatusEnumSerializer();
+
+class _$AssetDetailCurrentConditionEnumSerializer
+    implements PrimitiveSerializer<AssetDetailCurrentConditionEnum> {
+  static const Map<String, Object> _toWire = const <String, Object>{
+    'excellent': 'Excellent',
+    'good': 'Good',
+    'fair': 'Fair',
+    'poor': 'Poor',
+    'critical': 'Critical',
+  };
+  static const Map<Object, String> _fromWire = const <Object, String>{
+    'Excellent': 'excellent',
+    'Good': 'good',
+    'Fair': 'fair',
+    'Poor': 'poor',
+    'Critical': 'critical',
+  };
+
+  @override
+  final Iterable<Type> types = const <Type>[AssetDetailCurrentConditionEnum];
+  @override
+  final String wireName = 'AssetDetailCurrentConditionEnum';
+
+  @override
+  Object serialize(
+          Serializers serializers, AssetDetailCurrentConditionEnum object,
+          {FullType specifiedType = FullType.unspecified}) =>
+      _toWire[object.name] ?? object.name;
+
+  @override
+  AssetDetailCurrentConditionEnum deserialize(
+          Serializers serializers, Object serialized,
+          {FullType specifiedType = FullType.unspecified}) =>
+      AssetDetailCurrentConditionEnum.valueOf(
+          _fromWire[serialized] ?? (serialized is String ? serialized : ''));
+}
 
 class _$AssetDetailCurrentStatusEnumSerializer
     implements PrimitiveSerializer<AssetDetailCurrentStatusEnum> {
@@ -81,6 +161,8 @@ class _$AssetDetail extends AssetDetail {
   final String? categoryOther;
   @override
   final DateTime createdAt;
+  @override
+  final AssetDetailCurrentConditionEnum? currentCondition;
   @override
   final AssetDetailCurrentStatusEnum currentStatus;
   @override
@@ -127,6 +209,7 @@ class _$AssetDetail extends AssetDetail {
       required this.category,
       this.categoryOther,
       required this.createdAt,
+      this.currentCondition,
       required this.currentStatus,
       this.description,
       this.documents,
@@ -176,6 +259,7 @@ class _$AssetDetail extends AssetDetail {
         category == other.category &&
         categoryOther == other.categoryOther &&
         createdAt == other.createdAt &&
+        currentCondition == other.currentCondition &&
         currentStatus == other.currentStatus &&
         description == other.description &&
         documents == other.documents &&
@@ -204,6 +288,7 @@ class _$AssetDetail extends AssetDetail {
     _$hash = $jc(_$hash, category.hashCode);
     _$hash = $jc(_$hash, categoryOther.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
+    _$hash = $jc(_$hash, currentCondition.hashCode);
     _$hash = $jc(_$hash, currentStatus.hashCode);
     _$hash = $jc(_$hash, description.hashCode);
     _$hash = $jc(_$hash, documents.hashCode);
@@ -234,6 +319,7 @@ class _$AssetDetail extends AssetDetail {
           ..add('category', category)
           ..add('categoryOther', categoryOther)
           ..add('createdAt', createdAt)
+          ..add('currentCondition', currentCondition)
           ..add('currentStatus', currentStatus)
           ..add('description', description)
           ..add('documents', documents)
@@ -279,6 +365,12 @@ class AssetDetailBuilder implements Builder<AssetDetail, AssetDetailBuilder> {
   DateTime? _createdAt;
   DateTime? get createdAt => _$this._createdAt;
   set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+
+  AssetDetailCurrentConditionEnum? _currentCondition;
+  AssetDetailCurrentConditionEnum? get currentCondition =>
+      _$this._currentCondition;
+  set currentCondition(AssetDetailCurrentConditionEnum? currentCondition) =>
+      _$this._currentCondition = currentCondition;
 
   AssetDetailCurrentStatusEnum? _currentStatus;
   AssetDetailCurrentStatusEnum? get currentStatus => _$this._currentStatus;
@@ -373,6 +465,7 @@ class AssetDetailBuilder implements Builder<AssetDetail, AssetDetailBuilder> {
       _category = $v.category;
       _categoryOther = $v.categoryOther;
       _createdAt = $v.createdAt;
+      _currentCondition = $v.currentCondition;
       _currentStatus = $v.currentStatus;
       _description = $v.description;
       _documents = $v.documents?.toBuilder();
@@ -423,6 +516,7 @@ class AssetDetailBuilder implements Builder<AssetDetail, AssetDetailBuilder> {
               categoryOther: categoryOther,
               createdAt: BuiltValueNullFieldError.checkNotNull(
                   createdAt, r'AssetDetail', 'createdAt'),
+              currentCondition: currentCondition,
               currentStatus: BuiltValueNullFieldError.checkNotNull(
                   currentStatus, r'AssetDetail', 'currentStatus'),
               description: description,

@@ -6,7 +6,7 @@ import 'tokens_generated.dart';
 class AppThemeController extends ChangeNotifier {
   static const _storageKey = 'fev-theme';
 
-  ThemeMode _mode = ThemeMode.dark;
+  ThemeMode _mode = ThemeMode.light;
   ThemeMode get mode => _mode;
 
   Future<void> load() async {
@@ -14,10 +14,10 @@ class AppThemeController extends ChangeNotifier {
       final value = (await SharedPreferences.getInstance()).getString(
         _storageKey,
       );
-      _mode = value == 'light' ? ThemeMode.light : ThemeMode.dark;
+      _mode = value == 'dark' ? ThemeMode.dark : ThemeMode.light;
       notifyListeners();
     } catch (_) {
-      _mode = ThemeMode.dark;
+      _mode = ThemeMode.light;
     }
   }
 
@@ -60,18 +60,15 @@ abstract final class AppThemes {
   static ThemeData _build({required Brightness brightness}) {
     final foundation = ThemeData(brightness: brightness, useMaterial3: true);
     final dark = brightness == Brightness.dark;
-    final background = dark
-        ? DsColors.darkBackground
-        : DsColors.lightBackground;
+    final background =
+        dark ? DsColors.darkBackground : DsColors.lightBackground;
     final surface = dark ? DsColors.darkSurface : DsColors.lightSurface;
     final elevated = dark ? DsColors.darkElevated : DsColors.lightElevated;
     final border = dark ? DsColors.darkBorder : DsColors.lightBorder;
-    final textPrimary = dark
-        ? DsColors.darkTextPrimary
-        : DsColors.lightTextPrimary;
-    final textSecondary = dark
-        ? DsColors.darkTextSecondary
-        : DsColors.lightTextSecondary;
+    final textPrimary =
+        dark ? DsColors.darkTextPrimary : DsColors.lightTextPrimary;
+    final textSecondary =
+        dark ? DsColors.darkTextSecondary : DsColors.lightTextSecondary;
     final baseTextTheme = foundation.textTheme.apply(
       fontFamily: DsTypography.sans,
       bodyColor: textPrimary,
@@ -242,10 +239,10 @@ abstract final class AppThemes {
   }
 
   static TextStyle mono(BuildContext context) => TextStyle(
-    fontFamily: DsTypography.mono,
-    fontSize: DsTypography.sizeBodySmall,
-    color: Theme.of(context).colorScheme.onSurface,
-  );
+        fontFamily: DsTypography.mono,
+        fontSize: DsTypography.sizeBodySmall,
+        color: Theme.of(context).colorScheme.onSurface,
+      );
 }
 
 @immutable
@@ -268,12 +265,13 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? border,
     Color? textSecondary,
     Color? textMuted,
-  }) => AppSemanticColors(
-    elevated: elevated ?? this.elevated,
-    border: border ?? this.border,
-    textSecondary: textSecondary ?? this.textSecondary,
-    textMuted: textMuted ?? this.textMuted,
-  );
+  }) =>
+      AppSemanticColors(
+        elevated: elevated ?? this.elevated,
+        border: border ?? this.border,
+        textSecondary: textSecondary ?? this.textSecondary,
+        textMuted: textMuted ?? this.textMuted,
+      );
 
   @override
   AppSemanticColors lerp(covariant AppSemanticColors? other, double t) {

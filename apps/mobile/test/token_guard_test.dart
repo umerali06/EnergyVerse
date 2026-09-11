@@ -32,7 +32,8 @@ void main() {
     expect(
       violations,
       isEmpty,
-      reason: 'Use DsColors/DsTypography tokens instead:\n${violations.join('\n')}',
+      reason:
+          'Use DsColors/DsTypography tokens instead:\n${violations.join('\n')}',
     );
   });
 }

@@ -95,7 +95,9 @@ export function AssetsPage({ reducedMotionOverride }: { reducedMotionOverride?: 
           {area && <span className="text-text-muted"> → {area}</span>}
         </td>
         <td className="p-3">
-          <StatusPill tone={statusTone(asset.currentStatus)}>{asset.currentStatus}</StatusPill>
+          <StatusPill tone={statusTone(asset.currentStatus)}>
+            {asset.currentCondition ?? asset.currentStatus}
+          </StatusPill>
         </td>
         <td className="p-3 text-bodySmall text-text-secondary">
           {asset.manufacturer ?? "—"}

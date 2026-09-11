@@ -8,15 +8,25 @@ import '../audit/audit_screen.dart';
 import '../company/company_profile_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../design_system/motion.dart';
+import '../facilities/digital_twin_screen.dart';
 import '../inspections/inspection_detail_screen.dart';
 import '../inspections/inspections_screen.dart';
 import '../inspections/sync_queue_screen.dart';
 import '../navigation/nav_config.dart';
+import '../permits/permit_detail_screen.dart';
+import '../permits/permits_screen.dart';
 import '../qr/qr_scan_result_screen.dart';
 import '../qr/qr_scan_screen.dart';
 import '../roles/roles_screen.dart';
+import '../safety/safety_report_detail_screen.dart';
+import '../safety/safety_reports_screen.dart';
+import '../documents/documents_screen.dart';
+import '../reports/reports_screen.dart';
 import '../shell/app_shell.dart';
 import '../users/users_screen.dart';
+import '../notifications/notifications_screen.dart';
+import '../work_orders/work_order_detail_screen.dart';
+import '../work_orders/work_orders_screen.dart';
 import 'auth_experience.dart';
 import 'permissions.dart';
 import 'route_guards.dart';
@@ -45,16 +55,25 @@ class AppRoutes {
   static const inspectionSyncQueue = '/inspections/sync-queue';
   static const qrScan = '/qr-scan';
   static const qrScanResult = '/qr-scan/result';
+  static const workOrders = AppNav.workOrders;
+  static const workOrderDetail = '/work-orders/detail';
+  static const digitalTwin = AppNav.digitalTwin;
+  static const permits = AppNav.permits;
+  static const permitDetail = '/permits/detail';
+  static const safety = AppNav.safety;
+  static const safetyDetail = '/safety/detail';
+  static const reports = AppNav.reports;
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
-    final name = settings.name ?? home;
+    final uri = Uri.parse(settings.name ?? home);
     return IndustrialPageRoute<void>(
       settings: settings,
-      builder: _builderFor(name),
+      builder: _builderFor(uri),
     );
   }
 
-  static WidgetBuilder _builderFor(String name) {
+  static WidgetBuilder _builderFor(Uri uri) {
+    final name = uri.path;
     switch (name) {
       case login:
         return (_) => const PublicOnlyGuard(child: LoginScreen());
@@ -134,7 +153,8 @@ class AppRoutes {
             );
       case assets:
         return (context) {
-          final initialStatus = ModalRoute.of(context)!.settings.arguments as String?;
+          final initialStatus =
+              ModalRoute.of(context)!.settings.arguments as String?;
           return RequireAuthGuard(
             routeName: assets,
             child: AppShellScaffold(
@@ -149,7 +169,19 @@ class AppRoutes {
         };
       case assetDetail:
         return (context) {
-          final assetId = ModalRoute.of(context)!.settings.arguments as String;
+          final argument = ModalRoute.of(context)!.settings.arguments;
+          final assetId = argument is String && argument.isNotEmpty
+              ? argument
+              : uri.queryParameters['id'];
+          if (assetId == null || assetId.isEmpty) {
+            return const RequireAuthGuard(
+              routeName: assetDetail,
+              child: AppShellScaffold(
+                currentRoute: assets,
+                child: NotFoundScreen(),
+              ),
+            );
+          }
           return RequireAuthGuard(
             routeName: assetDetail,
             child: AppShellScaffold(
@@ -191,7 +223,8 @@ class AppRoutes {
             );
       case inspectionDetail:
         return (context) {
-          final inspectionId = ModalRoute.of(context)!.settings.arguments as String;
+          final inspectionId =
+              ModalRoute.of(context)!.settings.arguments as String;
           return RequireAuthGuard(
             routeName: inspectionDetail,
             child: AppShellScaffold(
@@ -230,7 +263,8 @@ class AppRoutes {
             );
       case qrScanResult:
         return (context) {
-          final result = ModalRoute.of(context)!.settings.arguments as QrScanResult;
+          final result =
+              ModalRoute.of(context)!.settings.arguments as QrScanResult;
           return RequireAuthGuard(
             routeName: qrScanResult,
             child: AppShellScaffold(
@@ -243,6 +277,128 @@ class AppRoutes {
             ),
           );
         };
+      case workOrders:
+        return (_) => const RequireAuthGuard(
+              routeName: workOrders,
+              child: AppShellScaffold(
+                currentRoute: workOrders,
+                child: PermissionGate(
+                  permission: 'work_orders.read',
+                  fallback: NoAccessScreen(permission: 'work_orders.read'),
+                  child: WorkOrdersScreen(),
+                ),
+              ),
+            );
+      case digitalTwin:
+        return (_) => const RequireAuthGuard(
+              routeName: digitalTwin,
+              child: AppShellScaffold(
+                currentRoute: digitalTwin,
+                child: PermissionGate(
+                  permission: 'facilities.read',
+                  fallback: NoAccessScreen(permission: 'facilities.read'),
+                  child: DigitalTwinScreen(),
+                ),
+              ),
+            );
+      case workOrderDetail:
+        return (context) {
+          final workOrderId =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return RequireAuthGuard(
+            routeName: workOrderDetail,
+            child: AppShellScaffold(
+              currentRoute: workOrders,
+              child: PermissionGate(
+                permission: 'work_orders.read',
+                fallback: const NoAccessScreen(permission: 'work_orders.read'),
+                child: WorkOrderDetailScreen(workOrderId: workOrderId),
+              ),
+            ),
+          );
+        };
+      case permits:
+        return (_) => const RequireAuthGuard(
+              routeName: permits,
+              child: AppShellScaffold(
+                currentRoute: permits,
+                child: PermissionGate(
+                  permission: 'permits.read',
+                  fallback: NoAccessScreen(permission: 'permits.read'),
+                  child: PermitsScreen(),
+                ),
+              ),
+            );
+      case permitDetail:
+        return (context) {
+          final permitId = ModalRoute.of(context)!.settings.arguments as String;
+          return RequireAuthGuard(
+            routeName: permitDetail,
+            child: AppShellScaffold(
+              currentRoute: permits,
+              child: PermissionGate(
+                permission: 'permits.read',
+                fallback: const NoAccessScreen(permission: 'permits.read'),
+                child: PermitDetailScreen(permitId: permitId),
+              ),
+            ),
+          );
+        };
+      case safety:
+        return (_) => const RequireAuthGuard(
+              routeName: safety,
+              child: AppShellScaffold(
+                currentRoute: safety,
+                child: PermissionGate(
+                  permission: 'safety.read',
+                  fallback: NoAccessScreen(permission: 'safety.read'),
+                  child: SafetyReportsScreen(),
+                ),
+              ),
+            );
+      case safetyDetail:
+        return (context) {
+          final reportId = ModalRoute.of(context)!.settings.arguments as String;
+          return RequireAuthGuard(
+            routeName: safetyDetail,
+            child: AppShellScaffold(
+              currentRoute: safety,
+              child: PermissionGate(
+                permission: 'safety.read',
+                fallback: const NoAccessScreen(permission: 'safety.read'),
+                child: SafetyReportDetailScreen(reportId: reportId),
+              ),
+            ),
+          );
+        };
+      case AppNav.notifications:
+        return (_) => const RequireAuthGuard(
+              routeName: AppNav.notifications,
+              child: AppShellScaffold(
+                currentRoute: AppNav.notifications,
+                child: NotificationsScreen(),
+              ),
+            );
+      case AppNav.documents:
+        return (_) => const RequireAuthGuard(
+              routeName: AppNav.documents,
+              child: AppShellScaffold(
+                currentRoute: AppNav.documents,
+                child: DocumentsScreen(),
+              ),
+            );
+      case AppNav.reports:
+        return (_) => const RequireAuthGuard(
+              routeName: AppNav.reports,
+              child: AppShellScaffold(
+                currentRoute: AppNav.reports,
+                child: PermissionGate(
+                  permission: 'reports.read',
+                  fallback: NoAccessScreen(permission: 'reports.read'),
+                  child: ReportsScreen(),
+                ),
+              ),
+            );
     }
     final destination = AppNav.byRoute(name);
     if (destination != null && destination.comingSoon) {

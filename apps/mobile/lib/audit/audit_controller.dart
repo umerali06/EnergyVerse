@@ -131,7 +131,8 @@ class AuditController extends ChangeNotifier {
     facetsStatus = LoadStatus.loading;
     _notify();
     try {
-      final facets = await _api.getAuditLogFacets(fromDate: fromDate, toDate: toDate);
+      final facets =
+          await _api.getAuditLogFacets(fromDate: fromDate, toDate: toDate);
       if (requestId != _facetsRequestId) return;
       actions = facets.actions.toList();
       targetTypes = facets.targetTypes.toList();

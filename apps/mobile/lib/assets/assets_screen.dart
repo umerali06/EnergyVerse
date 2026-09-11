@@ -10,7 +10,19 @@ import '../design_system/theme.dart';
 import '../design_system/tokens_generated.dart';
 import 'assets_controller.dart';
 
-const _categoryOptions = ['Pump', 'Compressor', 'Vessel', 'Valve', 'Tank', 'Generator', 'Sensor', 'Other'];
+const _categoryOptions = [
+  'Pumps',
+  'Compressors',
+  'Pipelines',
+  'Tanks',
+  'Motors',
+  'Valves',
+  'Electrical Panels',
+  'Generators',
+  'Transformers',
+  'Wellheads',
+  'Other',
+];
 
 AppStatus statusFor(String statusName) => switch (statusName) {
       'healthy' => AppStatus.healthy,
@@ -19,8 +31,9 @@ AppStatus statusFor(String statusName) => switch (statusName) {
       _ => AppStatus.info,
     };
 
-String statusLabel(String statusName) =>
-    statusName.isEmpty ? statusName : statusName[0].toUpperCase() + statusName.substring(1);
+String statusLabel(String statusName) => statusName.isEmpty
+    ? statusName
+    : statusName[0].toUpperCase() + statusName.substring(1);
 
 /// Asset directory, field-friendly (dense but tappable). Detail is a full
 /// pushed route (see asset_detail_screen.dart) rather than a bottom sheet,
@@ -43,9 +56,9 @@ class _AssetsScreenState extends State<AssetsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _controller ??=
-        AssetsController(api: AuthProvider.of(context).api, initialStatus: widget.initialStatus)
-          ..start();
+    _controller ??= AssetsController(
+        api: AuthProvider.of(context).api, initialStatus: widget.initialStatus)
+      ..start();
   }
 
   @override
@@ -56,7 +69,13 @@ class _AssetsScreenState extends State<AssetsScreen> {
   }
 
   void _openDetail(String assetId) {
-    Navigator.of(context).pushNamed(AppRoutes.assetDetail, arguments: assetId);
+    Navigator.of(context).pushNamed(
+      Uri(
+        path: AppRoutes.assetDetail,
+        queryParameters: {'id': assetId},
+      ).toString(),
+      arguments: assetId,
+    );
   }
 
   @override
@@ -69,18 +88,35 @@ class _AssetsScreenState extends State<AssetsScreen> {
       builder: (context, _) {
         final areaOptions = controller.facilityId == null
             ? const <AreaDetail>[]
-            : controller.areas.where((area) => area.facilityId == controller.facilityId).toList();
-        final canWrite = AuthProvider.of(context).currentUser?.permissions.contains('assets.write') ?? false;
+            : controller.areas
+                .where((area) => area.facilityId == controller.facilityId)
+                .toList();
+        final canWrite = AuthProvider.of(context)
+                .currentUser
+                ?.permissions
+                .contains('assets.write') ??
+            false;
         return ListView(
           key: const Key('assets-scroll'),
           padding: const EdgeInsets.all(DsSpacing.s6),
           children: [
             Row(children: [
-              Expanded(child: Text('Assets', style: Theme.of(context).textTheme.headlineMedium)),
-              if (canWrite) AppButton(label: 'Create', onPressed: () async {
-                await Navigator.of(context).pushNamed(AppRoutes.assetForm);
-                await controller.retry();
-              }),
+              Expanded(
+                  child: Text('Assets',
+                      style: Theme.of(context).textTheme.headlineMedium)),
+              if (canWrite)
+                AppButton(
+                    label: 'Create',
+                    onPressed: () async {
+                      final result = await Navigator.of(context)
+                          .pushNamed(AppRoutes.assetForm);
+                      if (result != null) {
+                        AssetsController.clearCache();
+                        await controller.resetFilters();
+                      } else {
+                        await controller.retry();
+                      }
+                    }),
             ]),
             const SizedBox(height: DsSpacing.s2),
             Text(
@@ -102,9 +138,11 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 Expanded(
                   child: AppSelect<String?>(
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All facilities')),
+                      const DropdownMenuItem(
+                          value: null, child: Text('All facilities')),
                       for (final facility in controller.facilities)
-                        DropdownMenuItem(value: facility.id, child: Text(facility.name)),
+                        DropdownMenuItem(
+                            value: facility.id, child: Text(facility.name)),
                     ],
                     label: 'Facility',
                     onChanged: controller.setFacilityFilter,
@@ -115,11 +153,15 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 Expanded(
                   child: AppSelect<String?>(
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All areas')),
+                      const DropdownMenuItem(
+                          value: null, child: Text('All areas')),
                       for (final area in areaOptions)
-                        DropdownMenuItem(value: area.id, child: Text(area.name)),
+                        DropdownMenuItem(
+                            value: area.id, child: Text(area.name)),
                     ],
-                    label: controller.facilityId == null ? 'Area (pick a facility first)' : 'Area',
+                    label: controller.facilityId == null
+                        ? 'Area (pick a facility first)'
+                        : 'Area',
                     onChanged: controller.setAreaFilter,
                     value: controller.areaId,
                   ),
@@ -132,9 +174,11 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 Expanded(
                   child: AppSelect<String?>(
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All categories')),
+                      const DropdownMenuItem(
+                          value: null, child: Text('All categories')),
                       for (final category in _categoryOptions)
-                        DropdownMenuItem(value: category, child: Text(category)),
+                        DropdownMenuItem(
+                            value: category, child: Text(category)),
                     ],
                     label: 'Category',
                     onChanged: controller.setCategoryFilter,
@@ -145,10 +189,14 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 Expanded(
                   child: AppSelect<String?>(
                     items: const [
-                      DropdownMenuItem(value: null, child: Text('All statuses')),
-                      DropdownMenuItem(value: 'Healthy', child: Text('Healthy')),
-                      DropdownMenuItem(value: 'Warning', child: Text('Warning')),
-                      DropdownMenuItem(value: 'Critical', child: Text('Critical')),
+                      DropdownMenuItem(
+                          value: null, child: Text('All statuses')),
+                      DropdownMenuItem(
+                          value: 'Healthy', child: Text('Healthy')),
+                      DropdownMenuItem(
+                          value: 'Warning', child: Text('Warning')),
+                      DropdownMenuItem(
+                          value: 'Critical', child: Text('Critical')),
                     ],
                     label: 'Status',
                     onChanged: controller.setStatusFilter,
@@ -171,7 +219,8 @@ class _AssetsScreenState extends State<AssetsScreen> {
                   onPressed: controller.retry,
                   variant: AppButtonVariant.ghost,
                 ),
-                description: "Couldn't load assets. Check your connection and try again.",
+                description:
+                    "Couldn't load assets. Check your connection and try again.",
                 title: 'Something went wrong',
               )
             else if (controller.items.isEmpty)
@@ -235,7 +284,8 @@ class _AssetRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(asset.name, style: Theme.of(context).textTheme.titleMedium),
+                    Text(asset.name,
+                        style: Theme.of(context).textTheme.titleMedium),
                     Text(
                       asset.assetTag,
                       style: TextStyle(
@@ -245,7 +295,9 @@ class _AssetRow extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      areaName != null ? '$facilityName → $areaName' : facilityName,
+                      areaName != null
+                          ? '$facilityName → $areaName'
+                          : facilityName,
                       style: TextStyle(
                         fontSize: DsTypography.sizeCaption,
                         color: context.semantic.textMuted,

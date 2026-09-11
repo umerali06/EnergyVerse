@@ -28,7 +28,7 @@ def _required_keys(keys: Sequence[str]) -> tuple[str, ...]:
     return required
 
 
-async def _audit_denial(
+async def audit_access_denial(
     audit: AuditSink,
     request: Request,
     current_user: CurrentUser,
@@ -79,7 +79,7 @@ def require_permission(
         if permitted:
             return current_user
 
-        await _audit_denial(
+        await audit_access_denial(
             audit,
             request,
             current_user,
@@ -116,7 +116,7 @@ def require_role(*role_keys: str) -> RbacDependency:
             return current_user
 
         missing = list(required)
-        await _audit_denial(
+        await audit_access_denial(
             audit,
             request,
             current_user,

@@ -70,6 +70,12 @@ class AuthController extends ChangeNotifier {
   /// a separate client.
   ApiContract get api => _api;
   String? get error => _error;
+  void clearError() {
+    if (_error != null) {
+      _error = null;
+      _notify();
+    }
+  }
   DateTime? get verificationSentAt => _verificationSentAt;
   DateTime? get passwordResetSentAt => _passwordResetSentAt;
 
@@ -81,6 +87,7 @@ class AuthController extends ChangeNotifier {
     _pendingRoute = null;
     return route;
   }
+
   bool get verificationResendAvailable =>
       _verificationSentAt == null ||
       DateTime.now().difference(_verificationSentAt!) >=

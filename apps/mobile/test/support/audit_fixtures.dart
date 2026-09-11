@@ -22,7 +22,8 @@ AuditLogEntry auditLogEntryFixture({
       ..action = action
       ..targetType = targetType
       ..targetId = targetId
-      ..createdAt = createdAt ?? DateTime.now().subtract(const Duration(minutes: 5))
+      ..createdAt =
+          createdAt ?? DateTime.now().subtract(const Duration(minutes: 5))
       ..metadata = MapBuilder(
         (metadata ??
                 {

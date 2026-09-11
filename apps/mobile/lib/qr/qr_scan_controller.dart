@@ -10,7 +10,8 @@ enum QrScanState { idle, resolving, success, notFound, error }
 /// the code is the last non-empty path segment.
 String extractQrCode(String raw) {
   final trimmed = raw.trim();
-  final segments = trimmed.split('/').where((segment) => segment.isNotEmpty).toList();
+  final segments =
+      trimmed.split('/').where((segment) => segment.isNotEmpty).toList();
   return segments.isEmpty ? trimmed : segments.last;
 }
 

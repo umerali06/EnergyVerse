@@ -7,6 +7,8 @@ from app.assets.service import (
     AssetManagementService,
     get_asset_management_service,
 )
+from app.billing.dependencies import require_feature
+from app.billing.plans import Feature
 from app.core.errors import ApiError
 from app.models.api import (
     AssetDeleted,
@@ -22,7 +24,13 @@ from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
 from app.rbac.dependencies import require_permission
 
-router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
+router = APIRouter(
+    prefix="/api/v1/assets", tags=["assets"],
+    # Entitlement gate (D-090): the company's plan must include this
+    # module. Stacks with each route's own require_permission -- the
+    # person may be allowed while the tenant has not paid for it.
+    dependencies=[Depends(require_feature(Feature.ASSETS))],
+)
 
 _assets_read_access = require_permission("assets.read")
 _assets_write_access = require_permission("assets.write")
@@ -57,6 +65,16 @@ async def list_assets(
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> AssetListPage:
     scope = CompanyScope(company_id=current_user.company_id)
+    # The generated Dart/Dio client serializes omitted nullable query
+    # parameters as empty strings. Treat those values as absent at the HTTP
+    # boundary; otherwise ``facility_id=`` becomes a real Firestore equality
+    # filter and an unfiltered mobile directory incorrectly returns no assets.
+    facility_id = facility_id or None
+    area_id = area_id or None
+    category = category or None
+    current_status = current_status or None
+    parent_asset_id = parent_asset_id or None
+    search = search or None
     try:
         return await service.list_assets(
             scope,

@@ -6,7 +6,7 @@ enum PermissionStatus { loading, ready, unauthenticated, error }
 
 class PermissionAccess {
   PermissionAccess(Iterable<String> permissions)
-    : permissions = Set<String>.unmodifiable(permissions);
+      : permissions = Set<String>.unmodifiable(permissions);
 
   final Set<String> permissions;
 
@@ -17,11 +17,11 @@ class PermissionAccess {
 
 class PermissionController extends ChangeNotifier {
   PermissionController({ApiContract? api, Iterable<String>? initialPermissions})
-    : _api = api,
-      _access = PermissionAccess(initialPermissions ?? const <String>[]),
-      _status = initialPermissions == null
-          ? PermissionStatus.loading
-          : PermissionStatus.ready;
+      : _api = api,
+        _access = PermissionAccess(initialPermissions ?? const <String>[]),
+        _status = initialPermissions == null
+            ? PermissionStatus.loading
+            : PermissionStatus.ready;
 
   final ApiContract? _api;
   PermissionAccess _access;
@@ -77,8 +77,8 @@ class PermissionProvider extends InheritedNotifier<PermissionController> {
   }) : super(notifier: controller);
 
   static PermissionController of(BuildContext context) {
-    final provider = context
-        .dependOnInheritedWidgetOfExactType<PermissionProvider>();
+    final provider =
+        context.dependOnInheritedWidgetOfExactType<PermissionProvider>();
     assert(provider != null, 'PermissionProvider is required');
     return provider!.notifier!;
   }

@@ -84,6 +84,9 @@ Class | Method | HTTP request | Description
 [*AuditApi*](doc/AuditApi.md) | [**listAuditLogs**](doc/AuditApi.md#listauditlogs) | **GET** /api/v1/audit-logs | List Audit Logs
 [*AuthApi*](doc/AuthApi.md) | [**getCurrentUser**](doc/AuthApi.md#getcurrentuser) | **GET** /api/v1/auth/me | Me
 [*AuthApi*](doc/AuthApi.md) | [**registerCompanyAdmin**](doc/AuthApi.md#registercompanyadmin) | **POST** /api/v1/auth/register | Register Company Admin
+[*BillingApi*](doc/BillingApi.md) | [**createCheckoutSession**](doc/BillingApi.md#createcheckoutsession) | **POST** /api/v1/billing/checkout | Start a Stripe Checkout session for a plan
+[*BillingApi*](doc/BillingApi.md) | [**getBillingCatalog**](doc/BillingApi.md#getbillingcatalog) | **GET** /api/v1/billing/catalog | Published plan catalog
+[*BillingApi*](doc/BillingApi.md) | [**getSubscription**](doc/BillingApi.md#getsubscription) | **GET** /api/v1/billing/subscription | This company&#39;s plan and entitlements
 [*ChecklistTemplatesApi*](doc/ChecklistTemplatesApi.md) | [**createChecklistTemplate**](doc/ChecklistTemplatesApi.md#createchecklisttemplate) | **POST** /api/v1/checklist-templates | Create Checklist Template
 [*ChecklistTemplatesApi*](doc/ChecklistTemplatesApi.md) | [**deleteChecklistTemplate**](doc/ChecklistTemplatesApi.md#deletechecklisttemplate) | **DELETE** /api/v1/checklist-templates/{template_id} | Delete Checklist Template
 [*ChecklistTemplatesApi*](doc/ChecklistTemplatesApi.md) | [**getChecklistTemplate**](doc/ChecklistTemplatesApi.md#getchecklisttemplate) | **GET** /api/v1/checklist-templates/{template_id} | Get Checklist Template
@@ -96,12 +99,30 @@ Class | Method | HTTP request | Description
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivity**](doc/DashboardApi.md#getdashboardactivity) | **GET** /api/v1/dashboard/activity | Dashboard Activity
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardActivitySeries**](doc/DashboardApi.md#getdashboardactivityseries) | **GET** /api/v1/dashboard/activity-series | Dashboard Activity Series
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardAssetsSummary**](doc/DashboardApi.md#getdashboardassetssummary) | **GET** /api/v1/dashboard/assets-summary | Dashboard Assets Summary
+[*DashboardApi*](doc/DashboardApi.md) | [**getDashboardPermitsSummary**](doc/DashboardApi.md#getdashboardpermitssummary) | **GET** /api/v1/dashboard/permits-summary | Dashboard Permits Summary
+[*DashboardApi*](doc/DashboardApi.md) | [**getDashboardReportsSummary**](doc/DashboardApi.md#getdashboardreportssummary) | **GET** /api/v1/dashboard/reports-summary | Dashboard Reports Summary
+[*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSafetySummary**](doc/DashboardApi.md#getdashboardsafetysummary) | **GET** /api/v1/dashboard/safety-summary | Dashboard Safety Summary
 [*DashboardApi*](doc/DashboardApi.md) | [**getDashboardSummary**](doc/DashboardApi.md#getdashboardsummary) | **GET** /api/v1/dashboard/summary | Dashboard Summary
+[*DocumentsApi*](doc/DocumentsApi.md) | [**createDocument**](doc/DocumentsApi.md#createdocument) | **POST** /api/v1/documents | Create Document
+[*DocumentsApi*](doc/DocumentsApi.md) | [**deleteDocument**](doc/DocumentsApi.md#deletedocument) | **DELETE** /api/v1/documents/{document_id} | Delete Document
+[*DocumentsApi*](doc/DocumentsApi.md) | [**getDocument**](doc/DocumentsApi.md#getdocument) | **GET** /api/v1/documents/{document_id} | Get Document
+[*DocumentsApi*](doc/DocumentsApi.md) | [**listDocuments**](doc/DocumentsApi.md#listdocuments) | **GET** /api/v1/documents | List Documents
+[*DocumentsApi*](doc/DocumentsApi.md) | [**updateDocument**](doc/DocumentsApi.md#updatedocument) | **PATCH** /api/v1/documents/{document_id} | Update Document
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**createFacility**](doc/FacilitiesApi.md#createfacility) | **POST** /api/v1/facilities | Create Facility
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**deleteFacility**](doc/FacilitiesApi.md#deletefacility) | **DELETE** /api/v1/facilities/{facility_id} | Delete Facility
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**getFacility**](doc/FacilitiesApi.md#getfacility) | **GET** /api/v1/facilities/{facility_id} | Get Facility
+[*FacilitiesApi*](doc/FacilitiesApi.md) | [**getFacility3dScene**](doc/FacilitiesApi.md#getfacility3dscene) | **GET** /api/v1/facilities/{facility_id}/3d-scene | Get Facility 3D Scene
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**listFacilities**](doc/FacilitiesApi.md#listfacilities) | **GET** /api/v1/facilities | List Facilities
 [*FacilitiesApi*](doc/FacilitiesApi.md) | [**updateFacility**](doc/FacilitiesApi.md#updatefacility) | **PATCH** /api/v1/facilities/{facility_id} | Update Facility
+[*FacilitiesApi*](doc/FacilitiesApi.md) | [**updateFacility3dScene**](doc/FacilitiesApi.md#updatefacility3dscene) | **PUT** /api/v1/facilities/{facility_id}/3d-scene | Update Facility 3D Scene
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**deleteGeneratedReport**](doc/GeneratedReportsApi.md#deletegeneratedreport) | **DELETE** /api/v1/reports/{report_id} | Delete Generated Report
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**exportGeneratedReport**](doc/GeneratedReportsApi.md#exportgeneratedreport) | **POST** /api/v1/reports/{report_id}/export | Export Generated Report
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**finalizeGeneratedReport**](doc/GeneratedReportsApi.md#finalizegeneratedreport) | **POST** /api/v1/reports/{report_id}/finalize | Finalize Generated Report
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**generateReport**](doc/GeneratedReportsApi.md#generatereport) | **POST** /api/v1/reports/generate | Generate Report
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**getGeneratedReport**](doc/GeneratedReportsApi.md#getgeneratedreport) | **GET** /api/v1/reports/{report_id} | Get Generated Report
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**listGeneratedReports**](doc/GeneratedReportsApi.md#listgeneratedreports) | **GET** /api/v1/reports | List Generated Reports
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**regenerateGeneratedReport**](doc/GeneratedReportsApi.md#regenerategeneratedreport) | **POST** /api/v1/reports/{report_id}/regenerate | Regenerate Generated Report
+[*GeneratedReportsApi*](doc/GeneratedReportsApi.md) | [**updateGeneratedReport**](doc/GeneratedReportsApi.md#updategeneratedreport) | **PATCH** /api/v1/reports/{report_id} | Update Generated Report
 [*InspectionsApi*](doc/InspectionsApi.md) | [**analyzeInspectionMedia**](doc/InspectionsApi.md#analyzeinspectionmedia) | **POST** /api/v1/inspections/{inspection_id}/media/{media_id}/analyze | Analyze Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**assignInspectionChecklistTemplate**](doc/InspectionsApi.md#assigninspectionchecklisttemplate) | **POST** /api/v1/inspections/{inspection_id}/checklist-template | Assign Checklist Template
 [*InspectionsApi*](doc/InspectionsApi.md) | [**attachInspectionMedia**](doc/InspectionsApi.md#attachinspectionmedia) | **POST** /api/v1/inspections/{inspection_id}/media | Attach Inspection Media
@@ -125,7 +146,30 @@ Class | Method | HTTP request | Description
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionArMeasurement**](doc/InspectionsApi.md#updateinspectionarmeasurement) | **PATCH** /api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id} | Update Inspection Ar Measurement
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionMedia**](doc/InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionVoiceNote**](doc/InspectionsApi.md#updateinspectionvoicenote) | **PATCH** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Update Inspection Voice Note
+[*NotificationsApi*](doc/NotificationsApi.md) | [**listNotifications**](doc/NotificationsApi.md#listnotifications) | **GET** /api/v1/notifications | List Notifications
+[*NotificationsApi*](doc/NotificationsApi.md) | [**markAllNotificationsRead**](doc/NotificationsApi.md#markallnotificationsread) | **POST** /api/v1/notifications/read-all | Mark All Notifications Read
+[*NotificationsApi*](doc/NotificationsApi.md) | [**markNotificationRead**](doc/NotificationsApi.md#marknotificationread) | **POST** /api/v1/notifications/{notification_id}/read | Mark Notification Read
+[*NotificationsApi*](doc/NotificationsApi.md) | [**registerNotificationDevice**](doc/NotificationsApi.md#registernotificationdevice) | **POST** /api/v1/notifications/devices | Register Notification Device
+[*NotificationsApi*](doc/NotificationsApi.md) | [**unregisterNotificationDevice**](doc/NotificationsApi.md#unregisternotificationdevice) | **DELETE** /api/v1/notifications/devices/{token} | Unregister Notification Device
 [*PermissionsApi*](doc/PermissionsApi.md) | [**listPermissionCatalog**](doc/PermissionsApi.md#listpermissioncatalog) | **GET** /api/v1/permissions | List Permission Catalog
+[*PermitTemplatesApi*](doc/PermitTemplatesApi.md) | [**createPermitTemplate**](doc/PermitTemplatesApi.md#createpermittemplate) | **POST** /api/v1/permit-templates | Create Permit Template
+[*PermitTemplatesApi*](doc/PermitTemplatesApi.md) | [**deletePermitTemplate**](doc/PermitTemplatesApi.md#deletepermittemplate) | **DELETE** /api/v1/permit-templates/{template_id} | Delete Permit Template
+[*PermitTemplatesApi*](doc/PermitTemplatesApi.md) | [**getPermitTemplate**](doc/PermitTemplatesApi.md#getpermittemplate) | **GET** /api/v1/permit-templates/{template_id} | Get Permit Template
+[*PermitTemplatesApi*](doc/PermitTemplatesApi.md) | [**listPermitTemplates**](doc/PermitTemplatesApi.md#listpermittemplates) | **GET** /api/v1/permit-templates | List Permit Templates
+[*PermitTemplatesApi*](doc/PermitTemplatesApi.md) | [**updatePermitTemplate**](doc/PermitTemplatesApi.md#updatepermittemplate) | **PATCH** /api/v1/permit-templates/{template_id} | Update Permit Template
+[*PermitsApi*](doc/PermitsApi.md) | [**acknowledgePermit**](doc/PermitsApi.md#acknowledgepermit) | **POST** /api/v1/permits/{permit_id}/acknowledge | Acknowledge Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**activatePermit**](doc/PermitsApi.md#activatepermit) | **POST** /api/v1/permits/{permit_id}/activate | Activate Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**closePermit**](doc/PermitsApi.md#closepermit) | **POST** /api/v1/permits/{permit_id}/close | Close Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**createPermit**](doc/PermitsApi.md#createpermit) | **POST** /api/v1/permits | Create Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**decidePermitApproval**](doc/PermitsApi.md#decidepermitapproval) | **POST** /api/v1/permits/{permit_id}/approval-decision | Decide Permit Approval
+[*PermitsApi*](doc/PermitsApi.md) | [**deletePermit**](doc/PermitsApi.md#deletepermit) | **DELETE** /api/v1/permits/{permit_id} | Delete Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**getPermit**](doc/PermitsApi.md#getpermit) | **GET** /api/v1/permits/{permit_id} | Get Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**listPermits**](doc/PermitsApi.md#listpermits) | **GET** /api/v1/permits | List Permits
+[*PermitsApi*](doc/PermitsApi.md) | [**resumePermit**](doc/PermitsApi.md#resumepermit) | **POST** /api/v1/permits/{permit_id}/resume | Resume Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**revokePermit**](doc/PermitsApi.md#revokepermit) | **POST** /api/v1/permits/{permit_id}/revoke | Revoke Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**submitPermit**](doc/PermitsApi.md#submitpermit) | **POST** /api/v1/permits/{permit_id}/submit | Submit Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**suspendPermit**](doc/PermitsApi.md#suspendpermit) | **POST** /api/v1/permits/{permit_id}/suspend | Suspend Permit
+[*PermitsApi*](doc/PermitsApi.md) | [**updatePermit**](doc/PermitsApi.md#updatepermit) | **PATCH** /api/v1/permits/{permit_id} | Update Permit
 [*PlatformApi*](doc/PlatformApi.md) | [**getPlatformCompany**](doc/PlatformApi.md#getplatformcompany) | **GET** /api/v1/platform/companies/{company_id} | Get Platform Company
 [*PlatformApi*](doc/PlatformApi.md) | [**getPlatformStats**](doc/PlatformApi.md#getplatformstats) | **GET** /api/v1/platform/stats | Get Platform Stats
 [*PlatformApi*](doc/PlatformApi.md) | [**listPlatformCompanies**](doc/PlatformApi.md#listplatformcompanies) | **GET** /api/v1/platform/companies | List Platform Companies
@@ -140,8 +184,26 @@ Class | Method | HTTP request | Description
 [*RolesApi*](doc/RolesApi.md) | [**getRole**](doc/RolesApi.md#getrole) | **GET** /api/v1/roles/{role_id} | Get Role
 [*RolesApi*](doc/RolesApi.md) | [**listRoles**](doc/RolesApi.md#listroles) | **GET** /api/v1/roles | List Roles
 [*RolesApi*](doc/RolesApi.md) | [**updateRole**](doc/RolesApi.md#updaterole) | **PATCH** /api/v1/roles/{role_id} | Update Role
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**assignSafetyReport**](doc/SafetyReportsApi.md#assignsafetyreport) | **PATCH** /api/v1/safety-reports/{report_id}/assign | Assign Safety Report
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**cancelCorrectiveAction**](doc/SafetyReportsApi.md#cancelcorrectiveaction) | **POST** /api/v1/safety-reports/{report_id}/corrective-actions/{action_id}/cancel | Cancel Corrective Action
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**closeSafetyReport**](doc/SafetyReportsApi.md#closesafetyreport) | **POST** /api/v1/safety-reports/{report_id}/close | Close Safety Report
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**createCorrectiveAction**](doc/SafetyReportsApi.md#createcorrectiveaction) | **POST** /api/v1/safety-reports/{report_id}/corrective-actions | Create Corrective Action
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**createSafetyReport**](doc/SafetyReportsApi.md#createsafetyreport) | **POST** /api/v1/safety-reports | Create Safety Report
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**deleteSafetyEvidence**](doc/SafetyReportsApi.md#deletesafetyevidence) | **DELETE** /api/v1/safety-reports/{report_id}/evidence/{evidence_id} | Delete Safety Evidence
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**deleteSafetyReport**](doc/SafetyReportsApi.md#deletesafetyreport) | **DELETE** /api/v1/safety-reports/{report_id} | Delete Safety Report
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**getSafetyReport**](doc/SafetyReportsApi.md#getsafetyreport) | **GET** /api/v1/safety-reports/{report_id} | Get Safety Report
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**listSafetyReports**](doc/SafetyReportsApi.md#listsafetyreports) | **GET** /api/v1/safety-reports | List Safety Reports
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**transitionSafetyReport**](doc/SafetyReportsApi.md#transitionsafetyreport) | **PATCH** /api/v1/safety-reports/{report_id}/transition | Transition Safety Report
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**updateCorrectiveAction**](doc/SafetyReportsApi.md#updatecorrectiveaction) | **PATCH** /api/v1/safety-reports/{report_id}/corrective-actions/{action_id} | Update Corrective Action
+[*SafetyReportsApi*](doc/SafetyReportsApi.md) | [**uploadSafetyEvidence**](doc/SafetyReportsApi.md#uploadsafetyevidence) | **POST** /api/v1/safety-reports/{report_id}/evidence | Upload Safety Evidence
 [*SystemApi*](doc/SystemApi.md) | [**getHealth**](doc/SystemApi.md#gethealth) | **GET** /health | Health
 [*SystemApi*](doc/SystemApi.md) | [**getRoot**](doc/SystemApi.md#getroot) | **GET** / | Root
+[*TrainingApi*](doc/TrainingApi.md) | [**completeTrainingModule**](doc/TrainingApi.md#completetrainingmodule) | **POST** /api/v1/training/modules/{module_id}/complete | Complete Training Module
+[*TrainingApi*](doc/TrainingApi.md) | [**completeTrainingStep**](doc/TrainingApi.md#completetrainingstep) | **POST** /api/v1/training/modules/{module_id}/steps/{step_id}/complete | Complete Training Step
+[*TrainingApi*](doc/TrainingApi.md) | [**getTrainingModule**](doc/TrainingApi.md#gettrainingmodule) | **GET** /api/v1/training/modules/{module_id} | Get Training Module
+[*TrainingApi*](doc/TrainingApi.md) | [**listTrainingModules**](doc/TrainingApi.md#listtrainingmodules) | **GET** /api/v1/training/modules | List Training Modules
+[*TrainingApi*](doc/TrainingApi.md) | [**listTrainingProgress**](doc/TrainingApi.md#listtrainingprogress) | **GET** /api/v1/training/progress | List Training Progress
+[*TrainingApi*](doc/TrainingApi.md) | [**startTrainingModule**](doc/TrainingApi.md#starttrainingmodule) | **POST** /api/v1/training/modules/{module_id}/start | Start Training Module
 [*UsersApi*](doc/UsersApi.md) | [**getUser**](doc/UsersApi.md#getuser) | **GET** /api/v1/users/{user_id} | Get User
 [*UsersApi*](doc/UsersApi.md) | [**inviteUser**](doc/UsersApi.md#inviteuser) | **POST** /api/v1/users/invite | Invite User
 [*UsersApi*](doc/UsersApi.md) | [**listUsers**](doc/UsersApi.md#listusers) | **GET** /api/v1/users | List Users
@@ -160,6 +222,8 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AcknowledgePermitRequest](doc/AcknowledgePermitRequest.md)
+ - [ActivatePermitRequest](doc/ActivatePermitRequest.md)
  - [AiAnalysisResponse](doc/AiAnalysisResponse.md)
  - [AnnotationPointInput](doc/AnnotationPointInput.md)
  - [AnnotationPointResponse](doc/AnnotationPointResponse.md)
@@ -180,12 +244,18 @@ Class | Method | HTTP request | Description
  - [AssetMediaResponse](doc/AssetMediaResponse.md)
  - [AssetQrLabel](doc/AssetQrLabel.md)
  - [AssignChecklistTemplateRequest](doc/AssignChecklistTemplateRequest.md)
+ - [AssignSafetyReportRequest](doc/AssignSafetyReportRequest.md)
  - [AssignWorkOrderRequest](doc/AssignWorkOrderRequest.md)
  - [AttachInspectionMediaRequest](doc/AttachInspectionMediaRequest.md)
  - [AttachVoiceNoteRequest](doc/AttachVoiceNoteRequest.md)
  - [AuditLogEntry](doc/AuditLogEntry.md)
  - [AuditLogFacets](doc/AuditLogFacets.md)
  - [AuditLogPage](doc/AuditLogPage.md)
+ - [BillingCatalogResponse](doc/BillingCatalogResponse.md)
+ - [BillingPlanQuotasResponse](doc/BillingPlanQuotasResponse.md)
+ - [BillingPlanResponse](doc/BillingPlanResponse.md)
+ - [CameraPreset](doc/CameraPreset.md)
+ - [CancelCorrectiveActionRequest](doc/CancelCorrectiveActionRequest.md)
  - [ChecklistResponse](doc/ChecklistResponse.md)
  - [ChecklistTemplateDeleted](doc/ChecklistTemplateDeleted.md)
  - [ChecklistTemplateDetail](doc/ChecklistTemplateDetail.md)
@@ -193,18 +263,30 @@ Class | Method | HTTP request | Description
  - [ChecklistTemplateItemInput](doc/ChecklistTemplateItemInput.md)
  - [ChecklistTemplateListItem](doc/ChecklistTemplateListItem.md)
  - [ChecklistTemplateListPage](doc/ChecklistTemplateListPage.md)
+ - [CheckoutSessionRequest](doc/CheckoutSessionRequest.md)
+ - [CheckoutSessionResponse](doc/CheckoutSessionResponse.md)
+ - [ClosePermitRequest](doc/ClosePermitRequest.md)
  - [CompanyProfile](doc/CompanyProfile.md)
  - [CompanyRegistrationRequest](doc/CompanyRegistrationRequest.md)
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
  - [CompleteInspectionRequest](doc/CompleteInspectionRequest.md)
+ - [CompleteTrainingStepRequest](doc/CompleteTrainingStepRequest.md)
+ - [ControlPermitRequest](doc/ControlPermitRequest.md)
+ - [CorrectiveActionResponse](doc/CorrectiveActionResponse.md)
  - [CreateAnnotationRequest](doc/CreateAnnotationRequest.md)
  - [CreateArMeasurementRequest](doc/CreateArMeasurementRequest.md)
  - [CreateAreaRequest](doc/CreateAreaRequest.md)
  - [CreateAssetRequest](doc/CreateAssetRequest.md)
  - [CreateChecklistTemplateRequest](doc/CreateChecklistTemplateRequest.md)
+ - [CreateCorrectiveActionRequest](doc/CreateCorrectiveActionRequest.md)
+ - [CreateDocumentRequest](doc/CreateDocumentRequest.md)
  - [CreateFacilityRequest](doc/CreateFacilityRequest.md)
+ - [CreateGeneratedReportRequest](doc/CreateGeneratedReportRequest.md)
  - [CreateInspectionRequest](doc/CreateInspectionRequest.md)
+ - [CreatePermitRequest](doc/CreatePermitRequest.md)
+ - [CreatePermitTemplateRequest](doc/CreatePermitTemplateRequest.md)
  - [CreateRoleRequest](doc/CreateRoleRequest.md)
+ - [CreateSafetyReportRequest](doc/CreateSafetyReportRequest.md)
  - [CreateWorkOrderRequest](doc/CreateWorkOrderRequest.md)
  - [CurrentUser](doc/CurrentUser.md)
  - [DashboardActivityItem](doc/DashboardActivityItem.md)
@@ -212,11 +294,26 @@ Class | Method | HTTP request | Description
  - [DashboardActivitySeries](doc/DashboardActivitySeries.md)
  - [DashboardSeriesPoint](doc/DashboardSeriesPoint.md)
  - [DashboardSummary](doc/DashboardSummary.md)
+ - [DecidePermitApprovalRequest](doc/DecidePermitApprovalRequest.md)
  - [DemoGateResponse](doc/DemoGateResponse.md)
+ - [DeviceRegistered](doc/DeviceRegistered.md)
+ - [DeviceUnregistered](doc/DeviceUnregistered.md)
+ - [DigitalTwinHotspotResponse](doc/DigitalTwinHotspotResponse.md)
+ - [DigitalTwinSceneResponse](doc/DigitalTwinSceneResponse.md)
+ - [DocumentDeleted](doc/DocumentDeleted.md)
+ - [DocumentDetail](doc/DocumentDetail.md)
+ - [DocumentListItem](doc/DocumentListItem.md)
+ - [DocumentListPage](doc/DocumentListPage.md)
  - [ErrorEnvelope](doc/ErrorEnvelope.md)
  - [FacilityDeleted](doc/FacilityDeleted.md)
  - [FacilityDetail](doc/FacilityDetail.md)
  - [FacilityListPage](doc/FacilityListPage.md)
+ - [FinalizeGeneratedReportRequest](doc/FinalizeGeneratedReportRequest.md)
+ - [GeneratedReportDeleted](doc/GeneratedReportDeleted.md)
+ - [GeneratedReportDetail](doc/GeneratedReportDetail.md)
+ - [GeneratedReportExportResponse](doc/GeneratedReportExportResponse.md)
+ - [GeneratedReportListItem](doc/GeneratedReportListItem.md)
+ - [GeneratedReportListPage](doc/GeneratedReportListPage.md)
  - [HTTPValidationError](doc/HTTPValidationError.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [InspectionDeleted](doc/InspectionDeleted.md)
@@ -225,9 +322,32 @@ Class | Method | HTTP request | Description
  - [InspectionListPage](doc/InspectionListPage.md)
  - [InspectionMediaResponse](doc/InspectionMediaResponse.md)
  - [InviteUserRequest](doc/InviteUserRequest.md)
+ - [NotificationListPage](doc/NotificationListPage.md)
+ - [NotificationRead](doc/NotificationRead.md)
+ - [NotificationResponse](doc/NotificationResponse.md)
+ - [NotificationsAllRead](doc/NotificationsAllRead.md)
  - [PermissionCatalog](doc/PermissionCatalog.md)
  - [PermissionCatalogGroup](doc/PermissionCatalogGroup.md)
  - [PermissionCatalogItem](doc/PermissionCatalogItem.md)
+ - [PermitApprovalSnapshotResponse](doc/PermitApprovalSnapshotResponse.md)
+ - [PermitApprovalTemplateStepInput](doc/PermitApprovalTemplateStepInput.md)
+ - [PermitApprovalTemplateStepResponse](doc/PermitApprovalTemplateStepResponse.md)
+ - [PermitChecklistSnapshotResponse](doc/PermitChecklistSnapshotResponse.md)
+ - [PermitChecklistTemplateItemInput](doc/PermitChecklistTemplateItemInput.md)
+ - [PermitChecklistTemplateItemResponse](doc/PermitChecklistTemplateItemResponse.md)
+ - [PermitDashboardSummary](doc/PermitDashboardSummary.md)
+ - [PermitDeleted](doc/PermitDeleted.md)
+ - [PermitDetail](doc/PermitDetail.md)
+ - [PermitDigitalSignatureResponse](doc/PermitDigitalSignatureResponse.md)
+ - [PermitListItem](doc/PermitListItem.md)
+ - [PermitListPage](doc/PermitListPage.md)
+ - [PermitRiskAssessmentInput](doc/PermitRiskAssessmentInput.md)
+ - [PermitRiskAssessmentResponse](doc/PermitRiskAssessmentResponse.md)
+ - [PermitTemplateDeleted](doc/PermitTemplateDeleted.md)
+ - [PermitTemplateDetail](doc/PermitTemplateDetail.md)
+ - [PermitTemplateListItem](doc/PermitTemplateListItem.md)
+ - [PermitTemplateListPage](doc/PermitTemplateListPage.md)
+ - [PermitWorkerAcknowledgementResponse](doc/PermitWorkerAcknowledgementResponse.md)
  - [PlatformCompanyDetail](doc/PlatformCompanyDetail.md)
  - [PlatformCompanyPage](doc/PlatformCompanyPage.md)
  - [PlatformCompanySummary](doc/PlatformCompanySummary.md)
@@ -235,17 +355,37 @@ Class | Method | HTTP request | Description
  - [QrScanResult](doc/QrScanResult.md)
  - [ReadingsInput](doc/ReadingsInput.md)
  - [ReadingsResponse](doc/ReadingsResponse.md)
+ - [RegenerateGeneratedReportRequest](doc/RegenerateGeneratedReportRequest.md)
+ - [RegisterDeviceRequest](doc/RegisterDeviceRequest.md)
+ - [ReportDashboardSummary](doc/ReportDashboardSummary.md)
+ - [ReportNarrativeResponse](doc/ReportNarrativeResponse.md)
+ - [ResumePermitRequest](doc/ResumePermitRequest.md)
  - [RoleDeleted](doc/RoleDeleted.md)
  - [RoleDetail](doc/RoleDetail.md)
  - [RoleList](doc/RoleList.md)
  - [RoleSummary](doc/RoleSummary.md)
+ - [SafetyCategoryCount](doc/SafetyCategoryCount.md)
+ - [SafetyDashboardSummary](doc/SafetyDashboardSummary.md)
+ - [SafetyEvidenceResponse](doc/SafetyEvidenceResponse.md)
+ - [SafetyReportDeleted](doc/SafetyReportDeleted.md)
+ - [SafetyReportDetail](doc/SafetyReportDetail.md)
+ - [SafetyReportListItem](doc/SafetyReportListItem.md)
+ - [SafetyReportListPage](doc/SafetyReportListPage.md)
  - [ServiceResponse](doc/ServiceResponse.md)
  - [SignaturePointInput](doc/SignaturePointInput.md)
  - [SignaturePointResponse](doc/SignaturePointResponse.md)
  - [SignatureResponse](doc/SignatureResponse.md)
  - [SignatureStrokeInput](doc/SignatureStrokeInput.md)
  - [SignatureStrokeResponse](doc/SignatureStrokeResponse.md)
+ - [SubmitPermitRequest](doc/SubmitPermitRequest.md)
  - [SubmitWorkOrderForReviewRequest](doc/SubmitWorkOrderForReviewRequest.md)
+ - [SubscriptionResponse](doc/SubscriptionResponse.md)
+ - [TrainingModuleListPage](doc/TrainingModuleListPage.md)
+ - [TrainingModuleResponse](doc/TrainingModuleResponse.md)
+ - [TrainingProgressListPage](doc/TrainingProgressListPage.md)
+ - [TrainingProgressResponse](doc/TrainingProgressResponse.md)
+ - [TrainingStepResponse](doc/TrainingStepResponse.md)
+ - [TransitionSafetyReportRequest](doc/TransitionSafetyReportRequest.md)
  - [UpdateAnnotationRequest](doc/UpdateAnnotationRequest.md)
  - [UpdateArMeasurementRequest](doc/UpdateArMeasurementRequest.md)
  - [UpdateAreaRequest](doc/UpdateAreaRequest.md)
@@ -253,9 +393,16 @@ Class | Method | HTTP request | Description
  - [UpdateChecklistTemplateRequest](doc/UpdateChecklistTemplateRequest.md)
  - [UpdateCompanyRequest](doc/UpdateCompanyRequest.md)
  - [UpdateCompanyStatusRequest](doc/UpdateCompanyStatusRequest.md)
+ - [UpdateCorrectiveActionRequest](doc/UpdateCorrectiveActionRequest.md)
+ - [UpdateDigitalTwinHotspotRequest](doc/UpdateDigitalTwinHotspotRequest.md)
+ - [UpdateDigitalTwinSceneRequest](doc/UpdateDigitalTwinSceneRequest.md)
+ - [UpdateDocumentRequest](doc/UpdateDocumentRequest.md)
  - [UpdateFacilityRequest](doc/UpdateFacilityRequest.md)
+ - [UpdateGeneratedReportRequest](doc/UpdateGeneratedReportRequest.md)
  - [UpdateInspectionMediaRequest](doc/UpdateInspectionMediaRequest.md)
  - [UpdateInspectionRequest](doc/UpdateInspectionRequest.md)
+ - [UpdatePermitRequest](doc/UpdatePermitRequest.md)
+ - [UpdatePermitTemplateRequest](doc/UpdatePermitTemplateRequest.md)
  - [UpdatePlatformCompanyRequest](doc/UpdatePlatformCompanyRequest.md)
  - [UpdateRoleRequest](doc/UpdateRoleRequest.md)
  - [UpdateUserRequest](doc/UpdateUserRequest.md)

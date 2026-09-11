@@ -1,4 +1,5 @@
 import { designTokens } from "@/design-system/tokens.generated";
+import { authRoutes, marketingRoutes } from "@/navigation/routes";
 
 /** Central site identity for metadata. Per-page titles/descriptions stay
  * colocated with each route; this file only defines shared defaults. */
@@ -14,7 +15,8 @@ export const site = {
   ogImage: "/brand/og-image.png",
 } as const;
 
-export const publicRoutes = ["/login", "/signup", "/forgot-password"] as const;
+/** Every crawlable route: the marketing pages plus the auth entry points. */
+export const publicRoutes = [...marketingRoutes, ...authRoutes] as const;
 
 /** Standard metadata for a protected in-shell route: descriptive tab title,
  * never indexed. Colocate a call to this in every protected page. */

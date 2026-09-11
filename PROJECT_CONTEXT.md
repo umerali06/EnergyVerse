@@ -71,7 +71,11 @@ The following belong to future phases. MVP architecture must expose clean integr
 - Email notifications: Amazon SES or SendGrid
 - Object storage candidate: Firebase Storage or AWS S3
 
-Backend framework, database, authentication provider, final email provider, and final object-storage provider are not confirmed. Blocking decisions are recorded in `DECISIONS.md`.
+The backend framework, primary database, authentication provider, and object-storage
+model are confirmed: FastAPI, Firebase Firestore, Firebase Authentication, and
+server-mediated Firebase Storage (D-001 through D-003 and D-027). The final
+notification email provider remains unconfirmed. `DECISIONS.md` is authoritative
+for these choices and all later locked decisions.
 
 ## Non-Negotiable Principles
 
@@ -83,3 +87,31 @@ Backend framework, database, authentication provider, final email provider, and 
 - The system must be modular, reusable, maintainable, mobile-first, and suitable for scalable cloud deployment.
 - Requirements must not be assumed. Unclear or consequential gaps must be raised with the product owner.
 
+## Current Implementation Checkpoint
+
+As of 2026-08-20, every defined slice through Phase 8 is complete. Phase 5 ships
+Safety Reports, Phase 6 ships Permit-to-Work, Phase 7 ships the offline-first
+inspection workflow with AR/manual measurement and advisory AI analysis, and
+Phase 8 ships the work-order backend plus offline technician and admin supervisor
+flows. The detailed focused and regression evidence is recorded in `TESTING.md`.
+
+The product owner authorized the recommended sequence on 2026-08-20, selecting
+AI report generation for Phase 9. Phases 9.1 and 9.2 are complete: the backend
+now snapshots real tenant sources for all five brief-defined report types,
+generates structured advisory narrative behind an injectable Claude adapter,
+allows revision-safe human edits/regeneration, blocks unreviewed inspection AI,
+and makes explicitly finalized reports immutable. Seven generated-contract API
+operations cover list/generate/get/update/regenerate/finalize/delete. Phase 9.3
+is complete: finalized snapshots render deterministically to branded PDF, DOCX,
+and XLSX artifacts, remain in tenant-private storage, and are returned only via
+fresh signed URLs with export provenance and audit events. Phase 9.4, the admin
+and mobile report workflow, is in progress. Its 9.4a admin library now provides
+real tenant filters, pagination, finalized-only PDF/DOCX/XLSX actions, and fresh
+signed-download initiation. Phase 9.4b.1 adds source-aware creation with the
+exact source-domain permission matrix and real tenant selectors. Phase 9.4b.2
+adds frozen-snapshot detail, revision-safe human edits, explicit regeneration,
+attested immutable finalization, and confirmed draft deletion. Phase 9.4c.1 now
+replaces the mobile Reports placeholder with a generated-client tenant library,
+filters/pagination, draft gating, and fresh signed PDF/DOCX/XLSX launch. Phase
+9.4c.2 mobile creation/review/finalization is next. The static 3D
+facility view remains the next unimplemented MVP capability after Phase 9.

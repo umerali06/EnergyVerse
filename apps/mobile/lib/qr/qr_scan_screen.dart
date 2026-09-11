@@ -85,7 +85,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        if (controller.state == QrScanState.success && controller.result != null) {
+        if (controller.state == QrScanState.success &&
+            controller.result != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) unawaited(_navigateToResult(controller));
           });
@@ -95,7 +96,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Scan asset QR code', style: Theme.of(context).textTheme.titleLarge),
+              Text('Scan asset QR code',
+                  style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: DsSpacing.s2),
               Text(
                 "Point the camera at an asset's QR label, or enter its code below.",
@@ -133,7 +135,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
                         "Couldn't resolve this code. Check your connection and try again.",
                   ),
                 ),
-              Text('Manual entry', style: Theme.of(context).textTheme.titleMedium),
+              Text('Manual entry',
+                  style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: DsSpacing.s2),
               AppTextField(
                 label: 'Asset code',
@@ -144,7 +147,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
               const SizedBox(height: DsSpacing.s3),
               AppButton(
                 label: 'Look up code',
-                onPressed: controller.state == QrScanState.resolving ? null : _submitManualCode,
+                onPressed: controller.state == QrScanState.resolving
+                    ? null
+                    : _submitManualCode,
               ),
             ],
           ),

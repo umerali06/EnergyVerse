@@ -46,7 +46,8 @@ RoleDetail roleDetailFixture({
       ..isSystem = isSystem
       ..assignedUserCount = assignedUserCount
       ..permissionKeys.addAll(
-        permissionKeys ?? ['assets.read', 'permits.read', 'permits.approve', 'safety.read'],
+        permissionKeys ??
+            ['assets.read', 'permits.read', 'permits.approve', 'safety.read'],
       ),
   );
 }

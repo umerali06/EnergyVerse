@@ -194,6 +194,190 @@ class Outbox extends Table {
   DateTimeColumn get nextAttemptAt => dateTime().nullable()();
 }
 
+/// Local cache of work order records (Phase 8.2). Mirrors the server's
+/// `WorkOrderDetail` fields; unlike [LocalInspections], a work order is never
+/// created offline -- only admin (web, always online) creates one, so every
+/// row here originates from a server fetch and [syncState] only ever moves
+/// between `synced` (no pending mutation), `pending_sync` (an accept/
+/// submit-for-review is queued in [WorkOrderOutbox]), `conflict`, or `error`
+/// -- never `local_only`. `materialsUsed` is a JSON-blob array, same
+/// small-data convention as [LocalInspections.checklistResponses].
+class LocalWorkOrders extends Table {
+  TextColumn get id => text()();
+  TextColumn get assetId => text()();
+  TextColumn get facilityId => text()();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get priority => text()();
+  TextColumn get status => text()();
+  TextColumn get sourceInspectionId => text().nullable()();
+  TextColumn get technicianId => text().nullable()();
+  TextColumn get assignedBy => text().nullable()();
+  DateTimeColumn get assignedAt => dateTime().nullable()();
+  DateTimeColumn get dueDate => dateTime().nullable()();
+  DateTimeColumn get acceptedAt => dateTime().nullable()();
+  RealColumn get laborHours => real().nullable()();
+  TextColumn get materialsUsed => text().withDefault(const Constant('[]'))();
+  TextColumn get completionNotes => text().nullable()();
+  DateTimeColumn get submittedAt => dateTime().nullable()();
+  TextColumn get closedBy => text().nullable()();
+  DateTimeColumn get closedAt => dateTime().nullable()();
+  DateTimeColumn get cancelledAt => dateTime().nullable()();
+  IntColumn get revision => integer().withDefault(const Constant(1))();
+  DateTimeColumn get createdAt => dateTime()();
+  TextColumn get createdBy => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  /// `synced | pending_sync | conflict | error` -- LOCAL ONLY (see class doc:
+  /// never `local_only`, since a work order always originates server-side).
+  TextColumn get syncState => text().withDefault(const Constant('synced'))();
+
+  /// The revision this local copy was last confirmed to match on the
+  /// server; used as `expected_revision` on `submitWorkOrderForReview`
+  /// (`accept` carries no revision at all -- see `WorkOrderRepository.accept`).
+  IntColumn get baseRevision => integer().nullable()();
+  TextColumn get errorMessage => text().nullable()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+
+  /// Full server `WorkOrderDetail` JSON fetched at conflict time, mirroring
+  /// [LocalInspections.conflictServerSnapshot].
+  TextColumn get conflictServerSnapshot => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// The work-order pending-mutation queue (Phase 8.2) -- deliberately a
+/// SEPARATE table from [Outbox], mirroring how [MediaQueue] is separate from
+/// it: work orders are an unrelated domain entity with their own id space and
+/// a much smaller mutation set (only the technician-only `accept`/
+/// `submit_for_review` actions ever go through the offline outbox --
+/// `assign`/`close`/`cancel`/`create`/`delete` are supervisor actions taken
+/// from the always-online admin app). Same `sequence`-is-FIFO-drain-order
+/// shape as [Outbox].
+class WorkOrderOutbox extends Table {
+  IntColumn get sequence => integer().autoIncrement()();
+  TextColumn get id => text().unique()();
+  TextColumn get workOrderId => text()();
+
+  /// `accept | submit_for_review`.
+  TextColumn get mutationType => text()();
+  TextColumn get payload => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+}
+
+/// Durable cache for assigned permits. The complete generated PermitDetail is
+/// retained as JSON so immutable safety snapshots and future additive fields
+/// remain available offline without a lossy local projection.
+class LocalPermits extends Table {
+  TextColumn get id => text()();
+  TextColumn get permitNumber => text()();
+  TextColumn get title => text()();
+  TextColumn get permitType => text()();
+  TextColumn get facilityId => text()();
+  TextColumn get status => text()();
+  IntColumn get revision => integer()();
+  DateTimeColumn get validFrom => dateTime()();
+  DateTimeColumn get validUntil => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get detailJson => text()();
+  TextColumn get syncState => text().withDefault(const Constant('synced'))();
+  TextColumn get errorMessage => text().nullable()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get conflictServerSnapshot => text().nullable()();
+  TextColumn get pendingAcknowledgementJson => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Permit acknowledgements are the only offline permit mutation. Approval and
+/// activation stay online-only, so they never enter this queue.
+class PermitOutbox extends Table {
+  IntColumn get sequence => integer().autoIncrement()();
+  TextColumn get id => text().unique()();
+  TextColumn get permitId => text()();
+  TextColumn get mutationType => text()();
+  TextColumn get payload => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+}
+
+/// Durable safety-report cache. Client-generated UUIDs make offline create
+/// replay idempotent once connectivity returns.
+class LocalSafetyReports extends Table {
+  TextColumn get id => text()();
+  TextColumn get category => text()();
+  TextColumn get severity => text()();
+  TextColumn get title => text()();
+  TextColumn get description => text()();
+  DateTimeColumn get occurredAt => dateTime()();
+  RealColumn get gpsLat => real().nullable()();
+  RealColumn get gpsLng => real().nullable()();
+  TextColumn get reporterId => text()();
+  TextColumn get status => text().withDefault(const Constant('reported'))();
+  TextColumn get assignedManagerId => text().nullable()();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get evidence => text().withDefault(const Constant('[]'))();
+  TextColumn get correctiveActions =>
+      text().withDefault(const Constant('[]'))();
+  TextColumn get syncState =>
+      text().withDefault(const Constant('local_only'))();
+  TextColumn get errorMessage => text().nullable()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get conflictServerSnapshot => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Lightweight safety mutations. Binary evidence deliberately gets its own
+/// queue so a large video can never block report-record synchronization.
+class SafetyOutbox extends Table {
+  IntColumn get sequence => integer().autoIncrement()();
+  TextColumn get id => text().unique()();
+  TextColumn get reportId => text()();
+  TextColumn get targetId => text().nullable()();
+  TextColumn get mutationType => text()();
+  TextColumn get payload => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+}
+
+/// Binary evidence queue. File bytes remain on durable device storage until
+/// the server-mediated private upload succeeds; retries never block the
+/// lightweight [SafetyOutbox].
+class SafetyEvidenceQueue extends Table {
+  TextColumn get localId => text()();
+  TextColumn get reportId => text()();
+  TextColumn get kind => text()();
+  TextColumn get localFilePath => text()();
+  TextColumn get filename => text()();
+  TextColumn get contentType => text()();
+  IntColumn get sizeBytes => integer()();
+  TextColumn get state => text().withDefault(const Constant('pending'))();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {localId};
+}
+
 /// The pending MEDIA-upload queue (Phase 7.4) -- deliberately SEPARATE from
 /// [Outbox]: media bytes are heavy (a video can be hundreds of MB) and must
 /// never share a drain loop with the lightweight inspection-record

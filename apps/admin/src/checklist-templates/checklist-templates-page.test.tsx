@@ -24,7 +24,7 @@ vi.mock("next/navigation", () => ({
 const session: AuthSession = {
   email: "company_admin@acme.example.invalid",
   emailVerified: true,
-  getIdToken: vi.fn(async () => "id-token"),
+  getIdToken: vi.fn(async (..._args: unknown[]) => "id-token"),
   uid: "demo-acme-company_admin",
 };
 
@@ -80,7 +80,7 @@ function DashboardWithPermissions({ children }: { children: React.ReactNode }) {
 function renderTemplates({
   roleKey = "company_admin",
   permissions = roleMatrix.company_admin,
-  listChecklistTemplates = vi.fn(async () => ({ items: [templateItem()], nextCursor: null })),
+  listChecklistTemplates = vi.fn(async (..._args: unknown[]) => ({ items: [templateItem()], nextCursor: null })),
   gated = false,
 }: {
   roleKey?: string;
@@ -97,7 +97,7 @@ function renderTemplates({
     roleKey,
     permissions: new Set(permissions),
   };
-  const apiClient = { getCurrentUser: vi.fn(async () => identity), listChecklistTemplates };
+  const apiClient = { registerCompanyAdmin: vi.fn(), getCurrentUser: vi.fn(async (..._args: unknown[]) => identity), listChecklistTemplates };
   const content = gated ? (
     <RequirePermission permission="checklist_templates.read">
       <ChecklistTemplatesPage />
@@ -149,13 +149,13 @@ describe("checklist templates page", () => {
 
   it("shows an honest empty state when no templates match", async () => {
     renderTemplates({
-      listChecklistTemplates: vi.fn(async () => ({ items: [], nextCursor: null })),
+      listChecklistTemplates: vi.fn(async (..._args: unknown[]) => ({ items: [], nextCursor: null })),
     });
     expect(await screen.findByText("No templates found")).toBeInTheDocument();
   });
 
   it("re-fetches when the category filter changes", async () => {
-    const listChecklistTemplates = vi.fn(async () => ({
+    const listChecklistTemplates = vi.fn(async (..._args: unknown[]) => ({
       items: [templateItem()],
       nextCursor: null,
     }));

@@ -47,7 +47,29 @@ export type DashboardApiClient = Pick<
   | "getDashboardActivity"
   | "getDashboardActivitySeries"
   | "getDashboardAssetsSummary"
+  | "getDashboardSafetySummary"
+  | "getDashboardPermitsSummary"
+  | "getDashboardReportsSummary"
   | "getDashboardSummary"
+>;
+
+export type TrainingApiClient = Pick<
+  FevApiClient,
+  | "listTrainingModules"
+  | "getTrainingModule"
+  | "listTrainingProgress"
+  | "startTrainingModule"
+  | "completeTrainingStep"
+  | "completeTrainingModule"
+>;
+
+export type NotificationsApiClient = Pick<
+  FevApiClient,
+  | "listNotifications"
+  | "markNotificationRead"
+  | "markAllNotificationsRead"
+  | "registerNotificationDevice"
+  | "unregisterNotificationDevice"
 >;
 
 export type UsersApiClient = Pick<
@@ -88,6 +110,7 @@ export type AssetsApiClient = Pick<
   | "createAsset"
   | "deleteAssetMedia"
   | "getFacility"
+  | "getFacility3dScene"
   | "listAreas"
   | "listAssets"
   | "listFacilities"
@@ -118,8 +141,83 @@ export type ChecklistTemplatesApiClient = Pick<
   | "updateChecklistTemplate"
 >;
 
-type AuthContextValue = {
-  apiClient: DashboardApiClient &
+export type PermitTemplatesApiClient = Pick<
+  FevApiClient,
+  | "createPermitTemplate"
+  | "deletePermitTemplate"
+  | "getPermitTemplate"
+  | "listPermitTemplates"
+  | "updatePermitTemplate"
+>;
+
+export type PermitsApiClient = Pick<
+  FevApiClient,
+  | "activatePermit"
+  | "closePermit"
+  | "createPermit"
+  | "decidePermitApproval"
+  | "getPermit"
+  | "listPermits"
+  | "resumePermit"
+  | "revokePermit"
+  | "submitPermit"
+  | "suspendPermit"
+>;
+
+export type WorkOrdersApiClient = Pick<
+  FevApiClient,
+  | "assignWorkOrder"
+  | "cancelWorkOrder"
+  | "closeWorkOrder"
+  | "createWorkOrder"
+  | "deleteWorkOrder"
+  | "getWorkOrder"
+  | "listWorkOrders"
+>;
+
+export type SafetyReportsApiClient = Pick<
+  FevApiClient,
+  | "listSafetyReports"
+  | "getSafetyReport"
+  | "createSafetyReport"
+  | "assignSafetyReport"
+  | "transitionSafetyReport"
+  | "closeSafetyReport"
+  | "uploadSafetyEvidence"
+  | "deleteSafetyEvidence"
+  | "createCorrectiveAction"
+  | "updateCorrectiveAction"
+  | "cancelCorrectiveAction"
+>;
+
+export type GeneratedReportsApiClient = Pick<
+  FevApiClient,
+  | "deleteGeneratedReport"
+  | "exportGeneratedReport"
+  | "finalizeGeneratedReport"
+  | "generateReport"
+  | "getGeneratedReport"
+  | "listGeneratedReports"
+  | "regenerateGeneratedReport"
+  | "updateGeneratedReport"
+>;
+
+/** Phase 13 billing. Reading the catalog and the company's own subscription is
+ * available to every signed-in user; the API decides whether checkout is
+ * allowed. */
+export type DocumentsApiClient = Pick<FevApiClient, "createDocument" | "listDocuments">;
+
+export type BillingApiClient = Pick<
+  FevApiClient,
+  "createCheckoutSession" | "getBillingCatalog" | "getSubscription"
+>;
+
+export type AuthContextValue = {
+  apiClient: BillingApiClient &
+    NotificationsApiClient &
+    TrainingApiClient &
+    DocumentsApiClient &
+    DashboardApiClient &
     UsersApiClient &
     RolesApiClient &
     CompanyApiClient &
@@ -127,7 +225,12 @@ type AuthContextValue = {
     PlatformApiClient &
     AssetsApiClient &
     InspectionsApiClient &
-    ChecklistTemplatesApiClient;
+    ChecklistTemplatesApiClient &
+    PermitTemplatesApiClient &
+    PermitsApiClient &
+    WorkOrdersApiClient &
+    SafetyReportsApiClient &
+    GeneratedReportsApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
   refreshSession: () => Promise<void>;
@@ -148,7 +251,7 @@ type AuthContextValue = {
 
 export const sessionExpiredMessage = "Your session has expired. Please sign in again";
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+export const AuthContext = createContext<AuthContextValue | null>(null);
 
 const invalidCredentialCodes = new Set([
   "auth/invalid-credential",
@@ -198,6 +301,10 @@ export function AuthProvider({
   gateway,
 }: {
   apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin"> &
+    Partial<BillingApiClient> &
+    Partial<NotificationsApiClient> &
+    Partial<TrainingApiClient> &
+    Partial<DocumentsApiClient> &
     Partial<DashboardApiClient> &
     Partial<UsersApiClient> &
     Partial<RolesApiClient> &
@@ -206,7 +313,12 @@ export function AuthProvider({
     Partial<PlatformApiClient> &
     Partial<AssetsApiClient> &
     Partial<InspectionsApiClient> &
-    Partial<ChecklistTemplatesApiClient>;
+    Partial<ChecklistTemplatesApiClient> &
+    Partial<PermitTemplatesApiClient> &
+    Partial<PermitsApiClient> &
+    Partial<WorkOrdersApiClient> &
+    Partial<SafetyReportsApiClient> &
+    Partial<GeneratedReportsApiClient>;
   children: ReactNode;
   gateway?: AuthGateway;
 }) {
@@ -461,7 +573,11 @@ export function AuthProvider({
       // Narrowed from the constructor's test-seam type: a test that renders
       // dashboard or users data without supplying these methods gets an
       // immediate, easy-to-diagnose TypeError rather than a silent gap.
-      apiClient: client as DashboardApiClient &
+      apiClient: client as BillingApiClient &
+        NotificationsApiClient &
+        TrainingApiClient &
+        DocumentsApiClient &
+        DashboardApiClient &
         UsersApiClient &
         RolesApiClient &
         CompanyApiClient &
@@ -469,7 +585,12 @@ export function AuthProvider({
         PlatformApiClient &
         AssetsApiClient &
         InspectionsApiClient &
-        ChecklistTemplatesApiClient,
+        ChecklistTemplatesApiClient &
+        PermitTemplatesApiClient &
+        PermitsApiClient &
+        WorkOrdersApiClient &
+        SafetyReportsApiClient &
+        GeneratedReportsApiClient,
       currentUser,
       error,
       passwordResetSentAt,

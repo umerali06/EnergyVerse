@@ -119,15 +119,11 @@ class AuditQueryService:
         self, scope: CompanyScope, filters: AuditQueryFilters
     ) -> tuple[list[AuditLog], bool]:
         _validate_range(filters.start, filters.end)
-        raw = await self._audit_logs.list_range(
-            scope, filters.start, filters.end, AUDIT_QUERY_CAP
-        )
+        raw = await self._audit_logs.list_range(scope, filters.start, filters.end, AUDIT_QUERY_CAP)
         truncated = len(raw) >= AUDIT_QUERY_CAP
         return [event for event in raw if _matches(event, filters)], truncated
 
-    async def _enrich(
-        self, scope: CompanyScope, events: list[AuditLog]
-    ) -> list[AuditLogEntry]:
+    async def _enrich(self, scope: CompanyScope, events: list[AuditLog]) -> list[AuditLogEntry]:
         users = await self._users.list(scope)
         roles = await self._roles.list(scope)
         names = {user.id: user.display_name for user in users}
@@ -163,9 +159,7 @@ class AuditQueryService:
         if cursor:
             after_time, after_id = _decode_cursor(cursor)
             events = [
-                event
-                for event in events
-                if (event.created_at, event.id) < (after_time, after_id)
+                event for event in events if (event.created_at, event.id) < (after_time, after_id)
             ]
         page = events[:limit]
         items = await self._enrich(scope, page)

@@ -1,6 +1,6 @@
 "use client";
 
-import type { InspectionDetail, InspectionListItem } from "@fev/api-client";
+import type { InspectionDetail, InspectionListItem, UserListItem } from "@fev/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
@@ -15,6 +15,7 @@ export type InspectionFilters = {
 };
 
 const PAGE_SIZE = 25;
+const LOOKUP_LIMIT = 100;
 const DEFAULT_FILTERS: InspectionFilters = {
   assetId: null,
   facilityId: null,
@@ -25,54 +26,59 @@ const DEFAULT_FILTERS: InspectionFilters = {
 /** Fetches the company's inspections (paginated, filtered), mirroring the
  * 4.1/4.2 `useAssetsData` shape. `initialFilters` seeds state once on mount
  * (e.g. the asset-detail Inspections tab scoping the list to one asset). */
+import { useCachedQuery } from "@/cache/cache-context";
+
+/**
+ * Inspections carry only an `inspectorId`; a reviewer needs the person's name.
+ * Falls back to the raw identifier so a user outside the fetched page (or a
+ * deactivated account) still renders something traceable rather than blank.
+ */
+export function inspectorName(
+  users: readonly UserListItem[],
+  inspectorId: string | null | undefined,
+): string | null {
+  if (!inspectorId) return null;
+  return users.find((user) => user.id === inspectorId)?.displayName ?? inspectorId;
+}
+
 export function useInspectionsData(initialFilters: Partial<InspectionFilters> = {}) {
   const { apiClient } = useAuth();
   const [filters, setFilters] = useState<InspectionFilters>({
     ...DEFAULT_FILTERS,
     ...initialFilters,
   });
-  const [list, setList] = useState<{
-    status: AsyncStatus;
-    items: InspectionListItem[];
-    nextCursor: string | null;
-    loadingMore: boolean;
-  }>({ status: "loading", items: [], nextCursor: null, loadingMore: false });
+  const [extraItems, setExtraItems] = useState<InspectionListItem[]>([]);
+  const [extraNextCursor, setExtraNextCursor] = useState<string | null | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const requestId = useRef(0);
+  const filterKey = JSON.stringify(filters);
 
-  const fetchInspections = useCallback(
-    async (current: InspectionFilters) => {
-      const id = ++requestId.current;
-      setList({ status: "loading", items: [], nextCursor: null, loadingMore: false });
-      try {
-        const page = await apiClient.listInspections({
-          assetId: current.assetId ?? undefined,
-          facilityId: current.facilityId ?? undefined,
-          status: current.status ?? undefined,
-          inspectorId: current.inspectorId ?? undefined,
-          limit: PAGE_SIZE,
-        });
-        if (requestId.current === id) {
-          setList({
-            status: "ready",
-            items: page.items,
-            nextCursor: page.nextCursor ?? null,
-            loadingMore: false,
-          });
-        }
-      } catch {
-        if (requestId.current === id) {
-          setList({ status: "error", items: [], nextCursor: null, loadingMore: false });
-        }
-      }
-    },
-    [apiClient],
+  const inspectionsQuery = useCachedQuery<{ items: InspectionListItem[]; nextCursor?: string | null }>(
+    `inspections:list:${filterKey}`,
+    () =>
+      apiClient.listInspections({
+        assetId: filters.assetId ?? undefined,
+        facilityId: filters.facilityId ?? undefined,
+        status: filters.status ?? undefined,
+        inspectorId: filters.inspectorId ?? undefined,
+        limit: PAGE_SIZE,
+      }),
   );
 
+  const usersQuery = useCachedQuery<{ items: UserListItem[] }>(
+    "users:directory:100",
+    () => apiClient.listUsers({ limit: LOOKUP_LIMIT, sort: "name" }),
+  );
+
+  const currentNextCursor =
+    extraNextCursor !== undefined
+      ? extraNextCursor
+      : (inspectionsQuery.data?.nextCursor ?? null);
+
   const loadMore = useCallback(async () => {
-    const cursor = list.nextCursor;
-    if (!cursor || list.loadingMore) return;
-    setList((current) => ({ ...current, loadingMore: true }));
+    const cursor = currentNextCursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
     try {
       const page = await apiClient.listInspections({
         assetId: filters.assetId ?? undefined,
@@ -82,36 +88,56 @@ export function useInspectionsData(initialFilters: Partial<InspectionFilters> = 
         cursor,
         limit: PAGE_SIZE,
       });
-      setList((current) => ({
-        status: "ready",
-        items: [...current.items, ...page.items],
-        nextCursor: page.nextCursor ?? null,
-        loadingMore: false,
-      }));
+      setExtraItems((prev) => [...prev, ...page.items]);
+      setExtraNextCursor(page.nextCursor ?? null);
     } catch {
-      setList((current) => ({ ...current, loadingMore: false }));
+      // Toast handles error
+    } finally {
+      setLoadingMore(false);
     }
-  }, [apiClient, filters, list.loadingMore, list.nextCursor]);
-
-  useEffect(() => {
-    void fetchInspections(filters);
-  }, [fetchInspections, filters]);
-
-  const retry = useCallback(() => void fetchInspections(filters), [fetchInspections, filters]);
+  }, [apiClient, filters, currentNextCursor, loadingMore]);
 
   const setFilter = useCallback(
     <K extends keyof InspectionFilters>(key: K, value: InspectionFilters[K]) => {
+      setExtraItems([]);
+      setExtraNextCursor(undefined);
       setFilters((current) => ({ ...current, [key]: value }));
     },
     [],
   );
 
-  const clearFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
+  const clearFilters = useCallback(() => {
+    setExtraItems([]);
+    setExtraNextCursor(undefined);
+    setFilters(DEFAULT_FILTERS);
+  }, []);
 
   const getInspection = useCallback(
     (inspectionId: string): Promise<InspectionDetail> => apiClient.getInspection(inspectionId),
     [apiClient],
   );
 
-  return { filters, setFilter, clearFilters, list, retry, loadMore, getInspection };
+  const listStatus: AsyncStatus = inspectionsQuery.loading
+    ? "loading"
+    : inspectionsQuery.error
+      ? "error"
+      : "ready";
+
+  const allItems = [...(inspectionsQuery.data?.items ?? []), ...extraItems];
+
+  return {
+    filters,
+    setFilter,
+    clearFilters,
+    list: {
+      status: listStatus,
+      items: allItems,
+      nextCursor: currentNextCursor,
+      loadingMore,
+    },
+    users: { items: usersQuery.data?.items ?? [] },
+    retry: inspectionsQuery.refetch,
+    loadMore,
+    getInspection,
+  };
 }

@@ -24,7 +24,7 @@ vi.mock("next/navigation", () => ({
 const session: AuthSession = {
   email: "company_admin@acme.example.invalid",
   emailVerified: true,
-  getIdToken: vi.fn(async () => "id-token"),
+  getIdToken: vi.fn(async (..._args: unknown[]) => "id-token"),
   uid: "demo-acme-company_admin",
 };
 
@@ -87,12 +87,17 @@ function DashboardWithPermissions({ children }: { children: React.ReactNode }) {
 function renderInspections({
   roleKey = "company_admin",
   permissions = roleMatrix.company_admin,
-  listInspections = vi.fn(async () => ({ items: [inspectionItem()], nextCursor: null })),
+  listInspections = vi.fn(async (..._args: unknown[]) => ({ items: [inspectionItem()], nextCursor: null })),
+  listUsers = vi.fn(async (..._args: unknown[]) => ({
+    items: [{ id: "demo-acme-field_inspector", displayName: "Dana Okafor", roleKey: "field_inspector" }],
+    nextCursor: null,
+  })),
   gated = false,
 }: {
   roleKey?: string;
   permissions?: string[];
   listInspections?: ReturnType<typeof vi.fn>;
+  listUsers?: ReturnType<typeof vi.fn>;
   gated?: boolean;
 } = {}) {
   const identity = {
@@ -104,7 +109,7 @@ function renderInspections({
     roleKey,
     permissions: new Set(permissions),
   };
-  const apiClient = { getCurrentUser: vi.fn(async () => identity), listInspections };
+  const apiClient = { registerCompanyAdmin: vi.fn(), getCurrentUser: vi.fn(async (..._args: unknown[]) => identity), listInspections, listUsers };
   const content = gated ? (
     <RequirePermission permission="inspections.read">
       <InspectionsPage />
@@ -124,6 +129,13 @@ function renderInspections({
 }
 
 describe("inspections page", () => {
+  it("shows the inspector's name rather than their identifier", async () => {
+    renderInspections();
+    const body = await screen.findByTestId("inspections-table-body");
+    expect(await within(body).findByText("Dana Okafor")).toBeInTheDocument();
+    expect(within(body).queryByText("demo-acme-field_inspector")).not.toBeInTheDocument();
+  });
+
   it("renders real tenant inspections", async () => {
     renderInspections();
     expect(await screen.findByText("Q3 Routine Inspection")).toBeInTheDocument();
@@ -132,7 +144,7 @@ describe("inspections page", () => {
   });
 
   it("shows an honest empty state when no inspections match", async () => {
-    renderInspections({ listInspections: vi.fn(async () => ({ items: [], nextCursor: null })) });
+    renderInspections({ listInspections: vi.fn(async (..._args: unknown[]) => ({ items: [], nextCursor: null })) });
     expect(await screen.findByText("No inspections found")).toBeInTheDocument();
   });
 
@@ -146,7 +158,7 @@ describe("inspections page", () => {
   });
 
   it("re-fetches when the status filter changes", async () => {
-    const listInspections = vi.fn(async () => ({ items: [inspectionItem()], nextCursor: null }));
+    const listInspections = vi.fn(async (..._args: unknown[]) => ({ items: [inspectionItem()], nextCursor: null }));
     renderInspections({ listInspections });
     await screen.findByText("Q3 Routine Inspection");
     const user = userEvent.setup();

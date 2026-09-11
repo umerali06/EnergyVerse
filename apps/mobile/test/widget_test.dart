@@ -5,6 +5,7 @@ import 'package:fev_mobile/auth/firebase_gateway.dart';
 import 'package:fev_mobile/db/app_database.dart';
 import 'package:fev_mobile/main.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/subscription_fixtures.dart';
 
 class _SignedOutGateway implements AuthGateway {
   @override
@@ -33,6 +34,10 @@ class _SignedOutGateway implements AuthGateway {
 
 class _UnusedApi implements ApiContract {
   @override
+  Future<SubscriptionResponse> getSubscription() async =>
+      subscriptionResponseFixture();
+
+  @override
   Future<CurrentUser> getCurrentUser() => throw UnimplementedError();
 
   @override
@@ -60,11 +65,17 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30}) =>
+  Future<DashboardActivitySeries> getDashboardActivitySeries(
+          {int window = 30}) =>
       throw UnimplementedError();
 
   @override
-  Future<AssetDashboardSummary> getDashboardAssetsSummary() => throw UnimplementedError();
+  Future<AssetDashboardSummary> getDashboardAssetsSummary() =>
+      throw UnimplementedError();
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() =>
+      throw UnimplementedError();
 
   @override
   Future<UserListPage> getUsers({
@@ -103,7 +114,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<AuditLogFacets> getAuditLogFacets({DateTime? fromDate, DateTime? toDate}) =>
+  Future<AuditLogFacets> getAuditLogFacets(
+          {DateTime? fromDate, DateTime? toDate}) =>
       throw UnimplementedError();
 
   @override
@@ -124,7 +136,8 @@ class _UnusedApi implements ApiContract {
   Future<AssetDetail> getAsset(String assetId) => throw UnimplementedError();
 
   @override
-  Future<AssetHistoryPage> getAssetHistory(String assetId) => throw UnimplementedError();
+  Future<AssetHistoryPage> getAssetHistory(String assetId) =>
+      throw UnimplementedError();
 
   @override
   Future<QrScanResult> resolveQrCode(String code) => throw UnimplementedError();
@@ -140,7 +153,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<FacilityDetail> getFacility(String facilityId) => throw UnimplementedError();
+  Future<FacilityDetail> getFacility(String facilityId) =>
+      throw UnimplementedError();
 
   @override
   Future<AreaListPage> getAreas({
@@ -167,7 +181,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> getInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> getInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> createInspection(CreateInspectionRequest request) =>
@@ -181,7 +196,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> startInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> startInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> completeInspection(
@@ -191,7 +207,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> cancelInspection(String inspectionId) => throw UnimplementedError();
+  Future<InspectionDetail> cancelInspection(String inspectionId) =>
+      throw UnimplementedError();
 
   @override
   Future<InspectionDetail> assignChecklistTemplate(
@@ -216,7 +233,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> detachInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
@@ -235,7 +253,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> detachInspectionVoiceNote(String inspectionId, String voiceNoteId) =>
+  Future<InspectionDetail> detachInspectionVoiceNote(
+          String inspectionId, String voiceNoteId) =>
       throw UnimplementedError();
 
   @override
@@ -254,7 +273,8 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> deleteInspectionAnnotation(String inspectionId, String annotationId) =>
+  Future<InspectionDetail> deleteInspectionAnnotation(
+          String inspectionId, String annotationId) =>
       throw UnimplementedError();
 
   @override
@@ -278,11 +298,13 @@ class _UnusedApi implements ApiContract {
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> analyzeInspectionMedia(String inspectionId, String mediaId) =>
+  Future<InspectionDetail> analyzeInspectionMedia(
+          String inspectionId, String mediaId) =>
       throw UnimplementedError();
 
   @override
-  Future<InspectionDetail> reviewInspectionAiAnalysis(String inspectionId, String analysisId) =>
+  Future<InspectionDetail> reviewInspectionAiAnalysis(
+          String inspectionId, String analysisId) =>
       throw UnimplementedError();
 
   @override
@@ -295,6 +317,55 @@ class _UnusedApi implements ApiContract {
 
   @override
   Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> createWorkOrder(CreateWorkOrderRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> assignWorkOrder(
+    String workOrderId,
+    AssignWorkOrderRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) =>
       throw UnimplementedError();
 }
 

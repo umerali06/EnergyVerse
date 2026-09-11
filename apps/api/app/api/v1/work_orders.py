@@ -2,6 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from app.billing.dependencies import require_feature
+from app.billing.plans import Feature
 from app.core.errors import ApiError
 from app.models.api import (
     AssignWorkOrderRequest,
@@ -21,7 +23,13 @@ from app.work_orders.service import (
     get_work_order_service,
 )
 
-router = APIRouter(prefix="/api/v1/work-orders", tags=["work_orders"])
+router = APIRouter(
+    prefix="/api/v1/work-orders", tags=["work_orders"],
+    # Entitlement gate (D-090): the company's plan must include this
+    # module. Stacks with each route's own require_permission -- the
+    # person may be allowed while the tenant has not paid for it.
+    dependencies=[Depends(require_feature(Feature.WORK_ORDERS))],
+)
 
 _work_orders_read_access = require_permission("work_orders.read")
 _work_orders_write_access = require_permission("work_orders.write")

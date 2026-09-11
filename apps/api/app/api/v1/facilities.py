@@ -2,6 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from app.billing.dependencies import require_feature
+from app.billing.plans import Feature
 from app.core.errors import ApiError
 from app.facilities.service import (
     FacilityManagementError,
@@ -10,9 +12,11 @@ from app.facilities.service import (
 )
 from app.models.api import (
     CreateFacilityRequest,
+    DigitalTwinSceneResponse,
     FacilityDeleted,
     FacilityDetail,
     FacilityListPage,
+    UpdateDigitalTwinSceneRequest,
     UpdateFacilityRequest,
     error_responses,
 )
@@ -20,7 +24,13 @@ from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
 from app.rbac.dependencies import require_permission
 
-router = APIRouter(prefix="/api/v1/facilities", tags=["facilities"])
+router = APIRouter(
+    prefix="/api/v1/facilities", tags=["facilities"],
+    # Entitlement gate (D-090): the company's plan must include this
+    # module. Stacks with each route's own require_permission -- the
+    # person may be allowed while the tenant has not paid for it.
+    dependencies=[Depends(require_feature(Feature.ASSETS))],
+)
 
 _facilities_read_access = require_permission("facilities.read")
 _facilities_write_access = require_permission("facilities.write")
@@ -114,6 +124,45 @@ async def update_facility(
     scope = CompanyScope(company_id=current_user.company_id)
     try:
         return await service.update_facility(scope, facility_id, request, current_user.uid)
+    except FacilityManagementError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.get(
+    "/{facility_id}/3d-scene",
+    response_model=DigitalTwinSceneResponse,
+    operation_id="get_facility_3d_scene",
+    responses=error_responses(401, 403, 404, 500),
+)
+async def get_facility_3d_scene(
+    facility_id: str,
+    current_user: Annotated[CurrentUser, Depends(_facilities_read_access)],
+    service: Annotated[FacilityManagementService, Depends(get_facility_management_service)],
+) -> DigitalTwinSceneResponse:
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.get_facility_3d_scene(scope, facility_id)
+    except FacilityManagementError as error:
+        _raise_api_error(error)
+        raise
+
+
+@router.put(
+    "/{facility_id}/3d-scene",
+    response_model=DigitalTwinSceneResponse,
+    operation_id="update_facility_3d_scene",
+    responses=error_responses(401, 403, 404, 422, 500),
+)
+async def update_facility_3d_scene(
+    facility_id: str,
+    request: UpdateDigitalTwinSceneRequest,
+    current_user: Annotated[CurrentUser, Depends(_facilities_write_access)],
+    service: Annotated[FacilityManagementService, Depends(get_facility_management_service)],
+) -> DigitalTwinSceneResponse:
+    scope = CompanyScope(company_id=current_user.company_id)
+    try:
+        return await service.update_facility_3d_scene(scope, facility_id, request, current_user.uid)
     except FacilityManagementError as error:
         _raise_api_error(error)
         raise

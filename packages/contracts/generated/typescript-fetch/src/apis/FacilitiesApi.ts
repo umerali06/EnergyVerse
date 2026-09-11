@@ -16,16 +16,20 @@
 import * as runtime from '../runtime';
 import type {
   CreateFacilityRequest,
+  DigitalTwinSceneResponse,
   ErrorEnvelope,
   FacilityDeleted,
   FacilityDetail,
   FacilityListPage,
   HTTPValidationError,
+  UpdateDigitalTwinSceneRequest,
   UpdateFacilityRequest,
 } from '../models/index';
 import {
     CreateFacilityRequestFromJSON,
     CreateFacilityRequestToJSON,
+    DigitalTwinSceneResponseFromJSON,
+    DigitalTwinSceneResponseToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
     FacilityDeletedFromJSON,
@@ -36,6 +40,8 @@ import {
     FacilityListPageToJSON,
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
+    UpdateDigitalTwinSceneRequestFromJSON,
+    UpdateDigitalTwinSceneRequestToJSON,
     UpdateFacilityRequestFromJSON,
     UpdateFacilityRequestToJSON,
 } from '../models/index';
@@ -52,6 +58,10 @@ export interface GetFacilityRequest {
     facilityId: string;
 }
 
+export interface GetFacility3dSceneRequest {
+    facilityId: string;
+}
+
 export interface ListFacilitiesRequest {
     search?: string | null;
     status?: string | null;
@@ -63,6 +73,11 @@ export interface ListFacilitiesRequest {
 export interface UpdateFacilityOperationRequest {
     facilityId: string;
     updateFacilityRequest: UpdateFacilityRequest;
+}
+
+export interface UpdateFacility3dSceneRequest {
+    facilityId: string;
+    updateDigitalTwinSceneRequest: UpdateDigitalTwinSceneRequest;
 }
 
 /**
@@ -197,6 +212,47 @@ export class FacilitiesApi extends runtime.BaseAPI {
     }
 
     /**
+     * Get Facility 3D Scene
+     */
+    async getFacility3dSceneRaw(requestParameters: GetFacility3dSceneRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<DigitalTwinSceneResponse>> {
+        if (requestParameters['facilityId'] == null) {
+            throw new runtime.RequiredError(
+                'facilityId',
+                'Required parameter "facilityId" was null or undefined when calling getFacility3dScene().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/facilities/{facility_id}/3d-scene`.replace(`{${"facility_id"}}`, encodeURIComponent(String(requestParameters['facilityId']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => DigitalTwinSceneResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Get Facility 3D Scene
+     */
+    async getFacility3dScene(requestParameters: GetFacility3dSceneRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DigitalTwinSceneResponse> {
+        const response = await this.getFacility3dSceneRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * List Facilities
      */
     async listFacilitiesRaw(requestParameters: ListFacilitiesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<FacilityListPage>> {
@@ -298,6 +354,57 @@ export class FacilitiesApi extends runtime.BaseAPI {
      */
     async updateFacility(requestParameters: UpdateFacilityOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<FacilityDetail> {
         const response = await this.updateFacilityRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Facility 3D Scene
+     */
+    async updateFacility3dSceneRaw(requestParameters: UpdateFacility3dSceneRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<DigitalTwinSceneResponse>> {
+        if (requestParameters['facilityId'] == null) {
+            throw new runtime.RequiredError(
+                'facilityId',
+                'Required parameter "facilityId" was null or undefined when calling updateFacility3dScene().'
+            );
+        }
+
+        if (requestParameters['updateDigitalTwinSceneRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateDigitalTwinSceneRequest',
+                'Required parameter "updateDigitalTwinSceneRequest" was null or undefined when calling updateFacility3dScene().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/facilities/{facility_id}/3d-scene`.replace(`{${"facility_id"}}`, encodeURIComponent(String(requestParameters['facilityId']))),
+            method: 'PUT',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateDigitalTwinSceneRequestToJSON(requestParameters['updateDigitalTwinSceneRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => DigitalTwinSceneResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Update Facility 3D Scene
+     */
+    async updateFacility3dScene(requestParameters: UpdateFacility3dSceneRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DigitalTwinSceneResponse> {
+        const response = await this.updateFacility3dSceneRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

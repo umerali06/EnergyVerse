@@ -14,13 +14,30 @@ from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
 from app.main import app
+from app.models.api import PermitDashboardSummary, ReportDashboardSummary
 from app.models.base import utc_now
 from app.models.entities import AuditLog, CurrentUser
+from app.permits.service import get_permit_service
 from app.rbac.dependencies import get_access_denial_audit
+from app.reports.service import get_generated_report_service
 from scripts.seed import ACME_COMPANY_ID, run_seed
 from tests.fakes.firestore import FakeAsyncClient
 
 BETA_COMPANY_ID = "beta-utilities"
+
+
+class _PermitDashboardService:
+    async def get_dashboard_summary(self, scope: Any) -> PermitDashboardSummary:
+        return PermitDashboardSummary(active=3 if scope.company_id == ACME_COMPANY_ID else 1)
+
+
+class _ReportDashboardService:
+    async def get_dashboard_summary(self, scope: Any) -> ReportDashboardSummary:
+        return ReportDashboardSummary(
+            total=5 if scope.company_id == ACME_COMPANY_ID else 2,
+            drafts=2 if scope.company_id == ACME_COMPANY_ID else 1,
+            finalized=3 if scope.company_id == ACME_COMPANY_ID else 1,
+        )
 
 
 @pytest.fixture()
@@ -30,16 +47,18 @@ def fake_client(monkeypatch: pytest.MonkeyPatch) -> FakeAsyncClient:
     monkeypatch.setattr(dashboard_module, "CompanyRepository", lambda: CompanyRepository(client))
     monkeypatch.setattr(dashboard_module, "UserRepository", lambda: UserRepository(client))
     monkeypatch.setattr(dashboard_module, "RoleRepository", lambda: RoleRepository(client))
-    monkeypatch.setattr(
-        dashboard_module, "AuditLogRepository", lambda: AuditLogRepository(client)
-    )
+    monkeypatch.setattr(dashboard_module, "AuditLogRepository", lambda: AuditLogRepository(client))
     # require_permission's dependency graph always resolves
     # get_access_denial_audit (even on the success path), which otherwise
     # constructs a real Firestore-backed AuditService.
     app.dependency_overrides[get_access_denial_audit] = lambda: AuditService(
         AuditLogRepository(client)
     )
+    app.dependency_overrides[get_permit_service] = _PermitDashboardService
+    app.dependency_overrides[get_generated_report_service] = _ReportDashboardService
     yield client
+    app.dependency_overrides.pop(get_generated_report_service, None)
+    app.dependency_overrides.pop(get_permit_service, None)
     app.dependency_overrides.pop(get_access_denial_audit, None)
 
 
@@ -135,6 +154,58 @@ def test_tenants_are_isolated(fake_client: FakeAsyncClient) -> None:
     assert summary.json()["users_total"] == 1
 
 
+def test_permit_summary_is_permission_gated_and_tenant_scoped(
+    fake_client: FakeAsyncClient,
+) -> None:
+    acme = _get(
+        _identity(permissions=frozenset({"permits.read"})),
+        "/api/v1/dashboard/permits-summary",
+    )
+    assert acme.status_code == 200
+    assert acme.json() == {"active": 3}
+
+    beta = _get(
+        _identity(
+            company_id=BETA_COMPANY_ID,
+            permissions=frozenset({"permits.read"}),
+        ),
+        "/api/v1/dashboard/permits-summary",
+    )
+    assert beta.status_code == 200
+    assert beta.json() == {"active": 1}
+
+    denied = _get(_identity(), "/api/v1/dashboard/permits-summary")
+    assert denied.status_code == 403
+
+
+def test_report_summary_is_permission_gated_and_tenant_scoped(
+    fake_client: FakeAsyncClient,
+) -> None:
+    acme = _get(
+        _identity(permissions=frozenset({"reports.read"})),
+        "/api/v1/dashboard/reports-summary",
+    )
+    assert acme.status_code == 200
+    assert acme.json() == {"total": 5, "drafts": 2, "finalized": 3}
+
+    beta = _get(
+        _identity(
+            company_id=BETA_COMPANY_ID,
+            permissions=frozenset({"reports.read"}),
+        ),
+        "/api/v1/dashboard/reports-summary",
+    )
+    assert beta.status_code == 200
+    assert beta.json() == {"total": 2, "drafts": 1, "finalized": 1}
+
+    denied = _get(
+        _identity(permissions=frozenset({"assets.read"})),
+        "/api/v1/dashboard/reports-summary",
+    )
+    assert denied.status_code == 403
+
+
+
 def test_activity_pagination_cursor_walks_without_overlap(
     fake_client: FakeAsyncClient,
 ) -> None:
@@ -163,9 +234,7 @@ def test_activity_action_filter_and_actor_enrichment(
     fake_client: FakeAsyncClient,
 ) -> None:
     _insert_events(fake_client, ACME_COMPANY_ID, 3, action="filter.me")
-    response = _get(
-        _identity(), "/api/v1/dashboard/activity?limit=50&action=filter.me"
-    )
+    response = _get(_identity(), "/api/v1/dashboard/activity?limit=50&action=filter.me")
     assert response.status_code == 200
     items = response.json()["items"]
     assert len(items) == 3
@@ -183,9 +252,7 @@ def test_series_zero_fills_the_window(fake_client: FakeAsyncClient) -> None:
     company = "series-co"
     _insert_events(fake_client, company, 2, days_ago=1.0)
     _insert_events(fake_client, company, 3, days_ago=3.0)
-    response = _get(
-        _identity(company_id=company), "/api/v1/dashboard/activity-series?window=7"
-    )
+    response = _get(_identity(company_id=company), "/api/v1/dashboard/activity-series?window=7")
     assert response.status_code == 200
     body = response.json()
     assert body["window_days"] == 7

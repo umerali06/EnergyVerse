@@ -7,7 +7,8 @@ import 'package:firebase_storage/firebase_storage.dart' show FirebaseException;
 import 'package:flutter/widgets.dart';
 
 import '../inspections/local_inspections_repository.dart';
-import '../sync/sync_engine.dart' show ConnectivityCheck, ConnectivityStreamFactory, SyncConnectivity;
+import '../sync/sync_engine.dart'
+    show ConnectivityCheck, ConnectivityStreamFactory, SyncConnectivity;
 import 'local_media_repository.dart';
 import 'media_uploader.dart';
 
@@ -46,13 +47,15 @@ class MediaUploadWorker extends ChangeNotifier {
         _uploader = uploader ?? FirebaseMediaUploader(),
         _now = now ?? DateTime.now,
         _connectivityDebounce = connectivityDebounce {
-    final streamFactory = connectivityStreamFactory ?? (() => Connectivity().onConnectivityChanged);
+    final streamFactory = connectivityStreamFactory ??
+        (() => Connectivity().onConnectivityChanged);
     _connectivitySubscription = streamFactory().listen(_onConnectivityEvent);
     _periodicTimer = Timer.periodic(periodicInterval, (_) {
       if (_connectivity != SyncConnectivity.offline) kick();
     });
     unawaited(
-      (checkConnectivity ?? Connectivity().checkConnectivity)().then(_onConnectivityEvent),
+      (checkConnectivity ?? Connectivity().checkConnectivity)()
+          .then(_onConnectivityEvent),
     );
     _mediaRepository.addListener(_recomputePendingCount);
     unawaited(_recomputePendingCount());
@@ -63,7 +66,8 @@ class MediaUploadWorker extends ChangeNotifier {
   final MediaUploader _uploader;
   final DateTime Function() _now;
   final Duration _connectivityDebounce;
-  late final StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+  late final StreamSubscription<List<ConnectivityResult>>
+      _connectivitySubscription;
   late final Timer _periodicTimer;
   Timer? _debounceTimer;
   bool _disposed = false;
@@ -79,7 +83,8 @@ class MediaUploadWorker extends ChangeNotifier {
   bool _rerunSyncNow = false;
 
   Future<void> _recomputePendingCount() async {
-    final due = await _mediaRepository.dueForUpload(now: _now().toUtc(), bypassBackoff: true);
+    final due = await _mediaRepository.dueForUpload(
+        now: _now().toUtc(), bypassBackoff: true);
     if (_disposed) return;
     pendingCount = due.length;
     _notify();
@@ -125,7 +130,8 @@ class MediaUploadWorker extends ChangeNotifier {
     try {
       var bypass = bypassBackoff;
       while (true) {
-        final items = await _mediaRepository.dueForUpload(now: _now().toUtc(), bypassBackoff: bypass);
+        final items = await _mediaRepository.dueForUpload(
+            now: _now().toUtc(), bypassBackoff: bypass);
         for (final item in items) {
           await _uploadOne(item);
         }
@@ -159,10 +165,12 @@ class MediaUploadWorker extends ChangeNotifier {
     if (item.uploadState != MediaUploadState.uploaded) {
       try {
         await _mediaRepository.markUploading(item.localId, 0);
-        final upload = _uploader.upload(item.storagePath, File(item.localFilePath), item.contentType);
+        final upload = _uploader.upload(
+            item.storagePath, File(item.localFilePath), item.contentType);
         _mediaRepository.registerUpload(item.localId, upload);
         final subscription = upload.bytesTransferred.listen((bytesTransferred) {
-          unawaited(_mediaRepository.markUploading(item.localId, bytesTransferred));
+          unawaited(
+              _mediaRepository.markUploading(item.localId, bytesTransferred));
         });
         try {
           await upload.done;
@@ -186,12 +194,15 @@ class MediaUploadWorker extends ChangeNotifier {
     }
   }
 
-  Future<void> _handleUploadError(MediaQueueRecord item, String code, String message) async {
+  Future<void> _handleUploadError(
+      MediaQueueRecord item, String code, String message) async {
     final transient = _transientStorageErrorCodes.contains(code);
     await _mediaRepository.markFailed(
       item.localId,
       message: message,
-      nextAttemptAt: transient ? _now().toUtc().add(_backoffFor(item.attempts)) : pausedSentinel,
+      nextAttemptAt: transient
+          ? _now().toUtc().add(_backoffFor(item.attempts))
+          : pausedSentinel,
     );
   }
 
@@ -236,7 +247,8 @@ class MediaUploadWorker extends ChangeNotifier {
         ..checklistItemId = item.checklistItemId
         ..beforeAfterTag = item.beforeAfterTag == null
             ? null
-            : AttachInspectionMediaRequestBeforeAfterTagEnum.valueOf(item.beforeAfterTag!),
+            : AttachInspectionMediaRequestBeforeAfterTagEnum.valueOf(
+                item.beforeAfterTag!),
     );
     await _inspectionsRepository.enqueueAttachMedia(
       inspectionId: item.inspectionId,
@@ -280,13 +292,15 @@ class MediaProvider extends InheritedNotifier<MediaUploadWorker> {
   final LocalMediaRepository repository;
 
   static MediaUploadWorker workerOf(BuildContext context) {
-    final provider = context.dependOnInheritedWidgetOfExactType<MediaProvider>();
+    final provider =
+        context.dependOnInheritedWidgetOfExactType<MediaProvider>();
     assert(provider != null, 'MediaProvider is required');
     return provider!.notifier!;
   }
 
   static LocalMediaRepository repositoryOf(BuildContext context) {
-    final provider = context.dependOnInheritedWidgetOfExactType<MediaProvider>();
+    final provider =
+        context.dependOnInheritedWidgetOfExactType<MediaProvider>();
     assert(provider != null, 'MediaProvider is required');
     return provider!.repository;
   }

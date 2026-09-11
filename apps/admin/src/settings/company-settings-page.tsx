@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { ApiClientError } from "@/api";
@@ -258,9 +259,12 @@ export function CompanySettingsPage({
               <div className="mt-4 grid gap-3">
                 <div className="flex items-center gap-2">
                   <StatusPill tone="info">{profile.subscriptionTier}</StatusPill>
-                  <span className="text-caption text-text-muted">
-                    Tier management is available in a later phase.
-                  </span>
+                  <Link
+                    className="text-caption font-semibold text-primary-600 underline-offset-2 hover:underline dark:text-primary-400"
+                    href="/settings/subscription"
+                  >
+                    Manage plan and usage
+                  </Link>
                 </div>
                 <p className="text-bodySmall text-text-secondary">
                   Company since {formatCompanyDate(profile.createdAt, dateFormat)}

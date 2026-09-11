@@ -19,6 +19,12 @@ const eslintConfig = [
     ignores: [
       "src/design-system/tokens.generated.ts",
       "src/design-system/tokens.generated.css",
+      // Three.js materials, lights and fog take colour values directly and
+      // cannot consume a Tailwind class or CSS variable, so the 3D scene has
+      // no token-shaped way to express a colour. This module is the scene's
+      // equivalent of the token layer: every colour it uses lives there and
+      // nowhere else, keeping the "one place to change" guarantee intact.
+      "src/facilities/scene-palette.ts",
     ],
     rules: {
       "no-restricted-syntax": [

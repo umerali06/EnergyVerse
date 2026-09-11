@@ -3,6 +3,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from app.billing.dependencies import require_feature
+from app.billing.plans import Feature
 from app.core.errors import ApiError
 from app.inspections.service import (
     InspectionService,
@@ -31,7 +33,13 @@ from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
 from app.rbac.dependencies import require_permission
 
-router = APIRouter(prefix="/api/v1/inspections", tags=["inspections"])
+router = APIRouter(
+    prefix="/api/v1/inspections", tags=["inspections"],
+    # Entitlement gate (D-090): the company's plan must include this
+    # module. Stacks with each route's own require_permission -- the
+    # person may be allowed while the tenant has not paid for it.
+    dependencies=[Depends(require_feature(Feature.INSPECTIONS))],
+)
 
 _inspections_read_access = require_permission("inspections.read")
 _inspections_write_access = require_permission("inspections.write")
@@ -474,9 +482,7 @@ async def create_inspection_ar_measurement(
     measurement", Phase 7.9, D-063)."""
     scope = CompanyScope(company_id=current_user.company_id)
     try:
-        return await service.create_ar_measurement(
-            scope, inspection_id, request, current_user.uid
-        )
+        return await service.create_ar_measurement(scope, inspection_id, request, current_user.uid)
     except InspectionServiceError as error:
         _raise_api_error(error)
         raise
@@ -541,12 +547,13 @@ async def analyze_inspection_media(
     current_user: Annotated[CurrentUser, Depends(_inspections_write_access)],
     service: Annotated[InspectionService, Depends(get_inspection_service)],
 ) -> InspectionDetail:
-    """Runs Claude vision analysis on one already-attached photo (spec 8 "AI
-    Photo & Video Analysis", Phase 7.10) -- `media_id` is the media item's
+    """Runs Claude vision analysis on one already-attached photo or video
+    (spec 8 "AI Photo & Video Analysis") -- `media_id` is the media item's
     server id, matching `update_inspection_media`/`detach_inspection_media`'s
-    own path parameter. Every finding lands as an advisory
-    `Annotation(source="ai", ...)`; nothing here ever auto-confirms a
-    finding."""
+    own path parameter. A video is sampled into frames first and analysed as a
+    whole; its findings carry the frame offset they were seen at. Every finding
+    lands as an advisory `Annotation(source="ai", ...)`; nothing here ever
+    auto-confirms a finding."""
     scope = CompanyScope(company_id=current_user.company_id)
     try:
         return await service.analyze_media(scope, inspection_id, media_id, current_user.uid)
@@ -572,9 +579,7 @@ async def review_inspection_ai_analysis(
     already-reviewed or missing `analysis_id`."""
     scope = CompanyScope(company_id=current_user.company_id)
     try:
-        return await service.review_ai_analysis(
-            scope, inspection_id, analysis_id, current_user.uid
-        )
+        return await service.review_ai_analysis(scope, inspection_id, analysis_id, current_user.uid)
     except InspectionServiceError as error:
         _raise_api_error(error)
         raise

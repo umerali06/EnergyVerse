@@ -73,14 +73,19 @@ class _RolesScreenState extends State<RolesScreen> {
                 onPressed: controller.retry,
                 variant: AppButtonVariant.ghost,
               ),
-              description: "Couldn't load roles. Check your connection and try again.",
+              description:
+                  "Couldn't load roles. Check your connection and try again.",
               title: 'Something went wrong',
             )
           else if (controller.items.isEmpty)
-            const EmptyState(description: 'No roles exist yet.', title: 'No roles found')
+            const EmptyState(
+                description: 'No roles exist yet.', title: 'No roles found')
           else
             for (final role in controller.items)
-              _RoleRow(key: ValueKey(role.id), onTap: () => _openDetail(role.id), role: role),
+              _RoleRow(
+                  key: ValueKey(role.id),
+                  onTap: () => _openDetail(role.id),
+                  role: role),
         ],
       ),
     );
@@ -106,7 +111,8 @@ class _RoleRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(role.name, style: Theme.of(context).textTheme.titleMedium),
+                    Text(role.name,
+                        style: Theme.of(context).textTheme.titleMedium),
                     if (role.description.isNotEmpty)
                       Text(
                         role.description,
@@ -153,19 +159,16 @@ class _RoleDetailBodyState extends State<_RoleDetailBody> {
   @override
   void initState() {
     super.initState();
-    widget.controller
-        .getRole(widget.roleId)
-        .then((result) {
-          if (!mounted) return;
-          setState(() {
-            _detail = result;
-            _status = LoadStatus.ready;
-          });
-        })
-        .catchError((_) {
-          if (!mounted) return;
-          setState(() => _status = LoadStatus.error);
-        });
+    widget.controller.getRole(widget.roleId).then((result) {
+      if (!mounted) return;
+      setState(() {
+        _detail = result;
+        _status = LoadStatus.ready;
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() => _status = LoadStatus.error);
+    });
   }
 
   @override
@@ -210,13 +213,19 @@ class _RoleDetailBodyState extends State<_RoleDetailBody> {
           'PERMISSIONS',
           style: Theme.of(
             context,
-          ).textTheme.labelSmall?.copyWith(color: context.semantic.textMuted, letterSpacing: 1),
+          )
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: context.semantic.textMuted, letterSpacing: 1),
         ),
         const SizedBox(height: DsSpacing.s2),
         Wrap(
           spacing: DsSpacing.s2,
           runSpacing: DsSpacing.s2,
-          children: [for (final permission in detail.permissionKeys) AppBadge(label: permission)],
+          children: [
+            for (final permission in detail.permissionKeys)
+              AppBadge(label: permission)
+          ],
         ),
         const SizedBox(height: DsSpacing.s4),
       ],

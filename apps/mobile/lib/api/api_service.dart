@@ -11,6 +11,70 @@ abstract interface class ApiFeedback {
   void error(String message);
 }
 
+abstract interface class PermitDashboardApiContract {
+  Future<PermitDashboardSummary> getDashboardPermitsSummary();
+}
+
+abstract interface class ReportDashboardApiContract {
+  Future<ReportDashboardSummary> getDashboardReportsSummary();
+}
+
+abstract interface class GeneratedReportsApiContract {
+  Future<GeneratedReportListPage> getGeneratedReports({
+    String? reportType,
+    String? status,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<GeneratedReportDetail> generateReport(
+    CreateGeneratedReportRequest request,
+  );
+  Future<GeneratedReportDetail> getGeneratedReport(String reportId);
+  Future<GeneratedReportDetail> updateGeneratedReport(
+    String reportId,
+    UpdateGeneratedReportRequest request,
+  );
+  Future<GeneratedReportDetail> regenerateGeneratedReport(
+    String reportId,
+    RegenerateGeneratedReportRequest request,
+  );
+  Future<GeneratedReportDetail> finalizeGeneratedReport(
+    String reportId,
+    FinalizeGeneratedReportRequest request,
+  );
+  Future<GeneratedReportDeleted> deleteGeneratedReport(String reportId);
+  Future<GeneratedReportExportResponse> exportGeneratedReport(
+    String reportId,
+    String format,
+  );
+}
+
+abstract interface class DocumentsApiContract {
+  Future<DocumentListPage> getDocuments({
+    String? category,
+    String? q,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<DocumentDetail> createDocument(CreateDocumentRequest request);
+  Future<DocumentDetail> getDocument(String documentId);
+  Future<DocumentDetail> updateDocument(
+    String documentId,
+    UpdateDocumentRequest request,
+  );
+  Future<DocumentDeleted> deleteDocument(String documentId);
+}
+
+/// Personal notifications. Gated on being signed in rather than a permission,
+/// mirroring the backend: a notification is addressed to one user.
+abstract interface class NotificationsApiContract {
+  Future<NotificationListPage> getNotifications({bool unreadOnly});
+  Future<NotificationRead> markNotificationRead(String notificationId);
+  Future<NotificationsAllRead> markAllNotificationsRead();
+  Future<DeviceRegistered> registerNotificationDevice(RegisterDeviceRequest request);
+  Future<DeviceUnregistered> unregisterNotificationDevice(String token);
+}
+
 class NoopApiFeedback implements ApiFeedback {
   const NoopApiFeedback();
 
@@ -55,6 +119,9 @@ abstract interface class ApiContract {
     required String email,
     required String password,
   });
+  /// The company's plan and the authoritative feature list the shell gates
+  /// its navigation on (Phase 13.6, D-093).
+  Future<SubscriptionResponse> getSubscription();
   Future<DashboardSummary> getDashboardSummary({int window = 30});
   Future<DashboardActivityPage> getDashboardActivity({
     int limit = 20,
@@ -63,6 +130,7 @@ abstract interface class ApiContract {
   });
   Future<DashboardActivitySeries> getDashboardActivitySeries({int window = 30});
   Future<AssetDashboardSummary> getDashboardAssetsSummary();
+  Future<SafetyDashboardSummary> getDashboardSafetySummary();
   Future<UserListPage> getUsers({
     String? search,
     String? roleId,
@@ -197,6 +265,163 @@ abstract interface class ApiContract {
     int limit = 25,
   });
   Future<ChecklistTemplateDetail> getChecklistTemplate(String templateId);
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId);
+  Future<WorkOrderDetail> createWorkOrder(CreateWorkOrderRequest request);
+  Future<WorkOrderDetail> assignWorkOrder(
+    String workOrderId,
+    AssignWorkOrderRequest request,
+  );
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId);
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  );
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId);
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId);
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId);
+}
+
+abstract interface class SafetyApiContract {
+  Future<SafetyReportListPage> getSafetyReports({
+    String? status,
+    String? category,
+    String? severity,
+    String? reporterId,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<SafetyReportDetail> getSafetyReport(String reportId);
+  Future<SafetyReportDetail> createSafetyReport(
+      CreateSafetyReportRequest request);
+  Future<SafetyReportDetail> uploadSafetyEvidence({
+    required String reportId,
+    required String kind,
+    required String path,
+    required String filename,
+    void Function(int sent, int total)? onProgress,
+  });
+  Future<SafetyReportDetail> updateSafetyCorrectiveAction(
+    String reportId,
+    String actionId,
+    UpdateCorrectiveActionRequest request,
+  );
+}
+
+abstract interface class PermitApiContract {
+  Future<PermitListPage> getPermits({
+    String? workerId,
+    String? cursor,
+    int limit = 25,
+  });
+  Future<PermitDetail> getPermit(String permitId);
+  Future<PermitDetail> acknowledgePermit(
+      String permitId, AcknowledgePermitRequest request);
+}
+
+class UnavailableSafetyApiContract implements SafetyApiContract {
+  const UnavailableSafetyApiContract();
+
+  ApiException get _error => const ApiException(
+        code: 'network_error',
+        message: 'Safety reporting is unavailable for this API client',
+      );
+
+  @override
+  Future<SafetyReportDetail> createSafetyReport(
+          CreateSafetyReportRequest request) =>
+      Future.error(_error);
+
+  @override
+  Future<SafetyReportDetail> getSafetyReport(String reportId) =>
+      Future.error(_error);
+
+  @override
+  Future<SafetyReportListPage> getSafetyReports({
+    String? status,
+    String? category,
+    String? severity,
+    String? reporterId,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      Future.error(_error);
+
+  @override
+  Future<SafetyReportDetail> uploadSafetyEvidence({
+    required String reportId,
+    required String kind,
+    required String path,
+    required String filename,
+    void Function(int sent, int total)? onProgress,
+  }) =>
+      Future.error(_error);
+
+  @override
+  Future<SafetyReportDetail> updateSafetyCorrectiveAction(String reportId,
+          String actionId, UpdateCorrectiveActionRequest request) =>
+      Future.error(_error);
+}
+
+class UnavailablePermitApiContract implements PermitApiContract {
+  const UnavailablePermitApiContract();
+  ApiException get _error => const ApiException(
+      code: 'network_error',
+      message: 'Permits are unavailable for this API client');
+  @override
+  Future<PermitDetail> acknowledgePermit(
+          String permitId, AcknowledgePermitRequest request) =>
+      Future.error(_error);
+  @override
+  Future<PermitDetail> getPermit(String permitId) => Future.error(_error);
+  @override
+  Future<PermitListPage> getPermits(
+          {String? workerId, String? cursor, int limit = 25}) =>
+      Future.error(_error);
+}
+
+class UnavailableDocumentsApiContract implements DocumentsApiContract {
+  const UnavailableDocumentsApiContract();
+
+  ApiException get _error => const ApiException(
+        code: 'documents_unavailable',
+        message: 'Document Management is unavailable for this API client',
+      );
+
+  @override
+  Future<DocumentListPage> getDocuments({
+    String? category,
+    String? q,
+    String? cursor,
+    int limit = 25,
+  }) =>
+      Future.error(_error);
+
+  @override
+  Future<DocumentDetail> createDocument(CreateDocumentRequest request) =>
+      Future.error(_error);
+
+  @override
+  Future<DocumentDetail> getDocument(String documentId) =>
+      Future.error(_error);
+
+  @override
+  Future<DocumentDetail> updateDocument(
+    String documentId,
+    UpdateDocumentRequest request,
+  ) =>
+      Future.error(_error);
+
+  @override
+  Future<DocumentDeleted> deleteDocument(String documentId) =>
+      Future.error(_error);
 }
 
 extension AssetWriteContract on ApiContract {
@@ -229,7 +454,16 @@ extension AssetWriteContract on ApiContract {
       _assetWriter.deleteAssetMedia(assetId, mediaId);
 }
 
-class ApiService implements ApiContract {
+class ApiService
+    implements
+        ApiContract,
+        SafetyApiContract,
+        PermitApiContract,
+        PermitDashboardApiContract,
+        ReportDashboardApiContract,
+        GeneratedReportsApiContract,
+        DocumentsApiContract,
+        NotificationsApiContract {
   ApiService({
     String baseUrl = apiBaseUrl,
     Dio? dio,
@@ -251,6 +485,11 @@ class ApiService implements ApiContract {
     configuredDio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // OpenAPI Generator's Dart/Dio client serializes every omitted
+          // nullable query argument as an empty string. Remove those transport
+          // artifacts before dispatch so FastAPI receives truly absent optional
+          // values (notably datetime filters, where `from_date=` is a 422).
+          options.queryParameters.removeWhere((_, value) => value == '');
           final token = await (getIdToken ?? _noToken)();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -310,6 +549,193 @@ class ApiService implements ApiContract {
   static const _retriedFlag = 'fev_auth_retried';
 
   late final FevApiClient _client;
+
+  @override
+  Future<GeneratedReportListPage> getGeneratedReports({
+    String? reportType,
+    String? status,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response =
+          await _client.getGeneratedReportsApi().listGeneratedReports(
+                reportType: reportType,
+                status: status,
+                cursor: cursor,
+                limit: limit,
+              );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty generated report page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<GeneratedReportDetail> generateReport(
+    CreateGeneratedReportRequest request,
+  ) async {
+    try {
+      final response = await _client
+          .getGeneratedReportsApi()
+          .generateReport(createGeneratedReportRequest: request);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty generated report detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<GeneratedReportDetail> getGeneratedReport(String reportId) async {
+    try {
+      final response = await _client
+          .getGeneratedReportsApi()
+          .getGeneratedReport(reportId: reportId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty generated report detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<GeneratedReportDetail> updateGeneratedReport(
+    String reportId,
+    UpdateGeneratedReportRequest request,
+  ) async {
+    try {
+      final response = await _client
+          .getGeneratedReportsApi()
+          .updateGeneratedReport(
+            reportId: reportId,
+            updateGeneratedReportRequest: request,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty generated report detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<GeneratedReportDetail> regenerateGeneratedReport(
+    String reportId,
+    RegenerateGeneratedReportRequest request,
+  ) async {
+    try {
+      final response = await _client
+          .getGeneratedReportsApi()
+          .regenerateGeneratedReport(
+            reportId: reportId,
+            regenerateGeneratedReportRequest: request,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty generated report detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<GeneratedReportDetail> finalizeGeneratedReport(
+    String reportId,
+    FinalizeGeneratedReportRequest request,
+  ) async {
+    try {
+      final response = await _client
+          .getGeneratedReportsApi()
+          .finalizeGeneratedReport(
+            reportId: reportId,
+            finalizeGeneratedReportRequest: request,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty generated report detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<GeneratedReportDeleted> deleteGeneratedReport(String reportId) async {
+    try {
+      final response = await _client
+          .getGeneratedReportsApi()
+          .deleteGeneratedReport(reportId: reportId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty generated report deletion response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<GeneratedReportExportResponse> exportGeneratedReport(
+    String reportId,
+    String format,
+  ) async {
+    try {
+      final response =
+          await _client.getGeneratedReportsApi().exportGeneratedReport(
+                reportId: reportId,
+                format: format,
+              );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty report export response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
   final ApiFeedback _feedback;
   final UnauthorizedHook _onUnauthorized;
 
@@ -373,6 +799,23 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty registration response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<SubscriptionResponse> getSubscription() async {
+    try {
+      final response = await _client.getBillingApi().getSubscription();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty subscription',
         );
       }
       return value;
@@ -454,6 +897,60 @@ class ApiService implements ApiContract {
         throw const ApiException(
           code: 'invalid_response',
           message: 'The API returned an empty asset dashboard summary',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<SafetyDashboardSummary> getDashboardSafetySummary() async {
+    try {
+      final response =
+          await _client.getDashboardApi().getDashboardSafetySummary();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty safety dashboard summary',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<PermitDashboardSummary> getDashboardPermitsSummary() async {
+    try {
+      final response =
+          await _client.getDashboardApi().getDashboardPermitsSummary();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty permit dashboard summary',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<ReportDashboardSummary> getDashboardReportsSummary() async {
+    try {
+      final response =
+          await _client.getDashboardApi().getDashboardReportsSummary();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty report dashboard summary',
         );
       }
       return value;
@@ -1277,6 +1774,532 @@ class ApiService implements ApiContract {
       );
     }
     return value;
+  }
+
+  @override
+  Future<PermitListPage> getPermits({
+    String? workerId,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getPermitsApi().listPermits(
+            workerId: workerId,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty permit list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<PermitDetail> getPermit(String permitId) async {
+    try {
+      final response =
+          await _client.getPermitsApi().getPermit(permitId: permitId);
+      return _requirePermit(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<PermitDetail> acknowledgePermit(
+      String permitId, AcknowledgePermitRequest request) async {
+    try {
+      final response = await _client.getPermitsApi().acknowledgePermit(
+            permitId: permitId,
+            acknowledgePermitRequest: request,
+          );
+      return _requirePermit(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  PermitDetail _requirePermit(PermitDetail? value) {
+    if (value == null) {
+      throw const ApiException(
+        code: 'invalid_response',
+        message: 'The API returned an empty permit detail',
+      );
+    }
+    return value;
+  }
+
+  @override
+  Future<WorkOrderListPage> getWorkOrders({
+    String? assetId,
+    String? facilityId,
+    String? status,
+    String? technicianId,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getWorkOrdersApi().listWorkOrders(
+            assetId: assetId,
+            facilityId: facilityId,
+            status: status,
+            technicianId: technicianId,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty work order list',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> getWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .getWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> createWorkOrder(
+      CreateWorkOrderRequest request) async {
+    try {
+      final response = await _client.getWorkOrdersApi().createWorkOrder(
+            createWorkOrderRequest: request,
+          );
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> assignWorkOrder(
+    String workOrderId,
+    AssignWorkOrderRequest request,
+  ) async {
+    try {
+      final response = await _client.getWorkOrdersApi().assignWorkOrder(
+            workOrderId: workOrderId,
+            assignWorkOrderRequest: request,
+          );
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> acceptWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .acceptWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> submitWorkOrderForReview(
+    String workOrderId,
+    SubmitWorkOrderForReviewRequest request,
+  ) async {
+    try {
+      final response =
+          await _client.getWorkOrdersApi().submitWorkOrderForReview(
+                workOrderId: workOrderId,
+                submitWorkOrderForReviewRequest: request,
+              );
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> closeWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .closeWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDetail> cancelWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .cancelWorkOrder(workOrderId: workOrderId);
+      return _requireWorkOrder(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<WorkOrderDeleted> deleteWorkOrder(String workOrderId) async {
+    try {
+      final response = await _client
+          .getWorkOrdersApi()
+          .deleteWorkOrder(workOrderId: workOrderId);
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty work order deletion response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  WorkOrderDetail _requireWorkOrder(WorkOrderDetail? value) {
+    if (value == null) {
+      throw const ApiException(
+        code: 'invalid_response',
+        message: 'The API returned an empty work order detail',
+      );
+    }
+    return value;
+  }
+
+  @override
+  Future<SafetyReportListPage> getSafetyReports({
+    String? status,
+    String? category,
+    String? severity,
+    String? reporterId,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getSafetyReportsApi().listSafetyReports(
+            status: status,
+            category: category,
+            severity: severity,
+            reporterId: reporterId,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty safety report page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<SafetyReportDetail> getSafetyReport(String reportId) async {
+    try {
+      final response = await _client
+          .getSafetyReportsApi()
+          .getSafetyReport(reportId: reportId);
+      return _requireSafetyReport(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<SafetyReportDetail> createSafetyReport(
+      CreateSafetyReportRequest request) async {
+    try {
+      final response = await _client.getSafetyReportsApi().createSafetyReport(
+            createSafetyReportRequest: request,
+          );
+      return _requireSafetyReport(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  SafetyReportDetail _requireSafetyReport(SafetyReportDetail? value) {
+    if (value == null) {
+      throw const ApiException(
+        code: 'invalid_response',
+        message: 'The API returned an empty safety report detail',
+      );
+    }
+    return value;
+  }
+
+  @override
+  Future<SafetyReportDetail> uploadSafetyEvidence({
+    required String reportId,
+    required String kind,
+    required String path,
+    required String filename,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    try {
+      final response = await _client.getSafetyReportsApi().uploadSafetyEvidence(
+            reportId: reportId,
+            kind: kind,
+            file: await MultipartFile.fromFile(path, filename: filename),
+            onSendProgress: onProgress,
+          );
+      return _requireSafetyReport(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<SafetyReportDetail> updateSafetyCorrectiveAction(
+    String reportId,
+    String actionId,
+    UpdateCorrectiveActionRequest request,
+  ) async {
+    try {
+      final response =
+          await _client.getSafetyReportsApi().updateCorrectiveAction(
+                reportId: reportId,
+                actionId: actionId,
+                updateCorrectiveActionRequest: request,
+              );
+      return _requireSafetyReport(response.data);
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  @override
+  Future<NotificationListPage> getNotifications({bool unreadOnly = false}) async {
+    try {
+      final response = await _client.getNotificationsApi().listNotifications(
+            unreadOnly: unreadOnly,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty notification page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<NotificationRead> markNotificationRead(String notificationId) async {
+    try {
+      final response = await _client.getNotificationsApi().markNotificationRead(
+            notificationId: notificationId,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty response marking a notification read',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<NotificationsAllRead> markAllNotificationsRead() async {
+    try {
+      final response =
+          await _client.getNotificationsApi().markAllNotificationsRead();
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty response marking notifications read',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DeviceRegistered> registerNotificationDevice(
+    RegisterDeviceRequest request,
+  ) async {
+    try {
+      final response =
+          await _client.getNotificationsApi().registerNotificationDevice(
+                registerDeviceRequest: request,
+              );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty device registration response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DeviceUnregistered> unregisterNotificationDevice(String token) async {
+    try {
+      final response =
+          await _client.getNotificationsApi().unregisterNotificationDevice(
+                token: token,
+              );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty device unregistration response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DocumentListPage> getDocuments({
+    String? category,
+    String? q,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    try {
+      final response = await _client.getDocumentsApi().listDocuments(
+            category: category,
+            search: q,
+            cursor: cursor,
+            limit: limit,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty document list page',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DocumentDetail> createDocument(CreateDocumentRequest request) async {
+    try {
+      final response = await _client.getDocumentsApi().createDocument(
+            createDocumentRequest: request,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty document detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DocumentDetail> getDocument(String documentId) async {
+    try {
+      final response = await _client.getDocumentsApi().getDocument(
+            documentId: documentId,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty document detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DocumentDetail> updateDocument(
+    String documentId,
+    UpdateDocumentRequest request,
+  ) async {
+    try {
+      final response = await _client.getDocumentsApi().updateDocument(
+            documentId: documentId,
+            updateDocumentRequest: request,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty document detail',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
+  }
+
+  @override
+  Future<DocumentDeleted> deleteDocument(String documentId) async {
+    try {
+      final response = await _client.getDocumentsApi().deleteDocument(
+            documentId: documentId,
+          );
+      final value = response.data;
+      if (value == null) {
+        throw const ApiException(
+          code: 'invalid_response',
+          message: 'The API returned an empty document deleted response',
+        );
+      }
+      return value;
+    } on DioException catch (error) {
+      throw _typedError(error);
+    }
   }
 
   @override

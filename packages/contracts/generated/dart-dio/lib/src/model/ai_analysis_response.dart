@@ -15,7 +15,9 @@ part 'ai_analysis_response.g.dart';
 /// * [annotationIds]
 /// * [createdAt]
 /// * [createdBy]
+/// * [framesAnalyzed]
 /// * [id]
+/// * [mediaKind]
 /// * [mediaLocalId]
 /// * [model]
 /// * [recommendations]
@@ -36,8 +38,15 @@ abstract class AiAnalysisResponse
   @BuiltValueField(wireName: r'created_by')
   String get createdBy;
 
+  @BuiltValueField(wireName: r'frames_analyzed')
+  int? get framesAnalyzed;
+
   @BuiltValueField(wireName: r'id')
   String get id;
+
+  @BuiltValueField(wireName: r'media_kind')
+  AiAnalysisResponseMediaKindEnum? get mediaKind;
+  // enum mediaKindEnum {  photo,  video,  };
 
   @BuiltValueField(wireName: r'media_local_id')
   String get mediaLocalId;
@@ -70,7 +79,9 @@ abstract class AiAnalysisResponse
       _$AiAnalysisResponse;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(AiAnalysisResponseBuilder b) => b..reviewed = false;
+  static void _defaults(AiAnalysisResponseBuilder b) => b
+    ..mediaKind = const AiAnalysisResponseMediaKindEnum._('photo')
+    ..reviewed = false;
 
   @BuiltValueSerializer(custom: true)
   static Serializer<AiAnalysisResponse> get serializer =>
@@ -107,11 +118,25 @@ class _$AiAnalysisResponseSerializer
       object.createdBy,
       specifiedType: const FullType(String),
     );
+    if (object.framesAnalyzed != null) {
+      yield r'frames_analyzed';
+      yield serializers.serialize(
+        object.framesAnalyzed,
+        specifiedType: const FullType.nullable(int),
+      );
+    }
     yield r'id';
     yield serializers.serialize(
       object.id,
       specifiedType: const FullType(String),
     );
+    if (object.mediaKind != null) {
+      yield r'media_kind';
+      yield serializers.serialize(
+        object.mediaKind,
+        specifiedType: const FullType(AiAnalysisResponseMediaKindEnum),
+      );
+    }
     yield r'media_local_id';
     yield serializers.serialize(
       object.mediaLocalId,
@@ -208,12 +233,27 @@ class _$AiAnalysisResponseSerializer
           ) as String;
           result.createdBy = valueDes;
           break;
+        case r'frames_analyzed':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(int),
+          ) as int?;
+          if (valueDes == null) continue;
+          result.framesAnalyzed = valueDes;
+          break;
         case r'id':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
           result.id = valueDes;
+          break;
+        case r'media_kind':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(AiAnalysisResponseMediaKindEnum),
+          ) as AiAnalysisResponseMediaKindEnum;
+          result.mediaKind = valueDes;
           break;
         case r'media_local_id':
           final valueDes = serializers.deserialize(
@@ -303,6 +343,25 @@ class _$AiAnalysisResponseSerializer
     );
     return result.build();
   }
+}
+
+class AiAnalysisResponseMediaKindEnum extends EnumClass {
+  @BuiltValueEnumConst(wireName: r'photo')
+  static const AiAnalysisResponseMediaKindEnum photo =
+      _$aiAnalysisResponseMediaKindEnum_photo;
+  @BuiltValueEnumConst(wireName: r'video')
+  static const AiAnalysisResponseMediaKindEnum video =
+      _$aiAnalysisResponseMediaKindEnum_video;
+
+  static Serializer<AiAnalysisResponseMediaKindEnum> get serializer =>
+      _$aiAnalysisResponseMediaKindEnumSerializer;
+
+  const AiAnalysisResponseMediaKindEnum._(String name) : super(name);
+
+  static BuiltSet<AiAnalysisResponseMediaKindEnum> get values =>
+      _$aiAnalysisResponseMediaKindEnumValues;
+  static AiAnalysisResponseMediaKindEnum valueOf(String name) =>
+      _$aiAnalysisResponseMediaKindEnumValueOf(name);
 }
 
 class AiAnalysisResponseRiskLevelEnum extends EnumClass {
