@@ -6,6 +6,50 @@ part of 'asset_list_item.dart';
 // BuiltValueGenerator
 // **************************************************************************
 
+const AssetListItemCurrentConditionEnum
+    _$assetListItemCurrentConditionEnum_excellent =
+    const AssetListItemCurrentConditionEnum._('excellent');
+const AssetListItemCurrentConditionEnum
+    _$assetListItemCurrentConditionEnum_good =
+    const AssetListItemCurrentConditionEnum._('good');
+const AssetListItemCurrentConditionEnum
+    _$assetListItemCurrentConditionEnum_fair =
+    const AssetListItemCurrentConditionEnum._('fair');
+const AssetListItemCurrentConditionEnum
+    _$assetListItemCurrentConditionEnum_poor =
+    const AssetListItemCurrentConditionEnum._('poor');
+const AssetListItemCurrentConditionEnum
+    _$assetListItemCurrentConditionEnum_critical =
+    const AssetListItemCurrentConditionEnum._('critical');
+
+AssetListItemCurrentConditionEnum _$assetListItemCurrentConditionEnumValueOf(
+    String name) {
+  switch (name) {
+    case 'excellent':
+      return _$assetListItemCurrentConditionEnum_excellent;
+    case 'good':
+      return _$assetListItemCurrentConditionEnum_good;
+    case 'fair':
+      return _$assetListItemCurrentConditionEnum_fair;
+    case 'poor':
+      return _$assetListItemCurrentConditionEnum_poor;
+    case 'critical':
+      return _$assetListItemCurrentConditionEnum_critical;
+    default:
+      throw new ArgumentError(name);
+  }
+}
+
+final BuiltSet<AssetListItemCurrentConditionEnum>
+    _$assetListItemCurrentConditionEnumValues = new BuiltSet<
+        AssetListItemCurrentConditionEnum>(const <AssetListItemCurrentConditionEnum>[
+  _$assetListItemCurrentConditionEnum_excellent,
+  _$assetListItemCurrentConditionEnum_good,
+  _$assetListItemCurrentConditionEnum_fair,
+  _$assetListItemCurrentConditionEnum_poor,
+  _$assetListItemCurrentConditionEnum_critical,
+]);
+
 const AssetListItemCurrentStatusEnum _$assetListItemCurrentStatusEnum_healthy =
     const AssetListItemCurrentStatusEnum._('healthy');
 const AssetListItemCurrentStatusEnum _$assetListItemCurrentStatusEnum_warning =
@@ -35,9 +79,48 @@ final BuiltSet<AssetListItemCurrentStatusEnum>
   _$assetListItemCurrentStatusEnum_critical,
 ]);
 
+Serializer<AssetListItemCurrentConditionEnum>
+    _$assetListItemCurrentConditionEnumSerializer =
+    new _$AssetListItemCurrentConditionEnumSerializer();
 Serializer<AssetListItemCurrentStatusEnum>
     _$assetListItemCurrentStatusEnumSerializer =
     new _$AssetListItemCurrentStatusEnumSerializer();
+
+class _$AssetListItemCurrentConditionEnumSerializer
+    implements PrimitiveSerializer<AssetListItemCurrentConditionEnum> {
+  static const Map<String, Object> _toWire = const <String, Object>{
+    'excellent': 'Excellent',
+    'good': 'Good',
+    'fair': 'Fair',
+    'poor': 'Poor',
+    'critical': 'Critical',
+  };
+  static const Map<Object, String> _fromWire = const <Object, String>{
+    'Excellent': 'excellent',
+    'Good': 'good',
+    'Fair': 'fair',
+    'Poor': 'poor',
+    'Critical': 'critical',
+  };
+
+  @override
+  final Iterable<Type> types = const <Type>[AssetListItemCurrentConditionEnum];
+  @override
+  final String wireName = 'AssetListItemCurrentConditionEnum';
+
+  @override
+  Object serialize(
+          Serializers serializers, AssetListItemCurrentConditionEnum object,
+          {FullType specifiedType = FullType.unspecified}) =>
+      _toWire[object.name] ?? object.name;
+
+  @override
+  AssetListItemCurrentConditionEnum deserialize(
+          Serializers serializers, Object serialized,
+          {FullType specifiedType = FullType.unspecified}) =>
+      AssetListItemCurrentConditionEnum.valueOf(
+          _fromWire[serialized] ?? (serialized is String ? serialized : ''));
+}
 
 class _$AssetListItemCurrentStatusEnumSerializer
     implements PrimitiveSerializer<AssetListItemCurrentStatusEnum> {
@@ -83,6 +166,8 @@ class _$AssetListItem extends AssetListItem {
   @override
   final DateTime createdAt;
   @override
+  final AssetListItemCurrentConditionEnum? currentCondition;
+  @override
   final AssetListItemCurrentStatusEnum currentStatus;
   @override
   final String facilityId;
@@ -118,6 +203,7 @@ class _$AssetListItem extends AssetListItem {
       required this.category,
       this.categoryOther,
       required this.createdAt,
+      this.currentCondition,
       required this.currentStatus,
       required this.facilityId,
       this.gpsLat,
@@ -164,6 +250,7 @@ class _$AssetListItem extends AssetListItem {
         category == other.category &&
         categoryOther == other.categoryOther &&
         createdAt == other.createdAt &&
+        currentCondition == other.currentCondition &&
         currentStatus == other.currentStatus &&
         facilityId == other.facilityId &&
         gpsLat == other.gpsLat &&
@@ -187,6 +274,7 @@ class _$AssetListItem extends AssetListItem {
     _$hash = $jc(_$hash, category.hashCode);
     _$hash = $jc(_$hash, categoryOther.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
+    _$hash = $jc(_$hash, currentCondition.hashCode);
     _$hash = $jc(_$hash, currentStatus.hashCode);
     _$hash = $jc(_$hash, facilityId.hashCode);
     _$hash = $jc(_$hash, gpsLat.hashCode);
@@ -212,6 +300,7 @@ class _$AssetListItem extends AssetListItem {
           ..add('category', category)
           ..add('categoryOther', categoryOther)
           ..add('createdAt', createdAt)
+          ..add('currentCondition', currentCondition)
           ..add('currentStatus', currentStatus)
           ..add('facilityId', facilityId)
           ..add('gpsLat', gpsLat)
@@ -253,6 +342,12 @@ class AssetListItemBuilder
   DateTime? _createdAt;
   DateTime? get createdAt => _$this._createdAt;
   set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
+
+  AssetListItemCurrentConditionEnum? _currentCondition;
+  AssetListItemCurrentConditionEnum? get currentCondition =>
+      _$this._currentCondition;
+  set currentCondition(AssetListItemCurrentConditionEnum? currentCondition) =>
+      _$this._currentCondition = currentCondition;
 
   AssetListItemCurrentStatusEnum? _currentStatus;
   AssetListItemCurrentStatusEnum? get currentStatus => _$this._currentStatus;
@@ -321,6 +416,7 @@ class AssetListItemBuilder
       _category = $v.category;
       _categoryOther = $v.categoryOther;
       _createdAt = $v.createdAt;
+      _currentCondition = $v.currentCondition;
       _currentStatus = $v.currentStatus;
       _facilityId = $v.facilityId;
       _gpsLat = $v.gpsLat;
@@ -364,6 +460,7 @@ class AssetListItemBuilder
             categoryOther: categoryOther,
             createdAt: BuiltValueNullFieldError.checkNotNull(
                 createdAt, r'AssetListItem', 'createdAt'),
+            currentCondition: currentCondition,
             currentStatus: BuiltValueNullFieldError.checkNotNull(
                 currentStatus, r'AssetListItem', 'currentStatus'),
             facilityId: BuiltValueNullFieldError.checkNotNull(

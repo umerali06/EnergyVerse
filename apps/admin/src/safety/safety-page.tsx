@@ -1,7 +1,8 @@
 "use client";
 
 import type { SafetyReportDetail, SafetyReportListItem } from "@fev/api-client";
-import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
 import { formatRelativeTime } from "@/dashboard/format";
@@ -44,6 +45,7 @@ const tone = (value: string) =>
 
 export function SafetyPage() {
   const { apiClient, currentUser } = useAuth();
+  const searchParams = useSearchParams();
   const canWrite = currentUser?.permissions.has("safety.write") ?? false;
   const canManage = currentUser?.permissions.has("safety.close") ?? false;
   const [items, setItems] = useState<SafetyReportListItem[]>([]);
@@ -76,6 +78,20 @@ export function SafetyPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // `?reportId=` deep-links one incident from global search or a notification.
+  // There is no per-report route, so the id arrives as a parameter and the page
+  // opens it on arrival. Opened once per id, so re-rendering (or the user
+  // closing the panel) does not keep forcing it back open.
+  const deepLinkedId = searchParams.get("reportId");
+  const openedDeepLink = useRef<string | null>(null);
+  useEffect(() => {
+    if (!deepLinkedId || openedDeepLink.current === deepLinkedId) return;
+    openedDeepLink.current = deepLinkedId;
+    void open(deepLinkedId);
+    // `open` is stable for this purpose: it only closes over `apiClient`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkedId]);
 
   async function open(reportId: string) {
     setActionError(null);

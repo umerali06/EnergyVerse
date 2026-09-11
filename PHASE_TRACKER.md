@@ -191,3 +191,25 @@ frames was reported once, not four times.
 
 Still open and explicitly not delivered: AR measurement remains unvalidated on
 physical hardware (D-063). That needs a device with ARCore/ARKit, not code.
+
+Second client-feedback pass (2026-09-11): the remaining items from the
+assessment that were incomplete rather than unbuilt.
+
+Global search declared eight categories but only ever fetched five —
+inspections, safety reports and generated reports returned nothing — and its
+hits dropped the record they found, opening bare list pages exactly as the 3D
+panel's buttons did. All eight now search, QR codes resolve to the asset they
+label, and every hit opens its record (D-100).
+
+Asset condition now carries the requirements' own Excellent/Good/Fair/Poor/
+Critical vocabulary onto the asset itself; it was recorded on every inspection
+since Phase 7.7 but collapsed to the three-state rollup and discarded, which is
+why the screens showed different words from the document (D-099).
+
+Permits are seeded for the first time — two templates and three permits across
+active, pending-approval and draft — so the register no longer renders empty on
+a fresh tenant (D-101).
+
+Email delivery was verified end to end through real AWS SES
+(`scripts.verify_notification_email_live`); SES accepted a branded notification
+to the account's own verified sender.

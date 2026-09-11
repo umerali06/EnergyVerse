@@ -19,6 +19,7 @@ part 'asset_detail.g.dart';
 /// * [category]
 /// * [categoryOther]
 /// * [createdAt]
+/// * [currentCondition]
 /// * [currentStatus]
 /// * [description]
 /// * [documents]
@@ -53,6 +54,10 @@ abstract class AssetDetail implements Built<AssetDetail, AssetDetailBuilder> {
 
   @BuiltValueField(wireName: r'created_at')
   DateTime get createdAt;
+
+  @BuiltValueField(wireName: r'current_condition')
+  AssetDetailCurrentConditionEnum? get currentCondition;
+  // enum currentConditionEnum {  Excellent,  Good,  Fair,  Poor,  Critical,  };
 
   @BuiltValueField(wireName: r'current_status')
   AssetDetailCurrentStatusEnum get currentStatus;
@@ -161,6 +166,13 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
       object.createdAt,
       specifiedType: const FullType(DateTime),
     );
+    if (object.currentCondition != null) {
+      yield r'current_condition';
+      yield serializers.serialize(
+        object.currentCondition,
+        specifiedType: const FullType.nullable(AssetDetailCurrentConditionEnum),
+      );
+    }
     yield r'current_status';
     yield serializers.serialize(
       object.currentStatus,
@@ -342,6 +354,15 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
           ) as DateTime;
           result.createdAt = valueDes;
           break;
+        case r'current_condition':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType:
+                const FullType.nullable(AssetDetailCurrentConditionEnum),
+          ) as AssetDetailCurrentConditionEnum?;
+          if (valueDes == null) continue;
+          result.currentCondition = valueDes;
+          break;
         case r'current_status':
           final valueDes = serializers.deserialize(
             value,
@@ -508,6 +529,34 @@ class _$AssetDetailSerializer implements PrimitiveSerializer<AssetDetail> {
     );
     return result.build();
   }
+}
+
+class AssetDetailCurrentConditionEnum extends EnumClass {
+  @BuiltValueEnumConst(wireName: r'Excellent')
+  static const AssetDetailCurrentConditionEnum excellent =
+      _$assetDetailCurrentConditionEnum_excellent;
+  @BuiltValueEnumConst(wireName: r'Good')
+  static const AssetDetailCurrentConditionEnum good =
+      _$assetDetailCurrentConditionEnum_good;
+  @BuiltValueEnumConst(wireName: r'Fair')
+  static const AssetDetailCurrentConditionEnum fair =
+      _$assetDetailCurrentConditionEnum_fair;
+  @BuiltValueEnumConst(wireName: r'Poor')
+  static const AssetDetailCurrentConditionEnum poor =
+      _$assetDetailCurrentConditionEnum_poor;
+  @BuiltValueEnumConst(wireName: r'Critical')
+  static const AssetDetailCurrentConditionEnum critical =
+      _$assetDetailCurrentConditionEnum_critical;
+
+  static Serializer<AssetDetailCurrentConditionEnum> get serializer =>
+      _$assetDetailCurrentConditionEnumSerializer;
+
+  const AssetDetailCurrentConditionEnum._(String name) : super(name);
+
+  static BuiltSet<AssetDetailCurrentConditionEnum> get values =>
+      _$assetDetailCurrentConditionEnumValues;
+  static AssetDetailCurrentConditionEnum valueOf(String name) =>
+      _$assetDetailCurrentConditionEnumValueOf(name);
 }
 
 class AssetDetailCurrentStatusEnum extends EnumClass {

@@ -373,6 +373,13 @@ export function AssetDetailPage({
                   <StatusPill tone={statusTone(state.asset.currentStatus)}>
                     {state.asset.currentStatus}
                   </StatusPill>
+                  {/* The five-state condition the requirements name, carried
+                      from the latest completed inspection. `currentStatus` is
+                      the 3-state rollup that drives the dashboard KPI; this is
+                      the term a human reads. Absent until first inspected. */}
+                  {state.asset.currentCondition && (
+                    <Badge>Condition: {state.asset.currentCondition}</Badge>
+                  )}
                   <span className="text-bodySmall text-text-secondary">
                     {facilityName(data.facilities.items, state.asset.facilityId)}
                     {areaName(data.areas.items, state.asset.areaId) && (

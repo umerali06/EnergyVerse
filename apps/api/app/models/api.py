@@ -321,6 +321,7 @@ class DigitalTwinHotspotResponse(BaseModel):
     asset_tag: str
     category: str
     current_status: Literal["Healthy", "Warning", "Critical"]
+    current_condition: Literal["Excellent", "Good", "Fair", "Poor", "Critical"] | None = None
     position: list[float] = Field(min_length=3, max_length=3)
     radius: float = Field(default=1.0, gt=0)
     label: str | None = None
@@ -401,6 +402,10 @@ class AssetListItem(BaseModel):
     gps_lat: float | None = None
     gps_lng: float | None = None
     current_status: Literal["Healthy", "Warning", "Critical"]
+    # The five-state condition the requirements name, from the most recent
+    # completed inspection. `current_status` is the 3-state rollup driving the
+    # dashboard KPI; this is the term a human reads. Null until first inspected.
+    current_condition: Literal["Excellent", "Good", "Fair", "Poor", "Critical"] | None = None
     created_at: datetime
     updated_at: datetime
 

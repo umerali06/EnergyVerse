@@ -48,6 +48,12 @@ export interface DigitalTwinHotspotResponse {
      * @type {string}
      * @memberof DigitalTwinHotspotResponse
      */
+    currentCondition?: DigitalTwinHotspotResponseCurrentConditionEnum | null;
+    /**
+     *
+     * @type {string}
+     * @memberof DigitalTwinHotspotResponse
+     */
     currentStatus: DigitalTwinHotspotResponseCurrentStatusEnum;
     /**
      *
@@ -75,6 +81,18 @@ export interface DigitalTwinHotspotResponse {
     radius?: number;
 }
 
+
+/**
+ * @export
+ */
+export const DigitalTwinHotspotResponseCurrentConditionEnum = {
+    Excellent: 'Excellent',
+    Good: 'Good',
+    Fair: 'Fair',
+    Poor: 'Poor',
+    Critical: 'Critical'
+} as const;
+export type DigitalTwinHotspotResponseCurrentConditionEnum = typeof DigitalTwinHotspotResponseCurrentConditionEnum[keyof typeof DigitalTwinHotspotResponseCurrentConditionEnum];
 
 /**
  * @export
@@ -115,6 +133,7 @@ export function DigitalTwinHotspotResponseFromJSONTyped(json: any, ignoreDiscrim
         'assetName': json['asset_name'],
         'assetTag': json['asset_tag'],
         'category': json['category'],
+        'currentCondition': json['current_condition'] == null ? undefined : json['current_condition'],
         'currentStatus': json['current_status'],
         'id': json['id'],
         'label': json['label'] == null ? undefined : json['label'],
@@ -138,6 +157,7 @@ export function DigitalTwinHotspotResponseToJSONTyped(value?: DigitalTwinHotspot
         'asset_name': value['assetName'],
         'asset_tag': value['assetTag'],
         'category': value['category'],
+        'current_condition': value['currentCondition'],
         'current_status': value['currentStatus'],
         'id': value['id'],
         'label': value['label'],

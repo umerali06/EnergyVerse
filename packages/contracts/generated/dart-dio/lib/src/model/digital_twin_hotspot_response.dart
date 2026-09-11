@@ -16,6 +16,7 @@ part 'digital_twin_hotspot_response.g.dart';
 /// * [assetName]
 /// * [assetTag]
 /// * [category]
+/// * [currentCondition]
 /// * [currentStatus]
 /// * [id]
 /// * [label]
@@ -36,6 +37,10 @@ abstract class DigitalTwinHotspotResponse
 
   @BuiltValueField(wireName: r'category')
   String get category;
+
+  @BuiltValueField(wireName: r'current_condition')
+  DigitalTwinHotspotResponseCurrentConditionEnum? get currentCondition;
+  // enum currentConditionEnum {  Excellent,  Good,  Fair,  Poor,  Critical,  };
 
   @BuiltValueField(wireName: r'current_status')
   DigitalTwinHotspotResponseCurrentStatusEnum get currentStatus;
@@ -103,6 +108,14 @@ class _$DigitalTwinHotspotResponseSerializer
       object.category,
       specifiedType: const FullType(String),
     );
+    if (object.currentCondition != null) {
+      yield r'current_condition';
+      yield serializers.serialize(
+        object.currentCondition,
+        specifiedType: const FullType.nullable(
+            DigitalTwinHotspotResponseCurrentConditionEnum),
+      );
+    }
     yield r'current_status';
     yield serializers.serialize(
       object.currentStatus,
@@ -186,6 +199,15 @@ class _$DigitalTwinHotspotResponseSerializer
           ) as String;
           result.category = valueDes;
           break;
+        case r'current_condition':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(
+                DigitalTwinHotspotResponseCurrentConditionEnum),
+          ) as DigitalTwinHotspotResponseCurrentConditionEnum?;
+          if (valueDes == null) continue;
+          result.currentCondition = valueDes;
+          break;
         case r'current_status':
           final valueDes = serializers.deserialize(
             value,
@@ -250,6 +272,36 @@ class _$DigitalTwinHotspotResponseSerializer
     );
     return result.build();
   }
+}
+
+class DigitalTwinHotspotResponseCurrentConditionEnum extends EnumClass {
+  @BuiltValueEnumConst(wireName: r'Excellent')
+  static const DigitalTwinHotspotResponseCurrentConditionEnum excellent =
+      _$digitalTwinHotspotResponseCurrentConditionEnum_excellent;
+  @BuiltValueEnumConst(wireName: r'Good')
+  static const DigitalTwinHotspotResponseCurrentConditionEnum good =
+      _$digitalTwinHotspotResponseCurrentConditionEnum_good;
+  @BuiltValueEnumConst(wireName: r'Fair')
+  static const DigitalTwinHotspotResponseCurrentConditionEnum fair =
+      _$digitalTwinHotspotResponseCurrentConditionEnum_fair;
+  @BuiltValueEnumConst(wireName: r'Poor')
+  static const DigitalTwinHotspotResponseCurrentConditionEnum poor =
+      _$digitalTwinHotspotResponseCurrentConditionEnum_poor;
+  @BuiltValueEnumConst(wireName: r'Critical')
+  static const DigitalTwinHotspotResponseCurrentConditionEnum critical =
+      _$digitalTwinHotspotResponseCurrentConditionEnum_critical;
+
+  static Serializer<DigitalTwinHotspotResponseCurrentConditionEnum>
+      get serializer =>
+          _$digitalTwinHotspotResponseCurrentConditionEnumSerializer;
+
+  const DigitalTwinHotspotResponseCurrentConditionEnum._(String name)
+      : super(name);
+
+  static BuiltSet<DigitalTwinHotspotResponseCurrentConditionEnum> get values =>
+      _$digitalTwinHotspotResponseCurrentConditionEnumValues;
+  static DigitalTwinHotspotResponseCurrentConditionEnum valueOf(String name) =>
+      _$digitalTwinHotspotResponseCurrentConditionEnumValueOf(name);
 }
 
 class DigitalTwinHotspotResponseCurrentStatusEnum extends EnumClass {

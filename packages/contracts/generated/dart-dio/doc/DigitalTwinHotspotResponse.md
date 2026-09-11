@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **assetName** | **String** |  |
 **assetTag** | **String** |  |
 **category** | **String** |  |
+**currentCondition** | **String** |  | [optional]
 **currentStatus** | **String** |  |
 **id** | **String** |  |
 **label** | **String** |  | [optional]

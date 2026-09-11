@@ -54,6 +54,12 @@ export interface AssetListItem {
      * @type {string}
      * @memberof AssetListItem
      */
+    currentCondition?: AssetListItemCurrentConditionEnum | null;
+    /**
+     *
+     * @type {string}
+     * @memberof AssetListItem
+     */
     currentStatus: AssetListItemCurrentStatusEnum;
     /**
      *
@@ -133,6 +139,18 @@ export interface AssetListItem {
 /**
  * @export
  */
+export const AssetListItemCurrentConditionEnum = {
+    Excellent: 'Excellent',
+    Good: 'Good',
+    Fair: 'Fair',
+    Poor: 'Poor',
+    Critical: 'Critical'
+} as const;
+export type AssetListItemCurrentConditionEnum = typeof AssetListItemCurrentConditionEnum[keyof typeof AssetListItemCurrentConditionEnum];
+
+/**
+ * @export
+ */
 export const AssetListItemCurrentStatusEnum = {
     Healthy: 'Healthy',
     Warning: 'Warning',
@@ -171,6 +189,7 @@ export function AssetListItemFromJSONTyped(json: any, ignoreDiscriminator: boole
         'category': json['category'],
         'categoryOther': json['category_other'] == null ? undefined : json['category_other'],
         'createdAt': (new Date(json['created_at'])),
+        'currentCondition': json['current_condition'] == null ? undefined : json['current_condition'],
         'currentStatus': json['current_status'],
         'facilityId': json['facility_id'],
         'gpsLat': json['gps_lat'] == null ? undefined : json['gps_lat'],
@@ -203,6 +222,7 @@ export function AssetListItemToJSONTyped(value?: AssetListItem | null, ignoreDis
         'category': value['category'],
         'category_other': value['categoryOther'],
         'created_at': ((value['createdAt']).toISOString()),
+        'current_condition': value['currentCondition'],
         'current_status': value['currentStatus'],
         'facility_id': value['facilityId'],
         'gps_lat': value['gpsLat'],

@@ -90,6 +90,7 @@ class AssetRepository(TenantRepository[Asset]):
         asset_id: str,
         *,
         new_status: str,
+        new_condition: str,
         inspection_id: str,
         actor_uid: str,
     ) -> Asset:
@@ -101,10 +102,17 @@ class AssetRepository(TenantRepository[Asset]):
         current = await self.get(scope, asset_id)
         if current is None or current.deleted_at is not None:
             raise LookupError("asset not found in company scope")
-        if current.current_status == new_status:
+        # Both must match to skip: Excellent and Good both roll up to Healthy,
+        # so comparing only the 3-state status would silently drop a real
+        # condition change.
+        if current.current_status == new_status and current.current_condition == new_condition:
             return current
         await self._collection.document(asset_id).update(
-            {"current_status": new_status, "updated_at": utc_now()},
+            {
+                "current_status": new_status,
+                "current_condition": new_condition,
+                "updated_at": utc_now(),
+            },
             timeout=FIRESTORE_OPERATION_TIMEOUT_SECONDS,
             retry=None,
         )
@@ -118,6 +126,8 @@ class AssetRepository(TenantRepository[Asset]):
             metadata={
                 "from": current.current_status,
                 "to": new_status,
+                "from_condition": current.current_condition or "",
+                "to_condition": new_condition,
                 "inspection_id": inspection_id,
             },
         )

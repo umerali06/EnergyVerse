@@ -2665,3 +2665,29 @@ renders the same digital-twin data the facilities module already serves, with
 `three/examples/jsm/webxr/VRButton` promoting it into a headset session. The
 runner degrades to a desktop walkthrough when WebGL or WebXR is unavailable
 rather than blocking the training.
+
+### Search, asset condition, and permit seed data (2026-09-11)
+
+`apps/admin/src/shell/global-search.tsx` fans out across every module the
+requirements name. Each category is fetched independently and its failure
+swallowed, so one unavailable module narrows the palette rather than blanking
+it. QR codes are not a collection of their own: the pass matches `qrCodeId` on
+the already-fetched asset page, so searching a printed label resolves to the
+asset it belongs to without a second round trip.
+
+Results carry a record id, never a filtered list URL. Safety is the one module
+with no per-report route, so its id travels as `?reportId=` and
+`SafetyPage` opens it on arrival — the same contract the notification bell
+relies on, which is why both were fixed together.
+
+`Asset.current_condition` holds the five-state condition from the latest
+completed inspection, beside the three-state `current_status` that drives the
+dashboard KPI. The two are set together in
+`AssetRepository.roll_up_status_from_inspection`, whose skip-if-unchanged guard
+compares both: Excellent and Good both roll up to Healthy, so comparing the
+rollup alone would lose a real condition change.
+
+`scripts/seed.py` now writes permit templates and permits. Validity windows are
+built from `_seed_time`, relative to the moment the seed runs, because a permit
+is only meaningful inside a wall-clock window and fixed dates would leave every
+demo permit expired within days.

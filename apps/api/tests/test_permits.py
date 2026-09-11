@@ -277,7 +277,9 @@ def test_filter_pagination_soft_delete_and_audit(wiring: dict[str, Any]) -> None
     filtered = request(
         identity(), "GET", f"/api/v1/permits?worker_id={WORKER_ID}&permit_type=hot_work"
     )
-    assert {row["id"] for row in filtered.json()["items"]} == {first["id"], second["id"]}
+    # Seeded demo permits share this tenant, so assert the pair this test
+    # created is returned rather than that the tenant holds nothing else.
+    assert {first["id"], second["id"]} <= {row["id"] for row in filtered.json()["items"]}
     deleted = request(identity(), "DELETE", f"/api/v1/permits/{first['id']}")
     assert deleted.status_code == 200
     assert request(identity(), "GET", f"/api/v1/permits/{first['id']}").status_code == 404
@@ -620,10 +622,17 @@ def test_due_active_permit_expires_on_read_with_system_audit(wiring: dict[str, A
 def test_dashboard_active_permit_kpi_reconciles_expiry(
     wiring: dict[str, Any],
 ) -> None:
+    # Measured as a delta: the demo tenant seeds its own active permit so the
+    # register is not empty, and this assertion is about expiry reconciliation,
+    # not about how much demo data exists.
+    baseline = request(
+        identity("executive"), "GET", "/api/v1/dashboard/permits-summary"
+    ).json()["active"]
+
     active = create_active_permit()
     response = request(identity("executive"), "GET", "/api/v1/dashboard/permits-summary")
     assert response.status_code == 200
-    assert response.json() == {"active": 1}
+    assert response.json() == {"active": baseline + 1}
 
     repository = PermitRepository(
         wiring["client"], AuditService(AuditLogRepository(wiring["client"]))
@@ -639,7 +648,8 @@ def test_dashboard_active_permit_kpi_reconciles_expiry(
     )
     refreshed = request(identity("executive"), "GET", "/api/v1/dashboard/permits-summary")
     assert refreshed.status_code == 200
-    assert refreshed.json() == {"active": 0}
+    # Expiring the one this test created returns the count to its baseline.
+    assert refreshed.json() == {"active": baseline}
 
 
 def test_non_draft_cannot_use_generic_edit_or_delete_and_stale_resume_conflicts(

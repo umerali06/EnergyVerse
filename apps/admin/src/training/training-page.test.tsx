@@ -103,6 +103,21 @@ function scene() {
   };
 }
 
+function progress() {
+  return {
+    id: "progress-1",
+    moduleId: "module-locate",
+    status: "in_progress",
+    completedStepIds: [],
+    correctCount: 0,
+    scoredCount: 0,
+    score: null,
+    attempts: 1,
+    startedAt: new Date(),
+    completedAt: null,
+  };
+}
+
 function Ready({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   if (!auth.currentUser) return null;
@@ -128,20 +143,14 @@ function renderPage(overrides: Record<string, unknown> = {}) {
     listTrainingModules: vi.fn(async (..._args: unknown[]) => ({ items: [locateModule()] })),
     listTrainingProgress: vi.fn(async (..._args: unknown[]) => ({ items: [] })),
     getFacility3dScene: vi.fn(async (..._args: unknown[]) => scene()),
-    startTrainingModule: vi.fn(async (..._args: unknown[]) => ({
-      id: "progress-1",
-      moduleId: "module-locate",
-      status: "in_progress",
-      completedStepIds: [],
-      correctCount: 0,
-      scoredCount: 0,
-      score: null,
-      attempts: 1,
-      startedAt: new Date(),
-      completedAt: null,
+    startTrainingModule: vi.fn(async (..._args: unknown[]) => progress()),
+    completeTrainingStep: vi.fn(async (..._args: unknown[]) => progress()),
+    completeTrainingModule: vi.fn(async (..._args: unknown[]) => ({
+      ...progress(),
+      status: "completed",
+      score: 100,
+      completedAt: new Date(),
     })),
-    completeTrainingStep: vi.fn(async (..._args: unknown[]) => ({})),
-    completeTrainingModule: vi.fn(async (..._args: unknown[]) => ({})),
     ...overrides,
   };
   render(

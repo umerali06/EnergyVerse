@@ -108,6 +108,7 @@ def _to_list_item(asset: Asset) -> AssetListItem:
         gps_lat=asset.gps_lat,
         gps_lng=asset.gps_lng,
         current_status=asset.current_status,
+        current_condition=asset.current_condition,
         created_at=asset.created_at,
         updated_at=asset.updated_at,
     )

@@ -14,7 +14,8 @@ export type SearchResultCategory =
   | "safety"
   | "reports"
   | "users"
-  | "facilities";
+  | "facilities"
+  | "qr";
 
 export interface SearchResultItem {
   id: string;
@@ -75,6 +76,12 @@ function CategoryIcon({ category }: { category: SearchResultCategory }) {
       return (
         <svg className="size-4 shrink-0 text-primary-500" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
           <path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+        </svg>
+      );
+    case "qr":
+      return (
+        <svg className="size-4 shrink-0 text-accent-500" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM18 18h3v3h-3z" />
         </svg>
       );
   }
@@ -204,9 +211,29 @@ export function GlobalSearch() {
       try {
         const found: SearchResultItem[] = [];
 
-        // 1. Search Assets
+        // 1. Search Assets. A QR code is not a record of its own -- it is a
+        // label printed for an asset -- so scanning or typing one resolves to
+        // that asset, surfaced as its own hit so the searcher sees why it
+        // matched. `search` covers name/tag; the QR pass below covers codes,
+        // which the server-side search does not index.
         try {
-          const res = await apiClient.listAssets({ search: term, limit: 10 });
+          const [res, byCode] = await Promise.all([
+            apiClient.listAssets({ search: term, limit: 10 }),
+            apiClient.listAssets({ limit: 100 }).catch(() => ({ items: [] })),
+          ]);
+
+          for (const item of byCode.items) {
+            if (!item.qrCodeId || !item.qrCodeId.toLowerCase().includes(term)) continue;
+            found.push({
+              id: `qr-${item.id}`,
+              category: "qr",
+              title: `QR ${item.qrCodeId}`,
+              subtitle: `Resolves to ${item.name} (${item.assetTag})`,
+              route: `/assets/${item.id}`,
+              badge: "QR label",
+            });
+          }
+
           for (const item of res.items) {
             const tone: StatusTone =
               item.currentStatus === "Critical"
@@ -218,8 +245,10 @@ export function GlobalSearch() {
               id: `asset-${item.id}`,
               category: "assets",
               title: item.name,
+              // Open the asset itself rather than a filtered list -- the
+              // searcher already told us which one they meant.
+              route: `/assets/${item.id}`,
               subtitle: `Tag: ${item.assetTag} · Category: ${item.category}`,
-              route: `/assets?search=${encodeURIComponent(item.assetTag)}`,
               statusTone: tone,
               statusLabel: item.currentStatus,
             });
@@ -248,7 +277,7 @@ export function GlobalSearch() {
                 category: "work-orders",
                 title: item.title,
                 subtitle: `Work Order · Status: ${item.status}`,
-                route: `/work-orders`,
+                route: `/work-orders/${item.id}`,
                 statusTone: tone,
                 statusLabel: item.status,
               });
@@ -272,7 +301,7 @@ export function GlobalSearch() {
                 category: "permits",
                 title: `${item.permitType.toUpperCase()} Permit`,
                 subtitle: `Permit ID: ${item.id} · Status: ${item.status}`,
-                route: `/permits`,
+                route: `/permits/${item.id}`,
                 badge: item.status,
               });
             }
@@ -298,7 +327,73 @@ export function GlobalSearch() {
           // Ignore
         }
 
-        // 5. Search Facilities
+        // 5. Search Inspections
+        try {
+          const res = await apiClient.listInspections({ limit: 10 });
+          for (const item of res.items) {
+            const haystack = `${item.title ?? ""} ${item.id} ${item.status}`.toLowerCase();
+            if (!haystack.includes(term)) continue;
+            found.push({
+              id: `inspection-${item.id}`,
+              category: "inspections",
+              title: item.title ?? "Inspection",
+              subtitle: `Inspection · Status: ${item.status}`,
+              route: `/inspections/${item.id}`,
+              badge: item.inspectionType,
+            });
+          }
+        } catch {
+          // Ignore
+        }
+
+        // 6. Search Safety Reports
+        try {
+          const res = await apiClient.listSafetyReports({ limit: 10 });
+          for (const item of res.items) {
+            const haystack = `${item.title} ${item.id} ${item.category} ${item.status}`.toLowerCase();
+            if (!haystack.includes(term)) continue;
+            const tone: StatusTone =
+              item.severity === "critical"
+                ? "critical"
+                : item.severity === "high"
+                  ? "warning"
+                  : "info";
+            found.push({
+              id: `safety-${item.id}`,
+              category: "safety",
+              title: item.title,
+              subtitle: `Safety · ${item.category.replace(/_/g, " ")}`,
+              // The safety page has no route of its own per report, so the id
+              // travels as a parameter the page opens on arrival.
+              route: `/safety?reportId=${encodeURIComponent(item.id)}`,
+              statusTone: tone,
+              statusLabel: item.severity,
+            });
+          }
+        } catch {
+          // Ignore
+        }
+
+        // 7. Search Reports
+        try {
+          const res = await apiClient.listGeneratedReports({ limit: 10 });
+          for (const item of res.items) {
+            const haystack = `${item.title} ${item.id} ${item.reportType} ${item.status}`.toLowerCase();
+            if (!haystack.includes(term)) continue;
+            found.push({
+              id: `report-${item.id}`,
+              category: "reports",
+              title: item.title,
+              subtitle: `Report · ${item.reportType.replace(/_/g, " ")}`,
+              route: `/reports/${item.id}`,
+              badge: item.status,
+            });
+          }
+        } catch {
+          // Ignore
+        }
+
+        // 8. Search Facilities
         try {
           const res = await apiClient.listFacilities({ search: term, limit: 5 });
           for (const item of res.items) {
@@ -392,11 +487,12 @@ export function GlobalSearch() {
                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
+                aria-label="Search"
                 className="w-full bg-transparent font-sans text-body text-text-primary placeholder:text-text-muted focus:outline-none"
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search assets, work orders, permits, users, 3D twin..."
+                placeholder="Search assets, inspections, work orders, permits, safety, reports, users, QR..."
                 ref={inputRef}
-                type="text"
+                type="search"
                 value={query}
               />
               {loading ? (

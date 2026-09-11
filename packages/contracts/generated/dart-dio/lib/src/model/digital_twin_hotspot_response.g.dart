@@ -6,6 +6,50 @@ part of 'digital_twin_hotspot_response.dart';
 // BuiltValueGenerator
 // **************************************************************************
 
+const DigitalTwinHotspotResponseCurrentConditionEnum
+    _$digitalTwinHotspotResponseCurrentConditionEnum_excellent =
+    const DigitalTwinHotspotResponseCurrentConditionEnum._('excellent');
+const DigitalTwinHotspotResponseCurrentConditionEnum
+    _$digitalTwinHotspotResponseCurrentConditionEnum_good =
+    const DigitalTwinHotspotResponseCurrentConditionEnum._('good');
+const DigitalTwinHotspotResponseCurrentConditionEnum
+    _$digitalTwinHotspotResponseCurrentConditionEnum_fair =
+    const DigitalTwinHotspotResponseCurrentConditionEnum._('fair');
+const DigitalTwinHotspotResponseCurrentConditionEnum
+    _$digitalTwinHotspotResponseCurrentConditionEnum_poor =
+    const DigitalTwinHotspotResponseCurrentConditionEnum._('poor');
+const DigitalTwinHotspotResponseCurrentConditionEnum
+    _$digitalTwinHotspotResponseCurrentConditionEnum_critical =
+    const DigitalTwinHotspotResponseCurrentConditionEnum._('critical');
+
+DigitalTwinHotspotResponseCurrentConditionEnum
+    _$digitalTwinHotspotResponseCurrentConditionEnumValueOf(String name) {
+  switch (name) {
+    case 'excellent':
+      return _$digitalTwinHotspotResponseCurrentConditionEnum_excellent;
+    case 'good':
+      return _$digitalTwinHotspotResponseCurrentConditionEnum_good;
+    case 'fair':
+      return _$digitalTwinHotspotResponseCurrentConditionEnum_fair;
+    case 'poor':
+      return _$digitalTwinHotspotResponseCurrentConditionEnum_poor;
+    case 'critical':
+      return _$digitalTwinHotspotResponseCurrentConditionEnum_critical;
+    default:
+      throw new ArgumentError(name);
+  }
+}
+
+final BuiltSet<DigitalTwinHotspotResponseCurrentConditionEnum>
+    _$digitalTwinHotspotResponseCurrentConditionEnumValues = new BuiltSet<
+        DigitalTwinHotspotResponseCurrentConditionEnum>(const <DigitalTwinHotspotResponseCurrentConditionEnum>[
+  _$digitalTwinHotspotResponseCurrentConditionEnum_excellent,
+  _$digitalTwinHotspotResponseCurrentConditionEnum_good,
+  _$digitalTwinHotspotResponseCurrentConditionEnum_fair,
+  _$digitalTwinHotspotResponseCurrentConditionEnum_poor,
+  _$digitalTwinHotspotResponseCurrentConditionEnum_critical,
+]);
+
 const DigitalTwinHotspotResponseCurrentStatusEnum
     _$digitalTwinHotspotResponseCurrentStatusEnum_healthy =
     const DigitalTwinHotspotResponseCurrentStatusEnum._('healthy');
@@ -38,9 +82,51 @@ final BuiltSet<DigitalTwinHotspotResponseCurrentStatusEnum>
   _$digitalTwinHotspotResponseCurrentStatusEnum_critical,
 ]);
 
+Serializer<DigitalTwinHotspotResponseCurrentConditionEnum>
+    _$digitalTwinHotspotResponseCurrentConditionEnumSerializer =
+    new _$DigitalTwinHotspotResponseCurrentConditionEnumSerializer();
 Serializer<DigitalTwinHotspotResponseCurrentStatusEnum>
     _$digitalTwinHotspotResponseCurrentStatusEnumSerializer =
     new _$DigitalTwinHotspotResponseCurrentStatusEnumSerializer();
+
+class _$DigitalTwinHotspotResponseCurrentConditionEnumSerializer
+    implements
+        PrimitiveSerializer<DigitalTwinHotspotResponseCurrentConditionEnum> {
+  static const Map<String, Object> _toWire = const <String, Object>{
+    'excellent': 'Excellent',
+    'good': 'Good',
+    'fair': 'Fair',
+    'poor': 'Poor',
+    'critical': 'Critical',
+  };
+  static const Map<Object, String> _fromWire = const <Object, String>{
+    'Excellent': 'excellent',
+    'Good': 'good',
+    'Fair': 'fair',
+    'Poor': 'poor',
+    'Critical': 'critical',
+  };
+
+  @override
+  final Iterable<Type> types = const <Type>[
+    DigitalTwinHotspotResponseCurrentConditionEnum
+  ];
+  @override
+  final String wireName = 'DigitalTwinHotspotResponseCurrentConditionEnum';
+
+  @override
+  Object serialize(Serializers serializers,
+          DigitalTwinHotspotResponseCurrentConditionEnum object,
+          {FullType specifiedType = FullType.unspecified}) =>
+      _toWire[object.name] ?? object.name;
+
+  @override
+  DigitalTwinHotspotResponseCurrentConditionEnum deserialize(
+          Serializers serializers, Object serialized,
+          {FullType specifiedType = FullType.unspecified}) =>
+      DigitalTwinHotspotResponseCurrentConditionEnum.valueOf(
+          _fromWire[serialized] ?? (serialized is String ? serialized : ''));
+}
 
 class _$DigitalTwinHotspotResponseCurrentStatusEnumSerializer
     implements
@@ -87,6 +173,8 @@ class _$DigitalTwinHotspotResponse extends DigitalTwinHotspotResponse {
   @override
   final String category;
   @override
+  final DigitalTwinHotspotResponseCurrentConditionEnum? currentCondition;
+  @override
   final DigitalTwinHotspotResponseCurrentStatusEnum currentStatus;
   @override
   final String id;
@@ -106,6 +194,7 @@ class _$DigitalTwinHotspotResponse extends DigitalTwinHotspotResponse {
       required this.assetName,
       required this.assetTag,
       required this.category,
+      this.currentCondition,
       required this.currentStatus,
       required this.id,
       this.label,
@@ -145,6 +234,7 @@ class _$DigitalTwinHotspotResponse extends DigitalTwinHotspotResponse {
         assetName == other.assetName &&
         assetTag == other.assetTag &&
         category == other.category &&
+        currentCondition == other.currentCondition &&
         currentStatus == other.currentStatus &&
         id == other.id &&
         label == other.label &&
@@ -159,6 +249,7 @@ class _$DigitalTwinHotspotResponse extends DigitalTwinHotspotResponse {
     _$hash = $jc(_$hash, assetName.hashCode);
     _$hash = $jc(_$hash, assetTag.hashCode);
     _$hash = $jc(_$hash, category.hashCode);
+    _$hash = $jc(_$hash, currentCondition.hashCode);
     _$hash = $jc(_$hash, currentStatus.hashCode);
     _$hash = $jc(_$hash, id.hashCode);
     _$hash = $jc(_$hash, label.hashCode);
@@ -175,6 +266,7 @@ class _$DigitalTwinHotspotResponse extends DigitalTwinHotspotResponse {
           ..add('assetName', assetName)
           ..add('assetTag', assetTag)
           ..add('category', category)
+          ..add('currentCondition', currentCondition)
           ..add('currentStatus', currentStatus)
           ..add('id', id)
           ..add('label', label)
@@ -204,6 +296,13 @@ class DigitalTwinHotspotResponseBuilder
   String? _category;
   String? get category => _$this._category;
   set category(String? category) => _$this._category = category;
+
+  DigitalTwinHotspotResponseCurrentConditionEnum? _currentCondition;
+  DigitalTwinHotspotResponseCurrentConditionEnum? get currentCondition =>
+      _$this._currentCondition;
+  set currentCondition(
+          DigitalTwinHotspotResponseCurrentConditionEnum? currentCondition) =>
+      _$this._currentCondition = currentCondition;
 
   DigitalTwinHotspotResponseCurrentStatusEnum? _currentStatus;
   DigitalTwinHotspotResponseCurrentStatusEnum? get currentStatus =>
@@ -239,6 +338,7 @@ class DigitalTwinHotspotResponseBuilder
       _assetName = $v.assetName;
       _assetTag = $v.assetTag;
       _category = $v.category;
+      _currentCondition = $v.currentCondition;
       _currentStatus = $v.currentStatus;
       _id = $v.id;
       _label = $v.label;
@@ -276,6 +376,7 @@ class DigitalTwinHotspotResponseBuilder
                   assetTag, r'DigitalTwinHotspotResponse', 'assetTag'),
               category: BuiltValueNullFieldError.checkNotNull(
                   category, r'DigitalTwinHotspotResponse', 'category'),
+              currentCondition: currentCondition,
               currentStatus: BuiltValueNullFieldError.checkNotNull(
                   currentStatus,
                   r'DigitalTwinHotspotResponse',

@@ -204,6 +204,9 @@ class AssetMedia(StrictModel):
     uploaded_at: datetime
 
 
+AssetCondition = Literal["Excellent", "Good", "Fair", "Poor", "Critical"]
+
+
 class Asset(TenantDoc):
     id: str
     facility_id: str
@@ -222,6 +225,11 @@ class Asset(TenantDoc):
     gps_lat: float | None = None
     gps_lng: float | None = None
     current_status: Literal["Healthy", "Warning", "Critical"] = "Healthy"
+    # The five-state condition the requirements name, carried from the most
+    # recent completed inspection's readings. `current_status` is the 3-state
+    # rollup that drives the dashboard KPI; this is the term a human reads.
+    # Null until the asset has been inspected at least once.
+    current_condition: AssetCondition | None = None
     photos: list["AssetMedia"] = Field(default_factory=list)
     documents: list["AssetMedia"] = Field(default_factory=list)
     manuals: list["AssetMedia"] = Field(default_factory=list)
@@ -1050,6 +1058,8 @@ class SeedCounts(StrictModel):
     inspections: int
     work_orders: int
     documents: int
+    permit_templates: int
+    permits: int
 
 
 class CurrentUser(StrictModel):

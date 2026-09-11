@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **category** | **String** |  |
 **categoryOther** | **String** |  | [optional]
 **createdAt** | [**DateTime**](DateTime.md) |  |
+**currentCondition** | **String** |  | [optional]
 **currentStatus** | **String** |  |
 **description** | **String** |  | [optional]
 **documents** | [**BuiltList&lt;AssetMediaResponse&gt;**](AssetMediaResponse.md) |  | [optional]

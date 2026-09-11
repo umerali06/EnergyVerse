@@ -656,6 +656,24 @@
             "title": "Created At",
             "type": "string"
           },
+          "current_condition": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Excellent",
+                  "Good",
+                  "Fair",
+                  "Poor",
+                  "Critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Condition"
+          },
           "current_status": {
             "enum": [
               "Healthy",
@@ -941,6 +959,24 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "current_condition": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Excellent",
+                  "Good",
+                  "Fair",
+                  "Poor",
+                  "Critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Condition"
           },
           "current_status": {
             "enum": [
@@ -4107,6 +4143,24 @@
           "category": {
             "title": "Category",
             "type": "string"
+          },
+          "current_condition": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Excellent",
+                  "Good",
+                  "Fair",
+                  "Poor",
+                  "Critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Condition"
           },
           "current_status": {
             "enum": [

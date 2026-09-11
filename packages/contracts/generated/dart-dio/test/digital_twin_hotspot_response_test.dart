@@ -27,6 +27,11 @@ void main() {
       // TODO
     });
 
+    // String currentCondition
+    test('to test the property `currentCondition`', () async {
+      // TODO
+    });
+
     // String currentStatus
     test('to test the property `currentStatus`', () async {
       // TODO

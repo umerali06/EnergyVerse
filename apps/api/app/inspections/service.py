@@ -622,6 +622,7 @@ class InspectionService:
                 scope,
                 updated.asset_id,
                 new_status=new_status,
+                new_condition=updated.readings.condition,
                 inspection_id=inspection_id,
                 actor_uid=actor_uid,
             )

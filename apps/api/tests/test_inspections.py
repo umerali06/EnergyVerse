@@ -1521,6 +1521,11 @@ def test_asset_status_rollup_is_audited(wiring: dict[str, Any]) -> None:
     assert matching[0].metadata == {
         "from": "Healthy",
         "to": "Critical",
+        # The five-state condition is audited alongside the 3-state rollup, so
+        # a change the rollup hides (Excellent -> Good, both Healthy) is still
+        # traceable.
+        "from_condition": "",
+        "to_condition": "Critical",
         "inspection_id": created["id"],
     }
 

@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from google.cloud.firestore_v1.async_client import AsyncClient
 
@@ -20,6 +21,8 @@ from app.db.repositories.documents import DocumentRepository
 from app.db.repositories.facilities import FacilityRepository
 from app.db.repositories.inspections import InspectionRepository
 from app.db.repositories.permissions import PermissionRepository
+from app.db.repositories.permit_templates import PermitTemplateRepository
+from app.db.repositories.permits import PermitRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.training import TrainingModuleRepository
@@ -42,6 +45,14 @@ from app.models.entities import (
     InspectionCreate,
     PermissionCreate,
     PermissionUpdate,
+    PermitApprovalSnapshotStep,
+    PermitApprovalTemplateStep,
+    PermitChecklistSnapshotItem,
+    PermitChecklistTemplateItem,
+    PermitCreate,
+    PermitRiskAssessmentItem,
+    PermitRiskBand,
+    PermitTemplateCreate,
     RoleCreate,
     RolePermission,
     RolePermissionCreate,
@@ -682,6 +693,15 @@ def role_id(company_id: str, role_key: str) -> str:
     return system_role_id(company_id, role_key)
 
 
+def _seed_time(*, hours: int) -> datetime:
+    """A timestamp relative to now, so seeded permits are always current.
+
+    Permits expire on a wall-clock window; fixed dates would leave every demo
+    permit expired within days of being written.
+    """
+    return utc_now() + timedelta(hours=hours)
+
+
 def role_permission_id(company_id: str, role_key: str, permission_key: str) -> str:
     return system_role_permission_id(company_id, role_key, permission_key)
 
@@ -1131,6 +1151,318 @@ async def _ensure_inspection(
         )
 
 
+PERMIT_TEMPLATE_HOT_WORK_ID = f"{ACME_COMPANY_ID}__permit_template__hot-work"
+PERMIT_TEMPLATE_CONFINED_SPACE_ID = f"{ACME_COMPANY_ID}__permit_template__confined-space"
+
+PERMIT_ACTIVE_ID = f"{ACME_COMPANY_ID}__permit__hot-work-flare-line"
+PERMIT_PENDING_ID = f"{ACME_COMPANY_ID}__permit__confined-space-t301"
+PERMIT_DRAFT_ID = f"{ACME_COMPANY_ID}__permit__hot-work-draft"
+
+
+def _permit_templates() -> tuple[PermitTemplateCreate, ...]:
+    """Two real templates so the permit register is usable out of the box.
+
+    Approval steps address roles rather than people, matching how the module
+    resolves an approver at runtime -- a template outlives any individual.
+    """
+    return (
+        PermitTemplateCreate(
+            id=PERMIT_TEMPLATE_HOT_WORK_ID,
+            name="Hot Work Permit",
+            permit_type="hot_work",
+            description=(
+                "Welding, grinding, cutting or any ignition source in a "
+                "classified area."
+            ),
+            checklist_items=[
+                PermitChecklistTemplateItem(
+                    id="hw-gas-test",
+                    label="Atmospheric gas test completed and recorded (LEL < 5%)",
+                    help_text="Re-test if work is suspended for more than 30 minutes.",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-isolation",
+                    label="Equipment isolated, drained and purged",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-fire-watch",
+                    label="Fire watch assigned and extinguisher within 10 m",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-combustibles",
+                    label="Combustible material removed or protected within 15 m",
+                ),
+                PermitChecklistTemplateItem(
+                    id="hw-ppe",
+                    label="Flame-resistant PPE and eye protection verified",
+                ),
+            ],
+            approval_steps=[
+                PermitApprovalTemplateStep(
+                    id="hw-approval-operations",
+                    label="Operations Manager authorisation",
+                    approver_role_id=role_id(ACME_COMPANY_ID, "operations_manager"),
+                ),
+                PermitApprovalTemplateStep(
+                    id="hw-approval-hse",
+                    label="HSE Manager authorisation",
+                    approver_role_id=role_id(ACME_COMPANY_ID, "hse_manager"),
+                ),
+            ],
+        ),
+        PermitTemplateCreate(
+            id=PERMIT_TEMPLATE_CONFINED_SPACE_ID,
+            name="Confined Space Entry Permit",
+            permit_type="confined_space",
+            description="Entry into any tank, vessel, pit or other confined space.",
+            checklist_items=[
+                PermitChecklistTemplateItem(
+                    id="cs-atmosphere",
+                    label="Oxygen 19.5-23.5%, LEL < 5%, H2S < 10 ppm verified",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-isolation",
+                    label="All lines blinded and energy sources locked out",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-attendant",
+                    label="Standby attendant posted at the entry point",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-rescue",
+                    label="Rescue plan briefed and retrieval equipment rigged",
+                ),
+                PermitChecklistTemplateItem(
+                    id="cs-comms",
+                    label="Continuous communication method agreed and tested",
+                ),
+            ],
+            approval_steps=[
+                PermitApprovalTemplateStep(
+                    id="cs-approval-hse",
+                    label="HSE Manager authorisation",
+                    approver_role_id=role_id(ACME_COMPANY_ID, "hse_manager"),
+                ),
+            ],
+        ),
+    )
+
+
+def _risk(
+    item_id: str,
+    hazard: str,
+    persons: str,
+    controls: str,
+    initial: tuple[int, int],
+    residual: tuple[int, int],
+) -> PermitRiskAssessmentItem:
+    """Build one 5x5 risk row, deriving score and band the way the module does."""
+
+    def band(score: int) -> PermitRiskBand:
+        if score >= 15:
+            return "critical"
+        if score >= 8:
+            return "high"
+        if score >= 4:
+            return "medium"
+        return "low"
+
+    initial_score = initial[0] * initial[1]
+    residual_score = residual[0] * residual[1]
+    return PermitRiskAssessmentItem(
+        id=item_id,
+        hazard=hazard,
+        persons_at_risk=persons,
+        initial_likelihood=initial[0],
+        initial_severity=initial[1],
+        initial_score=initial_score,
+        initial_band=band(initial_score),
+        controls=controls,
+        residual_likelihood=residual[0],
+        residual_severity=residual[1],
+        residual_score=residual_score,
+        residual_band=band(residual_score),
+    )
+
+
+def _snapshot(
+    template: PermitTemplateCreate, completed: bool
+) -> tuple[list[PermitChecklistSnapshotItem], list[PermitApprovalSnapshotStep]]:
+    """Freeze a template onto a permit, exactly as the service does on create."""
+    checklist = [
+        PermitChecklistSnapshotItem(
+            id=f"snap-{item.id}",
+            template_item_id=item.id,
+            label=item.label,
+            required=item.required,
+            help_text=item.help_text,
+            completed=completed,
+            completed_by=FIELD_INSPECTOR_UID if completed else None,
+            completed_at=_seed_time(hours=-6) if completed else None,
+        )
+        for item in template.checklist_items
+    ]
+    approvals = [
+        PermitApprovalSnapshotStep(
+            id=f"snap-{step.id}",
+            template_step_id=step.id,
+            label=step.label,
+            approver_role_id=step.approver_role_id,
+            required=step.required,
+        )
+        for step in template.approval_steps
+    ]
+    return checklist, approvals
+
+
+def _demo_permits() -> tuple[tuple[PermitCreate, dict[str, object]], ...]:
+    """Three permits spanning the lifecycle the requirements ask to be shown:
+    one active, one waiting on approval, one still being drafted.
+
+    Each is paired with the extra fields its state implies, applied after
+    creation because `PermitCreate` only carries what a draft legitimately has.
+    """
+    hot_work, confined_space = _permit_templates()
+
+    active_checklist, active_approvals = _snapshot(hot_work, completed=True)
+    for step in active_approvals:
+        step.status = "approved"
+        step.signed_by = SEED_ACTOR_UID
+        step.signed_at = _seed_time(hours=-5)
+
+    pending_checklist, pending_approvals = _snapshot(confined_space, completed=True)
+
+    draft_checklist, draft_approvals = _snapshot(hot_work, completed=False)
+
+    return (
+        (
+            PermitCreate(
+                id=PERMIT_ACTIVE_ID,
+                permit_number="PTW-2026-0118",
+                title="Flare line weld repair",
+                description=(
+                    "Replace the cracked 6-inch flare header spool downstream "
+                    "of the knock-out drum."
+                ),
+                permit_type="hot_work",
+                facility_id=FACILITY_NORTH_REFINERY_ID,
+                asset_id=ASSET_FEED_PUMP_ID,
+                valid_from=_seed_time(hours=-4),
+                valid_until=_seed_time(hours=8),
+                template_id=hot_work.id,
+                template_name=hot_work.name,
+                template_version=1,
+                checklist_snapshot=active_checklist,
+                approval_snapshot=active_approvals,
+                risk_assessment=[
+                    _risk(
+                        "risk-ignition",
+                        "Ignition of residual hydrocarbon in the flare header",
+                        "Welder, fire watch, nearby operators",
+                        "Purge to < 5% LEL, continuous gas monitoring, fire "
+                        "watch posted with extinguisher and hose reel.",
+                        initial=(4, 5),
+                        residual=(1, 5),
+                    ),
+                    _risk(
+                        "risk-burns",
+                        "Contact burns and arc-eye from welding operations",
+                        "Welder and assisting technician",
+                        "Flame-resistant PPE, welding screens, dedicated "
+                        "assistant briefed on the work pack.",
+                        initial=(3, 3),
+                        residual=(1, 3),
+                    ),
+                ],
+                worker_ids=[MAINTENANCE_TECHNICIAN_UID, FIELD_INSPECTOR_UID],
+            ),
+            {
+                "status": "active",
+                "submitted_at": _seed_time(hours=-6),
+                "activated_by": SEED_ACTOR_UID,
+                "activated_at": _seed_time(hours=-4),
+            },
+        ),
+        (
+            PermitCreate(
+                id=PERMIT_PENDING_ID,
+                permit_number="PTW-2026-0119",
+                title="Tank T-301 internal inspection entry",
+                description=(
+                    "Internal visual inspection of tank T-301 following the "
+                    "scheduled drain and clean."
+                ),
+                permit_type="confined_space",
+                facility_id=FACILITY_NORTH_REFINERY_ID,
+                asset_id=f"{ACME_COMPANY_ID}__asset__t-301",
+                valid_from=_seed_time(hours=12),
+                valid_until=_seed_time(hours=24),
+                template_id=confined_space.id,
+                template_name=confined_space.name,
+                template_version=1,
+                checklist_snapshot=pending_checklist,
+                approval_snapshot=pending_approvals,
+                risk_assessment=[
+                    _risk(
+                        "risk-atmosphere",
+                        "Oxygen deficiency or residual hydrocarbon vapour",
+                        "Entrant and standby attendant",
+                        "Continuous four-gas monitoring, forced-air "
+                        "ventilation, entry aborted on any alarm.",
+                        initial=(4, 5),
+                        residual=(2, 5),
+                    ),
+                    _risk(
+                        "risk-rescue",
+                        "Entrant incapacitated with no means of retrieval",
+                        "Entrant",
+                        "Tripod and winch rigged, attendant in continuous "
+                        "contact, rescue team briefed before entry.",
+                        initial=(3, 5),
+                        residual=(1, 5),
+                    ),
+                ],
+                worker_ids=[FIELD_INSPECTOR_UID],
+            ),
+            {"status": "pending_approval", "submitted_at": _seed_time(hours=-1)},
+        ),
+        (
+            PermitCreate(
+                id=PERMIT_DRAFT_ID,
+                permit_number="PTW-2026-0120",
+                title="Compressor skid pipework modification",
+                description=(
+                    "Cut and re-route the 2-inch instrument air line on "
+                    "compressor skid C-201."
+                ),
+                permit_type="hot_work",
+                facility_id=FACILITY_COMPRESSOR_STATION_ID,
+                asset_id=f"{ACME_COMPANY_ID}__asset__c-201",
+                valid_from=_seed_time(hours=48),
+                valid_until=_seed_time(hours=56),
+                template_id=hot_work.id,
+                template_name=hot_work.name,
+                template_version=1,
+                checklist_snapshot=draft_checklist,
+                approval_snapshot=draft_approvals,
+                risk_assessment=[
+                    _risk(
+                        "risk-stored-energy",
+                        "Stored pressure released during the cut",
+                        "Fitter and nearby operators",
+                        "Isolate, depressurise and verify at zero before any "
+                        "cut; double-block-and-bleed confirmed.",
+                        initial=(3, 4),
+                        residual=(1, 4),
+                    ),
+                ],
+                worker_ids=[MAINTENANCE_TECHNICIAN_UID],
+            ),
+            {},
+        ),
+    )
+
+
 async def _ensure_document(
     documents: DocumentRepository,
     scope: CompanyScope,
@@ -1571,6 +1903,8 @@ async def run_seed(
     work_orders = WorkOrderRepository(firestore_client, audit)
     documents = DocumentRepository(firestore_client, audit)
     training_modules = TrainingModuleRepository(firestore_client, audit)
+    permit_templates = PermitTemplateRepository(firestore_client, audit)
+    permits = PermitRepository(firestore_client, audit)
 
     await asyncio.gather(
         _ensure_company(
@@ -1692,6 +2026,23 @@ async def run_seed(
         if await training_modules.get(acme_scope, module_seed.id) is None:
             await training_modules.create(acme_scope, module_seed, SEED_ACTOR_UID)
 
+    # Permits were never seeded, so the register rendered empty on a fresh
+    # tenant and the module looked unbuilt.
+    for template_seed in _permit_templates():
+        if await permit_templates.get(acme_scope, template_seed.id) is None:
+            await permit_templates.create(acme_scope, template_seed, SEED_ACTOR_UID)
+
+    for permit_seed, extra in _demo_permits():
+        if await permits.get(acme_scope, permit_seed.id) is not None:
+            continue
+        await permits.create(acme_scope, permit_seed, SEED_ACTOR_UID)
+        if extra:
+            # `PermitCreate` only carries what a draft legitimately has, so the
+            # approved/active state is stamped on afterwards.
+            await firestore_client.collection("permits").document(permit_seed.id).update(
+                {**extra, "updated_at": utc_now()}
+            )
+
     if with_auth_users:
         password = demo_password or settings.seed_demo_password
         if not password:
@@ -1747,10 +2098,14 @@ async def run_seed(
         acme_inspections,
         acme_work_orders,
         acme_documents,
+        acme_permit_templates,
+        acme_permits,
     ) = await asyncio.gather(
         inspections.list(acme_scope),
         work_orders.list(acme_scope),
         documents.list(acme_scope),
+        permit_templates.list(acme_scope),
+        permits.list(acme_scope),
     )
     return SeedCounts(
         companies=sum(
@@ -1772,6 +2127,8 @@ async def run_seed(
         inspections=len(acme_inspections),
         work_orders=len(acme_work_orders),
         documents=len(acme_documents),
+        permit_templates=len(acme_permit_templates),
+        permits=len(acme_permits),
     )
 
 

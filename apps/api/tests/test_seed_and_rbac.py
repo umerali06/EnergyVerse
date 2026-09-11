@@ -227,6 +227,10 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
         assert first.inspections == 3
         assert first.work_orders == 5
         assert first.documents == 4
+        # The permit register rendered empty on a fresh tenant because nothing
+        # was ever seeded for it; these pin that it stays populated.
+        assert first.permit_templates == 2
+        assert first.permits == 3
         assert set(client.counts()) == {
             "audit_logs",
             "companies",
@@ -242,6 +246,8 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "work_orders",
             "documents",
             "training_modules",
+            "permit_templates",
+            "permits",
         }
 
         company = client.documents("companies")[ACME_COMPANY_ID]

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider, useAuth } from "@/auth/auth-context";
 import type { AuthGateway, AuthSession } from "@/auth/firebase-gateway";
@@ -8,6 +8,12 @@ import { PermissionProvider } from "@/auth/permissions";
 import { ThemeProvider, ToastProvider } from "@/design-system";
 
 import { SafetyPage } from "./safety-page";
+
+let searchParams = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => searchParams,
+}));
 
 const session: AuthSession = {
   email: "hse@example.invalid",
@@ -101,6 +107,27 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe("safety reports page", () => {
+  beforeEach(() => {
+    searchParams = new URLSearchParams();
+  });
+
+  it("opens the report a deep link names", async () => {
+    // Global search and notifications both arrive this way, since safety has
+    // no per-report route of its own.
+    searchParams = new URLSearchParams("reportId=sr-1");
+    const api = setup();
+
+    expect(await screen.findByText("Strong odor detected.")).toBeInTheDocument();
+    expect(api.getSafetyReport).toHaveBeenCalledWith("sr-1");
+  });
+
+  it("does not open anything without a deep link", async () => {
+    const api = setup();
+
+    expect(await screen.findByText("Gas leak at separator")).toBeInTheDocument();
+    expect(api.getSafetyReport).not.toHaveBeenCalled();
+  });
+
   it("loads real incident data and opens its detail", async () => {
     const api = setup();
     expect(await screen.findByText("Gas leak at separator")).toBeInTheDocument();
