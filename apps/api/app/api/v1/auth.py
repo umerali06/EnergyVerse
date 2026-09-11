@@ -8,12 +8,15 @@ from app.auth.registration import (
     RegistrationError,
     get_registration_service,
 )
+from app.auth.verification import VerificationEmailService, get_verification_email_service
 from app.core.errors import ApiError
+from app.email.sender import EmailNotConfiguredError
 from app.models.api import error_responses
 from app.models.entities import (
     CompanyRegistrationRequest,
     CompanyRegistrationResponse,
     CurrentUser,
+    VerificationEmailResponse,
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -27,6 +30,34 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 )
 async def me(current_user: Annotated[CurrentUser, Depends(get_current_user)]) -> CurrentUser:
     return current_user
+
+
+@router.post(
+    "/verification-email",
+    response_model=VerificationEmailResponse,
+    operation_id="send_verification_email",
+    responses=error_responses(401, 403, 422, 500, 503),
+)
+async def request_verification_email(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    service: Annotated[VerificationEmailService, Depends(get_verification_email_service)],
+) -> VerificationEmailResponse:
+    """Send this user a branded verification email through SES.
+
+    Returns `sent=false` when the address is already verified -- that is a
+    no-op, not a failure. A missing SES configuration is reported as a 503
+    rather than a 500: the caller asked for something the deployment cannot
+    currently do, and the distinction is actionable.
+    """
+    try:
+        sent = await service.send(current_user)
+    except EmailNotConfiguredError as error:
+        raise ApiError(
+            status_code=503,
+            error="email_not_configured",
+            message="Transactional email is not configured on this deployment",
+        ) from error
+    return VerificationEmailResponse(sent=sent)
 
 
 @router.post(

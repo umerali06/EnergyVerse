@@ -192,6 +192,7 @@ export * from './UserListPage';
 export * from './ValidationError';
 export * from './ValidationErrorLocInner';
 export * from './Value';
+export * from './VerificationEmailResponse';
 export * from './VoiceNoteResponse';
 export * from './WorkOrderDeleted';
 export * from './WorkOrderDetail';

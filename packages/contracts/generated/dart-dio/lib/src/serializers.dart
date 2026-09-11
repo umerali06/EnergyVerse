@@ -206,6 +206,7 @@ import 'package:fev_api_client/src/model/user_list_page.dart';
 import 'package:fev_api_client/src/model/validation_error.dart';
 import 'package:fev_api_client/src/model/validation_error_loc_inner.dart';
 import 'package:fev_api_client/src/model/value.dart';
+import 'package:fev_api_client/src/model/verification_email_response.dart';
 import 'package:fev_api_client/src/model/voice_note_response.dart';
 import 'package:fev_api_client/src/model/work_order_deleted.dart';
 import 'package:fev_api_client/src/model/work_order_detail.dart';
@@ -407,6 +408,7 @@ part 'serializers.g.dart';
   ValidationError,
   ValidationErrorLocInner,
   Value,
+  VerificationEmailResponse,
   VoiceNoteResponse,
   WorkOrderDeleted,
   WorkOrderDetail,

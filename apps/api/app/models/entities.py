@@ -1089,6 +1089,13 @@ class CompanyRegistrationResponse(StrictModel):
     role_key: str
 
 
+class VerificationEmailResponse(StrictModel):
+    """`sent=False` means the address was already verified, not a failure --
+    re-verifying a confirmed address is a no-op rather than an error."""
+
+    sent: bool
+
+
 def without_none(values: dict[str, object | None]) -> dict[str, object]:
     return {key: value for key, value in values.items() if value is not None}
 

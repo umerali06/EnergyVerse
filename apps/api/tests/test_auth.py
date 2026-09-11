@@ -254,3 +254,77 @@ def test_provision_user_creates_firestore_user_claims_and_audit() -> None:
     assert any(
         entry.action == "user.provisioned" and entry.target_id == provisioned.id for entry in audits
     )
+
+
+# --- branded verification email ------------------------------------------------
+
+
+class _FakeVerificationService:
+    """Stands in for the SES-backed service, so no credentials are needed."""
+
+    def __init__(self, *, sent: bool = True, error: Exception | None = None) -> None:
+        self.sent = sent
+        self.error = error
+        self.calls: list[str] = []
+
+    async def send(self, current_user: Any) -> bool:
+        self.calls.append(current_user.uid)
+        if self.error is not None:
+            raise self.error
+        return self.sent
+
+
+def _post_verification_email(service: Any) -> Any:
+    from app.auth.dependencies import get_current_user
+    from app.auth.verification import get_verification_email_service
+    from app.models.entities import CurrentUser
+
+    identity = CurrentUser(
+        uid="user-1",
+        email="user-1@acme.example.invalid",
+        email_verified=False,
+        company_id=ACME_COMPANY_ID,
+        company_name="Acme Energy",
+        role_key="field_inspector",
+        permissions=frozenset(SYSTEM_ROLE_TEMPLATES["field_inspector"].permission_keys),
+    )
+    app.dependency_overrides[get_current_user] = lambda: identity
+    app.dependency_overrides[get_verification_email_service] = lambda: service
+    try:
+        with TestClient(app) as client:
+            return client.post("/api/v1/auth/verification-email")
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_verification_email_is_sent() -> None:
+    service = _FakeVerificationService(sent=True)
+
+    response = _post_verification_email(service)
+
+    assert response.status_code == 200
+    assert response.json() == {"sent": True}
+    assert service.calls == ["user-1"]
+
+
+def test_verification_email_on_an_already_verified_address_is_a_no_op() -> None:
+    service = _FakeVerificationService(sent=False)
+
+    response = _post_verification_email(service)
+
+    # Not a failure: re-verifying a confirmed address has nothing to do.
+    assert response.status_code == 200
+    assert response.json() == {"sent": False}
+
+
+def test_verification_email_reports_unconfigured_transport_as_503() -> None:
+    from app.email.sender import EmailNotConfiguredError
+
+    service = _FakeVerificationService(error=EmailNotConfiguredError("no SES credentials"))
+
+    response = _post_verification_email(service)
+
+    # A deployment without SES cannot do what was asked; that is distinct from
+    # an unexpected server fault, and the difference is actionable.
+    assert response.status_code == 503
+    assert response.json()["error"] == "email_not_configured"

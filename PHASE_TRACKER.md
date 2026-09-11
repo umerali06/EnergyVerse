@@ -213,3 +213,12 @@ a fresh tenant (D-101).
 Email delivery was verified end to end through real AWS SES
 (`scripts.verify_notification_email_live`); SES accepted a branded notification
 to the account's own verified sender.
+
+Repository consolidation and secret remediation (2026-09-11): all work merged
+to `main` and pushed to both remotes (umerali06/EnergyVerse and
+Flacron-Enterprises-llc/Flacron-Energy-Verse). PR #40 (Phase 8.2) merged;
+the `backup/pre-4.5-wip-20260729` PR was closed rather than merged, and its one
+unmerged feature — the branded SES verification email — ported onto main as
+`POST /api/v1/auth/verification-email`. The Firebase web API key was removed
+from source after GitHub secret scanning flagged it (D-102); it still needs
+rotating or restricting in the Google Cloud console.

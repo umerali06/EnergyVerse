@@ -19,5 +19,14 @@ void main() {
     test('test registerCompanyAdmin', () async {
       // TODO
     });
+
+    // Request Verification Email
+    //
+    // Send this user a branded verification email through SES.  Returns `sent=false` when the address is already verified -- that is a no-op, not a failure. A missing SES configuration is reported as a 503 rather than a 500: the caller asked for something the deployment cannot currently do, and the distinction is actionable.
+    //
+    //Future<VerificationEmailResponse> sendVerificationEmail() async
+    test('test sendVerificationEmail', () async {
+      // TODO
+    });
   });
 }

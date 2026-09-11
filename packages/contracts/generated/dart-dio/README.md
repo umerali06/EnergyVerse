@@ -84,6 +84,7 @@ Class | Method | HTTP request | Description
 [*AuditApi*](doc/AuditApi.md) | [**listAuditLogs**](doc/AuditApi.md#listauditlogs) | **GET** /api/v1/audit-logs | List Audit Logs
 [*AuthApi*](doc/AuthApi.md) | [**getCurrentUser**](doc/AuthApi.md#getcurrentuser) | **GET** /api/v1/auth/me | Me
 [*AuthApi*](doc/AuthApi.md) | [**registerCompanyAdmin**](doc/AuthApi.md#registercompanyadmin) | **POST** /api/v1/auth/register | Register Company Admin
+[*AuthApi*](doc/AuthApi.md) | [**sendVerificationEmail**](doc/AuthApi.md#sendverificationemail) | **POST** /api/v1/auth/verification-email | Request Verification Email
 [*BillingApi*](doc/BillingApi.md) | [**createCheckoutSession**](doc/BillingApi.md#createcheckoutsession) | **POST** /api/v1/billing/checkout | Start a Stripe Checkout session for a plan
 [*BillingApi*](doc/BillingApi.md) | [**getBillingCatalog**](doc/BillingApi.md#getbillingcatalog) | **GET** /api/v1/billing/catalog | Published plan catalog
 [*BillingApi*](doc/BillingApi.md) | [**getSubscription**](doc/BillingApi.md#getsubscription) | **GET** /api/v1/billing/subscription | This company&#39;s plan and entitlements
@@ -414,6 +415,7 @@ Class | Method | HTTP request | Description
  - [ValidationError](doc/ValidationError.md)
  - [ValidationErrorLocInner](doc/ValidationErrorLocInner.md)
  - [Value](doc/Value.md)
+ - [VerificationEmailResponse](doc/VerificationEmailResponse.md)
  - [VoiceNoteResponse](doc/VoiceNoteResponse.md)
  - [WorkOrderDeleted](doc/WorkOrderDeleted.md)
  - [WorkOrderDetail](doc/WorkOrderDetail.md)

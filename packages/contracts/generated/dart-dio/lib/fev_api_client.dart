@@ -228,6 +228,7 @@ export 'package:fev_api_client/src/model/user_list_page.dart';
 export 'package:fev_api_client/src/model/validation_error.dart';
 export 'package:fev_api_client/src/model/validation_error_loc_inner.dart';
 export 'package:fev_api_client/src/model/value.dart';
+export 'package:fev_api_client/src/model/verification_email_response.dart';
 export 'package:fev_api_client/src/model/voice_note_response.dart';
 export 'package:fev_api_client/src/model/work_order_deleted.dart';
 export 'package:fev_api_client/src/model/work_order_detail.dart';

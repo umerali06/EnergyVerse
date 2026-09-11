@@ -222,6 +222,7 @@ src/models/UserListPage.ts
 src/models/ValidationError.ts
 src/models/ValidationErrorLocInner.ts
 src/models/Value.ts
+src/models/VerificationEmailResponse.ts
 src/models/VoiceNoteResponse.ts
 src/models/WorkOrderDeleted.ts
 src/models/WorkOrderDetail.ts

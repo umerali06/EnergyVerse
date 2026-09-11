@@ -218,6 +218,7 @@ doc/UsersApi.md
 doc/ValidationError.md
 doc/ValidationErrorLocInner.md
 doc/Value.md
+doc/VerificationEmailResponse.md
 doc/VoiceNoteResponse.md
 doc/WorkOrderDeleted.md
 doc/WorkOrderDetail.md
@@ -451,6 +452,7 @@ lib/src/model/user_list_page.dart
 lib/src/model/validation_error.dart
 lib/src/model/validation_error_loc_inner.dart
 lib/src/model/value.dart
+lib/src/model/verification_email_response.dart
 lib/src/model/voice_note_response.dart
 lib/src/model/work_order_deleted.dart
 lib/src/model/work_order_detail.dart
@@ -674,6 +676,7 @@ test/users_api_test.dart
 test/validation_error_loc_inner_test.dart
 test/validation_error_test.dart
 test/value_test.dart
+test/verification_email_response_test.dart
 test/voice_note_response_test.dart
 test/work_order_deleted_test.dart
 test/work_order_detail_test.dart

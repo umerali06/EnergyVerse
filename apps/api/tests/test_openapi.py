@@ -143,6 +143,9 @@ EXPECTED_OPERATIONS = {
     "get_document",
     "update_document",
     "delete_document",
+    # Branded SES verification email, recovered from the July WIP branch that
+    # was never merged (its stale 57-commit history was closed, not merged).
+    "send_verification_email",
     # Notifications. Gated on authentication alone -- a notification is
     # addressed to one user, so there is no permission or plan feature to
     # check beyond being signed in.
