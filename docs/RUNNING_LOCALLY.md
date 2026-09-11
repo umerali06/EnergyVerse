@@ -87,10 +87,18 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-The Flutter app needs **no** env file: `apps/mobile/lib/firebase_options.dart`
-and `apps/mobile/lib/config.dart` carry working defaults for the shared dev
-Firebase project and `http://localhost:8000`. Override them with
-`--dart-define` only when pointing at a different project or host (see §4/§5).
+The Flutter app takes its Firebase configuration from `--dart-define` and
+carries **no** hardcoded defaults: `apps/mobile/lib/firebase_options.dart` used
+to embed the dev project's web API key, which tripped GitHub secret scanning, so
+the values now live with the rest of the environment configuration. See
+`apps/mobile/.env.example` for the full list and §4/§5 for a ready-made command.
+
+`firebaseClientOptions` throws a `StateError` naming any value that is missing,
+so a forgotten define fails loudly at startup rather than half-working.
+
+`apps/mobile/lib/config.dart` still defaults `API_BASE_URL` to
+`http://localhost:8000`, which is not a credential; override it only when
+pointing at a different host.
 
 ### 1.3 Seed the demo tenant
 

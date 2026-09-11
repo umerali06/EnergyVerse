@@ -1,28 +1,43 @@
+// Firebase client configuration.
+//
+// Every value comes from `--dart-define` at build time and nothing is
+// hardcoded here. A Firebase web API key is a public project identifier
+// rather than a credential -- security comes from Firestore/Storage rules and
+// App Check -- but an unrestricted Google API key can still be abused against
+// billable APIs, and committing one trips GitHub secret scanning. So it lives
+// with the rest of the environment configuration instead of in source.
+//
+// `firebaseClientOptions` throws a named StateError listing any value that is
+// missing, so an unset define fails loudly at startup.
+//
+// Run with, for example:
+//   flutter run --dart-define=FIREBASE_API_KEY=... //               --dart-define=FIREBASE_PROJECT_ID=... (see .env.example)
+
 import 'package:firebase_core/firebase_core.dart';
 
 const firebaseApiKey = String.fromEnvironment(
   'FIREBASE_API_KEY',
-  defaultValue: 'AIzaSyAU6bVpt590C_eEoZ__x_YbhQTByhGKQN0',
+  defaultValue: '',
 );
 const firebaseAuthDomain = String.fromEnvironment(
   'FIREBASE_AUTH_DOMAIN',
-  defaultValue: 'thinking-case-469504-c0.firebaseapp.com',
+  defaultValue: '',
 );
 const firebaseProjectId = String.fromEnvironment(
   'FIREBASE_PROJECT_ID',
-  defaultValue: 'thinking-case-469504-c0',
+  defaultValue: '',
 );
 const firebaseStorageBucket = String.fromEnvironment(
   'FIREBASE_STORAGE_BUCKET',
-  defaultValue: 'thinking-case-469504-c0.firebasestorage.app',
+  defaultValue: '',
 );
 const firebaseMessagingSenderId = String.fromEnvironment(
   'FIREBASE_MESSAGING_SENDER_ID',
-  defaultValue: '236253954361',
+  defaultValue: '',
 );
 const firebaseAppId = String.fromEnvironment(
   'FIREBASE_APP_ID',
-  defaultValue: '1:236253954361:web:44b9ba1d4fb7148ba968e8',
+  defaultValue: '',
 );
 
 FirebaseOptions get firebaseClientOptions {
