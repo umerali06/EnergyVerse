@@ -1,32 +1,21 @@
 {
-  "_comment": [
-    "ECS Fargate task definition for the FEV API.",
-    "",
-    "Placeholders marked <LIKE_THIS> must be replaced once, when you first",
-    "register this in your AWS account. The deploy workflow then rewrites only",
-    "the image field on every push, so this file stays the source of truth for",
-    "everything else.",
-    "",
-    "Secrets are pulled from AWS Secrets Manager by the ECS agent at start-up",
-    "and never appear in this file, in the repository, or in the task's",
-    "environment block. That is the point of splitting environment from",
-    "secrets below."
-  ],
   "family": "fev-api",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "cpu": "512",
   "memory": "1024",
   "runtimePlatform": {
     "cpuArchitecture": "X86_64",
     "operatingSystemFamily": "LINUX"
   },
-  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/fevApiTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/fevApiTaskRole",
+  "executionRoleArn": "arn:aws:iam::482881544977:role/fevApiTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::482881544977:role/fevApiTaskRole",
   "containerDefinitions": [
     {
       "name": "fev-api",
-      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/fev-api:latest",
+      "image": "482881544977.dkr.ecr.us-east-1.amazonaws.com/fev-api:latest",
       "essential": true,
       "portMappings": [
         {
@@ -42,19 +31,19 @@
         },
         {
           "name": "FIREBASE_PROJECT_ID",
-          "value": "<FIREBASE_PROJECT_ID>"
+          "value": "thinking-case-469504-c0"
         },
         {
           "name": "FIREBASE_STORAGE_BUCKET",
-          "value": "<FIREBASE_PROJECT_ID>.firebasestorage.app"
+          "value": "thinking-case-469504-c0.firebasestorage.app"
         },
         {
           "name": "APP_BASE_URL",
-          "value": "https://<YOUR_AMPLIFY_DOMAIN>"
+          "value": "https://main.dyjbtwzmsrdvr.amplifyapp.com"
         },
         {
           "name": "CORS_ORIGINS",
-          "value": "[\"https://<YOUR_AMPLIFY_DOMAIN>\"]"
+          "value": "[\"https://main.dyjbtwzmsrdvr.amplifyapp.com\"]"
         },
         {
           "name": "CORS_ALLOW_ALL_LOCALHOST",
@@ -66,11 +55,11 @@
         },
         {
           "name": "AWS_REGION",
-          "value": "<REGION>"
+          "value": "us-east-1"
         },
         {
           "name": "SES_FROM_EMAIL",
-          "value": "<no-reply@yourdomain.com>"
+          "value": "no-reply@flacronenterprises.com"
         },
         {
           "name": "SES_FROM_NAME",
@@ -92,46 +81,46 @@
       "secrets": [
         {
           "name": "FIREBASE_CREDENTIALS_B64",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:FIREBASE_CREDENTIALS_B64::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:FIREBASE_CREDENTIALS_B64::"
         },
         {
           "name": "FIREBASE_WEB_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:FIREBASE_WEB_API_KEY::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:FIREBASE_WEB_API_KEY::"
         },
         {
           "name": "ANTHROPIC_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:ANTHROPIC_API_KEY::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:ANTHROPIC_API_KEY::"
         },
         {
           "name": "AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:AWS_ACCESS_KEY_ID::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:AWS_ACCESS_KEY_ID::"
         },
         {
           "name": "AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:AWS_SECRET_ACCESS_KEY::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:AWS_SECRET_ACCESS_KEY::"
         },
         {
           "name": "STRIPE_SECRET_KEY",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:STRIPE_SECRET_KEY::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:STRIPE_SECRET_KEY::"
         },
         {
           "name": "STRIPE_PUBLISHABLE_KEY",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:STRIPE_PUBLISHABLE_KEY::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:STRIPE_PUBLISHABLE_KEY::"
         },
         {
           "name": "STRIPE_WEBHOOK_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:STRIPE_WEBHOOK_SECRET::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:STRIPE_WEBHOOK_SECRET::"
         },
         {
           "name": "SEED_DEMO_PASSWORD",
-          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:fev/api-XXXXXX:SEED_DEMO_PASSWORD::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:SEED_DEMO_PASSWORD::"
         }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/fev-api",
-          "awslogs-region": "<REGION>",
+          "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs",
           "awslogs-create-group": "true"
         }
