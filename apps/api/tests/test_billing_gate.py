@@ -12,6 +12,7 @@ the modules its plan omits, with a 402 that names the tier which unlocks them.
 
 from collections.abc import Iterator
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +23,7 @@ from app.billing.plans import PLANS, Feature, PlanTier, cheapest_tier_with
 from app.main import app
 from app.models.entities import CurrentUser
 from app.rbac.constants import SYSTEM_ROLE_TEMPLATES
+from app.rbac.dependencies import get_access_denial_audit
 
 from .conftest import entitlements_for
 
@@ -66,8 +68,11 @@ def company_admin() -> CurrentUser:
 def client_on() -> Iterator[Any]:
     """Yields a factory: pick the tier, get a client authenticated as its admin."""
     identity = company_admin()
+    audit = AsyncMock()
+
     app.dependency_overrides[get_current_user] = lambda: identity
     app.dependency_overrides[require_verified_email] = lambda: identity
+    app.dependency_overrides[get_access_denial_audit] = lambda: audit
 
     def make(tier: PlanTier, *, status: str = "active") -> TestClient:
         app.dependency_overrides[get_entitlements] = lambda: entitlements_for(
@@ -76,7 +81,13 @@ def client_on() -> Iterator[Any]:
         return TestClient(app, raise_server_exceptions=False)
 
     yield make
-    for dependency in (get_current_user, require_verified_email, get_entitlements):
+
+    for dependency in (
+        get_current_user,
+        require_verified_email,
+        get_entitlements,
+        get_access_denial_audit,
+    ):
         app.dependency_overrides.pop(dependency, None)
 
 
