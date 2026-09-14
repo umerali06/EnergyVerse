@@ -2884,3 +2884,11 @@ detail, and one each on safety, permits, work orders, the 3D view, VR training
 and report export. They are deliberately not dismissible — a notice that can be
 permanently dismissed is absent for every session afterwards.
 
+Because the requirement is enforced in the model rather than on a screen, the
+Flutter client had to carry it as well: `lib/legal/legal_versions.dart` states
+the same `LEGAL_VERSION`, `ApiContract.registerCompanyAdmin` takes the three
+flags and the version, and the signup screen presents one never-pre-checked
+acknowledgment whose **Accept & continue** button is disabled until it is
+ticked. The two clients differ only in `acceptance_source` (`web` / `mobile`),
+so an acceptance means the same thing wherever it was given.
+

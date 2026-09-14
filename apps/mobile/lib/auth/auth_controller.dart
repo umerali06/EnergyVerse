@@ -1,3 +1,4 @@
+import '../legal/legal_versions.dart';
 import 'dart:async';
 
 import 'package:fev_api_client/fev_api_client.dart';
@@ -23,12 +24,18 @@ class RegistrationInput {
     required this.displayName,
     required this.email,
     required this.password,
+    required this.legalAccepted,
   });
 
   final String companyName;
   final String displayName;
   final String email;
   final String password;
+
+  /// The single acknowledgment covering the Terms, Privacy Policy and the
+  /// safety disclaimer. One flag rather than three because the screen presents
+  /// one checkbox; the API is sent all three (D-105).
+  final bool legalAccepted;
 }
 
 typedef AuthFeedback = void Function(String message);
@@ -134,6 +141,10 @@ class AuthController extends ChangeNotifier {
         displayName: input.displayName,
         email: input.email,
         password: input.password,
+        termsAccepted: input.legalAccepted,
+        privacyAccepted: input.legalAccepted,
+        safetyDisclaimerAccepted: input.legalAccepted,
+        legalVersion: kLegalVersion,
       );
       final session = await _gateway.signIn(input.email, input.password);
       await _resolveSession(session);

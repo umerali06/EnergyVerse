@@ -72,6 +72,10 @@ class FakeApi implements ApiContract {
     required String displayName,
     required String email,
     required String password,
+    required bool termsAccepted,
+    required bool privacyAccepted,
+    required bool safetyDisclaimerAccepted,
+    required String legalVersion,
   }) async {
     registrations += 1;
     return CompanyRegistrationResponse(
@@ -775,8 +779,13 @@ void main() {
     await pumpApp(tester, gateway: gateway, api: api);
     await tester.tap(find.byKey(const Key('open-signup')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Create organization'));
-    await tester.tap(find.text('Create organization'));
+    await tester.ensureVisible(
+      find.byKey(const Key('signup-legal-acceptance')),
+    );
+    await tester.tap(find.byKey(const Key('signup-legal-acceptance')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Accept & continue'));
+    await tester.tap(find.text('Accept & continue'));
     await tester.pump();
     expect(find.text('Company name is required'), findsOneWidget);
     expect(find.text('Display name is required'), findsOneWidget);
@@ -821,8 +830,13 @@ void main() {
       find.byKey(const Key('signup-confirm-password')),
       'StrongPass1',
     );
-    await tester.ensureVisible(find.text('Create organization'));
-    await tester.tap(find.text('Create organization'));
+    await tester.ensureVisible(
+      find.byKey(const Key('signup-legal-acceptance')),
+    );
+    await tester.tap(find.byKey(const Key('signup-legal-acceptance')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Accept & continue'));
+    await tester.tap(find.text('Accept & continue'));
     await tester.pumpAndSettle();
     expect(find.text('Verify your email'), findsOneWidget);
     expect(api.registrations, 1);

@@ -262,7 +262,10 @@ and linked from a rebuilt footer that also carries the operator identity and a
 permanent Cookie Preferences control. Legal acceptance is now a precondition of
 registration rather than a record written afterwards, stored on the user
 document with a hashed IP; the checkbox is never pre-checked and the submit
-button is disabled until it is ticked. Cookie consent, the in-product safety
+button is disabled until it is ticked. That holds on **both** clients: the
+Flutter app has its own signup screen, and making the flags required server-side
+is what forced it to carry the acknowledgment too, tagged
+`acceptance_source: "mobile"`. Cookie consent, the in-product safety
 notices (AI, AR, safety, permits, work orders, 3D, VR, report export), and the
 pricing/checkout/auth legal text are all in place (D-105).
 
