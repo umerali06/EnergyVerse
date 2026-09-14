@@ -460,7 +460,7 @@ function Header({
       <div className="min-w-0 flex-1">
         <nav aria-label="Breadcrumb" className="hidden text-caption text-text-muted sm:block">
           <ol className="flex gap-1">
-            <li>FEV</li>
+            <li>Flacron Energy</li>
             {located && located.item.route !== APP_HOME && (
               <li className="before:mx-1 before:content-['/']">{located.group.label}</li>
             )}

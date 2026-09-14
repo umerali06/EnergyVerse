@@ -44,7 +44,7 @@ def _base_layout(*, preheader: str, body_html: str) -> str:
           <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#FFFFFF; border-radius:16px; overflow:hidden; border:1px solid {_BORDER};">
             <tr>
               <td style="background-color:{_NAVY_900}; padding:28px 32px; text-align:center;">
-                <img src="cid:{LOGO_CONTENT_ID}" alt="Flacron EnergyVerse" width="200" style="display:block; margin:0 auto; max-width:200px; height:auto;" />
+                <img src="cid:{LOGO_CONTENT_ID}" alt="Flacron Energy" width="200" style="display:block; margin:0 auto; max-width:200px; height:auto;" />
               </td>
             </tr>
             <tr>
@@ -55,7 +55,7 @@ def _base_layout(*, preheader: str, body_html: str) -> str:
             <tr>
               <td style="padding:20px 32px; border-top:1px solid {_BORDER}; text-align:center;">
                 <p style="margin:0; font-size:12px; line-height:18px; color:{_INK_MUTED};">
-                  Flacron EnergyVerse &middot; Powering today. Sustaining tomorrow.
+                  Flacron Energy &middot; Powering today. Sustaining tomorrow.
                 </p>
               </td>
             </tr>
@@ -88,7 +88,7 @@ def render_verification_email(*, display_name: str, verification_link: str) -> R
 <h1 style="margin:0 0 12px; font-size:20px; line-height:28px; color:{_NAVY_900};">Verify your email</h1>
 <p style="margin:0 0 4px; font-size:15px; line-height:24px; color:{_NAVY_800};">Hi {display_name},</p>
 <p style="margin:0 0 4px; font-size:15px; line-height:24px; color:{_INK_MUTED};">
-  Confirm your email address to finish setting up your Flacron EnergyVerse account.
+  Confirm your email address to finish setting up your Flacron Energy account.
 </p>
 {_button(label="Verify email address", href=verification_link)}
 <p style="margin:0; font-size:13px; line-height:20px; color:{_INK_MUTED};">
@@ -101,13 +101,13 @@ def render_verification_email(*, display_name: str, verification_link: str) -> R
 """
     text_body = (
         f"Hi {display_name},\n\n"
-        "Confirm your email address to finish setting up your Flacron EnergyVerse "
+        "Confirm your email address to finish setting up your Flacron Energy "
         "account by opening this link:\n\n"
         f"{verification_link}\n\n"
         "If you didn't create this account, you can safely ignore this email.\n"
     )
     return RenderedEmail(
-        subject="Verify your email for Flacron EnergyVerse",
+        subject="Verify your email for Flacron Energy",
         html_body=_base_layout(
             preheader="Confirm your email address to finish setting up your account.",
             body_html=body_html,
@@ -125,20 +125,20 @@ def render_notification_email(
     The subject carries the notification's own title rather than a generic
     prefix, so a mailbox list is scannable without opening anything.
     """
-    button_html = _button(label="Open in EnergyVerse", href=action_link) if action_link else ""
+    button_html = _button(label="Open in Flacron Energy", href=action_link) if action_link else ""
     body_html = f"""\
 <h1 style="margin:0 0 12px; font-size:20px; line-height:28px; color:{_NAVY_900};">{title}</h1>
 <p style="margin:0 0 4px; font-size:15px; line-height:24px; color:{_NAVY_800};">Hi {display_name},</p>
 <p style="margin:0 0 4px; font-size:15px; line-height:24px; color:{_INK_MUTED};">{body}</p>
 {button_html}
 <p style="margin:20px 0 0; font-size:13px; line-height:20px; color:{_INK_MUTED};">
-  You are receiving this because it was assigned to you in Flacron EnergyVerse.
+  You are receiving this because it was assigned to you in Flacron Energy.
 </p>
 """
     text_lines = [f"Hi {display_name},", "", title, "", body, ""]
     if action_link:
         text_lines += ["Open it here:", action_link, ""]
-    text_lines.append("You are receiving this because it was assigned to you in Flacron EnergyVerse.")
+    text_lines.append("You are receiving this because it was assigned to you in Flacron Energy.")
     return RenderedEmail(
         subject=title,
         html_body=_base_layout(preheader=body[:140], body_html=body_html),

@@ -382,7 +382,7 @@ export function DashboardPage({
               {data.activity.status === "ready" && data.activity.items.length === 0 && (
                 <div className="mt-4">
                   <EmptyState
-                    description="Activity will appear here as your team uses FEV."
+                    description="Activity will appear here as your team uses Flacron Energy."
                     title="No activity yet"
                   />
                 </div>

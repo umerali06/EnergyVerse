@@ -179,7 +179,7 @@ class _FevAppState extends State<FevApp> with WidgetsBindingObserver {
       child: AnimatedBuilder(
         animation: _theme,
         builder: (context, _) => MaterialApp(
-          title: 'FEV Field App',
+          title: 'Flacron Energy Field App',
           scaffoldMessengerKey: _messengerKey,
           theme: AppThemes.light,
           darkTheme: AppThemes.dark,

@@ -353,7 +353,7 @@ export function SubscriptionPage({ reducedMotionOverride }: { reducedMotionOverr
           Billing is handled by Stripe. To change plan, update a card, or download invoices, email{" "}
           <a
             className="font-semibold text-text-secondary underline decoration-border underline-offset-4 hover:text-text-primary"
-            href="mailto:sales@flacronenterprises.com?subject=Flacron%20EnergyVerse%20subscription"
+            href="mailto:sales@flacronenterprises.com?subject=Flacron%20Energy%20subscription"
           >
             sales@flacronenterprises.com
           </a>

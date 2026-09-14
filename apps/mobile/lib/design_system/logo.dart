@@ -36,7 +36,7 @@ class BrandLogo extends StatelessWidget {
       'assets/brand/logo-$name-${dark ? 'dark' : 'light'}.png',
       height: height,
       fit: BoxFit.contain,
-      semanticLabel: decorative ? null : 'Flacron EnergyVerse',
+      semanticLabel: decorative ? null : 'Flacron Energy',
       excludeFromSemantics: decorative,
     );
     return image;

@@ -64,7 +64,7 @@ def render_pdf(report: GeneratedReport) -> bytes:
         topMargin=0.75 * inch,
         bottomMargin=0.75 * inch,
         title=_text(report.title),
-        author="Flacron EnergyVerse",
+        author="Flacron Energy",
     )
     styles = getSampleStyleSheet()
     title = ParagraphStyle(
@@ -211,7 +211,7 @@ def render_docx(report: GeneratedReport) -> bytes:
         )
     header = section.header.paragraphs[0]
     header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    _set_font(header.add_run("Flacron EnergyVerse | Finalized Report"), 8.5, "6B7280")
+    _set_font(header.add_run("Flacron Energy | Finalized Report"), 8.5, "6B7280")
     kicker = document.add_paragraph()
     kicker.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_font(kicker.add_run("FLACRON ENERGYVERSE"), 9, ORANGE, True)

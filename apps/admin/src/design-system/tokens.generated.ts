@@ -2,7 +2,7 @@
 export const designTokens = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "meta": {
-    "name": "FEV Industrial Energy",
+    "name": "Flacron Energy Industrial",
     "version": "2.1.2",
     "defaultTheme": "dark"
   },

@@ -24,7 +24,7 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
     final themeController = AppThemeScope.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FEV Design System'),
+        title: const Text('Flacron Energy Design System'),
         actions: [
           Semantics(
             button: true,

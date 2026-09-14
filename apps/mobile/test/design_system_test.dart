@@ -173,16 +173,16 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('FEV Design System'), findsOneWidget);
+    expect(find.text('Flacron Energy Design System'), findsOneWidget);
     expect(
-      Theme.of(tester.element(find.text('FEV Design System'))).brightness,
+      Theme.of(tester.element(find.text('Flacron Energy Design System'))).brightness,
       Brightness.light,
     );
 
     await controller.setMode(ThemeMode.dark);
     await tester.pump(const Duration(milliseconds: 250));
     expect(
-      Theme.of(tester.element(find.text('FEV Design System'))).brightness,
+      Theme.of(tester.element(find.text('Flacron Energy Design System'))).brightness,
       Brightness.dark,
     );
     controller.dispose();

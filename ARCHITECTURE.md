@@ -2793,3 +2793,40 @@ registration sends through that route: the admin client falls back to the
 provider's own sender on any failure, and a truthful status is what lets it
 tell "cannot send" apart from a genuine fault.
 
+### Rebrand to Flacron Energy (2026-09-14)
+
+The product is **Flacron Energy**; the short code shown to users is **FE**
+(D-104). `apps/admin/src/seo/site.ts` is the one place the name, short name,
+description, title template and base URL are stated, and every other surface
+reads from it or was renamed alongside: marketing and auth copy, the app-shell
+breadcrumb, the `platform.admin` permission description, the SES sender name and
+email templates, PDF/DOCX report headers, the OpenAPI title, both PWA manifests,
+and the Stripe product names.
+
+The `fev` short code survives everywhere it is a *contract* rather than a label
+— `@fev/api-client`, `FevApiClient`, the `fev_*` price lookup keys, the
+`fev_company_id`/`fev_tier` subscription metadata, the `fev-api` container, the
+`FEV_DEBUG` env var. Those are addressed by live Stripe prices and by metadata
+already written against real tenants.
+
+Two things worth knowing for the next brand change. `site.baseUrl`'s fallback
+had drifted to `app.flacronenergyverse.com`, a host that was never registered,
+while production serves `www.flacronenergy.com`; that fallback is what canonical
+URLs and the sitemap use whenever `NEXT_PUBLIC_SITE_URL` is unset, so it is not
+decorative. And `scripts/stripe_sync.py` reconciled only a product's description
+and active flag, never its name — the rename reported `0 changes` until
+`ensure_product` learned to diff the name, which means the string on the hosted
+checkout page ("Try <name>") could not previously be changed by editing code.
+
+Brand assets are regenerated from the owner's masters into the **same
+filenames**, so a future change touches only `public/brand` and
+`assets/brand`. The masters are flat two-colour lockups on a near-white ground;
+the ground is removed by un-premultiplying (alpha from each pixel's distance to
+the ground, then `F = (C - (1-a)B) / a`) rather than by keying a colour to zero,
+which keeps the flat interiors exactly on brand and leaves clean antialiased
+edges instead of a white fringe. Each lockup is trimmed to its own bounds, so
+`Logo`'s `intrinsic` ratios moved with it — those numbers are written onto the
+`<img>` as width/height and are what the browser lays out with, so a stale entry
+renders the mark visibly stretched. Flutter's `BrandLogo` is immune, since it
+sizes with `BoxFit.contain` and a height alone.
+

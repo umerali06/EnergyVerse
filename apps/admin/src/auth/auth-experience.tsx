@@ -330,7 +330,7 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
           Step {signupStepNumber("details")} of {SIGNUP_STEP_COUNT}
         </StatusPill>
       </div>
-      <h1 className="mt-4 text-h2 font-bold">Start your FEV workspace</h1>
+      <h1 className="mt-4 text-h2 font-bold">Start your Flacron Energy workspace</h1>
       <p className="mt-2 text-body text-text-secondary">
         You will become the first Company Admin for this new organization. Next we will confirm
         your email, then you pick a plan — your trial starts from there.

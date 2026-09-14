@@ -1,6 +1,6 @@
 # FEV API
 
-FastAPI backend scaffold for Flacron EnergyVerse.
+FastAPI backend scaffold for Flacron Energy.
 
 ```powershell
 poetry install

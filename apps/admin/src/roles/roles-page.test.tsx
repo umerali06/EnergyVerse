@@ -52,7 +52,7 @@ const catalog = {
     },
     {
       group: "platform",
-      items: [{ key: "platform.admin", group: "platform", description: "Administer the FEV platform" }],
+      items: [{ key: "platform.admin", group: "platform", description: "Administer the Flacron Energy platform" }],
     },
   ],
 };

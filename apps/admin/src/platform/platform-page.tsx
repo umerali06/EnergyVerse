@@ -70,7 +70,7 @@ export function PlatformPage({
             </div>
             <h1 className="mt-2 text-h2 font-bold">Platform Administration</h1>
             <p className="mt-1 text-bodySmall text-text-secondary">
-              Manage every tenant on FEV — company status, subscription tier, and platform-wide
+              Manage every tenant on Flacron Energy — company status, subscription tier, and platform-wide
               oversight. Every action here is audited.
             </p>
           </div>

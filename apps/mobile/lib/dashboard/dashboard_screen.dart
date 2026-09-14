@@ -506,7 +506,7 @@ class _ActivityFeedCard extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: DsSpacing.s4),
               child: Text(
-                'Activity will appear here as your team uses FEV.',
+                'Activity will appear here as your team uses Flacron Energy.',
                 textAlign: TextAlign.center,
               ),
             )

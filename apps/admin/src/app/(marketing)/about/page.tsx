@@ -12,7 +12,7 @@ import { publicPage } from "@/seo/site";
 
 export const metadata: Metadata = publicPage(
   "About",
-  "Flacron EnergyVerse is built by Flacron Enterprises for energy field operations — one auditable record for assets, inspections, work orders, permits, and safety.",
+  "Flacron Energy is built by Flacron Enterprises for energy field operations — one auditable record for assets, inspections, work orders, permits, and safety.",
   "/about",
 );
 
@@ -44,7 +44,7 @@ export default function AboutPage() {
         <SectionHeading
           eyebrow="About"
           highlight="keep the plant running"
-          lede="Flacron EnergyVerse is a field operations platform built by Flacron Enterprises for the people who inspect, maintain, and sign off on energy infrastructure."
+          lede="Flacron Energy is a field operations platform built by Flacron Enterprises for the people who inspect, maintain, and sign off on energy infrastructure."
           level={1}
           title="Software for the crews who"
         />
@@ -141,7 +141,7 @@ export default function AboutPage() {
                 forms?{" "}
                 <a
                   className="font-semibold text-text-primary underline decoration-border underline-offset-4"
-                  href="mailto:sales@flacronenterprises.com?subject=Flacron%20EnergyVerse"
+                  href="mailto:sales@flacronenterprises.com?subject=Flacron%20Energy"
                 >
                   sales@flacronenterprises.com
                 </a>
