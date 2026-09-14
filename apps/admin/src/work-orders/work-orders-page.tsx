@@ -19,6 +19,7 @@ import {
   TableShell,
   type StatusTone,
 } from "@/design-system";
+import { SafetyNotice } from "@/legal/safety-notices";
 
 import { CreateWorkOrderModal } from "./work-order-modals";
 import { assetLabel, facilityName, technicianName, useWorkOrdersData } from "./work-orders-data";
@@ -176,6 +177,7 @@ export function WorkOrdersPage({
           </div>
           {canWrite && <Button onClick={() => setCreateOpen(true)}>Create work order</Button>}
         </div>
+        <SafetyNotice className="mt-6" kind="work-order" />
 
         <Card className="mt-6 p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

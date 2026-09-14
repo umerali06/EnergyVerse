@@ -43,6 +43,7 @@ from firebase_admin import auth as firebase_auth  # type: ignore[import-untyped]
 from app.core.firebase import get_firebase_app
 from app.core.settings import settings
 from app.db.firestore import get_firestore_client
+from app.legal.versions import CURRENT_LEGAL_VERSION as LEGAL_VERSION
 
 API = os.environ.get("VERIFY_API_BASE", "http://127.0.0.1:8011")
 WEB_API_KEY = os.environ.get("VERIFY_FIREBASE_WEB_API_KEY", "")
@@ -104,6 +105,11 @@ async def phase_open() -> None:
             "display_name": "D103 Verifier",
             "email": email,
             "password": PASSWORD,
+            "terms_accepted": True,
+            "privacy_accepted": True,
+            "safety_disclaimer_accepted": True,
+            "legal_version": LEGAL_VERSION,
+            "acceptance_source": "web",
         },
         timeout=60,
     )
@@ -285,6 +291,11 @@ async def phase_settle() -> None:
             "display_name": "D103 Outsider",
             "email": other_email,
             "password": PASSWORD,
+            "terms_accepted": True,
+            "privacy_accepted": True,
+            "safety_disclaimer_accepted": True,
+            "legal_version": LEGAL_VERSION,
+            "acceptance_source": "web",
         },
         timeout=60,
     )

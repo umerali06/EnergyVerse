@@ -12,6 +12,7 @@ export * from './DocumentsApi';
 export * from './FacilitiesApi';
 export * from './GeneratedReportsApi';
 export * from './InspectionsApi';
+export * from './LegalApi';
 export * from './NotificationsApi';
 export * from './PermissionsApi';
 export * from './PermitTemplatesApi';

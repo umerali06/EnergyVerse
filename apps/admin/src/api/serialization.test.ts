@@ -25,25 +25,41 @@ import {
  * regenerated and a hand-fix would not survive.
  */
 describe("generated request serialization", () => {
-  it("sends registration as exactly the four declared wire fields", () => {
+  it("sends registration as exactly the declared wire fields", () => {
     const body = CompanyRegistrationRequestToJSON({
       companyName: "Proof Company",
       displayName: "Proof Admin",
       email: "proof@example.invalid",
       password: "Ali&7676",
+      termsAccepted: true,
+      privacyAccepted: true,
+      safetyDisclaimerAccepted: true,
+      legalVersion: "2026-09-14",
+      acceptanceSource: "web",
     });
 
     expect(Object.keys(body).sort()).toEqual([
+      "acceptance_source",
       "company_name",
       "display_name",
       "email",
+      "legal_version",
       "password",
+      "privacy_accepted",
+      "safety_disclaimer_accepted",
+      "terms_accepted",
     ]);
-    // The camelCase originals are what a strict model rejects.
+    // The camelCase originals are what a strict model rejects. The legal
+    // acceptance fields added in D-105 are the newest members of the same
+    // strict model, so they are the likeliest to regress next.
     expect(body).not.toHaveProperty("companyName");
     expect(body).not.toHaveProperty("displayName");
+    expect(body).not.toHaveProperty("termsAccepted");
+    expect(body).not.toHaveProperty("safetyDisclaimerAccepted");
     expect(body.company_name).toBe("Proof Company");
     expect(body.password).toBe("Ali&7676");
+    expect(body.safety_disclaimer_accepted).toBe(true);
+    expect(body.legal_version).toBe("2026-09-14");
   });
 
   it("never emits a camelCase key on a snake_case model", () => {

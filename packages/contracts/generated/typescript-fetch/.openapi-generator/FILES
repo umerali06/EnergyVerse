@@ -15,6 +15,7 @@ src/apis/DocumentsApi.ts
 src/apis/FacilitiesApi.ts
 src/apis/GeneratedReportsApi.ts
 src/apis/InspectionsApi.ts
+src/apis/LegalApi.ts
 src/apis/NotificationsApi.ts
 src/apis/PermissionsApi.ts
 src/apis/PermitTemplatesApi.ts
@@ -81,6 +82,8 @@ src/models/CompanyRegistrationRequest.ts
 src/models/CompanyRegistrationResponse.ts
 src/models/CompleteInspectionRequest.ts
 src/models/CompleteTrainingStepRequest.ts
+src/models/ContactRequest.ts
+src/models/ContactResponse.ts
 src/models/ControlPermitRequest.ts
 src/models/CorrectiveActionResponse.ts
 src/models/CreateAnnotationRequest.ts
@@ -132,6 +135,7 @@ src/models/InspectionListItem.ts
 src/models/InspectionListPage.ts
 src/models/InspectionMediaResponse.ts
 src/models/InviteUserRequest.ts
+src/models/LegalAcceptanceResponse.ts
 src/models/NotificationListPage.ts
 src/models/NotificationRead.ts
 src/models/NotificationResponse.ts

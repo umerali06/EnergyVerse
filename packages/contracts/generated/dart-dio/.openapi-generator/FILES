@@ -60,6 +60,8 @@ doc/CompanyRegistrationRequest.md
 doc/CompanyRegistrationResponse.md
 doc/CompleteInspectionRequest.md
 doc/CompleteTrainingStepRequest.md
+doc/ContactRequest.md
+doc/ContactResponse.md
 doc/ControlPermitRequest.md
 doc/CorrectiveActionResponse.md
 doc/CreateAnnotationRequest.md
@@ -116,6 +118,8 @@ doc/InspectionListPage.md
 doc/InspectionMediaResponse.md
 doc/InspectionsApi.md
 doc/InviteUserRequest.md
+doc/LegalAcceptanceResponse.md
+doc/LegalApi.md
 doc/NotificationListPage.md
 doc/NotificationRead.md
 doc/NotificationResponse.md
@@ -241,6 +245,7 @@ lib/src/api/documents_api.dart
 lib/src/api/facilities_api.dart
 lib/src/api/generated_reports_api.dart
 lib/src/api/inspections_api.dart
+lib/src/api/legal_api.dart
 lib/src/api/notifications_api.dart
 lib/src/api/permissions_api.dart
 lib/src/api/permit_templates_api.dart
@@ -312,6 +317,8 @@ lib/src/model/company_registration_request.dart
 lib/src/model/company_registration_response.dart
 lib/src/model/complete_inspection_request.dart
 lib/src/model/complete_training_step_request.dart
+lib/src/model/contact_request.dart
+lib/src/model/contact_response.dart
 lib/src/model/control_permit_request.dart
 lib/src/model/corrective_action_response.dart
 lib/src/model/create_annotation_request.dart
@@ -364,6 +371,7 @@ lib/src/model/inspection_list_item.dart
 lib/src/model/inspection_list_page.dart
 lib/src/model/inspection_media_response.dart
 lib/src/model/invite_user_request.dart
+lib/src/model/legal_acceptance_response.dart
 lib/src/model/notification_list_page.dart
 lib/src/model/notification_read.dart
 lib/src/model/notification_response.dart
@@ -522,6 +530,8 @@ test/company_registration_request_test.dart
 test/company_registration_response_test.dart
 test/complete_inspection_request_test.dart
 test/complete_training_step_request_test.dart
+test/contact_request_test.dart
+test/contact_response_test.dart
 test/control_permit_request_test.dart
 test/corrective_action_response_test.dart
 test/create_annotation_request_test.dart
@@ -578,6 +588,8 @@ test/inspection_list_page_test.dart
 test/inspection_media_response_test.dart
 test/inspections_api_test.dart
 test/invite_user_request_test.dart
+test/legal_acceptance_response_test.dart
+test/legal_api_test.dart
 test/notification_list_page_test.dart
 test/notification_read_test.dart
 test/notification_response_test.dart

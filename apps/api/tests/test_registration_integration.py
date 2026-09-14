@@ -43,6 +43,11 @@ def test_real_registration_dispatches_verification_email() -> None:
                     "display_name": "Signup Test Admin",
                     "email": email,
                     "password": password,
+                    "terms_accepted": True,
+                    "privacy_accepted": True,
+                    "safety_disclaimer_accepted": True,
+                    "legal_version": "2026-09-14",
+                    "acceptance_source": "web",
                 },
             )
         assert registration.status_code == 201, registration.text

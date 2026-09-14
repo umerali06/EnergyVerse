@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiClientError } from "@/api";
 import { useAuth } from "@/auth/auth-context";
 import { SignupSteps } from "@/auth/signup-steps";
+import { CheckoutLegalNote } from "@/legal/commercial-notices";
 import {
   clearSignupIntent,
   readSignupIntent,
@@ -302,6 +303,10 @@ export function SignupPlanScreen({ reducedMotionOverride }: { reducedMotionOverr
                 You will be taken to Stripe. We never see your card details.
               </p>
             </div>
+
+            {/* Required before payment authorization: what is being bought,
+                how it renews, and every policy it is subject to. */}
+            <CheckoutLegalNote className="mt-8 max-w-3xl" />
           </>
         )}
       </MotionSection>

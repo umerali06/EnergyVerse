@@ -2830,3 +2830,57 @@ edges instead of a white fringe. Each lockup is trimmed to its own bounds, so
 renders the mark visibly stretched. Flutter's `BrandLogo` is immune, since it
 sizes with `BoxFit.contain` and a height alone.
 
+### Legal, privacy, billing and contact package (2026-09-14)
+
+`apps/admin/src/legal/` holds the whole package (D-105). The five policies are
+**structured data**, one file per document under `documents/`, rendered by a
+single `LegalPage`. That shape is what makes three of the package's own
+requirements enforceable rather than aspirational: the desktop table of contents
+is generated from the real section headings (so a link can never point at an
+anchor that does not exist), the "Last Updated" date and version are stated once
+and appear on every page, and the same notice text can appear in a policy *and*
+as an in-app warning without being retyped.
+
+`LEGAL_VERSION` is declared on both sides — `legal/legal-content.ts` and
+`app/legal/versions.py` — and is recorded against every acceptance. It is also
+what the cookie banner stores its decision against, so republishing a materially
+changed policy re-asks instead of silently inheriting an older consent.
+
+**Acceptance is a precondition of the account, not a later record.**
+`CompanyRegistrationRequest` makes `terms_accepted`, `privacy_accepted` and
+`safety_disclaimer_accepted` required fields, and `CompanyRegistrationService`
+refuses a registration where any is false — before the company or the Firebase
+user is created, so a refusal leaves no partial tenant. Enforcing it server-side
+is the point: the unchecked-checkbox requirement would otherwise hold only for
+people who use the form. The record is stored on the user document as
+`UserLegalAcceptance` (it is read exactly when the user is read and can never be
+orphaned) and keeps a SHA-256 of the caller's address rather than the address.
+`GET /api/v1/legal/acceptance` reports what was accepted alongside what is
+currently published, which is what lets a client re-ask after a material change.
+
+**Cookie consent** (`legal/cookie-consent.tsx`) is mounted at the root layout so
+the choice is offered once across marketing, auth and the signed-in shell.
+Rejection sits beside acceptance on the banner, not behind "Manage Preferences";
+strictly-necessary is rendered as always-active rather than as a toggle that
+pretends to be a choice; and the footer's Cookie Preferences control reopens the
+manager by dispatching a window event, which is what lets a server-rendered
+footer drive a client-only dialog. `hasConsent(category)` is the one function
+anything optional should consult before loading.
+
+**`POST /api/v1/contact` is unauthenticated by necessity** — a prospective
+customer, a security researcher, or someone exercising a privacy right has no
+account, and the published contact page must work for them. Its protection is
+therefore input bounds plus an allow-list of the 26 published categories, and it
+stores nothing: the submission is rendered (with every field escaped) and
+forwarded to `settings.contact_destination_email`. Nothing is attributed to the
+sender, because an unauthenticated claim in a support inbox is worse than no
+context at all. The categories are validated server-side rather than typed as a
+`Literal`, so a 26-value enum is not generated into the Dart client for a
+web-only form.
+
+The in-product notices live in `legal/safety-notices.tsx` and are placed on the
+screens the package names: AI analysis and AR measurement on the inspection
+detail, and one each on safety, permits, work orders, the 3D view, VR training
+and report export. They are deliberately not dismissible — a notice that can be
+permanently dismissed is absent for every session afterwards.
+

@@ -1,3 +1,4 @@
+import html
 from dataclasses import dataclass
 from importlib import resources
 from typing import Final
@@ -142,6 +143,61 @@ def render_notification_email(
     return RenderedEmail(
         subject=title,
         html_body=_base_layout(preheader=body[:140], body_html=body_html),
+        text_body="\n".join(text_lines) + "\n",
+        inline_images={LOGO_CONTENT_ID: _logo_bytes()},
+    )
+
+
+def render_contact_email(
+    *,
+    name: str,
+    email: str,
+    company: str | None,
+    category: str,
+    subject: str,
+    message: str,
+    context_lines: list[str],
+) -> RenderedEmail:
+    """The internal notification raised by a public contact-form submission.
+
+    Deliberately carries no credentials, card data, or secrets: the form warns
+    the sender not to include them, and everything routed here is limited to
+    what the package lists under contact-form routing. `context_lines` holds the
+    account context the server knows (user id, company id, tier) rather than
+    anything the browser claimed.
+    """
+    safe_message = html.escape(message).replace("\n", "<br />")
+    context_html = "".join(
+        f'<tr><td style="padding:2px 12px 2px 0; font-size:13px; color:{_INK_MUTED};">{html.escape(line)}</td></tr>'
+        for line in context_lines
+    )
+    body_html = f"""\
+<h1 style="margin:0 0 12px; font-size:20px; line-height:28px; color:{_NAVY_900};">{html.escape(category)}</h1>
+<p style="margin:0 0 16px; font-size:15px; line-height:24px; color:{_NAVY_800};">
+  <strong>{html.escape(subject)}</strong>
+</p>
+<p style="margin:0 0 20px; font-size:15px; line-height:24px; color:{_NAVY_800};">{safe_message}</p>
+<table role="presentation" style="margin:0 0 8px;">
+  <tr><td style="padding:2px 12px 2px 0; font-size:13px; color:{_INK_MUTED};">From: {html.escape(name)} &lt;{html.escape(email)}&gt;</td></tr>
+  <tr><td style="padding:2px 12px 2px 0; font-size:13px; color:{_INK_MUTED};">Company: {html.escape(company or "Not provided")}</td></tr>
+  {context_html}
+</table>
+"""
+    text_lines = [
+        f"{category}: {subject}",
+        "",
+        message,
+        "",
+        f"From: {name} <{email}>",
+        f"Company: {company or 'Not provided'}",
+        *context_lines,
+    ]
+    return RenderedEmail(
+        subject=f"[Flacron Energy] {category} — {subject}",
+        html_body=_base_layout(
+            preheader=f"{category} from {name}",
+            body_html=body_html,
+        ),
         text_body="\n".join(text_lines) + "\n",
         inline_images={LOGO_CONTENT_ID: _logo_bytes()},
     )

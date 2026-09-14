@@ -37,6 +37,14 @@ export type RegistrationInput = {
   displayName: string;
   email: string;
   password: string;
+  /** The acknowledgment the signup form collects. The API refuses a
+   * registration where any of the three is false, so this is a real gate
+   * rather than a client-side courtesy (D-105). */
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+  safetyDisclaimerAccepted: boolean;
+  legalVersion: string;
+  acceptanceSource: "web" | "mobile" | "sso" | "contract";
 };
 
 /** Data-fetching hooks (dashboard and future modules) share the single

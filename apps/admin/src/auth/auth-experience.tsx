@@ -3,7 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { Button, Card, Input, Logo, MotionSection, StatusPill } from "@/design-system";
+import { Button, Card, Checkbox, Input, Logo, MotionSection, StatusPill } from "@/design-system";
+import { AuthLegalNote } from "@/legal/commercial-notices";
+import { LEGAL_VERSION } from "@/legal/legal-content";
 import { APP_HOME } from "@/navigation/routes";
 
 import { useAuth } from "./auth-context";
@@ -148,6 +150,9 @@ export function LoginScreen({ reducedMotionOverride }: { reducedMotionOverride?:
           Sign up
         </button>
       </div>
+      {/* Required on both auth entry points, not only signup: activating an
+          existing invited account is also acceptance. */}
+      <AuthLegalNote className="mt-6 border-t border-border pt-5" />
     </AuthShell>
   );
 }
@@ -280,6 +285,9 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  // Deliberately starts false and is never pre-checked: an acknowledgment that
+  // arrives already ticked is not an acknowledgment (D-105).
+  const [accepted, setAccepted] = useState(false);
   const [errors, setErrors] = useState<SignupErrors>({});
   const loading = status === "signingUp";
 
@@ -297,7 +305,7 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
     if (!confirm) next.confirm = "Confirm your password";
     else if (confirm !== password) next.confirm = "Passwords do not match";
     setErrors(next);
-    if (Object.keys(next).length > 0 || loading) return;
+    if (Object.keys(next).length > 0 || loading || !accepted) return;
     // Park the plan the pricing CTA carried before leaving this URL behind: the
     // picker is now two screens away, with a mailbox round trip in between, so
     // the query string will not survive to reach it.
@@ -307,6 +315,11 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
       displayName: displayName.trim(),
       email: email.trim(),
       password,
+      termsAccepted: true,
+      privacyAccepted: true,
+      safetyDisclaimerAccepted: true,
+      legalVersion: LEGAL_VERSION,
+      acceptanceSource: "web",
     });
   }
 
@@ -380,6 +393,53 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
           type={showPassword ? "text" : "password"}
           value={confirm}
         />
+        <div className="md:col-span-2">
+          <div className="rounded-lg border border-border bg-elevated p-4">
+            <p className="font-mono text-caption uppercase tracking-[0.16em] text-text-muted">
+              Before you continue
+            </p>
+            <Checkbox
+              checked={accepted}
+              className="mt-3"
+              disabled={loading}
+              label={
+                <span className="text-bodySmall leading-relaxed text-text-secondary">
+                  I have read and agree to the{" "}
+                  <a
+                    className="font-semibold text-accent-600 underline underline-offset-2 dark:text-accent-400"
+                    href="/terms"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Terms of Service
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    className="font-semibold text-accent-600 underline underline-offset-2 dark:text-accent-400"
+                    href="/privacy"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Privacy Policy
+                  </a>
+                  , and I acknowledge the{" "}
+                  <a
+                    className="font-semibold text-accent-600 underline underline-offset-2 dark:text-accent-400"
+                    href="/industrial-disclaimer"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    AI, AR/VR, Industrial Safety &amp; Operations Disclaimer
+                  </a>
+                  . I understand that AI findings, AR measurements, risk indicators, reports, and
+                  training simulations may contain errors and do not replace qualified professional
+                  judgment, required safety controls, or regulatory compliance procedures.
+                </span>
+              }
+              onChange={setAccepted}
+            />
+          </div>
+        </div>
         {authError && (
           <div className="md:col-span-2">
             <InlineError message={authError} />
@@ -393,10 +453,16 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
             type="button"
             variant="ghost"
           >
-            Back to login
+            Cancel
           </Button>
-          <Button className="flex-1" loading={loading} type="submit" variant="accent">
-            Create organization
+          <Button
+            className="flex-1"
+            disabled={!accepted || loading}
+            loading={loading}
+            type="submit"
+            variant="accent"
+          >
+            Accept &amp; continue
           </Button>
         </div>
       </form>

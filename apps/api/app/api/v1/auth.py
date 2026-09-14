@@ -1,7 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
+from app.api.v1.legal import hash_client_ip
 from app.auth.dependencies import get_current_user
 from app.auth.registration import (
     CompanyRegistrationService,
@@ -86,10 +87,13 @@ async def request_verification_email(
 )
 async def register_company_admin(
     request: CompanyRegistrationRequest,
+    http_request: Request,
     service: Annotated[CompanyRegistrationService, Depends(get_registration_service)],
 ) -> CompanyRegistrationResponse:
     try:
-        return await service.register(request)
+        # The acceptance record keeps a hash of the caller's address, never the
+        # address itself -- enough to correlate, nothing to leak (D-105).
+        return await service.register(request, ip_hash=hash_client_ip(http_request))
     except RegistrationError as error:
         status_code = 409 if error.code == "email_already_in_use" else 422
         raise ApiError(

@@ -170,6 +170,9 @@ EXPECTED_OPERATIONS = {
     "get_subscription",
     "create_checkout_session",
     "confirm_checkout_session",
+    # Legal package (D-105). `submit_contact_message` is deliberately public.
+    "submit_contact_message",
+    "get_legal_acceptance",
 }
 
 # CSV export is intentionally not JSON-typed (D-019/3.4: streamed compliance

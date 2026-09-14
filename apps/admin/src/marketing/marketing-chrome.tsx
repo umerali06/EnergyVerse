@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/auth/auth-context";
+import { CookiePreferencesButton } from "@/legal/cookie-consent";
+import { LEGAL_ROUTES, OPERATOR } from "@/legal/legal-content";
 import { Logo, ThemeToggleIcon } from "@/design-system";
 import { APP_HOME } from "@/navigation/routes";
 
@@ -117,7 +119,7 @@ const footerColumns = [
     links: [
       { href: "/", label: "Overview" },
       { href: "/pricing", label: "Pricing" },
-      { href: "/about", label: "About" },
+      { href: "/about", label: "About us" },
     ],
   },
   {
@@ -126,6 +128,7 @@ const footerColumns = [
       { href: "/signup", label: "Create an organization" },
       { href: "/login", label: "Sign in" },
       { href: "/forgot-password", label: "Reset password" },
+      { href: "/contact", label: "Contact us" },
     ],
   },
 ] as const;
@@ -161,11 +164,59 @@ export function MarketingFooter() {
           </div>
         ))}
       </div>
+      {/* Legal is its own column rather than a row of small print: the package
+          requires every policy to be reachable from the footer and easy to
+          locate, which a comma-separated line at 11px is not. */}
+      <div className="mx-auto mt-10 grid w-full max-w-6xl gap-10 border-t border-border pt-10 md:grid-cols-[1.4fr_1fr_1fr]">
+        <div>
+          <h2 className="font-mono text-caption uppercase tracking-[0.18em] text-text-muted">
+            Operator
+          </h2>
+          <address className="mt-4 grid gap-1 not-italic text-bodySmall text-text-secondary">
+            <span className="font-semibold text-text-primary">{OPERATOR.operator}</span>
+            <span>{OPERATOR.address}</span>
+            <a
+              className="transition-colors hover:text-accent-600 dark:hover:text-accent-400"
+              href={OPERATOR.phoneHref}
+            >
+              {OPERATOR.phone}
+            </a>
+            <a
+              className="transition-colors hover:text-accent-600 dark:hover:text-accent-400"
+              href={`mailto:${OPERATOR.email}`}
+            >
+              {OPERATOR.email}
+            </a>
+          </address>
+        </div>
+        <div className="md:col-span-2">
+          <h2 className="font-mono text-caption uppercase tracking-[0.18em] text-text-muted">
+            Legal
+          </h2>
+          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
+            {LEGAL_ROUTES.map((route) => (
+              <li key={route.href}>
+                <Link
+                  className="text-bodySmall text-text-secondary transition-colors hover:text-accent-600 dark:hover:text-accent-400"
+                  href={route.href}
+                >
+                  {route.label}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <CookiePreferencesButton />
+            </li>
+          </ul>
+        </div>
+      </div>
+
       <div className="mx-auto mt-12 flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-6 text-caption text-text-muted">
-        <p>© {new Date().getFullYear()} Flacron Enterprises. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} {OPERATOR.product}. All rights reserved.</p>
+        <p className="italic">{OPERATOR.branding}</p>
         <p className="ml-auto flex items-center gap-2 font-mono">
           <span aria-hidden className="size-1.5 rounded-full bg-accent-500" />
-          Flacron Energy
+          {OPERATOR.tagline}
         </p>
       </div>
     </footer>

@@ -8,6 +8,7 @@ import { SubscriptionProvider } from "@/billing/subscription-context";
 import { ThemeProvider, ToastProvider } from "@/design-system";
 import { DashboardPage } from "@/dashboard/dashboard-page";
 import { AppShell } from "@/shell/app-shell";
+import { LEGAL_VERSION } from "@/legal/legal-content";
 import { APP_HOME } from "@/navigation/routes";
 
 import { AuthProvider } from "./auth-context";
@@ -511,12 +512,37 @@ describe("admin login experience", () => {
   it("validates signup fields and password strength before registration", async () => {
     const { registerCompanyAdmin } = renderAuth({ initialPath: "/signup" });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Create organization" }));
+    // The acknowledgment has to be ticked before the button is even live, so
+    // the validation messages are reached through it rather than around it.
+    await user.click(await screen.findByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Accept & continue" }));
     expect(screen.getByText("Company name is required")).toBeInTheDocument();
     expect(screen.getByText("Display name is required")).toBeInTheDocument();
     expect(screen.getByText("Email is required")).toBeInTheDocument();
     expect(screen.getByText("Password is required")).toBeInTheDocument();
     expect(registerCompanyAdmin).not.toHaveBeenCalled();
+  });
+
+  it("will not register until the legal acknowledgment is accepted", async () => {
+    // Required by the legal package: the box is never pre-checked, and
+    // "Accept & continue" stays disabled until it is ticked.
+    const { registerCompanyAdmin } = renderAuth({ initialPath: "/signup" });
+    const user = userEvent.setup();
+    const acknowledgment = await screen.findByRole("checkbox");
+    expect(acknowledgment).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Accept & continue" })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("Company name"), "Northstar Energy");
+    await user.type(screen.getByLabelText("Display name"), "First Admin");
+    await user.type(screen.getByLabelText("Email"), "admin@northstar.example");
+    await user.type(screen.getByLabelText("Password"), "StrongPass1");
+    await user.type(screen.getByLabelText("Confirm password"), "StrongPass1");
+    // Every other field is valid and it is still not submittable.
+    expect(screen.getByRole("button", { name: "Accept & continue" })).toBeDisabled();
+    expect(registerCompanyAdmin).not.toHaveBeenCalled();
+
+    await user.click(acknowledgment);
+    expect(screen.getByRole("button", { name: "Accept & continue" })).toBeEnabled();
   });
 
   it("registers a company admin, sends verification, and shows verify screen", async () => {
@@ -533,18 +559,26 @@ describe("admin login experience", () => {
     await user.type(screen.getByLabelText("Email"), "admin@northstar.example");
     await user.type(screen.getByLabelText("Password"), "StrongPass1");
     await user.type(screen.getByLabelText("Confirm password"), "StrongPass1");
-    await user.click(screen.getByRole("button", { name: "Create organization" }));
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Accept & continue" }));
 
     expect(await screen.findByText("Verify your email")).toBeInTheDocument();
     // Verification, not the card form: a mailbox nobody can reach is found out
     // before payment rather than after it (D-103).
     expect(routerControl.current.path).toBe("/verify-email");
     expect(routerControl.current.path).not.toBe("/signup/plan");
+    // The acceptance travels with the registration, so the record exists at the
+    // moment the account does rather than being written afterwards.
     expect(registerCompanyAdmin).toHaveBeenCalledWith({
       companyName: "Northstar Energy",
       displayName: "First Admin",
       email: "admin@northstar.example",
       password: "StrongPass1",
+      termsAccepted: true,
+      privacyAccepted: true,
+      safetyDisclaimerAccepted: true,
+      legalVersion: LEGAL_VERSION,
+      acceptanceSource: "web",
     });
     // No branded sender was supplied here, so it falls back to the provider's.
     expect(gateway.sendVerificationCalls).toBe(1);
@@ -570,7 +604,8 @@ describe("admin login experience", () => {
     await user.type(screen.getByLabelText("Email"), "admin@northstar.example");
     await user.type(screen.getByLabelText("Password"), "StrongPass1");
     await user.type(screen.getByLabelText("Confirm password"), "StrongPass1");
-    await user.click(screen.getByRole("button", { name: "Create organization" }));
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Accept & continue" }));
 
     await waitFor(() => expect(sendVerificationEmail).toHaveBeenCalledOnce());
     expect(gateway.sendVerificationCalls).toBe(0);

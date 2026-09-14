@@ -21,6 +21,7 @@ import {
   type StatusTone,
   useToast,
 } from "@/design-system";
+import { SafetyNotice } from "@/legal/safety-notices";
 
 import { AnnotationOverlay, damageTypeLabel } from "./annotation-overlay";
 import { statusLabel, statusTone } from "./inspections-page";
@@ -220,6 +221,10 @@ export function InspectionDetailPage({
                     {statusLabel(state.inspection.status)}
                   </StatusPill>
                   <Badge>Revision {state.inspection.revision}</Badge>
+                </div>
+                <div className="mt-5 grid gap-3">
+                  <SafetyNotice kind="ai-analysis" />
+                  <SafetyNotice kind="ar-measurement" />
                 </div>
               </div>
               {canWrite && (

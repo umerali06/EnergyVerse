@@ -65,6 +65,8 @@ import 'package:fev_api_client/src/model/company_registration_request.dart';
 import 'package:fev_api_client/src/model/company_registration_response.dart';
 import 'package:fev_api_client/src/model/complete_inspection_request.dart';
 import 'package:fev_api_client/src/model/complete_training_step_request.dart';
+import 'package:fev_api_client/src/model/contact_request.dart';
+import 'package:fev_api_client/src/model/contact_response.dart';
 import 'package:fev_api_client/src/model/control_permit_request.dart';
 import 'package:fev_api_client/src/model/corrective_action_response.dart';
 import 'package:fev_api_client/src/model/create_annotation_request.dart';
@@ -116,6 +118,7 @@ import 'package:fev_api_client/src/model/inspection_list_item.dart';
 import 'package:fev_api_client/src/model/inspection_list_page.dart';
 import 'package:fev_api_client/src/model/inspection_media_response.dart';
 import 'package:fev_api_client/src/model/invite_user_request.dart';
+import 'package:fev_api_client/src/model/legal_acceptance_response.dart';
 import 'package:fev_api_client/src/model/notification_list_page.dart';
 import 'package:fev_api_client/src/model/notification_read.dart';
 import 'package:fev_api_client/src/model/notification_response.dart';
@@ -269,6 +272,8 @@ part 'serializers.g.dart';
   CompanyRegistrationResponse,
   CompleteInspectionRequest,
   CompleteTrainingStepRequest,
+  ContactRequest,
+  ContactResponse,
   ControlPermitRequest,
   CorrectiveActionResponse,
   CreateAnnotationRequest,
@@ -320,6 +325,7 @@ part 'serializers.g.dart';
   InspectionListPage,
   InspectionMediaResponse,
   InviteUserRequest,
+  LegalAcceptanceResponse,
   NotificationListPage,
   NotificationRead,
   NotificationResponse,

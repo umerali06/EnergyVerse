@@ -11,11 +11,12 @@ from app.db.repositories.companies import CompanyRepository
 from app.db.repositories.role_permissions import RolePermissionRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
-from app.models.base import CompanyScope
+from app.models.base import CompanyScope, utc_now
 from app.models.entities import (
     CompanyCreate,
     CompanyRegistrationRequest,
     CompanyRegistrationResponse,
+    UserLegalAcceptance,
 )
 from app.rbac.seeding import seed_system_roles
 
@@ -53,6 +54,8 @@ class CompanyRegistrationService:
     async def register(
         self,
         request: CompanyRegistrationRequest,
+        *,
+        ip_hash: str | None = None,
     ) -> CompanyRegistrationResponse:
         company_name = " ".join(request.company_name.split())
         display_name = " ".join(request.display_name.split())
@@ -66,6 +69,30 @@ class CompanyRegistrationService:
                 "email_already_in_use",
                 "An account already exists for this email",
             )
+
+        # The acknowledgment is a precondition of activation, not a field the
+        # account can be created without (D-105). Enforcing it here rather than
+        # only in the browser means a direct POST cannot create an account that
+        # never accepted anything -- which is exactly the record the package
+        # requires to exist.
+        if not (
+            request.terms_accepted
+            and request.privacy_accepted
+            and request.safety_disclaimer_accepted
+        ):
+            raise RegistrationError(
+                "legal_acceptance_required",
+                "The Terms of Service, Privacy Policy, and safety disclaimer must all be accepted",
+            )
+        acceptance = UserLegalAcceptance(
+            terms_accepted=True,
+            privacy_accepted=True,
+            safety_disclaimer_accepted=True,
+            version=request.legal_version,
+            accepted_at=utc_now(),
+            source=request.acceptance_source,
+            ip_hash=ip_hash,
+        )
 
         company_id = self._company_id_factory()
         scope = CompanyScope(company_id=company_id)
@@ -92,6 +119,7 @@ class CompanyRegistrationService:
                 display_name=display_name,
                 actor_uid=REGISTRATION_ACTOR,
                 password=request.password,
+                legal_acceptance=acceptance,
             )
         except ValueError as error:
             if "Auth user already exists" in str(error):
@@ -111,6 +139,8 @@ class CompanyRegistrationService:
                 "company_name": company_name,
                 "admin_uid": user.id,
                 "admin_email": email,
+                "legal_version": request.legal_version,
+                "acceptance_source": request.acceptance_source,
             },
         )
         return CompanyRegistrationResponse(

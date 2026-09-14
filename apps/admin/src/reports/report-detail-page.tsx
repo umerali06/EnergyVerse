@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/auth/auth-context";
 import { Badge, Button, Card, Checkbox, EmptyState, Input, Modal, MotionSection, Skeleton, Textarea, useToast } from "@/design-system";
+import { SafetyNotice } from "@/legal/safety-notices";
 
 type Action = "regenerate" | "finalize" | "delete";
 
@@ -110,7 +111,7 @@ export function ReportDetailPage({ reportId }: { reportId: string }) {
   const draft = report.status === "draft";
 
   return <section className="p-6 md:p-10"><MotionSection className="mx-auto grid max-w-6xl gap-5">
-    <header className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-mono text-caption text-primary-600 dark:text-primary-400">{titleCase(report.reportType)} · revision {report.revision}</p><h1 className="mt-2 text-h2 font-bold">{report.title}</h1><p className="mt-1 text-bodySmall text-text-secondary">AI model {report.aiModel} · source revision {report.sourceRevision ?? "snapshot aggregate"}</p></div><div className="flex flex-wrap gap-2"><Badge>{titleCase(report.status)}</Badge><Button variant="ghost" onClick={() => router.push("/reports")}>Back to reports</Button></div></header>
+    <header className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-mono text-caption text-primary-600 dark:text-primary-400">{titleCase(report.reportType)} · revision {report.revision}</p><h1 className="mt-2 text-h2 font-bold">{report.title}</h1><p className="mt-1 text-bodySmall text-text-secondary">AI model {report.aiModel} · source revision {report.sourceRevision ?? "snapshot aggregate"}</p></div><div className="flex flex-wrap gap-2"><Badge>{titleCase(report.status)}</Badge><Button variant="ghost" onClick={() => router.push("/reports")}>Back to reports</Button></div></header><SafetyNotice className="mt-6" kind="report-export" />
 
     {!draft && <Card><p className="font-semibold text-statusStrong-healthy dark:text-statusSoft-healthy">Finalized report · immutable</p><p className="mt-1 text-bodySmall text-text-secondary">Attested by {report.finalizedBy} on {report.finalizedAt?.toLocaleString()}. Export formats are available from the report library.</p></Card>}
 

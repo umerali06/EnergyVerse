@@ -1655,6 +1655,86 @@ class CheckoutConfirmResponse(BaseModel):
     subscription: "SubscriptionResponse"
 
 
+# --- Legal package: contact form and acceptance records (D-105) -----------
+
+
+#: The categories the contact page offers. Validated here rather than typed as
+#: a Literal so a 26-value enum is not generated into the Dart client for a
+#: web-only form; the page renders this same list.
+CONTACT_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "General Question",
+        "Account / Login Support",
+        "Company Administration",
+        "User / Role / Permission Issue",
+        "Asset Management",
+        "QR Code / Asset Scanning",
+        "AR Inspection",
+        "AI Analysis",
+        "Safety Report",
+        "Permit-to-Work",
+        "Work Order / Maintenance",
+        "Report Generation",
+        "3D Facility View",
+        "VR Training",
+        "Mobile App",
+        "Offline Sync",
+        "Billing / Subscription",
+        "Facility / Asset / Seat Add-On",
+        "Implementation / Onboarding",
+        "Data Migration",
+        "Enterprise / SSO",
+        "Integration Request",
+        "Privacy Request",
+        "Legal Inquiry",
+        "Security Concern",
+        "Partnership",
+        "Other",
+    }
+)
+
+
+class ContactRequest(BaseModel):
+    """A public contact-form submission.
+
+    Every field is length-bounded because this endpoint is unauthenticated. The
+    form tells senders not to include passwords, tokens, or full card numbers;
+    nothing here is stored, only forwarded to the support inbox.
+    """
+
+    name: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=5, max_length=320)
+    company: str | None = Field(default=None, max_length=160)
+    category: str = Field(min_length=1, max_length=64)
+    subject: str = Field(min_length=1, max_length=200)
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class ContactResponse(BaseModel):
+    """`received` is always true on a 2xx. Kept as a field so the client has a
+    typed success body rather than an empty one."""
+
+    received: bool
+
+
+class LegalAcceptanceResponse(BaseModel):
+    """What the signed-in user has accepted, and at which version.
+
+    `current_version` is what the deployment publishes today; when it differs
+    from `accepted_version` the client knows to re-ask rather than assuming an
+    older acceptance still covers a materially changed document.
+    """
+
+    accepted_version: str | None
+    current_version: str
+    terms_accepted: bool
+    privacy_accepted: bool
+    safety_disclaimer_accepted: bool
+    accepted_at: datetime | None
+    acceptance_source: str | None
+    requires_acceptance: bool
+
+
 class NotificationResponse(BaseModel):
     id: str
     event: str

@@ -25,6 +25,12 @@ export interface CompanyRegistrationRequest {
      * @type {string}
      * @memberof CompanyRegistrationRequest
      */
+    acceptanceSource?: CompanyRegistrationRequestAcceptanceSourceEnum;
+    /**
+     *
+     * @type {string}
+     * @memberof CompanyRegistrationRequest
+     */
     companyName: string;
     /**
      *
@@ -43,8 +49,45 @@ export interface CompanyRegistrationRequest {
      * @type {string}
      * @memberof CompanyRegistrationRequest
      */
+    legalVersion: string;
+    /**
+     *
+     * @type {string}
+     * @memberof CompanyRegistrationRequest
+     */
     password: string;
+    /**
+     *
+     * @type {boolean}
+     * @memberof CompanyRegistrationRequest
+     */
+    privacyAccepted: boolean;
+    /**
+     *
+     * @type {boolean}
+     * @memberof CompanyRegistrationRequest
+     */
+    safetyDisclaimerAccepted: boolean;
+    /**
+     *
+     * @type {boolean}
+     * @memberof CompanyRegistrationRequest
+     */
+    termsAccepted: boolean;
 }
+
+
+/**
+ * @export
+ */
+export const CompanyRegistrationRequestAcceptanceSourceEnum = {
+    Web: 'web',
+    Mobile: 'mobile',
+    Sso: 'sso',
+    Contract: 'contract'
+} as const;
+export type CompanyRegistrationRequestAcceptanceSourceEnum = typeof CompanyRegistrationRequestAcceptanceSourceEnum[keyof typeof CompanyRegistrationRequestAcceptanceSourceEnum];
+
 
 /**
  * Check if a given object implements the CompanyRegistrationRequest interface.
@@ -53,7 +96,11 @@ export function instanceOfCompanyRegistrationRequest(value: object): value is Co
     if (!('companyName' in value) || value['companyName'] === undefined) return false;
     if (!('displayName' in value) || value['displayName'] === undefined) return false;
     if (!('email' in value) || value['email'] === undefined) return false;
+    if (!('legalVersion' in value) || value['legalVersion'] === undefined) return false;
     if (!('password' in value) || value['password'] === undefined) return false;
+    if (!('privacyAccepted' in value) || value['privacyAccepted'] === undefined) return false;
+    if (!('safetyDisclaimerAccepted' in value) || value['safetyDisclaimerAccepted'] === undefined) return false;
+    if (!('termsAccepted' in value) || value['termsAccepted'] === undefined) return false;
     return true;
 }
 
@@ -68,10 +115,15 @@ export function CompanyRegistrationRequestFromJSONTyped(json: any, ignoreDiscrim
     return {
 
             ...json,
+        'acceptanceSource': json['acceptance_source'] == null ? undefined : json['acceptance_source'],
         'companyName': json['company_name'],
         'displayName': json['display_name'],
         'email': json['email'],
+        'legalVersion': json['legal_version'],
         'password': json['password'],
+        'privacyAccepted': json['privacy_accepted'],
+        'safetyDisclaimerAccepted': json['safety_disclaimer_accepted'],
+        'termsAccepted': json['terms_accepted'],
     };
 }
 
@@ -86,9 +138,14 @@ export function CompanyRegistrationRequestToJSONTyped(value?: CompanyRegistratio
 
     return {
 
+        'acceptance_source': value['acceptanceSource'],
         'company_name': value['companyName'],
         'display_name': value['displayName'],
         'email': value['email'],
+        'legal_version': value['legalVersion'],
         'password': value['password'],
+        'privacy_accepted': value['privacyAccepted'],
+        'safety_disclaimer_accepted': value['safetyDisclaimerAccepted'],
+        'terms_accepted': value['termsAccepted'],
     };
 }

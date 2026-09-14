@@ -36,6 +36,7 @@ import {
   Select,
   Skeleton,
 } from "@/design-system";
+import { SafetyNotice } from "@/legal/safety-notices";
 
 import { useCachedQuery } from "@/cache/cache-context";
 import { DigitalTwinScene, DigitalTwinViewer } from "./digital-twin-viewer";
@@ -123,6 +124,7 @@ export function DigitalTwinPage() {
               <BoxIcon className="h-4 w-4" /> 3D Spatial Visualization • Static Twin
             </p>
             <h1 className="mt-2 text-h2 font-bold text-text-primary">Digital Twin 3D View</h1>
+            <SafetyNotice className="mt-6" kind="digital-twin" />
             <p className="mt-1 text-bodySmall text-text-secondary">
               Inspect facility spatial layout, locate asset nodes in 3D, and monitor live status indicators.
             </p>

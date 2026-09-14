@@ -2358,6 +2358,17 @@
       "CompanyRegistrationRequest": {
         "additionalProperties": false,
         "properties": {
+          "acceptance_source": {
+            "default": "web",
+            "enum": [
+              "web",
+              "mobile",
+              "sso",
+              "contract"
+            ],
+            "title": "Acceptance Source",
+            "type": "string"
+          },
           "company_name": {
             "maxLength": 120,
             "minLength": 2,
@@ -2376,18 +2387,40 @@
             "title": "Email",
             "type": "string"
           },
+          "legal_version": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Legal Version",
+            "type": "string"
+          },
           "password": {
             "maxLength": 128,
             "minLength": 8,
             "title": "Password",
             "type": "string"
+          },
+          "privacy_accepted": {
+            "title": "Privacy Accepted",
+            "type": "boolean"
+          },
+          "safety_disclaimer_accepted": {
+            "title": "Safety Disclaimer Accepted",
+            "type": "boolean"
+          },
+          "terms_accepted": {
+            "title": "Terms Accepted",
+            "type": "boolean"
           }
         },
         "required": [
           "company_name",
           "display_name",
           "email",
-          "password"
+          "password",
+          "terms_accepted",
+          "privacy_accepted",
+          "safety_disclaimer_accepted",
+          "legal_version"
         ],
         "title": "CompanyRegistrationRequest",
         "type": "object"
@@ -2475,6 +2508,76 @@
           }
         },
         "title": "CompleteTrainingStepRequest",
+        "type": "object"
+      },
+      "ContactRequest": {
+        "description": "A public contact-form submission.\n\nEvery field is length-bounded because this endpoint is unauthenticated. The\nform tells senders not to include passwords, tokens, or full card numbers;\nnothing here is stored, only forwarded to the support inbox.",
+        "properties": {
+          "category": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 5,
+            "title": "Email",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "category",
+          "subject",
+          "message"
+        ],
+        "title": "ContactRequest",
+        "type": "object"
+      },
+      "ContactResponse": {
+        "description": "`received` is always true on a 2xx. Kept as a field so the client has a\ntyped success body rather than an empty one.",
+        "properties": {
+          "received": {
+            "title": "Received",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "received"
+        ],
+        "title": "ContactResponse",
         "type": "object"
       },
       "ControlPermitRequest": {
@@ -5776,6 +5879,77 @@
           "role_id"
         ],
         "title": "InviteUserRequest",
+        "type": "object"
+      },
+      "LegalAcceptanceResponse": {
+        "description": "What the signed-in user has accepted, and at which version.\n\n`current_version` is what the deployment publishes today; when it differs\nfrom `accepted_version` the client knows to re-ask rather than assuming an\nolder acceptance still covers a materially changed document.",
+        "properties": {
+          "acceptance_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance Source"
+          },
+          "accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "accepted_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Version"
+          },
+          "current_version": {
+            "title": "Current Version",
+            "type": "string"
+          },
+          "privacy_accepted": {
+            "title": "Privacy Accepted",
+            "type": "boolean"
+          },
+          "requires_acceptance": {
+            "title": "Requires Acceptance",
+            "type": "boolean"
+          },
+          "safety_disclaimer_accepted": {
+            "title": "Safety Disclaimer Accepted",
+            "type": "boolean"
+          },
+          "terms_accepted": {
+            "title": "Terms Accepted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted_version",
+          "current_version",
+          "terms_accepted",
+          "privacy_accepted",
+          "safety_disclaimer_accepted",
+          "accepted_at",
+          "acceptance_source",
+          "requires_acceptance"
+        ],
+        "title": "LegalAcceptanceResponse",
         "type": "object"
       },
       "NotificationListPage": {
@@ -14328,6 +14502,67 @@
         ]
       }
     },
+    "/api/v1/contact": {
+      "post": {
+        "operationId": "submit_contact_message",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "An upstream service (e.g. the AI vision provider) failed or is unreachable"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required upstream dependency (e.g. billing) is not configured"
+          }
+        },
+        "summary": "Send a message to Flacron Energy support",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
     "/api/v1/dashboard/activity": {
       "get": {
         "operationId": "get_dashboard_activity",
@@ -18447,6 +18682,62 @@
         "summary": "Update Inspection Voice Note",
         "tags": [
           "inspections"
+        ]
+      }
+    },
+    "/api/v1/legal/acceptance": {
+      "get": {
+        "operationId": "get_legal_acceptance",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalAcceptanceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "What this user accepted, and whether it is still current",
+        "tags": [
+          "legal"
         ]
       }
     },
