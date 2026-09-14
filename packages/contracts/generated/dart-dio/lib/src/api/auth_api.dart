@@ -198,7 +198,7 @@ class AuthApi {
   }
 
   /// Request Verification Email
-  /// Send this user a branded verification email through SES.  Returns &#x60;sent&#x3D;false&#x60; when the address is already verified -- that is a no-op, not a failure. A missing SES configuration is reported as a 503 rather than a 500: the caller asked for something the deployment cannot currently do, and the distinction is actionable.
+  /// Send this user a branded verification email through SES.  Returns &#x60;sent&#x3D;false&#x60; when the address is already verified -- that is a no-op, not a failure. A missing SES configuration is reported as a 503 rather than a 500: the caller asked for something the deployment cannot currently do, and the distinction is actionable.  A configured-but-refused SES is a 502, kept separate from both. Credentials can be *present* and still rejected -- a rotated key, an unverified sender, the wrong region, sandbox restrictions -- and &#x60;ses_configured&#x60; cannot see any of that, so this used to escape as an unhandled 500 saying \&quot;the server is broken\&quot; about a working server whose mail provider had refused it. It matters more since D-103, because registration now sends through this route rather than the provider&#39;s own unbranded sender; the admin client falls back to that sender on any failure here, and a truthful status is what lets it tell \&quot;cannot send\&quot; apart from a genuine fault.
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation

@@ -38,7 +38,7 @@ from typing import Any
 
 import httpx
 import stripe
-from firebase_admin import auth as firebase_auth
+from firebase_admin import auth as firebase_auth  # type: ignore[import-untyped]
 
 from app.core.firebase import get_firebase_app
 from app.core.settings import settings
@@ -60,7 +60,8 @@ def log(step: str, detail: str = "") -> None:
 
 
 def state_read() -> dict[str, Any]:
-    return json.loads(HANDOFF.read_text(encoding="utf-8"))
+    loaded: dict[str, Any] = json.loads(HANDOFF.read_text(encoding="utf-8"))
+    return loaded
 
 
 def state_write(data: dict[str, Any]) -> None:
@@ -78,7 +79,8 @@ def sign_in(email: str, password: str) -> dict[str, Any]:
         timeout=30,
     )
     response.raise_for_status()
-    return response.json()
+    body: dict[str, Any] = response.json()
+    return body
 
 
 def auth_headers(token: str) -> dict[str, str]:

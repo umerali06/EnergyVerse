@@ -13226,7 +13226,7 @@
     },
     "/api/v1/auth/verification-email": {
       "post": {
-        "description": "Send this user a branded verification email through SES.\n\nReturns `sent=false` when the address is already verified -- that is a\nno-op, not a failure. A missing SES configuration is reported as a 503\nrather than a 500: the caller asked for something the deployment cannot\ncurrently do, and the distinction is actionable.",
+        "description": "Send this user a branded verification email through SES.\n\nReturns `sent=false` when the address is already verified -- that is a\nno-op, not a failure. A missing SES configuration is reported as a 503\nrather than a 500: the caller asked for something the deployment cannot\ncurrently do, and the distinction is actionable.\n\nA configured-but-refused SES is a 502, kept separate from both. Credentials\ncan be *present* and still rejected -- a rotated key, an unverified sender,\nthe wrong region, sandbox restrictions -- and `ses_configured` cannot see\nany of that, so this used to escape as an unhandled 500 saying \"the server\nis broken\" about a working server whose mail provider had refused it. It\nmatters more since D-103, because registration now sends through this route\nrather than the provider's own unbranded sender; the admin client falls\nback to that sender on any failure here, and a truthful status is what lets\nit tell \"cannot send\" apart from a genuine fault.",
         "operationId": "send_verification_email",
         "responses": {
           "200": {
@@ -13278,6 +13278,16 @@
               }
             },
             "description": "Unexpected server error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "An upstream service (e.g. the AI vision provider) failed or is unreachable"
           },
           "503": {
             "content": {
