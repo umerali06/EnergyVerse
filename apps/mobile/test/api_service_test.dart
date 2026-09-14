@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:fev_mobile/api/api_service.dart';
+import 'package:fev_mobile/legal/legal_versions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 typedef AdapterHandler = Future<ResponseBody> Function(RequestOptions options);
@@ -242,6 +243,10 @@ void main() {
       displayName: 'First Admin',
       email: 'admin@northstar.example',
       password: 'StrongPass1',
+      termsAccepted: true,
+      privacyAccepted: true,
+      safetyDisclaimerAccepted: true,
+      legalVersion: kLegalVersion,
     );
 
     expect(result.companyId, 'cmp_generated');
@@ -249,6 +254,14 @@ void main() {
     expect(adapter.lastRequest?.path, '/api/v1/auth/register');
     expect(adapter.lastRequest?.data,
         containsPair('company_name', 'Northstar Energy'));
+    // The acceptance travels with the registration, and mobile identifies
+    // itself as the source so the record says where it came from (D-105).
+    expect(adapter.lastRequest?.data, containsPair('terms_accepted', true));
+    expect(adapter.lastRequest?.data,
+        containsPair('safety_disclaimer_accepted', true));
+    expect(
+        adapter.lastRequest?.data, containsPair('legal_version', kLegalVersion));
+    expect(adapter.lastRequest?.data, containsPair('acceptance_source', 'mobile'));
   });
 
   test('returns typed dashboard summary with the window forwarded', () async {

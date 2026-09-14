@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     aws_secret_access_key: str | None = None
     ses_from_email: str | None = None
     ses_from_name: str = "Flacron Energy"
+    # Where public contact-form submissions are delivered. Kept configurable so
+    # a dedicated support address can replace the operator's shared inbox
+    # without a code change (legal package §27).
+    contact_destination_email: str = "Contact@flacronenterprises.com"
     ses_reply_to: str | None = None
     # Push delivery uses the Firebase Admin SDK's own credentials, so it needs
     # no separate key -- this only gates it off for local runs.

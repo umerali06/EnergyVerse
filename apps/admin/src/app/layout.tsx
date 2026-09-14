@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { AuthProvider } from "@/auth/auth-context";
 import { ApiCacheProvider } from "@/cache/cache-context";
 import { ThemeProvider, ToastProvider } from "@/design-system";
+import { CookieConsent } from "@/legal/cookie-consent";
 import "./globals.css";
 
 const plexSans = localFont({
@@ -95,6 +96,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <ApiCacheProvider>{children}</ApiCacheProvider>
             </AuthProvider>
+            {/* Mounted at the root so the choice is offered once for the whole
+                product -- marketing, auth, and the signed-in shell alike -- and
+                so the footer's Cookie Preferences control can reopen it from
+                any page. */}
+            <CookieConsent />
           </ToastProvider>
         </ThemeProvider>
       </body>

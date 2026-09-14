@@ -18,6 +18,7 @@ import {
   StatusPill,
   Textarea,
 } from "@/design-system";
+import { SafetyNotice } from "@/legal/safety-notices";
 
 const categories = [
   "near_miss",
@@ -116,6 +117,7 @@ export function SafetyPage() {
               HSE control center
             </p>
             <h1 className="mt-2 text-h2 font-bold">Safety Reports</h1>
+            <SafetyNotice className="mt-6" kind="safety-report" />
             <p className="mt-1 text-bodySmall text-text-secondary">
               Report hazards, control corrective work, and preserve an auditable incident record.
             </p>

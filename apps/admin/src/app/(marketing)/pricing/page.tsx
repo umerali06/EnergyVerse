@@ -20,6 +20,7 @@ import {
   services,
   usageAddOns,
 } from "@/marketing/pricing-plans";
+import { PricingLegalNote } from "@/legal/commercial-notices";
 import { publicPage } from "@/seo/site";
 
 export const metadata: Metadata = publicPage(
@@ -265,6 +266,12 @@ export default function PricingPage() {
           ))}
         </dl>
       </Section>
+
+      <section className="px-5 pb-4 md:px-8">
+        <div className="mx-auto w-full max-w-6xl border-t border-border pt-8">
+          <PricingLegalNote />
+        </div>
+      </section>
 
       <CtaBand
         body={`Pick a plan, enter a card, and run a real inspection on a real asset. Nothing is charged for ${TRIAL_DAYS} days.`}

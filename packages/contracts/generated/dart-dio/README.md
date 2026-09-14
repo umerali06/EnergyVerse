@@ -148,6 +148,8 @@ Class | Method | HTTP request | Description
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionArMeasurement**](doc/InspectionsApi.md#updateinspectionarmeasurement) | **PATCH** /api/v1/inspections/{inspection_id}/ar-measurements/{measurement_id} | Update Inspection Ar Measurement
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionMedia**](doc/InspectionsApi.md#updateinspectionmedia) | **PATCH** /api/v1/inspections/{inspection_id}/media/{media_id} | Update Inspection Media
 [*InspectionsApi*](doc/InspectionsApi.md) | [**updateInspectionVoiceNote**](doc/InspectionsApi.md#updateinspectionvoicenote) | **PATCH** /api/v1/inspections/{inspection_id}/voice-notes/{voice_note_id} | Update Inspection Voice Note
+[*LegalApi*](doc/LegalApi.md) | [**getLegalAcceptance**](doc/LegalApi.md#getlegalacceptance) | **GET** /api/v1/legal/acceptance | What this user accepted, and whether it is still current
+[*LegalApi*](doc/LegalApi.md) | [**submitContactMessage**](doc/LegalApi.md#submitcontactmessage) | **POST** /api/v1/contact | Send a message to Flacron Energy support
 [*NotificationsApi*](doc/NotificationsApi.md) | [**listNotifications**](doc/NotificationsApi.md#listnotifications) | **GET** /api/v1/notifications | List Notifications
 [*NotificationsApi*](doc/NotificationsApi.md) | [**markAllNotificationsRead**](doc/NotificationsApi.md#markallnotificationsread) | **POST** /api/v1/notifications/read-all | Mark All Notifications Read
 [*NotificationsApi*](doc/NotificationsApi.md) | [**markNotificationRead**](doc/NotificationsApi.md#marknotificationread) | **POST** /api/v1/notifications/{notification_id}/read | Mark Notification Read
@@ -275,6 +277,8 @@ Class | Method | HTTP request | Description
  - [CompanyRegistrationResponse](doc/CompanyRegistrationResponse.md)
  - [CompleteInspectionRequest](doc/CompleteInspectionRequest.md)
  - [CompleteTrainingStepRequest](doc/CompleteTrainingStepRequest.md)
+ - [ContactRequest](doc/ContactRequest.md)
+ - [ContactResponse](doc/ContactResponse.md)
  - [ControlPermitRequest](doc/ControlPermitRequest.md)
  - [CorrectiveActionResponse](doc/CorrectiveActionResponse.md)
  - [CreateAnnotationRequest](doc/CreateAnnotationRequest.md)
@@ -326,6 +330,7 @@ Class | Method | HTTP request | Description
  - [InspectionListPage](doc/InspectionListPage.md)
  - [InspectionMediaResponse](doc/InspectionMediaResponse.md)
  - [InviteUserRequest](doc/InviteUserRequest.md)
+ - [LegalAcceptanceResponse](doc/LegalAcceptanceResponse.md)
  - [NotificationListPage](doc/NotificationListPage.md)
  - [NotificationRead](doc/NotificationRead.md)
  - [NotificationResponse](doc/NotificationResponse.md)

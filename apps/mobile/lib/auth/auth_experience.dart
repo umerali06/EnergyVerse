@@ -376,6 +376,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
+
+  /// Never pre-checked: an acknowledgment that arrives already ticked is
+  /// not an acknowledgment (D-105).
+  bool _legalAccepted = false;
   final Map<String, String> _errors = {};
   bool _showPassword = false;
 
@@ -412,13 +416,14 @@ class _SignupScreenState extends State<SignupScreen> {
             'confirm': 'Passwords do not match',
         });
     });
-    if (_errors.isNotEmpty) return;
+    if (_errors.isNotEmpty || !_legalAccepted) return;
     await AuthProvider.of(context).register(
       RegistrationInput(
         companyName: _company.text.trim(),
         displayName: _displayName.text.trim(),
         email: _email.text.trim(),
         password: password,
+        legalAccepted: _legalAccepted,
       ),
     );
   }
@@ -507,17 +512,41 @@ class _SignupScreenState extends State<SignupScreen> {
                           errorText: _errors['confirm'],
                           obscureText: !_showPassword,
                         ),
-                        const SizedBox(height: DsSpacing.s6),
+                        const SizedBox(height: DsSpacing.s5),
+                        CheckboxListTile(
+                          key: const Key('signup-legal-acceptance'),
+                          value: _legalAccepted,
+                          onChanged: loading
+                              ? null
+                              : (next) => setState(
+                                    () => _legalAccepted = next ?? false,
+                                  ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'I have read and agree to the Terms of Service and '
+                            'Privacy Policy, and I acknowledge the AI, AR/VR, '
+                            'Industrial Safety & Operations Disclaimer. I '
+                            'understand that AI findings, AR measurements, risk '
+                            'indicators, reports, and training simulations may '
+                            'contain errors and do not replace qualified '
+                            'professional judgment, required safety controls, or '
+                            'regulatory compliance procedures.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        const SizedBox(height: DsSpacing.s5),
                         AppButton(
-                          label: 'Create organization',
+                          label: 'Accept & continue',
                           loading: loading,
-                          onPressed: loading ? null : _submit,
+                          onPressed:
+                              loading || !_legalAccepted ? null : _submit,
                         ),
                         const SizedBox(height: DsSpacing.s3),
                         TextButton(
                           onPressed:
                               loading ? null : () => _backToLogin(context),
-                          child: const Text('Back to login'),
+                          child: const Text('Cancel'),
                         ),
                       ],
                     ),

@@ -51,13 +51,22 @@ def _service(
     )
 
 
-def _request() -> CompanyRegistrationRequest:
-    return CompanyRegistrationRequest(
-        company_name="  Acme Energy  ",
-        display_name="  New Company Admin  ",
-        email="NEW.ADMIN@EXAMPLE.COM",
-        password="StrongPass123!",
-    )
+def _request(**overrides: object) -> CompanyRegistrationRequest:
+    payload: dict[str, object] = {
+        "company_name": "  Acme Energy  ",
+        "display_name": "  New Company Admin  ",
+        "email": "NEW.ADMIN@EXAMPLE.COM",
+        "password": "StrongPass123!",
+        # The legal acknowledgment is part of a valid registration (D-105);
+        # there is no shape of this request that creates an account without it.
+        "terms_accepted": True,
+        "privacy_accepted": True,
+        "safety_disclaimer_accepted": True,
+        "legal_version": "2026-09-14",
+        "acceptance_source": "web",
+    }
+    payload.update(overrides)
+    return CompanyRegistrationRequest(**payload)  # type: ignore[arg-type]
 
 
 def test_register_creates_isolated_company_admin_and_seven_roles() -> None:

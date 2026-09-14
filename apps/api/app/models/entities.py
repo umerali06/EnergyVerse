@@ -57,12 +57,33 @@ class CompanyUpdate(StrictModel):
     stripe_subscription_id: str | None = None
 
 
+class UserLegalAcceptance(StrictModel):
+    """What one user accepted, and when. Stored on the user document.
+
+    Kept as an embedded record rather than its own collection: it is read
+    exactly when the user is read, is never queried across tenants, and being
+    part of the user document means it cannot be orphaned from the account it
+    describes.
+    """
+
+    terms_accepted: bool
+    privacy_accepted: bool
+    safety_disclaimer_accepted: bool
+    version: str
+    accepted_at: datetime
+    source: str
+    #: SHA-256 of the request IP, never the address itself. Enough to show two
+    #: acceptances came from the same origin without retaining the origin.
+    ip_hash: str | None = None
+
+
 class User(TenantDoc):
     id: str
     email: str
     display_name: str
     role_id: str
     status: str
+    legal_acceptance: UserLegalAcceptance | None = None
 
 
 class UserCreate(StrictModel):
@@ -71,6 +92,7 @@ class UserCreate(StrictModel):
     display_name: str
     role_id: str
     status: str
+    legal_acceptance: UserLegalAcceptance | None = None
 
 
 class UserUpdate(StrictModel):
@@ -78,6 +100,7 @@ class UserUpdate(StrictModel):
     display_name: str | None = None
     role_id: str | None = None
     status: str | None = None
+    legal_acceptance: UserLegalAcceptance | None = None
 
 
 class Role(TenantDoc):
@@ -1079,6 +1102,20 @@ class CompanyRegistrationRequest(StrictModel):
     display_name: str = Field(min_length=2, max_length=120)
     email: str = Field(min_length=5, max_length=320)
     password: str = Field(min_length=8, max_length=128)
+    # Legal acceptance (D-105). Required at registration rather than recorded
+    # afterwards, because the package requires the acknowledgment *before*
+    # account activation -- an account that exists without one would already be
+    # the thing the requirement forbids. The API refuses a registration where
+    # any of the three is false, so a client cannot skip the checkbox by
+    # posting directly.
+    terms_accepted: bool
+    privacy_accepted: bool
+    safety_disclaimer_accepted: bool
+    #: The document version the user saw. Stored verbatim so a later material
+    #: change can be detected by comparing against what the deployment
+    #: currently publishes.
+    legal_version: str = Field(min_length=1, max_length=32)
+    acceptance_source: Literal["web", "mobile", "sso", "contract"] = "web"
 
 
 class CompanyRegistrationResponse(StrictModel):

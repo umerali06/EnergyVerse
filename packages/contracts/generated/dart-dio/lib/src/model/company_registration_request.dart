@@ -13,14 +13,23 @@ part 'company_registration_request.g.dart';
 /// CompanyRegistrationRequest
 ///
 /// Properties:
+/// * [acceptanceSource]
 /// * [companyName]
 /// * [displayName]
 /// * [email]
+/// * [legalVersion]
 /// * [password]
+/// * [privacyAccepted]
+/// * [safetyDisclaimerAccepted]
+/// * [termsAccepted]
 @BuiltValue()
 abstract class CompanyRegistrationRequest
     implements
         Built<CompanyRegistrationRequest, CompanyRegistrationRequestBuilder> {
+  @BuiltValueField(wireName: r'acceptance_source')
+  CompanyRegistrationRequestAcceptanceSourceEnum? get acceptanceSource;
+  // enum acceptanceSourceEnum {  web,  mobile,  sso,  contract,  };
+
   @BuiltValueField(wireName: r'company_name')
   String get companyName;
 
@@ -30,8 +39,20 @@ abstract class CompanyRegistrationRequest
   @BuiltValueField(wireName: r'email')
   String get email;
 
+  @BuiltValueField(wireName: r'legal_version')
+  String get legalVersion;
+
   @BuiltValueField(wireName: r'password')
   String get password;
+
+  @BuiltValueField(wireName: r'privacy_accepted')
+  bool get privacyAccepted;
+
+  @BuiltValueField(wireName: r'safety_disclaimer_accepted')
+  bool get safetyDisclaimerAccepted;
+
+  @BuiltValueField(wireName: r'terms_accepted')
+  bool get termsAccepted;
 
   CompanyRegistrationRequest._();
 
@@ -40,7 +61,9 @@ abstract class CompanyRegistrationRequest
       _$CompanyRegistrationRequest;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(CompanyRegistrationRequestBuilder b) => b;
+  static void _defaults(CompanyRegistrationRequestBuilder b) => b
+    ..acceptanceSource =
+        const CompanyRegistrationRequestAcceptanceSourceEnum._('web');
 
   @BuiltValueSerializer(custom: true)
   static Serializer<CompanyRegistrationRequest> get serializer =>
@@ -63,6 +86,14 @@ class _$CompanyRegistrationRequestSerializer
     CompanyRegistrationRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
+    if (object.acceptanceSource != null) {
+      yield r'acceptance_source';
+      yield serializers.serialize(
+        object.acceptanceSource,
+        specifiedType:
+            const FullType(CompanyRegistrationRequestAcceptanceSourceEnum),
+      );
+    }
     yield r'company_name';
     yield serializers.serialize(
       object.companyName,
@@ -78,10 +109,30 @@ class _$CompanyRegistrationRequestSerializer
       object.email,
       specifiedType: const FullType(String),
     );
+    yield r'legal_version';
+    yield serializers.serialize(
+      object.legalVersion,
+      specifiedType: const FullType(String),
+    );
     yield r'password';
     yield serializers.serialize(
       object.password,
       specifiedType: const FullType(String),
+    );
+    yield r'privacy_accepted';
+    yield serializers.serialize(
+      object.privacyAccepted,
+      specifiedType: const FullType(bool),
+    );
+    yield r'safety_disclaimer_accepted';
+    yield serializers.serialize(
+      object.safetyDisclaimerAccepted,
+      specifiedType: const FullType(bool),
+    );
+    yield r'terms_accepted';
+    yield serializers.serialize(
+      object.termsAccepted,
+      specifiedType: const FullType(bool),
     );
   }
 
@@ -108,6 +159,14 @@ class _$CompanyRegistrationRequestSerializer
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
+        case r'acceptance_source':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType:
+                const FullType(CompanyRegistrationRequestAcceptanceSourceEnum),
+          ) as CompanyRegistrationRequestAcceptanceSourceEnum;
+          result.acceptanceSource = valueDes;
+          break;
         case r'company_name':
           final valueDes = serializers.deserialize(
             value,
@@ -129,12 +188,40 @@ class _$CompanyRegistrationRequestSerializer
           ) as String;
           result.email = valueDes;
           break;
+        case r'legal_version':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.legalVersion = valueDes;
+          break;
         case r'password':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
           result.password = valueDes;
+          break;
+        case r'privacy_accepted':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(bool),
+          ) as bool;
+          result.privacyAccepted = valueDes;
+          break;
+        case r'safety_disclaimer_accepted':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(bool),
+          ) as bool;
+          result.safetyDisclaimerAccepted = valueDes;
+          break;
+        case r'terms_accepted':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(bool),
+          ) as bool;
+          result.termsAccepted = valueDes;
           break;
         default:
           unhandled.add(key);
@@ -163,4 +250,31 @@ class _$CompanyRegistrationRequestSerializer
     );
     return result.build();
   }
+}
+
+class CompanyRegistrationRequestAcceptanceSourceEnum extends EnumClass {
+  @BuiltValueEnumConst(wireName: r'web')
+  static const CompanyRegistrationRequestAcceptanceSourceEnum web =
+      _$companyRegistrationRequestAcceptanceSourceEnum_web;
+  @BuiltValueEnumConst(wireName: r'mobile')
+  static const CompanyRegistrationRequestAcceptanceSourceEnum mobile =
+      _$companyRegistrationRequestAcceptanceSourceEnum_mobile;
+  @BuiltValueEnumConst(wireName: r'sso')
+  static const CompanyRegistrationRequestAcceptanceSourceEnum sso =
+      _$companyRegistrationRequestAcceptanceSourceEnum_sso;
+  @BuiltValueEnumConst(wireName: r'contract')
+  static const CompanyRegistrationRequestAcceptanceSourceEnum contract =
+      _$companyRegistrationRequestAcceptanceSourceEnum_contract;
+
+  static Serializer<CompanyRegistrationRequestAcceptanceSourceEnum>
+      get serializer =>
+          _$companyRegistrationRequestAcceptanceSourceEnumSerializer;
+
+  const CompanyRegistrationRequestAcceptanceSourceEnum._(String name)
+      : super(name);
+
+  static BuiltSet<CompanyRegistrationRequestAcceptanceSourceEnum> get values =>
+      _$companyRegistrationRequestAcceptanceSourceEnumValues;
+  static CompanyRegistrationRequestAcceptanceSourceEnum valueOf(String name) =>
+      _$companyRegistrationRequestAcceptanceSourceEnumValueOf(name);
 }

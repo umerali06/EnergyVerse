@@ -254,6 +254,25 @@ branded verification email cannot send until they are replaced, and the
 deployed keys should be checked for the same; signup still works meanwhile
 because the client falls back to Firebase's own sender.
 
+Legal, privacy, billing and contact package (2026-09-14): the five policies
+(privacy, terms, AI/AR/VR industrial-safety disclaimer, refund, cookies) are
+live at `/privacy`, `/terms`, `/industrial-disclaimer`, `/refund-policy` and
+`/cookie-policy`, with `/contact` alongside them; all six are public, crawlable,
+and linked from a rebuilt footer that also carries the operator identity and a
+permanent Cookie Preferences control. Legal acceptance is now a precondition of
+registration rather than a record written afterwards, stored on the user
+document with a hashed IP; the checkbox is never pre-checked and the submit
+button is disabled until it is ticked. That holds on **both** clients: the
+Flutter app has its own signup screen, and making the flags required server-side
+is what forced it to carry the acknowledgment too, tagged
+`acceptance_source: "mobile"`. Cookie consent, the in-product safety
+notices (AI, AR, safety, permits, work orders, 3D, VR, report export), and the
+pricing/checkout/auth legal text are all in place (D-105).
+
+Open on this: the AWS SES credentials are still invalid on this machine, so the
+contact form's delivery path is implemented and unit-tested but has never sent a
+real message. It must be exercised once the SES keys are replaced.
+
 Not delivered, and deliberately: the `checkout.session.completed` webhook
 endpoint itself has not been re-verified against the live Stripe account. The
 confirmation route removes it from the critical path of signup, but a webhook

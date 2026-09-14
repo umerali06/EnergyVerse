@@ -19,6 +19,7 @@ import {
   StatusPill,
   type StatusTone,
 } from "@/design-system";
+import { SafetyNotice } from "@/legal/safety-notices";
 
 import { VrTrainer, type StepOutcome } from "./vr-trainer";
 
@@ -162,6 +163,7 @@ export function TrainingPage() {
             Competency
           </p>
           <h1 className="mt-2 text-h2 font-bold">VR Training</h1>
+          <SafetyNotice className="mt-6" kind="vr-training" />
           <p className="mt-1 text-bodySmall text-text-secondary">
             Guided scenarios run inside your own facility&apos;s 3D scene, on a headset or
             in the browser.

@@ -400,6 +400,10 @@ class FakeSyncApi implements ApiContract {
     required String displayName,
     required String email,
     required String password,
+    required bool termsAccepted,
+    required bool privacyAccepted,
+    required bool safetyDisclaimerAccepted,
+    required String legalVersion,
   }) =>
       throw UnimplementedError();
   @override

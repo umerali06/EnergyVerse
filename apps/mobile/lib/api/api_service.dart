@@ -118,6 +118,13 @@ abstract interface class ApiContract {
     required String displayName,
     required String email,
     required String password,
+    /// The legal acknowledgment (D-105). Required by the API, which refuses a
+    /// registration where any of the three is false, so there is no shape of
+    /// this call that creates an account without one.
+    required bool termsAccepted,
+    required bool privacyAccepted,
+    required bool safetyDisclaimerAccepted,
+    required String legalVersion,
   });
   /// The company's plan and the authoritative feature list the shell gates
   /// its navigation on (Phase 13.6, D-093).
@@ -782,6 +789,10 @@ class ApiService
     required String displayName,
     required String email,
     required String password,
+    required bool termsAccepted,
+    required bool privacyAccepted,
+    required bool safetyDisclaimerAccepted,
+    required String legalVersion,
   }) async {
     try {
       final request = CompanyRegistrationRequest(
@@ -789,7 +800,13 @@ class ApiService
           ..companyName = companyName
           ..displayName = displayName
           ..email = email
-          ..password = password,
+          ..password = password
+          ..termsAccepted = termsAccepted
+          ..privacyAccepted = privacyAccepted
+          ..safetyDisclaimerAccepted = safetyDisclaimerAccepted
+          ..legalVersion = legalVersion
+          ..acceptanceSource =
+              CompanyRegistrationRequestAcceptanceSourceEnum.mobile,
       );
       final response = await _client.getAuthApi().registerCompanyAdmin(
             companyRegistrationRequest: request,

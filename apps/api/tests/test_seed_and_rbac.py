@@ -315,10 +315,16 @@ def test_seed_is_idempotent_and_base_contracts_are_exact() -> None:
             "display_name",
             "role_id",
             "status",
+            # Present but null on a seeded user: demo accounts are provisioned,
+            # not self-registered, so they never accepted anything (D-105).
+            # Recording an acceptance they did not give would make the audit
+            # record a lie.
+            "legal_acceptance",
             "created_at",
             "updated_at",
             "created_by",
         }
+        assert user["legal_acceptance"] is None
         assert set(audit_log) == {
             "id",
             "company_id",

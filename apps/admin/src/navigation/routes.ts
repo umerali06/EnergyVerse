@@ -21,8 +21,20 @@ export const SIGNUP_BILLING = "/signup/plan";
 /** Where Stripe returns the browser after a completed checkout. */
 export const SIGNUP_COMPLETE = "/signup/complete";
 
-/** Public, indexable, unguarded marketing pages. */
-export const marketingRoutes = ["/", "/pricing", "/about"] as const;
+/** Public, indexable, unguarded marketing pages. Includes the legal package
+ * (D-105): every policy must be reachable without an account and must be
+ * crawlable, since customers and reviewers read them before signing up. */
+export const marketingRoutes = [
+  "/",
+  "/pricing",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/industrial-disclaimer",
+  "/refund-policy",
+  "/cookie-policy",
+] as const;
 
 /** Public, indexable auth pages. Guarded by `PublicOnly` — an authenticated
  * visitor is bounced to `APP_HOME` — but crawlable so signup is findable. */

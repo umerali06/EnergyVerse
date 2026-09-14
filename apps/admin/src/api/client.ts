@@ -3,6 +3,7 @@ import {
   AssetsApi,
   AuditApi,
   AuthApi,
+  LegalApi,
   BillingApi,
   ChecklistTemplatesApi,
   CompanyApi,
@@ -70,6 +71,9 @@ import {
   type BillingCatalogResponse,
   type CheckoutSessionRequest,
   type CheckoutConfirmResponse,
+  type ContactRequest,
+  type ContactResponse,
+  type LegalAcceptanceResponse,
   type CheckoutSessionResponse,
   type VerificationEmailResponse,
   type SubscriptionResponse,
@@ -312,6 +316,7 @@ export class FevApiClient {
   private readonly assets: AssetsApi;
   private readonly audit: AuditApi;
   private readonly auth: AuthApi;
+  private readonly legal: LegalApi;
   private readonly billing: BillingApi;
   private readonly checklistTemplates: ChecklistTemplatesApi;
   private readonly company: CompanyApi;
@@ -348,6 +353,7 @@ export class FevApiClient {
     this.assets = new AssetsApi(configuration);
     this.audit = new AuditApi(configuration);
     this.auth = new AuthApi(configuration);
+    this.legal = new LegalApi(configuration);
     this.billing = new BillingApi(configuration);
     this.checklistTemplates = new ChecklistTemplatesApi(configuration);
     this.company = new CompanyApi(configuration);
@@ -387,6 +393,20 @@ export class FevApiClient {
    * people reported never arriving. */
   sendVerificationEmail(signal?: AbortSignal): Promise<VerificationEmailResponse> {
     return this.execute(() => this.auth.sendVerificationEmail(signal ? { signal } : undefined));
+  }
+
+  /** Public: the contact page must work for a visitor with no account, so this
+   * is the one method that carries no token. */
+  submitContactMessage(body: ContactRequest, signal?: AbortSignal): Promise<ContactResponse> {
+    return this.execute(() =>
+      this.legal.submitContactMessage({ contactRequest: body }, signal ? { signal } : undefined),
+    );
+  }
+
+  /** What this user accepted and whether the published documents have moved on
+   * since, so a material change can re-ask rather than inherit consent. */
+  getLegalAcceptance(signal?: AbortSignal): Promise<LegalAcceptanceResponse> {
+    return this.execute(() => this.legal.getLegalAcceptance(signal ? { signal } : undefined));
   }
 
   /** Public: the pricing page and signup plan picker read the same catalog the

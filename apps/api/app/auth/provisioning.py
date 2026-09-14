@@ -5,7 +5,7 @@ from app.db.repositories.audit_logs import AuditLogRepository
 from app.db.repositories.roles import RoleRepository
 from app.db.repositories.users import UserRepository
 from app.models.base import CompanyScope
-from app.models.entities import User, UserCreate
+from app.models.entities import User, UserCreate, UserLegalAcceptance
 
 
 class UserProvisioningService:
@@ -55,6 +55,7 @@ class UserProvisioningService:
         display_name: str,
         actor_uid: str,
         password: str | None = None,
+        legal_acceptance: UserLegalAcceptance | None = None,
     ) -> User:
         scope = CompanyScope(company_id=company_id)
         role = await self._roles.get(scope, role_id)
@@ -74,6 +75,7 @@ class UserProvisioningService:
                 display_name=display_name,
                 role_id=role_id,
                 status="active",
+                legal_acceptance=legal_acceptance,
             ),
             actor_uid,
         )
