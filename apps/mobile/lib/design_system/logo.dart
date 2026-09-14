@@ -97,7 +97,7 @@ class _LogoLoaderState extends State<LogoLoader>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: DsColors.accent500.withOpacity(dark ? 0.25 : 0.15),
+                    color: DsColors.accent500.withValues(alpha: dark ? 0.25 : 0.15),
                     blurRadius: 32,
                     spreadRadius: 8,
                   ),
@@ -114,7 +114,7 @@ class _LogoLoaderState extends State<LogoLoader>
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
                   valueColor: const AlwaysStoppedAnimation<Color>(DsColors.accent500),
-                  backgroundColor: DsColors.primary400.withOpacity(0.2),
+                  backgroundColor: DsColors.primary400.withValues(alpha: 0.2),
                 ),
               ),
             ),
@@ -124,14 +124,14 @@ class _LogoLoaderState extends State<LogoLoader>
               width: 76,
               height: 76,
               decoration: BoxDecoration(
-                color: (dark ? DsColors.darkSurface : Colors.white).withOpacity(0.9),
+                color: (dark ? DsColors.darkSurface : Colors.white).withValues(alpha: 0.9),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: DsColors.primary400.withOpacity(0.3),
+                  color: DsColors.primary400.withValues(alpha: 0.3),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                   ),
                 ],
