@@ -1639,6 +1639,22 @@ class CheckoutSessionResponse(BaseModel):
     checkout_url: str
 
 
+class CheckoutConfirmRequest(BaseModel):
+    """The session id Stripe substitutes into the success URL."""
+
+    session_id: str = Field(min_length=1, max_length=255)
+
+
+class CheckoutConfirmResponse(BaseModel):
+    """`outcome` is `reconciled` once the purchase has been written to the
+    company, or `pending` while Stripe has not yet attached a subscription to
+    the session. `subscription` is the freshly resolved plan either way, so the
+    completion screen never needs a second round trip to decide what to show."""
+
+    outcome: Literal["reconciled", "pending"]
+    subscription: "SubscriptionResponse"
+
+
 class NotificationResponse(BaseModel):
     id: str
     event: str

@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from typing import Protocol
 
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 from app.core.settings import settings
 
@@ -28,7 +29,26 @@ class EmailSender(Protocol):
 
 
 class EmailNotConfiguredError(Exception):
-    pass
+    """No SES credentials at all. The deployment cannot send mail."""
+
+
+class EmailDeliveryError(Exception):
+    """SES was reachable and refused, or the call failed.
+
+    Distinct from `EmailNotConfiguredError` because the causes are different
+    and so is the fix: credentials that are present but rejected
+    (`InvalidClientTokenId` after a key rotation), a sender address that is no
+    longer verified, a region mismatch, sandbox restrictions, throttling. All
+    of those used to escape as an unhandled 500, which said "the server is
+    broken" about a working server whose mail provider had refused it.
+
+    Carries the provider's own error code so a log or a support ticket names
+    the actual cause rather than "email failed".
+    """
+
+    def __init__(self, message: str, *, code: str = "ses_error") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def _build_mime(message: EmailMessage) -> MIMEMultipart:
@@ -66,12 +86,22 @@ class SesEmailSender:
 
     async def send(self, message: EmailMessage) -> None:
         mime_message = _build_mime(message)
-        await asyncio.to_thread(
-            self._client.send_raw_email,
-            Source=settings.ses_from_email,
-            Destinations=[message.to],
-            RawMessage={"Data": mime_message.as_string()},
-        )
+        try:
+            await asyncio.to_thread(
+                self._client.send_raw_email,
+                Source=settings.ses_from_email,
+                Destinations=[message.to],
+                RawMessage={"Data": mime_message.as_string()},
+            )
+        except ClientError as error:
+            # `ses_configured` can only check the keys are *present*; whether
+            # they are still valid is something only SES can answer.
+            code = str(error.response.get("Error", {}).get("Code") or "ses_error")
+            raise EmailDeliveryError(
+                f"SES refused the message ({code})", code=code
+            ) from error
+        except BotoCoreError as error:
+            raise EmailDeliveryError(f"Could not reach SES: {error}") from error
 
 
 def get_email_sender() -> EmailSender:

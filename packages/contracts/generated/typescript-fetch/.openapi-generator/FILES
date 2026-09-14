@@ -71,6 +71,8 @@ src/models/ChecklistTemplateItem.ts
 src/models/ChecklistTemplateItemInput.ts
 src/models/ChecklistTemplateListItem.ts
 src/models/ChecklistTemplateListPage.ts
+src/models/CheckoutConfirmRequest.ts
+src/models/CheckoutConfirmResponse.ts
 src/models/CheckoutSessionRequest.ts
 src/models/CheckoutSessionResponse.ts
 src/models/ClosePermitRequest.ts

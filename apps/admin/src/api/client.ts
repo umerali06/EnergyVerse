@@ -69,7 +69,9 @@ import {
   type DocumentListPage,
   type BillingCatalogResponse,
   type CheckoutSessionRequest,
+  type CheckoutConfirmResponse,
   type CheckoutSessionResponse,
+  type VerificationEmailResponse,
   type SubscriptionResponse,
   type DashboardActivityPage,
   type DashboardActivitySeries,
@@ -380,6 +382,13 @@ export class FevApiClient {
     return this.execute(() => this.auth.getCurrentUser(signal ? { signal } : undefined));
   }
 
+  /** Sends the branded verification email over SES. Preferred over the Firebase
+   * client SDK's own sender, whose unbranded firebaseapp.com mail is the one
+   * people reported never arriving. */
+  sendVerificationEmail(signal?: AbortSignal): Promise<VerificationEmailResponse> {
+    return this.execute(() => this.auth.sendVerificationEmail(signal ? { signal } : undefined));
+  }
+
   /** Public: the pricing page and signup plan picker read the same catalog the
    * API enforces against, so a client can never offer a tier the server will
    * not honour. */
@@ -419,6 +428,20 @@ export class FevApiClient {
     return this.execute(() =>
       this.billing.createCheckoutSession(
         { checkoutSessionRequest: body },
+        signal ? { signal } : undefined,
+      ),
+    );
+  }
+
+  /** Settles a checkout from the session id Stripe put in the return URL,
+   * instead of waiting for its webhook to arrive. */
+  confirmCheckoutSession(
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<CheckoutConfirmResponse> {
+    return this.execute(() =>
+      this.billing.confirmCheckoutSession(
+        { checkoutConfirmRequest: { sessionId } },
         signal ? { signal } : undefined,
       ),
     );

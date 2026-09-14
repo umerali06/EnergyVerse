@@ -2161,6 +2161,44 @@
         "title": "ChecklistTemplateListPage",
         "type": "object"
       },
+      "CheckoutConfirmRequest": {
+        "description": "The session id Stripe substitutes into the success URL.",
+        "properties": {
+          "session_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "CheckoutConfirmRequest",
+        "type": "object"
+      },
+      "CheckoutConfirmResponse": {
+        "description": "`outcome` is `reconciled` once the purchase has been written to the\ncompany, or `pending` while Stripe has not yet attached a subscription to\nthe session. `subscription` is the freshly resolved plan either way, so the\ncompletion screen never needs a second round trip to decide what to show.",
+        "properties": {
+          "outcome": {
+            "enum": [
+              "reconciled",
+              "pending"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionResponse"
+          }
+        },
+        "required": [
+          "outcome",
+          "subscription"
+        ],
+        "title": "CheckoutConfirmResponse",
+        "type": "object"
+      },
       "CheckoutSessionRequest": {
         "properties": {
           "interval": {
@@ -13188,7 +13226,7 @@
     },
     "/api/v1/auth/verification-email": {
       "post": {
-        "description": "Send this user a branded verification email through SES.\n\nReturns `sent=false` when the address is already verified -- that is a\nno-op, not a failure. A missing SES configuration is reported as a 503\nrather than a 500: the caller asked for something the deployment cannot\ncurrently do, and the distinction is actionable.",
+        "description": "Send this user a branded verification email through SES.\n\nReturns `sent=false` when the address is already verified -- that is a\nno-op, not a failure. A missing SES configuration is reported as a 503\nrather than a 500: the caller asked for something the deployment cannot\ncurrently do, and the distinction is actionable.\n\nA configured-but-refused SES is a 502, kept separate from both. Credentials\ncan be *present* and still rejected -- a rotated key, an unverified sender,\nthe wrong region, sandbox restrictions -- and `ses_configured` cannot see\nany of that, so this used to escape as an unhandled 500 saying \"the server\nis broken\" about a working server whose mail provider had refused it. It\nmatters more since D-103, because registration now sends through this route\nrather than the provider's own unbranded sender; the admin client falls\nback to that sender on any failure here, and a truthful status is what lets\nit tell \"cannot send\" apart from a genuine fault.",
         "operationId": "send_verification_email",
         "responses": {
           "200": {
@@ -13240,6 +13278,16 @@
               }
             },
             "description": "Unexpected server error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "An upstream service (e.g. the AI vision provider) failed or is unreachable"
           },
           "503": {
             "content": {
@@ -13367,6 +13415,103 @@
           }
         ],
         "summary": "Start a Stripe Checkout session for a plan",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/checkout/confirm": {
+      "post": {
+        "description": "Confirm the purchase the browser has just come back from.\n\nStripe redirects to the success URL as soon as the payment page is done,\nwhich is *before* it has necessarily delivered `checkout.session.completed`.\nPolling the read model alone therefore made a successful purchase look like\na failure whenever the webhook was slow \u2014 or, on a deployment where the\nendpoint is not reachable, permanently. This route closes that gap by\nreading the session Stripe itself named in the return URL.\n\nIt is not a second source of truth: the state still comes from a live\n`retrieve_subscription`, exactly as webhook reconciliation does, so the two\npaths are interchangeable and replaying either is idempotent.",
+        "operationId": "confirm_checkout_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request was malformed or referenced an unknown plan"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required upstream dependency (e.g. billing) is not configured"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Settle a returning checkout from its session id",
         "tags": [
           "billing"
         ]

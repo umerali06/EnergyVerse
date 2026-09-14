@@ -328,3 +328,29 @@ def test_verification_email_reports_unconfigured_transport_as_503() -> None:
     # an unexpected server fault, and the difference is actionable.
     assert response.status_code == 503
     assert response.json()["error"] == "email_not_configured"
+
+
+def test_verification_email_reports_a_refused_send_as_502() -> None:
+    """Credentials can be present and still rejected.
+
+    Caught live during the D-103 verification run: a rotated AWS key made SES
+    answer `InvalidClientTokenId`, which escaped as an unhandled 500 -- the
+    server saying it was broken when it was working and its mail provider had
+    refused it. `ses_configured` only sees that the keys exist, so this can
+    never be folded into the 503 above. It matters more since D-103, because
+    registration now sends through this route.
+    """
+    from app.email.sender import EmailDeliveryError
+
+    service = _FakeVerificationService(
+        error=EmailDeliveryError("SES refused", code="InvalidClientTokenId")
+    )
+
+    response = _post_verification_email(service)
+
+    assert response.status_code == 502
+    body = response.json()
+    assert body["error"] == "email_delivery_failed"
+    # The provider's own code travels with it, so a log or a support ticket
+    # names the actual cause rather than "email failed".
+    assert body["details"]["provider_code"] == "InvalidClientTokenId"

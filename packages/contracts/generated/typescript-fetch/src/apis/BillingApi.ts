@@ -16,6 +16,8 @@
 import * as runtime from '../runtime';
 import type {
   BillingCatalogResponse,
+  CheckoutConfirmRequest,
+  CheckoutConfirmResponse,
   CheckoutSessionRequest,
   CheckoutSessionResponse,
   ErrorEnvelope,
@@ -25,6 +27,10 @@ import type {
 import {
     BillingCatalogResponseFromJSON,
     BillingCatalogResponseToJSON,
+    CheckoutConfirmRequestFromJSON,
+    CheckoutConfirmRequestToJSON,
+    CheckoutConfirmResponseFromJSON,
+    CheckoutConfirmResponseToJSON,
     CheckoutSessionRequestFromJSON,
     CheckoutSessionRequestToJSON,
     CheckoutSessionResponseFromJSON,
@@ -37,6 +43,10 @@ import {
     SubscriptionResponseToJSON,
 } from '../models/index';
 
+export interface ConfirmCheckoutSessionRequest {
+    checkoutConfirmRequest: CheckoutConfirmRequest;
+}
+
 export interface CreateCheckoutSessionRequest {
     checkoutSessionRequest: CheckoutSessionRequest;
 }
@@ -45,6 +55,52 @@ export interface CreateCheckoutSessionRequest {
  *
  */
 export class BillingApi extends runtime.BaseAPI {
+
+    /**
+     * Confirm the purchase the browser has just come back from.  Stripe redirects to the success URL as soon as the payment page is done, which is *before* it has necessarily delivered `checkout.session.completed`. Polling the read model alone therefore made a successful purchase look like a failure whenever the webhook was slow — or, on a deployment where the endpoint is not reachable, permanently. This route closes that gap by reading the session Stripe itself named in the return URL.  It is not a second source of truth: the state still comes from a live `retrieve_subscription`, exactly as webhook reconciliation does, so the two paths are interchangeable and replaying either is idempotent.
+     * Settle a returning checkout from its session id
+     */
+    async confirmCheckoutSessionRaw(requestParameters: ConfirmCheckoutSessionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CheckoutConfirmResponse>> {
+        if (requestParameters['checkoutConfirmRequest'] == null) {
+            throw new runtime.RequiredError(
+                'checkoutConfirmRequest',
+                'Required parameter "checkoutConfirmRequest" was null or undefined when calling confirmCheckoutSession().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("HTTPBearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/api/v1/billing/checkout/confirm`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CheckoutConfirmRequestToJSON(requestParameters['checkoutConfirmRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CheckoutConfirmResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Confirm the purchase the browser has just come back from.  Stripe redirects to the success URL as soon as the payment page is done, which is *before* it has necessarily delivered `checkout.session.completed`. Polling the read model alone therefore made a successful purchase look like a failure whenever the webhook was slow — or, on a deployment where the endpoint is not reachable, permanently. This route closes that gap by reading the session Stripe itself named in the return URL.  It is not a second source of truth: the state still comes from a live `retrieve_subscription`, exactly as webhook reconciliation does, so the two paths are interchangeable and replaying either is idempotent.
+     * Settle a returning checkout from its session id
+     */
+    async confirmCheckoutSession(requestParameters: ConfirmCheckoutSessionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CheckoutConfirmResponse> {
+        const response = await this.confirmCheckoutSessionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Only a Company Admin may attach billing to the company. The tier and interval are validated against the catalog rather than passed to Stripe as given, so a tampered request cannot buy an unpublished price.

@@ -10,9 +10,12 @@
  * "back to the app" affordance. */
 export const APP_HOME = "/dashboard";
 
-/** Step 2 of signup: choose a plan and go to Stripe. Sits between registration
- * and a usable account, so it is reachable while the admin's email is still
- * unverified (D-092). */
+/** Step 2 of signup: confirm the mailbox. Everything after it — the plan
+ * picker, Stripe, the app — is behind a verified address (D-103). */
+export const VERIFY_EMAIL = "/verify-email";
+
+/** Step 3 of signup: choose a plan and go to Stripe. Reachable once the
+ * address is verified and until the company has an active subscription. */
 export const SIGNUP_BILLING = "/signup/plan";
 
 /** Where Stripe returns the browser after a completed checkout. */

@@ -19,7 +19,13 @@ import {
   VerifyEmailScreen,
 } from "./auth-experience";
 import { ClientAuthError, type AuthGateway, type AuthSession } from "./firebase-gateway";
-import { PublicOnly, RequireAuth, RequirePermission, VerifyEmailGate } from "./route-guards";
+import {
+  PublicOnly,
+  RequireAuth,
+  RequirePermission,
+  RequireSubscription,
+  VerifyEmailGate,
+} from "./route-guards";
 
 const routerControl = vi.hoisted(() => {
   // Literal, not the APP_HOME import: vi.hoisted runs before module imports.
@@ -174,25 +180,33 @@ function AppRouterHarness({ reducedMotionOverride }: { reducedMotionOverride?: b
           <VerifyEmailScreen reducedMotionOverride={reducedMotionOverride} />
         </VerifyEmailGate>
       );
+    case "/signup/plan":
+      // The real screen is covered by signup-billing.test.tsx; the harness only
+      // needs somewhere for the subscription gate to land.
+      return <p>Choose your plan</p>;
     case "/rbac-demo":
       return (
         <RequireAuth>
-          <AppShell reducedMotionOverride={reducedMotionOverride}>
-            <RequirePermission
-              permission="assets.write"
-              reducedMotionOverride={reducedMotionOverride}
-            >
-              <RbacDemoScreen reducedMotionOverride={reducedMotionOverride} />
-            </RequirePermission>
-          </AppShell>
+          <RequireSubscription>
+            <AppShell reducedMotionOverride={reducedMotionOverride}>
+              <RequirePermission
+                permission="assets.write"
+                reducedMotionOverride={reducedMotionOverride}
+              >
+                <RbacDemoScreen reducedMotionOverride={reducedMotionOverride} />
+              </RequirePermission>
+            </AppShell>
+          </RequireSubscription>
         </RequireAuth>
       );
     default:
       return (
         <RequireAuth>
-          <AppShell reducedMotionOverride={reducedMotionOverride}>
-            <DashboardPage reducedMotionOverride={reducedMotionOverride} />
-          </AppShell>
+          <RequireSubscription>
+            <AppShell reducedMotionOverride={reducedMotionOverride}>
+              <DashboardPage reducedMotionOverride={reducedMotionOverride} />
+            </AppShell>
+          </RequireSubscription>
         </RequireAuth>
       );
   }
@@ -257,11 +271,15 @@ function renderAuth({
   gateway = new FakeGateway(),
   initialPath = APP_HOME,
   reducedMotionOverride,
+  subscription = fullPlan,
+  sendVerificationEmail,
 }: {
   apiResult?: typeof identity | Error;
   gateway?: AuthGateway;
   initialPath?: string;
   reducedMotionOverride?: boolean;
+  subscription?: typeof fullPlan | null;
+  sendVerificationEmail?: ReturnType<typeof vi.fn>;
 } = {}) {
   routerControl.reset(initialPath);
   const getCurrentUser = vi.fn(async () => {
@@ -279,12 +297,17 @@ function renderAuth({
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider
-          apiClient={{ getCurrentUser, registerCompanyAdmin, ...defaultDashboardApi() }}
+          apiClient={{
+            getCurrentUser,
+            registerCompanyAdmin,
+            ...(sendVerificationEmail ? { sendVerificationEmail } : {}),
+            ...defaultDashboardApi(),
+          }}
           gateway={gateway}
         >
           {/* AppShell filters its nav by the company's plan, so the harness
-              supplies one. These cases are about auth, not billing. */}
-          <SubscriptionProvider initialSubscription={fullPlan}>
+              supplies one. Most cases are about auth, not billing. */}
+          <SubscriptionProvider initialSubscription={subscription}>
             <AppRouterHarness reducedMotionOverride={reducedMotionOverride} />
           </SubscriptionProvider>
         </AuthProvider>
@@ -453,6 +476,20 @@ describe("admin login experience", () => {
     expect(screen.queryByText("Assets demo")).not.toBeInTheDocument();
   });
 
+  it("sends an unsubscribed admin to the plan step instead of an empty shell", async () => {
+    // Anything that lands an unsubscribed admin on a protected route — a
+    // bookmark, a back button — used to render a dashboard with no plan behind
+    // it: nav filtered to nothing, every request answering 402.
+    renderAuth({
+      gateway: new FakeGateway(session),
+      subscription: { ...fullPlan, isEntitled: false, features: [], tier: "unassigned" },
+    });
+
+    expect(await screen.findByText("Choose your plan")).toBeInTheDocument();
+    await waitFor(() => expect(routerControl.current.path).toBe("/signup/plan"));
+    expect(screen.queryByText("field_inspector")).not.toBeInTheDocument();
+  });
+
   it("refreshes the session on demand to surface new claims", async () => {
     const gateway = new FakeGateway(session);
     const refreshSpy = vi.spyOn(gateway, "refreshSession");
@@ -499,17 +536,62 @@ describe("admin login experience", () => {
     await user.click(screen.getByRole("button", { name: "Create organization" }));
 
     expect(await screen.findByText("Verify your email")).toBeInTheDocument();
+    // Verification, not the card form: a mailbox nobody can reach is found out
+    // before payment rather than after it (D-103).
     expect(routerControl.current.path).toBe("/verify-email");
+    expect(routerControl.current.path).not.toBe("/signup/plan");
     expect(registerCompanyAdmin).toHaveBeenCalledWith({
       companyName: "Northstar Energy",
       displayName: "First Admin",
       email: "admin@northstar.example",
       password: "StrongPass1",
     });
+    // No branded sender was supplied here, so it falls back to the provider's.
     expect(gateway.sendVerificationCalls).toBe(1);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Resend available/ })).toBeDisabled(),
     );
+  });
+
+  it("prefers the branded SES email over the provider's unbranded default", async () => {
+    // Firebase's own mail comes from a firebaseapp.com sender and lands in spam
+    // often enough that verification looked broken rather than pending.
+    const gateway = new FakeGateway();
+    const sendVerificationEmail = vi.fn(async () => ({ sent: true }));
+    renderAuth({
+      apiResult: { ...identity, emailVerified: false, roleKey: "company_admin" },
+      gateway,
+      initialPath: "/signup",
+      sendVerificationEmail,
+    });
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Company name"), "Northstar Energy");
+    await user.type(screen.getByLabelText("Display name"), "First Admin");
+    await user.type(screen.getByLabelText("Email"), "admin@northstar.example");
+    await user.type(screen.getByLabelText("Password"), "StrongPass1");
+    await user.type(screen.getByLabelText("Confirm password"), "StrongPass1");
+    await user.click(screen.getByRole("button", { name: "Create organization" }));
+
+    await waitFor(() => expect(sendVerificationEmail).toHaveBeenCalledOnce());
+    expect(gateway.sendVerificationCalls).toBe(0);
+  });
+
+  it("falls back to the provider's sender when SES is unavailable", async () => {
+    const gateway = new FakeGateway(session);
+    const sendVerificationEmail = vi.fn(async () => {
+      throw new ApiClientError("email_not_configured", "No SES", 503);
+    });
+    renderAuth({
+      apiResult: { ...identity, emailVerified: false },
+      gateway,
+      sendVerificationEmail,
+    });
+    const user = userEvent.setup();
+    expect(await screen.findByText("Verify your email")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Resend verification" }));
+
+    // An unbranded link in spam still beats no link at all.
+    await waitFor(() => expect(gateway.sendVerificationCalls).toBe(1));
   });
 
   it("routes an unverified login to verify and resends with cooldown", async () => {

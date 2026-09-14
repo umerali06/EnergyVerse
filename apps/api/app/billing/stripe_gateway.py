@@ -58,6 +58,28 @@ class CheckoutSession:
 
 
 @dataclass(frozen=True)
+class CheckoutSessionState:
+    """A Checkout Session read back by id, after Stripe returns the browser.
+
+    The success URL carries `{CHECKOUT_SESSION_ID}`, so the returning tab can
+    name the exact session it just completed. Reading it settles the signup
+    there and then instead of waiting for `checkout.session.completed` to be
+    delivered -- Stripe redirects before it necessarily has, and a webhook that
+    is slow, retried, or (in a deployment where the endpoint is misconfigured)
+    never delivered at all used to leave a paying tenant staring at a spinner.
+    """
+
+    session_id: str
+    company_id: str | None
+    subscription_id: str | None
+    #: `open`, `complete`, or `expired`.
+    status: str
+    #: `paid`, `unpaid`, or `no_payment_required` -- a card-only trial is the
+    #: last of those, which is why entitlement is never derived from it here.
+    payment_status: str
+
+
+@dataclass(frozen=True)
 class SubscriptionSnapshot:
     """The subset of a Stripe subscription the platform stores. Deliberately
     small — Stripe stays the system of record for billing detail; the company
@@ -86,6 +108,8 @@ class StripeGateway(Protocol):
         success_url: str,
         cancel_url: str,
     ) -> CheckoutSession: ...
+
+    async def retrieve_checkout_session(self, session_id: str) -> CheckoutSessionState: ...
 
     async def retrieve_subscription(self, subscription_id: str) -> SubscriptionSnapshot: ...
 
@@ -193,6 +217,16 @@ class LiveStripeGateway:
             raise StripeGatewayError("Stripe returned a session with no URL")
         return CheckoutSession(id=str(created["id"]), url=str(url))
 
+    async def retrieve_checkout_session(self, session_id: str) -> CheckoutSessionState:
+        stripe = _require_stripe()
+        try:
+            session = await stripe.checkout.Session.retrieve_async(session_id)
+        except Exception as error:  # noqa: BLE001
+            raise StripeGatewayError(
+                "Could not read that checkout session", code="session_not_found"
+            ) from error
+        return checkout_state_from_session(session.to_dict())
+
     async def retrieve_subscription(self, subscription_id: str) -> SubscriptionSnapshot:
         stripe = _require_stripe()
         try:
@@ -216,6 +250,30 @@ class LiveStripeGateway:
                 "Webhook signature verification failed", code="invalid_signature"
             ) from error
         return dict(event)
+
+
+def checkout_state_from_session(session: dict[str, Any]) -> CheckoutSessionState:
+    """Map a Checkout Session payload onto the fields confirmation needs.
+
+    `client_reference_id` is the tenant binding -- it is set when the session is
+    created and Stripe echoes it back unchanged, so a session read by id proves
+    which company bought it without trusting anything the browser sends.
+    """
+    subscription = session.get("subscription")
+    if isinstance(subscription, dict):
+        subscription_id = str(subscription.get("id") or "") or None
+    else:
+        subscription_id = str(subscription) if subscription else None
+    reference = session.get("client_reference_id") or (
+        dict(session.get("metadata") or {}).get("fev_company_id")
+    )
+    return CheckoutSessionState(
+        session_id=str(session["id"]),
+        company_id=str(reference) if reference else None,
+        subscription_id=subscription_id,
+        status=str(session.get("status") or "open"),
+        payment_status=str(session.get("payment_status") or "unpaid"),
+    )
 
 
 def snapshot_from_subscription(subscription: dict[str, Any]) -> SubscriptionSnapshot:

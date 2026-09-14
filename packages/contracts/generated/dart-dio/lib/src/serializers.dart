@@ -55,6 +55,8 @@ import 'package:fev_api_client/src/model/checklist_template_item.dart';
 import 'package:fev_api_client/src/model/checklist_template_item_input.dart';
 import 'package:fev_api_client/src/model/checklist_template_list_item.dart';
 import 'package:fev_api_client/src/model/checklist_template_list_page.dart';
+import 'package:fev_api_client/src/model/checkout_confirm_request.dart';
+import 'package:fev_api_client/src/model/checkout_confirm_response.dart';
 import 'package:fev_api_client/src/model/checkout_session_request.dart';
 import 'package:fev_api_client/src/model/checkout_session_response.dart';
 import 'package:fev_api_client/src/model/close_permit_request.dart';
@@ -257,6 +259,8 @@ part 'serializers.g.dart';
   ChecklistTemplateItemInput,
   ChecklistTemplateListItem,
   ChecklistTemplateListPage,
+  CheckoutConfirmRequest,
+  CheckoutConfirmResponse,
   CheckoutSessionRequest,
   CheckoutSessionResponse,
   ClosePermitRequest,

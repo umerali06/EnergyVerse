@@ -8,10 +8,20 @@ import { APP_HOME } from "@/navigation/routes";
 
 import { useAuth } from "./auth-context";
 import { safeInternalPath } from "./route-guards";
+import {
+  rememberSignupIntent,
+  SIGNUP_STEP_COUNT,
+  signupStepNumber,
+} from "./signup-journey";
+import { SignupSteps } from "./signup-steps";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 const resendCooldownSeconds = 60;
+/** How often the verify screen re-checks by itself. Long enough not to hammer
+ * the provider, short enough that someone who clicks the link in another tab
+ * and switches back is moved on before they reach for the button. */
+const verificationPollMs = 5_000;
 
 /** Navigation between the public auth screens, preserving the intended
  * destination captured by RequireAuth's login redirect. */
@@ -262,6 +272,7 @@ type SignupErrors = Partial<
 
 export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const { toLogin: onBack } = usePublicAuthNav();
+  const params = useSearchParams();
   const { error: authError, register, status } = useAuth();
   const [companyName, setCompanyName] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -287,6 +298,10 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
     else if (confirm !== password) next.confirm = "Passwords do not match";
     setErrors(next);
     if (Object.keys(next).length > 0 || loading) return;
+    // Park the plan the pricing CTA carried before leaving this URL behind: the
+    // picker is now two screens away, with a mailbox round trip in between, so
+    // the query string will not survive to reach it.
+    rememberSignupIntent(params);
     await register({
       companyName: companyName.trim(),
       displayName: displayName.trim(),
@@ -309,10 +324,16 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
   return (
     <AuthShell reducedMotionOverride={reducedMotionOverride} wide>
       <Brand />
-      <StatusPill tone="info">Create organization</StatusPill>
+      <SignupSteps current="details" />
+      <div className="mt-7">
+        <StatusPill tone="info">
+          Step {signupStepNumber("details")} of {SIGNUP_STEP_COUNT}
+        </StatusPill>
+      </div>
       <h1 className="mt-4 text-h2 font-bold">Start your FEV workspace</h1>
       <p className="mt-2 text-body text-text-secondary">
-        You will become the first Company Admin for this new organization.
+        You will become the first Company Admin for this new organization. Next we will confirm
+        your email, then you pick a plan — your trial starts from there.
       </p>
       <form className="mt-7 grid gap-5 md:grid-cols-2" noValidate onSubmit={submit}>
         <Input
@@ -383,6 +404,18 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
   );
 }
 
+/**
+ * Step 2 of signup, and the gate everything after it sits behind.
+ *
+ * It used to come last — after payment — which made it read as an afterthought
+ * on an account that already worked. Putting it before the plan step means a
+ * mailbox nobody can reach is found out before a card is entered, not after
+ * (D-103).
+ *
+ * The screen re-checks on a timer as well as on the button, because the link is
+ * very often opened in a different tab: without the poll, someone who verified
+ * successfully came back to a screen still insisting they had not.
+ */
 export function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const auth = useAuth();
   const [cooldown, setCooldown] = useState(0);
@@ -400,6 +433,13 @@ export function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOver
     return () => window.clearInterval(timer);
   }, [auth.verificationSentAt]);
 
+  const { pollVerification, status } = auth;
+  useEffect(() => {
+    if (status !== "verificationRequired") return;
+    const timer = window.setInterval(() => void pollVerification(), verificationPollMs);
+    return () => window.clearInterval(timer);
+  }, [pollVerification, status]);
+
   async function resend() {
     if (cooldown > 0) return;
     await auth.resendVerification();
@@ -408,12 +448,21 @@ export function VerifyEmailScreen({ reducedMotionOverride }: { reducedMotionOver
   return (
     <AuthShell reducedMotionOverride={reducedMotionOverride}>
       <Brand />
-      <StatusPill tone="warning">Verification required</StatusPill>
+      <SignupSteps current="verify" />
+      <div className="mt-7">
+        <StatusPill tone="warning">
+          Step {signupStepNumber("verify")} of {SIGNUP_STEP_COUNT}
+        </StatusPill>
+      </div>
       <h1 className="mt-4 text-h2 font-bold">Verify your email</h1>
       <p className="mt-3 text-body text-text-secondary">
         We sent a verification link to{" "}
-        <strong className="text-text-primary">{auth.currentUser?.email}</strong>. Open it, then
-        return here to continue.
+        <strong className="text-text-primary">{auth.currentUser?.email}</strong>. Open it and this
+        page will continue on its own — you can leave it here.
+      </p>
+      <p className="mt-3 text-bodySmall text-text-muted">
+        Not there? Check spam or junk. Once verified you will choose a plan and start your free
+        trial.
       </p>
       {auth.error && (
         <div className="mt-5">

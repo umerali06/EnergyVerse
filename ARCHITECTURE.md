@@ -2691,3 +2691,105 @@ rollup alone would lose a real condition change.
 built from `_seed_time`, relative to the moment the seed runs, because a permit
 is only meaningful inside a wall-clock window and fixed dates would leave every
 demo permit expired within days.
+
+### Signup order and self-confirming checkout (2026-09-14)
+
+Signup is four routes and a round trip through Stripe, and its order changed
+(D-103, reversing D-092). It now runs **details -> verify email -> choose a plan
+-> app**.
+
+`src/auth/signup-journey.ts` is the single description of that sequence. The
+step list, the "step N of M" labels, and the progress indicator
+(`src/auth/signup-steps.tsx`, rendered on all four screens) all read from it, so
+no screen can claim a position the others disagree with — the plan step used to
+announce itself as "Step 2 of 2" with two steps still to come. The same module
+owns the plan a visitor clicked on the pricing page: that used to travel as a
+`?plan=` query parameter, which only worked while registration led straight to
+the picker, so it is parked in `localStorage` at registration and cleared when
+checkout starts. A `?plan=` on the current URL still wins, so a direct link into
+the picker behaves.
+
+The guards moved with the order. `PublicOnly` sends an unverified user to
+`/verify-email` rather than to the billing step. `RequireAccount` — the
+`(billing)` group's guard — now admits only `authenticated`, so the plan step
+cannot be reached ahead of its turn even by pasting the URL. `VerifyEmailGate`
+no longer hard-codes where a newly verified user goes: it mounts a
+`SubscriptionProvider` and lets `useEntitledDestination` choose, because a new
+admin owes a plan and a returning one does not. That hook resolves through the
+identity's own permission set rather than `usePermissions`, since `/verify-email`
+has no `PermissionProvider` above it.
+
+`RequireSubscription` is new and sits between `SubscriptionProvider` and
+`AppShell` in `(protected)/layout.tsx`. Without it, anything that landed an
+unsubscribed admin on a protected route rendered a shell with nav filtered to
+nothing and 402 on every request. A failed subscription load resolves to the
+picker rather than the app: the picker forwards straight back out on reading an
+entitled subscription, whereas guessing "entitled" produces exactly the dead end
+the gate exists to remove. `platform.admin` bypasses it — platform staff
+administer tenants and are not themselves a paying one.
+
+Verification email delivery changed at the same time. `POST
+/api/v1/auth/verification-email` (branded, SES) had existed since the 2026-09-11
+port but nothing in the admin app called it: `register` and `resendVerification`
+both used the Firebase client SDK's `sendEmailVerification`, whose unbranded
+firebaseapp.com mail is the one people reported never receiving. Both now go
+through `deliverVerificationEmail`, which prefers the API and falls back to the
+provider when it fails — on a deployment without SES the API answers 503, and an
+unbranded link in spam beats no link at all. The verify screen also re-checks on
+a five-second timer (`pollVerification`, which only re-resolves `/me` once the
+provider agrees the address is verified, so a quiet tick costs one token
+refresh), because the link is usually opened in a different tab.
+
+**The return from Stripe now confirms itself.** Stripe redirects to
+`success_url` before it has necessarily delivered `checkout.session.completed`,
+so a completion screen that only polls the read model shows a successful
+purchase as a failure whenever the webhook is slow — and permanently if the
+endpoint is not reachable. The success URL already carried
+`?session_id={CHECKOUT_SESSION_ID}` and nothing read it. `POST
+/api/v1/billing/checkout/confirm` now takes that id, reads the Checkout Session
+back through `LiveStripeGateway.retrieve_checkout_session`, and applies the
+subscription through the *same* `_apply` the webhook reconciler uses — state
+still comes from a live `retrieve_subscription`, never from the return URL, so
+confirmation and webhook are idempotent and interchangeable. The webhook remains
+the authority for everything after signup: renewals, payment failures,
+cancellation.
+
+Two refusals guard it. The session's `client_reference_id` must name the
+caller's own company, or a pasted session id would buy another tenant's plan;
+and a session Stripe returns without any reference at all is refused too, since
+an unattributable one has no safe reading. `outcome: "pending"` — Stripe has the
+session but has not attached a subscription yet — is a reason to retry, not a
+failure. The handler re-reads the company after confirming rather than reusing
+the injected `Entitlements`, which resolved before the write and is stale by
+construction.
+
+`SignupCompleteScreen` no longer offers "Continue anyway". It was the only way
+into the app without a plan, and it only moved the dead end one screen later;
+the failure state now offers a re-check, a route back to the picker, and the
+checkout reference for support. On success it opens the workspace by itself,
+since the email was verified two steps earlier and nothing is left to ask for.
+`stripe_cancel_path` moved from `/signup` to `/signup/plan` for the same reason:
+by the time someone can cancel a checkout, the account already exists.
+
+Two defects the live test-mode run against real Stripe found, neither of which
+any existing test could have seen:
+
+**`_subscription_response` was left calling itself.** The helper that both
+`GET /billing/subscription` and the new confirm route build their response
+with had been refactored into place incorrectly, so `POST
+/billing/checkout/confirm` answered 500 with a `RecursionError` on every
+request — while the service beneath it was correct and all ten of its unit
+tests passed. Nothing exercised the billing routes as HTTP;
+`tests/test_billing_routes.py` now does, and reintroducing the recursion was
+confirmed to fail five of its cases.
+
+**A refused SES send escaped as a 500.** `settings.ses_configured` can only
+check that AWS keys are *present*; whether they are still valid is something
+only SES can answer, and a rotated key answers `InvalidClientTokenId`. The
+sender now raises `EmailDeliveryError` (carrying the provider's own code) and
+the route maps it to **502 `email_delivery_failed`**, kept distinct from the
+503 for an unconfigured deployment. This matters more since D-103, because
+registration sends through that route: the admin client falls back to the
+provider's own sender on any failure, and a truthful status is what lets it
+tell "cannot send" apart from a genuine fault.
+

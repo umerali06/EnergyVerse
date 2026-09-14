@@ -9,6 +9,8 @@ import 'package:built_value/serializer.dart';
 import 'package:dio/dio.dart';
 
 import 'package:fev_api_client/src/model/billing_catalog_response.dart';
+import 'package:fev_api_client/src/model/checkout_confirm_request.dart';
+import 'package:fev_api_client/src/model/checkout_confirm_response.dart';
 import 'package:fev_api_client/src/model/checkout_session_request.dart';
 import 'package:fev_api_client/src/model/checkout_session_response.dart';
 import 'package:fev_api_client/src/model/error_envelope.dart';
@@ -21,6 +23,108 @@ class BillingApi {
   final Serializers _serializers;
 
   const BillingApi(this._dio, this._serializers);
+
+  /// Settle a returning checkout from its session id
+  /// Confirm the purchase the browser has just come back from.  Stripe redirects to the success URL as soon as the payment page is done, which is *before* it has necessarily delivered &#x60;checkout.session.completed&#x60;. Polling the read model alone therefore made a successful purchase look like a failure whenever the webhook was slow — or, on a deployment where the endpoint is not reachable, permanently. This route closes that gap by reading the session Stripe itself named in the return URL.  It is not a second source of truth: the state still comes from a live &#x60;retrieve_subscription&#x60;, exactly as webhook reconciliation does, so the two paths are interchangeable and replaying either is idempotent.
+  ///
+  /// Parameters:
+  /// * [checkoutConfirmRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [CheckoutConfirmResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<CheckoutConfirmResponse>> confirmCheckoutSession({
+    required CheckoutConfirmRequest checkoutConfirmRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/billing/checkout/confirm';
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'HTTPBearer',
+          },
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(CheckoutConfirmRequest);
+      _bodyData =
+          _serializers.serialize(checkoutConfirmRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    CheckoutConfirmResponse? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(CheckoutConfirmResponse),
+            ) as CheckoutConfirmResponse;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<CheckoutConfirmResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
 
   /// Start a Stripe Checkout session for a plan
   /// Only a Company Admin may attach billing to the company. The tier and interval are validated against the catalog rather than passed to Stripe as given, so a tampered request cannot buy an unpublished price.

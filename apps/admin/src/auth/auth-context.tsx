@@ -209,7 +209,10 @@ export type DocumentsApiClient = Pick<FevApiClient, "createDocument" | "listDocu
 
 export type BillingApiClient = Pick<
   FevApiClient,
-  "createCheckoutSession" | "getBillingCatalog" | "getSubscription"
+  | "confirmCheckoutSession"
+  | "createCheckoutSession"
+  | "getBillingCatalog"
+  | "getSubscription"
 >;
 
 export type AuthContextValue = {
@@ -233,6 +236,10 @@ export type AuthContextValue = {
     GeneratedReportsApiClient;
   currentUser: CurrentUser | null;
   error: string | null;
+  /** Quietly re-checks whether the address has been verified, for the poll
+   * behind the verify screen. Unlike `refreshVerification` it changes no status
+   * and raises no toast unless the answer has actually changed. */
+  pollVerification: () => Promise<void>;
   refreshSession: () => Promise<void>;
   refreshVerification: () => Promise<void>;
   register: (input: RegistrationInput) => Promise<void>;
@@ -301,6 +308,7 @@ export function AuthProvider({
   gateway,
 }: {
   apiClient?: Pick<FevApiClient, "getCurrentUser" | "registerCompanyAdmin"> &
+    Partial<Pick<FevApiClient, "sendVerificationEmail">> &
     Partial<BillingApiClient> &
     Partial<NotificationsApiClient> &
     Partial<TrainingApiClient> &
@@ -363,6 +371,30 @@ export function AuthProvider({
   useEffect(() => {
     expireRef.current = expireSession;
   }, [expireSession]);
+
+  /**
+   * Sends the verification email through the API, which renders the branded
+   * template and delivers it over SES.
+   *
+   * Firebase's own `sendEmailVerification` is the fallback, not the default.
+   * The default is what shipped, and its unbranded mail from a firebaseapp.com
+   * sender is what people reported never receiving — it lands in spam often
+   * enough that "verify your email" looked broken rather than pending. The
+   * fallback still matters: on a deployment without SES configured the API
+   * answers 503, and an unbranded link in spam beats no link at all.
+   */
+  const deliverVerificationEmail = useCallback(async () => {
+    const sendViaApi = client.sendVerificationEmail?.bind(client);
+    if (sendViaApi) {
+      try {
+        await sendViaApi();
+        return;
+      } catch {
+        // Fall through to the provider's own sender.
+      }
+    }
+    await authGateway.sendEmailVerification();
+  }, [authGateway, client]);
 
   const fail = useCallback(
     (failure: unknown) => {
@@ -453,7 +485,7 @@ export function AuthProvider({
         const session = await authGateway.signIn(input.email, input.password);
         await resolveSession(session);
         try {
-          await authGateway.sendEmailVerification();
+          await deliverVerificationEmail();
           setVerificationSentAt(Date.now());
           toast.success("Verification email sent");
         } catch (failure) {
@@ -463,12 +495,12 @@ export function AuthProvider({
         fail(failure);
       }
     },
-    [authGateway, client, fail, resolveSession, status, toast],
+    [authGateway, client, deliverVerificationEmail, fail, resolveSession, status, toast],
   );
 
   const resendVerification = useCallback(async () => {
     try {
-      await authGateway.sendEmailVerification();
+      await deliverVerificationEmail();
       setVerificationSentAt(Date.now());
       toast.success("Verification email sent");
       return true;
@@ -478,7 +510,7 @@ export function AuthProvider({
       toast.error(message);
       return false;
     }
-  }, [authGateway, toast]);
+  }, [deliverVerificationEmail, toast]);
 
   const refreshVerification = useCallback(async () => {
     setError(null);
@@ -493,6 +525,20 @@ export function AuthProvider({
       toast.error(message);
     }
   }, [authGateway, resolveSession, toast]);
+
+  const pollVerification = useCallback(async () => {
+    try {
+      const session = await authGateway.refreshSession();
+      // Only re-resolve the identity once the provider agrees the address is
+      // verified: otherwise this ticks every few seconds against `/me` for no
+      // change, and a failed tick would surface an error the person cannot act
+      // on while they are waiting for an email.
+      if (!session.emailVerified) return;
+      await resolveSession(session);
+    } catch {
+      // Silent by design — the manual "I've verified" button reports failures.
+    }
+  }, [authGateway, resolveSession]);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -594,6 +640,7 @@ export function AuthProvider({
       currentUser,
       error,
       passwordResetSentAt,
+      pollVerification,
       refreshSession,
       refreshVerification,
       register,
@@ -610,6 +657,7 @@ export function AuthProvider({
       currentUser,
       error,
       passwordResetSentAt,
+      pollVerification,
       refreshSession,
       refreshVerification,
       register,

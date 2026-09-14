@@ -44,6 +44,7 @@ function renderPage() {
     error: null,
     status: "authenticated",
     refreshSession: vi.fn(),
+    pollVerification: vi.fn(),
     refreshVerification: vi.fn(),
     register: vi.fn(),
     resendVerification: vi.fn(),

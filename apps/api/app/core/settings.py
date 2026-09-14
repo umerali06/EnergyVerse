@@ -56,7 +56,10 @@ class Settings(BaseSettings):
     # Where Stripe returns the browser after checkout. Points at the admin app,
     # which reconciles and then sends the new admin into the dashboard.
     stripe_success_path: str = "/signup/complete"
-    stripe_cancel_path: str = "/signup"
+    # Cancelling returns to the plan picker, not to registration: by this point
+    # the account already exists, and `/signup` would only bounce off its
+    # already-signed-in guard.
+    stripe_cancel_path: str = "/signup/plan"
 
     @property
     def stripe_configured(self) -> bool:

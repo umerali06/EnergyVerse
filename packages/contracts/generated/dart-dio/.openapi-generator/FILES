@@ -49,6 +49,8 @@ doc/ChecklistTemplateItemInput.md
 doc/ChecklistTemplateListItem.md
 doc/ChecklistTemplateListPage.md
 doc/ChecklistTemplatesApi.md
+doc/CheckoutConfirmRequest.md
+doc/CheckoutConfirmResponse.md
 doc/CheckoutSessionRequest.md
 doc/CheckoutSessionResponse.md
 doc/ClosePermitRequest.md
@@ -300,6 +302,8 @@ lib/src/model/checklist_template_item.dart
 lib/src/model/checklist_template_item_input.dart
 lib/src/model/checklist_template_list_item.dart
 lib/src/model/checklist_template_list_page.dart
+lib/src/model/checkout_confirm_request.dart
+lib/src/model/checkout_confirm_response.dart
 lib/src/model/checkout_session_request.dart
 lib/src/model/checkout_session_response.dart
 lib/src/model/close_permit_request.dart
@@ -507,6 +511,8 @@ test/checklist_template_item_test.dart
 test/checklist_template_list_item_test.dart
 test/checklist_template_list_page_test.dart
 test/checklist_templates_api_test.dart
+test/checkout_confirm_request_test.dart
+test/checkout_confirm_response_test.dart
 test/checkout_session_request_test.dart
 test/checkout_session_response_test.dart
 test/close_permit_request_test.dart
