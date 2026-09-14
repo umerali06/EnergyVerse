@@ -169,6 +169,7 @@ EXPECTED_OPERATIONS = {
     "get_billing_catalog",
     "get_subscription",
     "create_checkout_session",
+    "confirm_checkout_session",
 }
 
 # CSV export is intentionally not JSON-typed (D-019/3.4: streamed compliance

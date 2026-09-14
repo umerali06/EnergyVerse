@@ -85,6 +85,7 @@ Class | Method | HTTP request | Description
 [*AuthApi*](doc/AuthApi.md) | [**getCurrentUser**](doc/AuthApi.md#getcurrentuser) | **GET** /api/v1/auth/me | Me
 [*AuthApi*](doc/AuthApi.md) | [**registerCompanyAdmin**](doc/AuthApi.md#registercompanyadmin) | **POST** /api/v1/auth/register | Register Company Admin
 [*AuthApi*](doc/AuthApi.md) | [**sendVerificationEmail**](doc/AuthApi.md#sendverificationemail) | **POST** /api/v1/auth/verification-email | Request Verification Email
+[*BillingApi*](doc/BillingApi.md) | [**confirmCheckoutSession**](doc/BillingApi.md#confirmcheckoutsession) | **POST** /api/v1/billing/checkout/confirm | Settle a returning checkout from its session id
 [*BillingApi*](doc/BillingApi.md) | [**createCheckoutSession**](doc/BillingApi.md#createcheckoutsession) | **POST** /api/v1/billing/checkout | Start a Stripe Checkout session for a plan
 [*BillingApi*](doc/BillingApi.md) | [**getBillingCatalog**](doc/BillingApi.md#getbillingcatalog) | **GET** /api/v1/billing/catalog | Published plan catalog
 [*BillingApi*](doc/BillingApi.md) | [**getSubscription**](doc/BillingApi.md#getsubscription) | **GET** /api/v1/billing/subscription | This company&#39;s plan and entitlements
@@ -264,6 +265,8 @@ Class | Method | HTTP request | Description
  - [ChecklistTemplateItemInput](doc/ChecklistTemplateItemInput.md)
  - [ChecklistTemplateListItem](doc/ChecklistTemplateListItem.md)
  - [ChecklistTemplateListPage](doc/ChecklistTemplateListPage.md)
+ - [CheckoutConfirmRequest](doc/CheckoutConfirmRequest.md)
+ - [CheckoutConfirmResponse](doc/CheckoutConfirmResponse.md)
  - [CheckoutSessionRequest](doc/CheckoutSessionRequest.md)
  - [CheckoutSessionResponse](doc/CheckoutSessionResponse.md)
  - [ClosePermitRequest](doc/ClosePermitRequest.md)

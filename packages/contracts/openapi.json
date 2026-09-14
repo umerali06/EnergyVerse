@@ -2161,6 +2161,44 @@
         "title": "ChecklistTemplateListPage",
         "type": "object"
       },
+      "CheckoutConfirmRequest": {
+        "description": "The session id Stripe substitutes into the success URL.",
+        "properties": {
+          "session_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "CheckoutConfirmRequest",
+        "type": "object"
+      },
+      "CheckoutConfirmResponse": {
+        "description": "`outcome` is `reconciled` once the purchase has been written to the\ncompany, or `pending` while Stripe has not yet attached a subscription to\nthe session. `subscription` is the freshly resolved plan either way, so the\ncompletion screen never needs a second round trip to decide what to show.",
+        "properties": {
+          "outcome": {
+            "enum": [
+              "reconciled",
+              "pending"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionResponse"
+          }
+        },
+        "required": [
+          "outcome",
+          "subscription"
+        ],
+        "title": "CheckoutConfirmResponse",
+        "type": "object"
+      },
       "CheckoutSessionRequest": {
         "properties": {
           "interval": {
@@ -13367,6 +13405,103 @@
           }
         ],
         "summary": "Start a Stripe Checkout session for a plan",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/checkout/confirm": {
+      "post": {
+        "description": "Confirm the purchase the browser has just come back from.\n\nStripe redirects to the success URL as soon as the payment page is done,\nwhich is *before* it has necessarily delivered `checkout.session.completed`.\nPolling the read model alone therefore made a successful purchase look like\na failure whenever the webhook was slow \u2014 or, on a deployment where the\nendpoint is not reachable, permanently. This route closes that gap by\nreading the session Stripe itself named in the return URL.\n\nIt is not a second source of truth: the state still comes from a live\n`retrieve_subscription`, exactly as webhook reconciliation does, so the two\npaths are interchangeable and replaying either is idempotent.",
+        "operationId": "confirm_checkout_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request was malformed or referenced an unknown plan"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated caller is not authorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required upstream dependency (e.g. billing) is not configured"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Settle a returning checkout from its session id",
         "tags": [
           "billing"
         ]

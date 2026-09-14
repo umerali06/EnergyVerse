@@ -1,7 +1,8 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiClientError } from "@/api";
 import { AuthProvider } from "@/auth/auth-context";
 import type { AuthGateway, AuthSession } from "@/auth/firebase-gateway";
 import { ThemeProvider, ToastProvider } from "@/design-system";
@@ -31,17 +32,19 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+/** Both billing screens are reached only after verification (D-103), so the
+ * fixtures say so — `RequireAccount` admits nobody else. */
 const session: AuthSession = {
   uid: "firebase-uid",
   email: "admin@acme.example.invalid",
-  emailVerified: false,
+  emailVerified: true,
   getIdToken: async () => "id-token",
 };
 
 const identity = {
   uid: "firebase-uid",
   email: "admin@acme.example.invalid",
-  emailVerified: false,
+  emailVerified: true,
   companyId: "cmp_acme",
   companyName: "Acme Energy",
   roleKey: "company_admin",
@@ -116,6 +119,17 @@ const entitled = {
   quotas: { facilities: 5, assets: 2_500, seats: 75 },
 };
 
+/** Replaces `window.location` so the screens can read the query string the way
+ * the browser hands it to them, and so leaving for Stripe is observable. */
+function setLocationSearch(value: string) {
+  const assign = vi.fn();
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    value: { ...window.location, search: value, assign },
+  });
+  return assign;
+}
+
 function gateway(): AuthGateway {
   return {
     getIdToken: async () => "id-token",
@@ -132,9 +146,11 @@ function gateway(): AuthGateway {
 }
 
 type Client = {
+  getCurrentUser: ReturnType<typeof vi.fn>;
   getBillingCatalog: ReturnType<typeof vi.fn>;
   getSubscription: ReturnType<typeof vi.fn>;
   createCheckoutSession: ReturnType<typeof vi.fn>;
+  confirmCheckoutSession: ReturnType<typeof vi.fn>;
 };
 
 function renderScreen(screenNode: React.ReactNode, client: Partial<Client>) {
@@ -148,6 +164,10 @@ function renderScreen(screenNode: React.ReactNode, client: Partial<Client>) {
             getBillingCatalog: vi.fn(async () => catalog),
             getSubscription: vi.fn(async () => unentitled),
             createCheckoutSession: vi.fn(),
+            confirmCheckoutSession: vi.fn(async () => ({
+              outcome: "reconciled",
+              subscription: entitled,
+            })),
             ...client,
           }}
           gateway={gateway()}
@@ -162,9 +182,11 @@ function renderScreen(screenNode: React.ReactNode, client: Partial<Client>) {
 beforeEach(() => {
   routerControl.reset();
   search = "";
+  setLocationSearch("");
+  window.localStorage.clear();
 });
 
-describe("signup step 2: choose a plan", () => {
+describe("signup step 3: choose a plan", () => {
   it("renders every catalogued plan with the trial length from the server", async () => {
     renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
 
@@ -184,16 +206,48 @@ describe("signup step 2: choose a plan", () => {
     expect(screen.getByText("$119,975.88")).toBeInTheDocument();
   });
 
-  it("preselects the plan carried over from the pricing page", async () => {
-    // The pricing CTA sends ?plan=operations through registration into step 2.
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...window.location, search: "?plan=operations", assign: vi.fn() },
-    });
+  it("names its place in the sequence and that it is the last step", async () => {
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
+
+    expect(await screen.findByText("Step 3 of 3")).toBeInTheDocument();
+    expect(screen.getByText(/This is the last step/)).toBeInTheDocument();
+    // The step before it is done, not pending.
+    const verify = screen.getByRole("navigation", { name: "Signup progress" });
+    expect(verify.textContent).toContain("Verify email");
+  });
+
+  it("no longer asks for an email confirmation it has already had", async () => {
+    // Verification now happens two steps earlier, so repeating "we emailed you
+    // a link" here would describe something already done.
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
+
+    await screen.findByRole("button", { name: /Start 7-day trial on Starter/ });
+    expect(screen.queryByText(/We have emailed a verification link/)).not.toBeInTheDocument();
+  });
+
+  it("preselects the plan and interval carried over from the pricing page", async () => {
+    // The pricing CTA sends ?plan=operations&interval=monthly, which registration
+    // parks in storage because the picker is now two screens away.
+    window.localStorage.setItem("fev.signup.plan", "operations");
+    window.localStorage.setItem("fev.signup.interval", "monthly");
     renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
 
     expect(
       await screen.findByRole("button", { name: /Start 7-day trial on Operations/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "monthly" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("lets a plan link on the current URL override a parked one", async () => {
+    window.localStorage.setItem("fev.signup.plan", "starter");
+    setLocationSearch("?plan=enterprise");
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
+
+    expect(
+      await screen.findByRole("button", { name: /Start 7-day trial on Enterprise/ }),
     ).toBeInTheDocument();
   });
 
@@ -208,11 +262,8 @@ describe("signup step 2: choose a plan", () => {
   });
 
   it("sends the chosen tier and interval to checkout and leaves for Stripe", async () => {
-    const assign = vi.fn();
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...window.location, search: "", assign },
-    });
+    const assign = setLocationSearch("");
+    window.localStorage.setItem("fev.signup.plan", "starter");
     const createCheckoutSession = vi.fn(async () => ({
       sessionId: "cs_test_1",
       checkoutUrl: "https://checkout.stripe.com/c/cs_test_1",
@@ -232,6 +283,8 @@ describe("signup step 2: choose a plan", () => {
     // A full navigation, not a router push: the destination is Stripe.
     expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/cs_test_1");
     expect(routerControl.replaced).not.toContain("https://checkout.stripe.com/c/cs_test_1");
+    // The parked choice has been acted on and must not resurface later.
+    expect(window.localStorage.getItem("fev.signup.plan")).toBeNull();
   });
 
   it("says nothing was charged when the session cannot be opened", async () => {
@@ -246,13 +299,30 @@ describe("signup step 2: choose a plan", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/Nothing was charged/);
   });
 
-  it("skips the step when the company already has a subscription", async () => {
+  it("skips the step and opens the app when the company already subscribed", async () => {
     renderScreen(<SignupPlanScreen reducedMotionOverride />, {
       getSubscription: vi.fn(async () => entitled),
     });
 
-    // Unverified admin, so the next stop is email verification, not the app.
-    await waitFor(() => expect(routerControl.replaced).toContain("/verify-email"));
+    // The email is verified by the time anyone reaches this screen, so an
+    // entitled company has nothing left to do.
+    await waitFor(() => expect(routerControl.replaced).toContain("/dashboard"));
+  });
+
+  it("tells a non-admin to fetch their Company Admin rather than a 403 button", async () => {
+    // An invited inspector whose company never finished checkout is sent here
+    // by RequireSubscription, and cannot act: only a Company Admin may attach
+    // billing. A picker whose button answers 403 would be a second dead end.
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {
+      getCurrentUser: vi.fn(async () => ({
+        ...identity,
+        roleKey: "field_inspector",
+        permissions: new Set(["assets.read"]),
+      })),
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/only a Company Admin/);
+    expect(document.querySelectorAll("[data-plan-tier]")).toHaveLength(0);
   });
 
   it("offers a retry rather than an empty picker when the catalog fails", async () => {
@@ -268,92 +338,154 @@ describe("signup step 2: choose a plan", () => {
 });
 
 describe("signup completion", () => {
-  it("polls until the webhook has landed, because the redirect is not the confirmation", async () => {
-    const getSubscription = vi
-      .fn()
-      .mockResolvedValueOnce(unentitled)
-      .mockResolvedValueOnce(unentitled)
-      .mockResolvedValue(entitled);
-
-    renderScreen(
-      <SignupCompleteScreen pollIntervalMs={1} reducedMotionOverride />,
-      { getSubscription },
-    );
-
-    expect(await screen.findByText(/Confirming your payment/)).toBeInTheDocument();
-    expect(await screen.findByText(/You are on Operations/)).toBeInTheDocument();
-    expect(getSubscription.mock.calls.length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText(/another 7 days/)).toBeInTheDocument();
-  });
-
-  it("sends an unverified admin to verification and a verified one to the app", async () => {
-    renderScreen(<SignupCompleteScreen pollIntervalMs={1} reducedMotionOverride />, {
-      getSubscription: vi.fn(async () => entitled),
-    });
-
-    const action = await screen.findByRole("button", { name: "Verify your email" });
-    await userEvent.click(action);
-    expect(routerControl.replaced).toContain("/verify-email");
-  });
-
-  it("does not strand the visitor when the webhook never arrives", async () => {
-    renderScreen(
-      <SignupCompleteScreen maxAttempts={2} pollIntervalMs={1} reducedMotionOverride />,
-      { getSubscription: vi.fn(async () => unentitled) },
-    );
-
-    expect(await screen.findByText(/payment is being confirmed/i)).toBeInTheDocument();
-    // Both a way to re-check and a way out; nothing is lost either way.
-    expect(screen.getByRole("button", { name: "Check again" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue anyway" })).toBeInTheDocument();
-  });
-
-  it("keeps polling through a transient API failure", async () => {
-    const getSubscription = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("network"))
-      .mockResolvedValue(entitled);
+  it("confirms the exact session Stripe returned, without waiting for a webhook", async () => {
+    setLocationSearch("?session_id=cs_test_1");
+    const confirmCheckoutSession = vi.fn(async () => ({
+      outcome: "reconciled",
+      subscription: entitled,
+    }));
+    const getSubscription = vi.fn(async () => unentitled);
 
     renderScreen(<SignupCompleteScreen pollIntervalMs={1} reducedMotionOverride />, {
+      confirmCheckoutSession,
       getSubscription,
     });
 
-    // A failed poll is not a failed payment.
     expect(await screen.findByText(/You are on Operations/)).toBeInTheDocument();
-  });
-});
-
-describe("the outstanding email verification", () => {
-  it("is named on the plan step, before the person reaches the verify screen", async () => {
-    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
-
-    // Registration already sent the link; nothing used to say so, and the
-    // requirement first appeared on the verify screen.
-    expect(
-      await screen.findByText(/We have emailed a verification link/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/admin@acme.example.invalid/)).toBeInTheDocument();
+    expect(confirmCheckoutSession).toHaveBeenCalledWith("cs_test_1", expect.anything());
+    // The read model is not consulted at all: the session id is authoritative.
+    expect(getSubscription).not.toHaveBeenCalled();
+    expect(screen.getByText(/another 7 days/)).toBeInTheDocument();
   });
 
-  it("is the stated next step once the subscription is active", async () => {
+  it("keeps confirming while Stripe has not attached the subscription yet", async () => {
+    setLocationSearch("?session_id=cs_test_1");
+    const confirmCheckoutSession = vi
+      .fn()
+      .mockResolvedValueOnce({ outcome: "pending", subscription: unentitled })
+      .mockResolvedValue({ outcome: "reconciled", subscription: entitled });
+
     renderScreen(<SignupCompleteScreen pollIntervalMs={1} reducedMotionOverride />, {
-      getSubscription: vi.fn(async () => entitled),
+      confirmCheckoutSession,
     });
 
-    expect(await screen.findByText("One thing left")).toBeInTheDocument();
-    expect(screen.getByText(/confirms the address/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verify your email" })).toBeInTheDocument();
+    // `pending` is a reason to try again, not a failure.
+    expect(await screen.findByText(/You are on Operations/)).toBeInTheDocument();
+    expect(confirmCheckoutSession.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("is still named when the webhook never arrives", async () => {
-    // The timeout branch can be a person's last step too, so it cannot be the
-    // one place the requirement goes unmentioned.
+  it("opens the workspace by itself once the subscription is live", async () => {
+    setLocationSearch("?session_id=cs_test_1");
     renderScreen(
-      <SignupCompleteScreen maxAttempts={2} pollIntervalMs={1} reducedMotionOverride />,
-      { getSubscription: vi.fn(async () => unentitled) },
+      <SignupCompleteScreen pollIntervalMs={1} redirectDelayMs={1} reducedMotionOverride />,
+      {},
     );
 
-    expect(await screen.findByText(/payment is being confirmed/i)).toBeInTheDocument();
-    expect(screen.getByText("One thing left")).toBeInTheDocument();
+    // Nothing is left to ask for: the email was verified two steps ago.
+    await screen.findByText(/You are on Operations/);
+    await waitFor(() => expect(routerControl.replaced).toContain("/dashboard"));
+  });
+
+  it("falls back to the read model when the return URL carried no session id", async () => {
+    const getSubscription = vi
+      .fn()
+      .mockResolvedValueOnce(unentitled)
+      .mockResolvedValue(entitled);
+    const confirmCheckoutSession = vi.fn();
+
+    renderScreen(<SignupCompleteScreen pollIntervalMs={1} reducedMotionOverride />, {
+      confirmCheckoutSession,
+      getSubscription,
+    });
+
+    expect(await screen.findByText(/You are on Operations/)).toBeInTheDocument();
+    expect(confirmCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps trying through a transient failure", async () => {
+    setLocationSearch("?session_id=cs_test_1");
+    const confirmCheckoutSession = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValue({ outcome: "reconciled", subscription: entitled });
+
+    renderScreen(<SignupCompleteScreen pollIntervalMs={1} reducedMotionOverride />, {
+      confirmCheckoutSession,
+    });
+
+    // A failed confirmation call is not a failed payment.
+    expect(await screen.findByText(/You are on Operations/)).toBeInTheDocument();
+  });
+
+  it("never offers a way into the app without a plan", async () => {
+    setLocationSearch("?session_id=cs_test_1");
+    renderScreen(
+      <SignupCompleteScreen maxAttempts={2} pollIntervalMs={1} reducedMotionOverride />,
+      {
+        confirmCheckoutSession: vi.fn(async () => ({
+          outcome: "pending",
+          subscription: unentitled,
+        })),
+      },
+    );
+
+    expect(await screen.findByText(/could not confirm your subscription/i)).toBeInTheDocument();
+    // "Continue anyway" used to be here, and it landed people in a shell whose
+    // nav was empty and whose every request answered 402.
+    expect(screen.queryByRole("button", { name: "Continue anyway" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back to plans" })).toBeInTheDocument();
+    expect(routerControl.replaced).not.toContain("/dashboard");
+  });
+
+  it("stops immediately on a session the server has ruled out", async () => {
+    // `session_mismatch` and `session_expired` are considered answers, not
+    // transient ones; retrying them twenty times only delays the message that
+    // actually helps.
+    setLocationSearch("?session_id=cs_someone_elses");
+    const confirmCheckoutSession = vi.fn(async () => {
+      throw new ApiClientError("session_mismatch", "Not your session", 400);
+    });
+    renderScreen(
+      <SignupCompleteScreen maxAttempts={20} pollIntervalMs={5_000} reducedMotionOverride />,
+      { confirmCheckoutSession },
+    );
+
+    expect(await screen.findByText(/could not confirm your subscription/i)).toBeInTheDocument();
+    expect(confirmCheckoutSession).toHaveBeenCalledOnce();
+  });
+
+  it("quotes the checkout reference so support can finish it by hand", async () => {
+    setLocationSearch("?session_id=cs_test_stuck");
+    renderScreen(
+      <SignupCompleteScreen maxAttempts={2} pollIntervalMs={1} reducedMotionOverride />,
+      {
+        confirmCheckoutSession: vi.fn(async () => {
+          throw new Error("stripe down");
+        }),
+      },
+    );
+
+    expect(await screen.findByText(/could not confirm your subscription/i)).toBeInTheDocument();
+    expect(screen.getByText("cs_test_stuck")).toBeInTheDocument();
+  });
+
+  it("re-checks on demand after giving up", async () => {
+    setLocationSearch("?session_id=cs_test_1");
+    const confirmCheckoutSession = vi
+      .fn()
+      .mockResolvedValueOnce({ outcome: "pending", subscription: unentitled })
+      .mockResolvedValueOnce({ outcome: "pending", subscription: unentitled })
+      .mockResolvedValue({ outcome: "reconciled", subscription: entitled });
+
+    renderScreen(
+      <SignupCompleteScreen maxAttempts={2} pollIntervalMs={1} reducedMotionOverride />,
+      { confirmCheckoutSession },
+    );
+
+    await screen.findByText(/could not confirm your subscription/i);
+    await userEvent.click(screen.getByRole("button", { name: "Check again" }));
+
+    expect(await screen.findByText(/You are on Operations/)).toBeInTheDocument();
   });
 });

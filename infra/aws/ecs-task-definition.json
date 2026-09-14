@@ -75,7 +75,7 @@
         },
         {
           "name": "STRIPE_CANCEL_PATH",
-          "value": "/signup"
+          "value": "/signup/plan"
         }
       ],
       "secrets": [

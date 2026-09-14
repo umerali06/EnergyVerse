@@ -588,6 +588,22 @@ Stripe dashboard → Developers → Webhooks → add
 the `STRIPE_WEBHOOK_SECRET` key of your `fev/api` secret, then force a redeploy
 (Actions → Deploy API to ECS → Run workflow).
 
+Signup no longer depends on this. The completion screen confirms the purchase
+itself through `POST /api/v1/billing/checkout/confirm`, using the session id
+Stripe substitutes into the success URL (D-103), so a new customer reaches their
+workspace whether or not the webhook has been delivered. **The webhook is still
+required**, because it is the only thing that reconciles what happens *after*
+signup: renewals, failed payments, upgrades and cancellations. Left
+unconfigured, a cancelled subscription keeps granting access until someone
+notices.
+
+To check it is actually wired: Stripe dashboard → Webhooks → your endpoint →
+"Send test webhook" with `customer.subscription.updated`. A correct deployment
+answers `200 {"received":true,"outcome":"unresolved"}` — `unresolved` is right
+for a synthetic event with no real company on it; a `400 invalid_signature`
+means the secret does not match, and a timeout means the URL is not reachable
+from Stripe.
+
 ---
 
 # PART E — Verify the whole thing works

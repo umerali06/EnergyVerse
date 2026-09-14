@@ -77,6 +77,8 @@ export 'package:fev_api_client/src/model/checklist_template_item.dart';
 export 'package:fev_api_client/src/model/checklist_template_item_input.dart';
 export 'package:fev_api_client/src/model/checklist_template_list_item.dart';
 export 'package:fev_api_client/src/model/checklist_template_list_page.dart';
+export 'package:fev_api_client/src/model/checkout_confirm_request.dart';
+export 'package:fev_api_client/src/model/checkout_confirm_response.dart';
 export 'package:fev_api_client/src/model/checkout_session_request.dart';
 export 'package:fev_api_client/src/model/checkout_session_response.dart';
 export 'package:fev_api_client/src/model/close_permit_request.dart';

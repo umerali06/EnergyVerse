@@ -20,7 +20,9 @@ from app.billing.plans import BillingInterval, PlanTier
 from app.billing.service import RECONCILING_EVENTS, BillingError, SubscriptionService
 from app.billing.stripe_gateway import (
     CheckoutSession,
+    CheckoutSessionState,
     SubscriptionSnapshot,
+    checkout_state_from_session,
     interval_from_metadata,
     price_lookup_key,
     product_lookup_id,
@@ -70,14 +72,25 @@ class FakeAudit:
 
 
 class FakeGateway:
-    def __init__(self, snapshot: SubscriptionSnapshot | None = None) -> None:
+    def __init__(
+        self,
+        snapshot: SubscriptionSnapshot | None = None,
+        session_state: CheckoutSessionState | None = None,
+    ) -> None:
         self.snapshot = snapshot
+        self.session_state = session_state
         self.checkout_calls: list[dict[str, Any]] = []
         self.retrieved: list[str] = []
+        self.sessions_read: list[str] = []
 
     async def create_checkout_session(self, **kwargs: Any) -> CheckoutSession:
         self.checkout_calls.append(kwargs)
         return CheckoutSession(id="cs_test_123", url="https://checkout.stripe.com/c/cs_test_123")
+
+    async def retrieve_checkout_session(self, session_id: str) -> CheckoutSessionState:
+        self.sessions_read.append(session_id)
+        assert self.session_state is not None
+        return self.session_state
 
     async def retrieve_subscription(self, subscription_id: str) -> SubscriptionSnapshot:
         self.retrieved.append(subscription_id)
@@ -117,6 +130,22 @@ def snapshot(
         interval=interval,
         trial_end=trial_end,
         current_period_end=1_789_500_000,
+    )
+
+
+def session_state(
+    *,
+    company_id: str | None = COMPANY_ID,
+    subscription_id: str | None = "sub_123",
+    status: str = "complete",
+    payment_status: str = "no_payment_required",
+) -> CheckoutSessionState:
+    return CheckoutSessionState(
+        session_id="cs_test_123",
+        company_id=company_id,
+        subscription_id=subscription_id,
+        status=status,
+        payment_status=payment_status,
     )
 
 
@@ -200,6 +229,128 @@ class TestCheckout:
                 cancel_url="https://app.example/cancel",
             ))
         assert error.value.code == "unknown_plan"
+
+
+class TestConfirmCheckout:
+    """Stripe returns the browser before it necessarily delivers
+    `checkout.session.completed`, so the completion screen used to poll a read
+    model that nothing had written yet -- and on a deployment whose webhook
+    endpoint is unreachable, never would. Confirming from the session id Stripe
+    itself put in the return URL removes that dependency."""
+
+    def test_grants_the_purchased_tier_without_any_webhook(self) -> None:
+        companies = FakeCompanies(company())
+        gateway = FakeGateway(snapshot(), session_state())
+        audit = FakeAudit()
+        outcome = asyncio.run(service(
+            companies=companies, gateway=gateway, audit=audit
+        ).confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+
+        assert outcome == "reconciled"
+        assert gateway.sessions_read == ["cs_test_123"]
+        written = companies.updates[-1]
+        assert written.subscription_tier == "operations"
+        assert written.subscription_status == "trialing"
+        assert "billing.checkout_confirmed" in audit.actions()
+
+    def test_state_still_comes_from_a_live_subscription_read(self) -> None:
+        """Same rule as the webhook path: nothing is taken from the return URL
+        but the session id itself."""
+        companies = FakeCompanies(company())
+        gateway = FakeGateway(
+            snapshot(status="active", tier=PlanTier.STARTER), session_state()
+        )
+        asyncio.run(service(
+            companies=companies, gateway=gateway, audit=FakeAudit()
+        ).confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+        assert gateway.retrieved == ["sub_123"]
+        assert companies.updates[-1].subscription_tier == "starter"
+
+    def test_confirming_twice_writes_the_same_state(self) -> None:
+        """The completion screen retries, and a webhook may land in between."""
+        companies = FakeCompanies(company())
+        gateway = FakeGateway(snapshot(), session_state())
+        audit = FakeAudit()
+        subject = service(companies=companies, gateway=gateway, audit=audit)
+        asyncio.run(subject.confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+        first = companies.updates[-1].model_dump()
+        asyncio.run(subject.confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+        assert companies.updates[-1].model_dump() == first
+        assert audit.actions().count("billing.subscription_changed") == 1
+
+    def test_a_session_without_a_subscription_yet_is_pending_not_a_failure(self) -> None:
+        companies = FakeCompanies(company())
+        gateway = FakeGateway(snapshot(), session_state(subscription_id=None))
+        outcome = asyncio.run(service(
+            companies=companies, gateway=gateway, audit=FakeAudit()
+        ).confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+        assert outcome == "pending"
+        assert companies.updates == []
+
+    def test_refuses_a_session_belonging_to_another_company(self) -> None:
+        """Without this, a URL carrying someone else's session id would hand
+        this tenant that tenant's plan."""
+        gateway = FakeGateway(snapshot(), session_state(company_id="cmp_someone_else"))
+        with pytest.raises(BillingError) as error:
+            asyncio.run(service(
+                companies=FakeCompanies(company()), gateway=gateway, audit=FakeAudit()
+            ).confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+        assert error.value.code == "session_mismatch"
+        assert gateway.retrieved == []
+
+    def test_refuses_a_session_with_no_company_reference(self) -> None:
+        gateway = FakeGateway(snapshot(), session_state(company_id=None))
+        with pytest.raises(BillingError) as error:
+            asyncio.run(service(
+                companies=FakeCompanies(company()), gateway=gateway, audit=FakeAudit()
+            ).confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+        assert error.value.code == "session_mismatch"
+
+    def test_reports_an_expired_session(self) -> None:
+        gateway = FakeGateway(snapshot(), session_state(status="expired"))
+        with pytest.raises(BillingError) as error:
+            asyncio.run(service(
+                companies=FakeCompanies(company()), gateway=gateway, audit=FakeAudit()
+            ).confirm_checkout(company_id=COMPANY_ID, session_id="cs_test_123"))
+        assert error.value.code == "session_expired"
+
+
+class TestCheckoutSessionMapping:
+    def test_reads_the_company_from_the_client_reference(self) -> None:
+        state = checkout_state_from_session(
+            {
+                "id": "cs_1",
+                "object": "checkout.session",
+                "client_reference_id": COMPANY_ID,
+                "subscription": "sub_9",
+                "status": "complete",
+                "payment_status": "no_payment_required",
+            }
+        )
+        assert state.company_id == COMPANY_ID
+        assert state.subscription_id == "sub_9"
+        assert state.status == "complete"
+
+    def test_handles_an_expanded_subscription_object(self) -> None:
+        state = checkout_state_from_session(
+            {
+                "id": "cs_2",
+                "client_reference_id": COMPANY_ID,
+                "subscription": {"id": "sub_expanded"},
+            }
+        )
+        assert state.subscription_id == "sub_expanded"
+
+    def test_falls_back_to_our_metadata_when_the_reference_is_absent(self) -> None:
+        state = checkout_state_from_session(
+            {
+                "id": "cs_3",
+                "subscription": None,
+                "metadata": {"fev_company_id": COMPANY_ID},
+            }
+        )
+        assert state.company_id == COMPANY_ID
+        assert state.subscription_id is None
 
 
 class TestSnapshotMapping:

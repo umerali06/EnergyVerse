@@ -57,11 +57,11 @@ async def get_entitlements(
     plan card, the billing page) without also gating on a feature.
 
     Deliberately depends on `get_current_user`, **not**
-    `require_verified_email`: the signup completion page polls this while the
-    brand-new admin's email is still unverified. Reading your own company's
-    billing state is not reading tenant data, and every module gate that
-    consumes these entitlements is stacked with `require_permission`, which
-    does enforce verification.
+    `require_verified_email`: the verify-email screen reads this to decide where
+    to send someone next, while their address is by definition still unverified.
+    Reading your own company's billing state is not reading tenant data, and
+    every module gate that consumes these entitlements is stacked with
+    `require_permission`, which does enforce verification.
     """
     company = await companies.get(CompanyScope(company_id=current_user.company_id))
     if company is None:
@@ -82,12 +82,12 @@ async def require_billing_admin(
 ) -> CurrentUser:
     """Authorize attaching billing to the caller's own company.
 
-    Skips `require_verified_email` on purpose. A company created seconds ago has
-    an unverified admin, and the signup flow is details -> pay -> use; demanding
-    a mailbox round trip before Stripe would strand every new tenant at the one
-    step that makes them a customer. Paying is not access to tenant data, so
-    nothing else relaxes: `company.settings` is still required, and every
-    module route keeps its verified-email gate.
+    Skips `require_verified_email` on purpose. Signup now verifies the mailbox
+    before the plan step (D-103), so in practice every caller here is already
+    verified -- but paying is not access to tenant data, and a tenant who is
+    somehow mid-verification must never be blocked from the one step that makes
+    them a customer. What is *not* relaxed is the permission: `company.settings`
+    is still required, and every module route keeps its verified-email gate.
     """
     if "company.settings" not in current_user.permissions:
         raise HTTPException(

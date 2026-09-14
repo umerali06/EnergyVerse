@@ -41,6 +41,8 @@ export * from './ChecklistTemplateItem';
 export * from './ChecklistTemplateItemInput';
 export * from './ChecklistTemplateListItem';
 export * from './ChecklistTemplateListPage';
+export * from './CheckoutConfirmRequest';
+export * from './CheckoutConfirmResponse';
 export * from './CheckoutSessionRequest';
 export * from './CheckoutSessionResponse';
 export * from './ClosePermitRequest';

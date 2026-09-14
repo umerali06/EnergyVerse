@@ -222,3 +222,29 @@ unmerged feature — the branded SES verification email — ported onto main as
 `POST /api/v1/auth/verification-email`. The Firebase web API key was removed
 from source after GitHub secret scanning flagged it (D-102); it still needs
 rotating or restricting in the Google Cloud console.
+
+Signup flow correction (2026-09-14): the sequence a new customer walks through
+was reported as wrong end to end, and it was. It ran details -> pay -> verify,
+so the card form arrived before the mailbox had been confirmed and the
+verification step then read as optional; the only verification mail was
+Firebase's unbranded default, which is the one people said never arrived, even
+though the branded SES endpoint had existed since the 2026-09-11 port and
+nothing called it. Worse, the return from Stripe waited on a webhook to poll
+for, so a completed purchase showed as a failure and offered "Continue anyway",
+which put an admin into a dashboard with no plan behind it.
+
+The order is now details -> verify email -> choose a plan -> app, with a shared
+three-step indicator on every screen so the sequence is visible rather than
+inferred. Verification sends through SES with the provider as fallback, and the
+verify screen re-checks on a timer because the link is usually opened in another
+tab. The return from Stripe confirms itself against the session id Stripe put in
+the URL (`POST /api/v1/billing/checkout/confirm`) instead of waiting on the
+webhook, which stays the authority for renewals and cancellation. "Continue
+anyway" is gone and the app shell is gated on an active subscription (D-103).
+
+Not delivered, and deliberately: the `checkout.session.completed` webhook
+endpoint itself has not been re-verified against the live Stripe account. The
+confirmation route removes it from the critical path of signup, but a webhook
+that is genuinely misconfigured will still leave later lifecycle events
+(renewal, cancellation, payment failure) unreconciled, and that needs the Stripe
+dashboard rather than code.

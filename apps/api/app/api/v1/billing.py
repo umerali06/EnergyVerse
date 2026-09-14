@@ -15,8 +15,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from app.audit.service import AuditService
-from app.billing.dependencies import get_entitlements, require_billing_admin
-from app.billing.entitlements import Entitlements
+from app.billing.dependencies import (
+    get_company_repository,
+    get_entitlements,
+    require_billing_admin,
+)
+from app.billing.entitlements import Entitlements, resolve_entitlements
 from app.billing.plans import (
     PLANS,
     TIER_ORDER,
@@ -37,11 +41,14 @@ from app.models.api import (
     BillingCatalogResponse,
     BillingPlanQuotasResponse,
     BillingPlanResponse,
+    CheckoutConfirmRequest,
+    CheckoutConfirmResponse,
     CheckoutSessionRequest,
     CheckoutSessionResponse,
     SubscriptionResponse,
     error_responses,
 )
+from app.models.base import CompanyScope
 from app.models.entities import CurrentUser
 
 logger = logging.getLogger(__name__)
@@ -55,6 +62,12 @@ def get_subscription_service() -> SubscriptionService:
         companies=CompanyRepository(),
         audit=AuditService(AuditLogRepository()),
     )
+
+
+def _subscription_response(entitlements: Entitlements) -> SubscriptionResponse:
+    """One shape for the company's plan, so the confirmation echo and the read
+    model can never drift apart."""
+    return _subscription_response(entitlements)
 
 
 @router.get(
@@ -181,6 +194,71 @@ async def create_checkout(
             detail={"error": error.code, "message": error.message},
         ) from error
     return CheckoutSessionResponse(session_id=session.id, checkout_url=session.url)
+
+
+@router.post(
+    "/checkout/confirm",
+    response_model=CheckoutConfirmResponse,
+    responses=error_responses(400, 401, 403, 404, 503),
+    operation_id="confirm_checkout_session",
+    summary="Settle a returning checkout from its session id",
+)
+async def confirm_checkout(
+    request: CheckoutConfirmRequest,
+    current_user: Annotated[CurrentUser, Depends(require_billing_admin)],
+    service: Annotated[SubscriptionService, Depends(get_subscription_service)],
+    companies: Annotated[CompanyRepository, Depends(get_company_repository)],
+) -> CheckoutConfirmResponse:
+    """Confirm the purchase the browser has just come back from.
+
+    Stripe redirects to the success URL as soon as the payment page is done,
+    which is *before* it has necessarily delivered `checkout.session.completed`.
+    Polling the read model alone therefore made a successful purchase look like
+    a failure whenever the webhook was slow — or, on a deployment where the
+    endpoint is not reachable, permanently. This route closes that gap by
+    reading the session Stripe itself named in the return URL.
+
+    It is not a second source of truth: the state still comes from a live
+    `retrieve_subscription`, exactly as webhook reconciliation does, so the two
+    paths are interchangeable and replaying either is idempotent.
+    """
+    try:
+        outcome = await service.confirm_checkout(
+            company_id=current_user.company_id,
+            session_id=request.session_id,
+        )
+    except StripeNotConfiguredError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "billing_unavailable",
+                "message": "Billing is not configured on this deployment",
+            },
+        ) from error
+    except StripeGatewayError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": error.code, "message": str(error)},
+        ) from error
+    except BillingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": error.code, "message": error.message},
+        ) from error
+
+    # Re-read rather than reusing an injected `Entitlements`: the dependency
+    # resolved before `confirm_checkout` wrote the purchase, so it is stale by
+    # construction and would report the company as still unsubscribed.
+    company = await companies.get(CompanyScope(company_id=current_user.company_id))
+    if company is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "company_not_found", "message": "Company does not exist"},
+        )
+    return CheckoutConfirmResponse(
+        outcome=outcome,
+        subscription=_subscription_response(resolve_entitlements(company)),
+    )
 
 
 @router.post(

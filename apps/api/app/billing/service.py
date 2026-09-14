@@ -12,6 +12,12 @@ is written from that. Two consequences, both wanted:
 
 The cost is one extra Stripe read per event, which is trivial next to getting a
 subscription tier wrong.
+
+`confirm_checkout` applies the same reconciliation from the other direction: the
+returning browser names its own session id, so signup settles on the spot rather
+than waiting for `checkout.session.completed` to arrive. Both paths converge on
+`_apply`, so a confirmation and a webhook for the same purchase write identical
+state and neither can undo the other.
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ from app.audit.service import AuditService
 from app.billing.plans import PLANS, TRIAL_DAYS, BillingInterval, PlanTier, get_plan
 from app.billing.stripe_gateway import (
     CheckoutSession,
+    CheckoutSessionState,
     StripeGateway,
     SubscriptionSnapshot,
 )
@@ -116,6 +123,47 @@ class SubscriptionService:
             },
         )
         return session
+
+    async def confirm_checkout(self, *, company_id: str, session_id: str) -> str:
+        """Settle a checkout the browser has just returned from.
+
+        Returns `"reconciled"` once the subscription has been read and written,
+        or `"pending"` while Stripe has the session but has not attached a
+        subscription to it yet (a few hundred milliseconds, occasionally more).
+
+        The session is re-read from Stripe by id rather than trusted from the
+        query string, and its `client_reference_id` must name the caller's own
+        company: without that check a URL carrying someone else's session id
+        would hand this tenant that tenant's plan.
+        """
+        state: CheckoutSessionState = await self._gateway.retrieve_checkout_session(session_id)
+        if state.company_id != company_id:
+            # Also covers a session Stripe returned without a reference at all;
+            # failing closed is the only safe reading of an unattributable one.
+            raise BillingError(
+                "session_mismatch",
+                "That checkout session does not belong to this company",
+            )
+        if state.status == "expired":
+            raise BillingError("session_expired", "That checkout session has expired")
+        if state.subscription_id is None:
+            return "pending"
+
+        snapshot = await self._gateway.retrieve_subscription(state.subscription_id)
+        await self._apply(company_id, snapshot, event_type="checkout.session.confirmed")
+        await self._audit.audit(
+            CompanyScope(company_id=company_id),
+            actor_uid=BILLING_ACTOR,
+            action="billing.checkout_confirmed",
+            target_type="company",
+            target_id=company_id,
+            metadata={
+                "session_id": state.session_id,
+                "subscription_id": snapshot.subscription_id,
+                "status": snapshot.status,
+            },
+        )
+        return "reconciled"
 
     # ------------------------------------------------------ reconciliation
 
