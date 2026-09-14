@@ -2770,3 +2770,26 @@ checkout reference for support. On success it opens the workspace by itself,
 since the email was verified two steps earlier and nothing is left to ask for.
 `stripe_cancel_path` moved from `/signup` to `/signup/plan` for the same reason:
 by the time someone can cancel a checkout, the account already exists.
+
+Two defects the live test-mode run against real Stripe found, neither of which
+any existing test could have seen:
+
+**`_subscription_response` was left calling itself.** The helper that both
+`GET /billing/subscription` and the new confirm route build their response
+with had been refactored into place incorrectly, so `POST
+/billing/checkout/confirm` answered 500 with a `RecursionError` on every
+request — while the service beneath it was correct and all ten of its unit
+tests passed. Nothing exercised the billing routes as HTTP;
+`tests/test_billing_routes.py` now does, and reintroducing the recursion was
+confirmed to fail five of its cases.
+
+**A refused SES send escaped as a 500.** `settings.ses_configured` can only
+check that AWS keys are *present*; whether they are still valid is something
+only SES can answer, and a rotated key answers `InvalidClientTokenId`. The
+sender now raises `EmailDeliveryError` (carrying the provider's own code) and
+the route maps it to **502 `email_delivery_failed`**, kept distinct from the
+503 for an unconfigured deployment. This matters more since D-103, because
+registration sends through that route: the admin client falls back to the
+provider's own sender on any failure, and a truthful status is what lets it
+tell "cannot send" apart from a genuine fault.
+

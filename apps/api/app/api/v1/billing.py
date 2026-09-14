@@ -67,7 +67,21 @@ def get_subscription_service() -> SubscriptionService:
 def _subscription_response(entitlements: Entitlements) -> SubscriptionResponse:
     """One shape for the company's plan, so the confirmation echo and the read
     model can never drift apart."""
-    return _subscription_response(entitlements)
+    return SubscriptionResponse(
+        tier=entitlements.tier.value,
+        plan_name=entitlements.plan.name if entitlements.plan else None,
+        status=entitlements.status.value,
+        is_entitled=entitlements.is_entitled,
+        features=sorted(feature.value for feature in entitlements.features),
+        trial_ends_at=entitlements.trial_ends_at,
+        trial_days_remaining=entitlements.trial_days_remaining(),
+        current_period_end=entitlements.current_period_end,
+        quotas=BillingPlanQuotasResponse(
+            facilities=entitlements.limit_for("facilities"),
+            assets=entitlements.limit_for("assets"),
+            seats=entitlements.limit_for("seats"),
+        ),
+    )
 
 
 @router.get(
@@ -117,21 +131,7 @@ async def get_subscription(
     """Every authenticated user may read their own company's plan — the shell
     needs it to decide which modules to render, so gating it behind an admin
     permission would break the app for everyone else."""
-    return SubscriptionResponse(
-        tier=entitlements.tier.value,
-        plan_name=entitlements.plan.name if entitlements.plan else None,
-        status=entitlements.status.value,
-        is_entitled=entitlements.is_entitled,
-        features=sorted(feature.value for feature in entitlements.features),
-        trial_ends_at=entitlements.trial_ends_at,
-        trial_days_remaining=entitlements.trial_days_remaining(),
-        current_period_end=entitlements.current_period_end,
-        quotas=BillingPlanQuotasResponse(
-            facilities=entitlements.limit_for("facilities"),
-            assets=entitlements.limit_for("assets"),
-            seats=entitlements.limit_for("seats"),
-        ),
-    )
+    return _subscription_response(entitlements)
 
 
 @router.post(

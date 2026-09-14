@@ -242,6 +242,18 @@ the URL (`POST /api/v1/billing/checkout/confirm`) instead of waiting on the
 webhook, which stays the authority for renewals and cancellation. "Continue
 anyway" is gone and the app shell is gated on an active subscription (D-103).
 
+Verified live on 2026-09-14 against real Stripe test-mode keys, with the
+hosted Checkout page completed by a real browser and test card — two full
+cycles, both green, all artefacts cleaned up. It found two defects nothing else
+could: the confirm route answered 500 on every request (a self-calling response
+helper, invisible to service-level tests — `tests/test_billing_routes.py` now
+covers the routes as HTTP), and a *refused* SES send escaped as a 500 rather
+than a 502, which matters because registration now sends through that route.
+Both fixed. **AWS SES credentials on this machine are rotated/invalid** — the
+branded verification email cannot send until they are replaced, and the
+deployed keys should be checked for the same; signup still works meanwhile
+because the client falls back to Firebase's own sender.
+
 Not delivered, and deliberately: the `checkout.session.completed` webhook
 endpoint itself has not been re-verified against the live Stripe account. The
 confirmation route removes it from the critical path of signup, but a webhook
