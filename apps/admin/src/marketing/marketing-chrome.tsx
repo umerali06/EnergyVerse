@@ -32,7 +32,7 @@ export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-border mk-glass backdrop-blur-xl">
       <div className="mx-auto grid w-full max-w-6xl grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3 md:px-8">
-        <Link aria-label="Flacron EnergyVerse home" className="shrink-0" href="/">
+        <Link aria-label="Flacron Energy home" className="shrink-0" href="/">
           <Logo height={26} priority variant="wordmark" />
         </Link>
 
@@ -165,7 +165,7 @@ export function MarketingFooter() {
         <p>© {new Date().getFullYear()} Flacron Enterprises. All rights reserved.</p>
         <p className="ml-auto flex items-center gap-2 font-mono">
           <span aria-hidden className="size-1.5 rounded-full bg-accent-500" />
-          Flacron EnergyVerse
+          Flacron Energy
         </p>
       </div>
     </footer>

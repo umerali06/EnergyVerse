@@ -104,7 +104,7 @@ export default function PricingPage() {
                     Quoted against sites, assets, and integration scope.{" "}
                     <a
                       className="font-semibold text-text-secondary underline decoration-border underline-offset-4 hover:text-text-primary"
-                      href="mailto:sales@flacronenterprises.com?subject=Flacron%20EnergyVerse%20Enterprise"
+                      href="mailto:sales@flacronenterprises.com?subject=Flacron%20Energy%20Enterprise"
                     >
                       Contact sales
                     </a>

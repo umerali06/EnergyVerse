@@ -1,6 +1,6 @@
 # AWS Deployment Guide — Amplify (frontend) + ECS Fargate (backend)
 
-Step-by-step guide to deploy Flacron EnergyVerse on AWS, with automatic
+Step-by-step guide to deploy Flacron Energy on AWS, with automatic
 redeployment on every push to `main`.
 
 **What you end up with**

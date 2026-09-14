@@ -243,7 +243,7 @@ export function CompanySettingsPage({
             <Card>
               <h2 className="text-h5 font-bold">Branding</h2>
               <p className="mt-1 text-bodySmall text-text-secondary">
-                Your company logo, distinct from the FEV product logo.
+                Your company logo, distinct from the Flacron Energy product logo.
               </p>
               <div className="mt-4">
                 <LogoUpload

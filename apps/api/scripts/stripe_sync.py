@@ -27,6 +27,10 @@ from app.billing.plans import PLANS, TIER_ORDER, BillingInterval, Plan
 from app.billing.stripe_gateway import price_lookup_key, product_lookup_id
 from app.core.settings import settings
 
+#: What the hosted checkout page calls the product. Separate from the plan
+#: name so a rebrand is one edit.
+PRODUCT_BRAND = "Flacron Energy"
+
 STRIPE_INTERVAL = {
     BillingInterval.MONTHLY: "month",
     BillingInterval.ANNUAL: "year",
@@ -45,6 +49,7 @@ class Change:
 
 def ensure_product(plan: Plan, *, dry_run: bool) -> list[Change]:
     product_id = product_lookup_id(plan.tier)
+    name = f"{PRODUCT_BRAND} — {plan.name}"
     description = (
         f"{plan.audience}. "
         f"{_quota_text(plan)}. {plan.support}."
@@ -60,16 +65,32 @@ def ensure_product(plan: Plan, *, dry_run: bool) -> list[Change]:
         if not dry_run:
             stripe.Product.create(
                 id=product_id,
-                name=f"Flacron EnergyVerse — {plan.name}",
+                name=name,
                 description=description,
                 metadata={"fev_tier": plan.tier.value},
             )
         return [Change("create", product_id, plan.name)]
 
-    if existing.get("description") != description or existing.get("active") is False:
+    # The name is reconciled, not only set at creation. It is the string Stripe
+    # shows on the hosted checkout page ("Try <name>"), so leaving it out meant
+    # a rebrand could never reach the one screen every new customer sees --
+    # found when D-104 renamed the product and `--dry-run` reported no changes.
+    stale = [
+        field
+        for field, current, wanted in (
+            ("name", existing.get("name"), name),
+            ("description", existing.get("description"), description),
+        )
+        if current != wanted
+    ]
+    if existing.get("active") is False:
+        stale.append("active")
+    if stale:
         if not dry_run:
-            stripe.Product.modify(product_id, description=description, active=True)
-        return [Change("update", product_id, "description")]
+            stripe.Product.modify(
+                product_id, name=name, description=description, active=True
+            )
+        return [Change("update", product_id, ", ".join(stale))]
     return []
 
 

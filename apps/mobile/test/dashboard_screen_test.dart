@@ -571,8 +571,8 @@ void main() {
     await scrollTo(tester, find.text('No activity to chart yet'));
     expect(find.text('No activity to chart yet'), findsOneWidget);
     await scrollTo(
-        tester, find.text('Activity will appear here as your team uses FEV.'));
-    expect(find.text('Activity will appear here as your team uses FEV.'),
+        tester, find.text('Activity will appear here as your team uses Flacron Energy.'));
+    expect(find.text('Activity will appear here as your team uses Flacron Energy.'),
         findsOneWidget);
   });
 

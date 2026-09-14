@@ -17,7 +17,7 @@ import { publicPage } from "@/seo/site";
 
 export const metadata: Metadata = publicPage(
   "Field operations intelligence for energy companies",
-  "Flacron EnergyVerse keeps one auditable record per asset: inspections run offline, findings become work orders, permits are approved in writing, and reports export from the real data.",
+  "Flacron Energy keeps one auditable record per asset: inspections run offline, findings become work orders, permits are approved in writing, and reports export from the real data.",
   "/",
 );
 
@@ -81,7 +81,7 @@ export default function LandingPage() {
             </h1>
             <p className="mt-6 max-w-xl text-bodyLarge leading-relaxed text-text-secondary">
               A failed seat leak test on a relief valve should not need three systems and a phone
-              call to become finished, signed-off work. Flacron EnergyVerse carries it end to end —
+              call to become finished, signed-off work. Flacron Energy carries it end to end —
               and the crew who found it were offline the whole time.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">

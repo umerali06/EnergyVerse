@@ -4,12 +4,12 @@ import { authRoutes, marketingRoutes } from "@/navigation/routes";
 /** Central site identity for metadata. Per-page titles/descriptions stay
  * colocated with each route; this file only defines shared defaults. */
 export const site = {
-  name: "Flacron EnergyVerse",
-  shortName: "FEV",
+  name: "Flacron Energy",
+  shortName: "FE",
   description:
-    "Flacron EnergyVerse is the field operations intelligence platform for energy companies: assets, inspections, work orders, permits, and safety in one place.",
-  baseUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.flacronenergyverse.com",
-  titleTemplate: "%s · FEV",
+    "Flacron Energy is the field operations intelligence platform for energy companies: assets, inspections, work orders, permits, and safety in one place.",
+  baseUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.flacronenergy.com",
+  titleTemplate: "%s · Flacron Energy",
   themeColor: designTokens.color.theme.dark.background,
   lightThemeColor: designTokens.color.theme.light.background,
   ogImage: "/brand/og-image.png",
@@ -35,7 +35,7 @@ export function publicPage(title: string, description: string, path: string) {
     alternates: { canonical: `${site.baseUrl}${path}` },
     robots: { index: true, follow: true },
     openGraph: {
-      title: `${title} · FEV`,
+      title: `${title} · Flacron Energy`,
       description,
       url: `${site.baseUrl}${path}`,
       siteName: site.name,
@@ -44,7 +44,7 @@ export function publicPage(title: string, description: string, path: string) {
     },
     twitter: {
       card: "summary_large_image",
-      title: `${title} · FEV`,
+      title: `${title} · Flacron Energy`,
       description,
       images: [site.ogImage],
     },

@@ -98,7 +98,7 @@ describe("seo metadata", () => {
   it("builds the PWA manifest from brand tokens", () => {
     const m = manifest();
     expect(m.name).toBe(site.name);
-    expect(m.short_name).toBe("FEV");
+    expect(m.short_name).toBe("FE");
     expect(m.theme_color).toBe(designTokens.color.theme.light.background);
     expect(m.start_url).toBe("/dashboard");
     expect(m.icons?.map((icon) => icon.src)).toEqual([
@@ -123,7 +123,7 @@ describe("brand logo component", () => {
           <Logo variant={variant} />
         </ThemeProvider>,
       );
-      const img = screen.getByRole("img", { name: "Flacron EnergyVerse" });
+      const img = screen.getByRole("img", { name: "Flacron Energy" });
       expect(img).toHaveAttribute("src", `/brand/logo-${variant}-dark.png`);
     },
   );
@@ -135,7 +135,7 @@ describe("brand logo component", () => {
         <Logo />
       </ThemeProvider>,
     );
-    expect(screen.getByRole("img", { name: "Flacron EnergyVerse" })).toHaveAttribute(
+    expect(screen.getByRole("img", { name: "Flacron Energy" })).toHaveAttribute(
       "src",
       "/brand/logo-wordmark-light.png",
     );

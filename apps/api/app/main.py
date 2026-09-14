@@ -50,10 +50,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="FEV API",
+    title="Flacron Energy API",
     version="0.8.0",
     description=(
-        "Flacron EnergyVerse API. Single resources are returned directly. Future list "
+        "Flacron Energy API. Single resources are returned directly. Future list "
         "responses use `{items: [...], next_cursor: string | null}`; cursors are opaque, "
         "`null` means no more pages, and totals are not returned by default."
     ),

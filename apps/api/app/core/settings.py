@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
     ses_from_email: str | None = None
-    ses_from_name: str = "Flacron EnergyVerse"
+    ses_from_name: str = "Flacron Energy"
     ses_reply_to: str | None = None
     # Push delivery uses the Firebase Admin SDK's own credentials, so it needs
     # no separate key -- this only gates it off for local runs.

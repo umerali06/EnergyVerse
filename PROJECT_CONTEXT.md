@@ -1,8 +1,8 @@
-# Flacron EnergyVerse (FEV) — Project Context
+# Flacron Energy (FEV) — Project Context
 
 ## Mission
 
-Flacron EnergyVerse (FEV) is an enterprise, multi-tenant SaaS platform for modernizing field operations across oil and gas, energy, utilities, mining, manufacturing, chemical, industrial, and EPC sectors. It replaces paper-based inspection, maintenance, and safety workflows with offline-capable digital workflows, advisory AI, augmented reality, and a static 3D facility view.
+Flacron Energy (FEV) is an enterprise, multi-tenant SaaS platform for modernizing field operations across oil and gas, energy, utilities, mining, manufacturing, chemical, industrial, and EPC sectors. It replaces paper-based inspection, maintenance, and safety workflows with offline-capable digital workflows, advisory AI, augmented reality, and a static 3D facility view.
 
 FEV operates in a safety-critical domain where liability, traceability, and reliable field operation matter. The MVP excludes live IoT and telemetry, but its boundaries and APIs must allow those capabilities to be added later without redesigning the product.
 

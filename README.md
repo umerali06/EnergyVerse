@@ -1,6 +1,6 @@
 # FEV Monorepo
 
-Flacron EnergyVerse — enterprise multi-tenant SaaS for field inspection, maintenance, and safety workflows.
+Flacron Energy — enterprise multi-tenant SaaS for field inspection, maintenance, and safety workflows.
 
 ## Prerequisites
 

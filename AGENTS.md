@@ -1,6 +1,6 @@
 # FEV Persistent Agent Context
 
-This file is the Codex auto-loaded master context for Flacron EnergyVerse (FEV). Read and follow it for every session. Detailed records live in `PROJECT_CONTEXT.md`, `ARCHITECTURE.md`, `PHASE_TRACKER.md`, `DECISIONS.md`, and `TESTING.md`; keep those files current.
+This file is the Codex auto-loaded master context for Flacron Energy (FEV). Read and follow it for every session. Detailed records live in `PROJECT_CONTEXT.md`, `ARCHITECTURE.md`, `PHASE_TRACKER.md`, `DECISIONS.md`, and `TESTING.md`; keep those files current.
 
 ## Product Mission
 

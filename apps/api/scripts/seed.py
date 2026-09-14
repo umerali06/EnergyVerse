@@ -2133,7 +2133,7 @@ async def run_seed(
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed the FEV data foundation")
+    parser = argparse.ArgumentParser(description="Seed the Flacron Energy data foundation")
     parser.add_argument(
         "--with-auth-users",
         action="store_true",

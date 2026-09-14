@@ -46,7 +46,7 @@ export function DesignSystemShowcase() {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <Badge>DEV-ONLY SHOWCASE</Badge>
-            <h1 className="mt-3 text-display font-bold tracking-tight">FEV Design System</h1>
+            <h1 className="mt-3 text-display font-bold tracking-tight">Flacron Energy Design System</h1>
             <p className="mt-2 max-w-2xl text-bodyLarge text-text-secondary">
               Industrial energy primitives, shared tokens, accessible states, and
               reduced-motion-aware interaction.

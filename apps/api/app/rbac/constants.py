@@ -56,7 +56,7 @@ PERMISSION_CATALOG = (
     PermissionTemplate("roles.manage", "roles", "Manage company roles"),
     PermissionTemplate("company.settings", "company", "Manage company settings"),
     PermissionTemplate("audit.read", "audit", "View the company audit trail"),
-    PermissionTemplate("platform.admin", "platform", "Administer the FEV platform"),
+    PermissionTemplate("platform.admin", "platform", "Administer the Flacron Energy platform"),
 )
 
 ALL_PERMISSION_KEYS = frozenset(permission.key for permission in PERMISSION_CATALOG)

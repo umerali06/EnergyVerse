@@ -7,9 +7,9 @@ import { useTheme } from "./theme-provider";
 export type LogoVariant = "mark" | "wordmark" | "full";
 
 const intrinsic: Record<LogoVariant, { width: number; height: number }> = {
-  mark: { width: 1092, height: 379 },
-  wordmark: { width: 1092, height: 497 },
-  full: { width: 1092, height: 639 },
+  mark: { width: 791, height: 627 },
+  wordmark: { width: 1083, height: 621 },
+  full: { width: 1135, height: 712 },
 };
 
 /**
@@ -38,7 +38,7 @@ export function Logo({
   const width = Math.round((box.width / box.height) * height);
   return (
     <img
-      alt={decorative ? "" : "Flacron EnergyVerse"}
+      alt={decorative ? "" : "Flacron Energy"}
       aria-hidden={decorative || undefined}
       className={className}
       fetchPriority={priority ? "high" : undefined}

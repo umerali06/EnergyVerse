@@ -1,8 +1,8 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * FEV API
- * Flacron EnergyVerse API. Single resources are returned directly. Future list responses use `{items: [...], next_cursor: string | null}`; cursors are opaque, `null` means no more pages, and totals are not returned by default.
+ * Flacron Energy API
+ * Flacron Energy API. Single resources are returned directly. Future list responses use `{items: [...], next_cursor: string | null}`; cursors are opaque, `null` means no more pages, and totals are not returned by default.
  *
  * The version of the OpenAPI document: 0.8.0
  *
