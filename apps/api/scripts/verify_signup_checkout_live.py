@@ -138,7 +138,7 @@ async def phase_open() -> None:
     )
     if sent.status_code == 200:
         assert sent.json()["sent"] is True, sent.text
-        log("POST /auth/verification-email", "sent=true (branded, via SES)")
+        log("POST /auth/verification-email", "sent=true (branded, via SES SMTP)")
         ses_outcome = "sent"
     else:
         # Must never be a 500: a refused provider is not a broken server, and

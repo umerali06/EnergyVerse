@@ -1,14 +1,14 @@
-"""Send one real notification email through AWS SES.
+"""Send one real notification email through the configured transport.
 
 The notification module's email channel is covered by tests only against
-`FakeEmailNotifier`, and `SesEmailSender` itself has never sent a message in
-this codebase -- it sat unmerged on a backup branch from July until it was
-recovered. This proves the real path: credentials resolve, SES accepts the
-message, and the branded template renders as a multipart MIME with its inline
-logo.
+`FakeEmailNotifier`. This proves the real path: credentials resolve, the
+provider accepts the message, and the branded template renders as a multipart
+MIME with its inline logo. For all three templates at once, and which transport
+carried them, use `verify_smtp_email_live.py` instead.
 
-Defaults to sending to `SES_FROM_EMAIL` -- the address the account already
-verified in order to send at all -- so a default run cannot mail a third party.
+Defaults to sending to the configured From address -- already a verified
+identity, since nothing sends without one -- so a default run cannot mail a
+third party.
 Pass a recipient explicitly to send elsewhere; in an SES sandbox account that
 address must also be verified or SES will reject it.
 
@@ -32,15 +32,16 @@ BODY = (
 
 
 async def main() -> int:
-    if not settings.ses_configured:
+    if not settings.email_configured:
         print(
-            "SES is not configured (needs AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY "
-            "and SES_FROM_EMAIL in apps/api/.env).",
+            "No email transport is configured. Set SMTP_HOST / SMTP_PORT / "
+            "SMTP_USER / SMTP_PASS / SMTP_FROM in apps/api/.env, or the "
+            "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / SES_FROM_EMAIL trio.",
             file=sys.stderr,
         )
         return 2
 
-    recipient = sys.argv[1] if len(sys.argv) > 1 else settings.ses_from_email
+    recipient = sys.argv[1] if len(sys.argv) > 1 else settings.email_from_address
     assert recipient is not None
 
     rendered = render_notification_email(
@@ -49,8 +50,7 @@ async def main() -> int:
         body=BODY,
     )
 
-    print(f"region    : {settings.aws_region}")
-    print(f"from      : {settings.ses_from_name} <{settings.ses_from_email}>")
+    print(f"from      : {settings.ses_from_name} <{settings.email_from_address}>")
     print(f"to        : {recipient}")
     print(f"subject   : {rendered.subject}")
     print(f"html bytes: {len(rendered.html_body)}")
@@ -76,10 +76,10 @@ async def main() -> int:
     except Exception as error:
         # SES rejects an unverified recipient in a sandbox account, which is
         # the most common failure here and worth naming rather than dumping.
-        print(f"\nSES rejected the message: {error}", file=sys.stderr)
+        print(f"\nThe provider rejected the message: {error}", file=sys.stderr)
         return 1
 
-    print("\nSES accepted the message. Check the recipient's inbox (and spam).")
+    print("\nAccepted. Check the recipient's inbox (and spam).")
     return 0
 
 

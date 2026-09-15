@@ -383,6 +383,31 @@ class _SignupScreenState extends State<SignupScreen> {
   final Map<String, String> _errors = {};
   bool _showPassword = false;
 
+  /// Drives the submit button as the fields change.
+  ///
+  /// Merged rather than a `setState` listener per controller, so a keystroke
+  /// rebuilds the button and its hint instead of the whole screen.
+  late final Listenable _fields = Listenable.merge([
+    _company,
+    _displayName,
+    _email,
+    _password,
+    _confirmPassword,
+  ]);
+
+  /// Whether every field has been filled in at all.
+  ///
+  /// Deliberately weaker than the checks in [_submit]: the button unlocks once
+  /// nothing is blank, and *format* problems are reported as messages. A button
+  /// that stayed dead until the password were strong enough would be a button
+  /// that never explains itself.
+  bool get _isComplete =>
+      _company.text.trim().isNotEmpty &&
+      _displayName.text.trim().isNotEmpty &&
+      _email.text.trim().isNotEmpty &&
+      _password.text.isNotEmpty &&
+      _confirmPassword.text.isNotEmpty;
+
   @override
   void dispose() {
     _company.dispose();
@@ -536,11 +561,36 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                         ),
                         const SizedBox(height: DsSpacing.s5),
-                        AppButton(
-                          label: 'Accept & continue',
-                          loading: loading,
-                          onPressed:
-                              loading || !_legalAccepted ? null : _submit,
+                        AnimatedBuilder(
+                          animation: _fields,
+                          builder: (context, _) {
+                            final ready = _isComplete && _legalAccepted;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (!loading && !ready) ...[
+                                  // A disabled button that does not say why is
+                                  // just a dead button.
+                                  Text(
+                                    _isComplete
+                                        ? 'Accept the terms above to continue.'
+                                        : 'Every field is required - fill them '
+                                            'all in to continue.',
+                                    key: const Key('signup-incomplete-hint'),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(height: DsSpacing.s3),
+                                ],
+                                AppButton(
+                                  label: 'Accept & continue',
+                                  loading: loading,
+                                  onPressed: loading || !ready ? null : _submit,
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: DsSpacing.s3),
                         TextButton(

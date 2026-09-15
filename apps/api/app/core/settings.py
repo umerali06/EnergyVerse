@@ -35,6 +35,18 @@ class Settings(BaseSettings):
     # without a code change (legal package §27).
     contact_destination_email: str = "Contact@flacronenterprises.com"
     ses_reply_to: str | None = None
+    # SMTP delivery (AWS SES's SMTP interface). Preferred over the SES API when
+    # configured: the SMTP endpoint takes IAM SMTP credentials, which are what
+    # the operator issues from the SES console, and it needs no AWS signing --
+    # so a deployment can send mail without carrying account-wide AWS keys.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_pass: str | None = None
+    # The envelope sender. Must be an identity verified in SES, or every send
+    # is refused with `Email address is not verified` no matter how correct the
+    # credentials are.
+    smtp_from: str | None = None
     # Push delivery uses the Firebase Admin SDK's own credentials, so it needs
     # no separate key -- this only gates it off for local runs.
     push_notifications_enabled: bool = True
@@ -72,6 +84,25 @@ class Settings(BaseSettings):
     @property
     def ses_configured(self) -> bool:
         return bool(self.aws_access_key_id and self.aws_secret_access_key and self.ses_from_email)
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_user and self.smtp_pass and self.smtp_from)
+
+    @property
+    def email_configured(self) -> bool:
+        """Whether *some* transport can send. Either one is enough.
+
+        Everything that gates on "can this deployment send mail" asks this
+        rather than `ses_configured`, so configuring only SMTP does not leave
+        notifications silently disabled.
+        """
+        return self.smtp_configured or self.ses_configured
+
+    @property
+    def email_from_address(self) -> str | None:
+        """The From address for whichever transport is in use."""
+        return self.smtp_from if self.smtp_configured else self.ses_from_email
 
     @property
     def firebase_credentials_configured(self) -> bool:

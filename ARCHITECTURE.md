@@ -2892,3 +2892,62 @@ acknowledgment whose **Accept & continue** button is disabled until it is
 ticked. The two clients differ only in `acceptance_source` (`web` / `mobile`),
 so an acceptance means the same thing wherever it was given.
 
+### Transactional email over SMTP (2026-09-15)
+
+`app/email/sender.py` holds two transports behind one `EmailSender` protocol.
+`SmtpEmailSender` talks to SES's SMTP endpoint and is preferred whenever
+`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` are all set;
+`SesEmailSender` (boto3) is the fallback. Both are kept because they fail
+differently and a deployment may have only one: SMTP needs egress on the
+submission port, which some hosts block, while the API path needs nothing but
+HTTPS. Where both exist SMTP wins, because SMTP credentials are scoped to
+sending and nothing else, whereas the API path carries AWS keys good for
+whatever else that IAM user can do (D-106).
+
+**SES SMTP credentials are not the AWS access key.** They are derived from an
+IAM secret in the SES console and shown once; pasting an access key there
+authenticates against nothing. That is the single most common failure on this
+path, so it has its own code — `smtp_auth_failed` — rather than arriving as a
+generic send failure. So do the others that need unrelated fixes:
+`smtp_sender_refused` (an unverified From identity, or the SES sandbox),
+`smtp_recipient_refused`, and `smtp_unreachable` (wrong port, blocked egress,
+TLS failure), which names the host and port it tried.
+
+Every gate that asked `settings.ses_configured` now asks
+**`settings.email_configured`**. The notification channel in particular was
+gated on the API credentials, so an SMTP-only deployment would have skipped
+every notification email in silence while the transport worked perfectly.
+`settings.email_from_address` resolves the From address for whichever transport
+is active, and the message carries its own `Message-ID` and `Date` — SES adds
+both when it accepts a message through the API, but over SMTP the sender is
+responsible for them, and several large providers treat a message missing
+either as a spam signal.
+
+The templates in `app/email/templates.py` are unchanged and shared by both
+transports: one branded shell, the logo attached as an inline CID part rather
+than a remote image (so it renders when a client blocks remote content, which
+most do by default), and a plain-text alternative beside every HTML body.
+
+### Signup cannot be submitted half-filled (2026-09-15)
+
+Both signup screens gate their submit button on a **complete** form, not just
+on the legal acknowledgment: `signupIsComplete` in
+`apps/admin/src/auth/auth-experience.tsx` and `_isComplete` in
+`apps/mobile/lib/auth/auth_experience.dart`. The acknowledgment alone used to
+be enough to make the button live, so an empty form could be submitted and the
+only feedback was five error messages appearing at once.
+
+The completeness test is deliberately **weaker** than the validation rules.
+It asks only whether each field has been filled in at all; *format* problems —
+a malformed address, a weak password, a mismatched confirmation — are still
+reported as messages on submit. A button that stayed dead until the password
+were strong enough would be a button that never explains itself. Two things
+close the gap that a disabled button otherwise leaves: a field is checked when
+the user leaves it (so it names what is missing, not merely that something is),
+and a hint beside the button says which of the two conditions is unmet.
+
+`signupErrors` is the single source of those rules on the web side, shared by
+the submit handler, the per-field blur check, and nothing else — duplicating
+them would let the button go live on input the submit handler then refuses,
+which reads as a broken form.
+

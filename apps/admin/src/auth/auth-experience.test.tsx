@@ -509,17 +509,59 @@ describe("admin login experience", () => {
     expect(container.querySelector('[data-motion="reduced"]')).toBeInTheDocument();
   });
 
-  it("validates signup fields and password strength before registration", async () => {
+  it("cannot be submitted until every field has been filled in", async () => {
     const { registerCompanyAdmin } = renderAuth({ initialPath: "/signup" });
     const user = userEvent.setup();
-    // The acknowledgment has to be ticked before the button is even live, so
-    // the validation messages are reached through it rather than around it.
     await user.click(await screen.findByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: "Accept & continue" }));
+
+    // Ticking the acknowledgment is no longer enough on its own.
+    expect(screen.getByRole("button", { name: "Accept & continue" })).toBeDisabled();
+    expect(screen.getByText(/Every field is required/)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Company name"), "Northstar Energy");
+    await user.type(screen.getByLabelText("Display name"), "First Admin");
+    await user.type(screen.getByLabelText("Email"), "admin@northstar.example");
+    await user.type(screen.getByLabelText("Password"), "StrongPass1");
+    expect(screen.getByRole("button", { name: "Accept & continue" })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("Confirm password"), "StrongPass1");
+    expect(screen.getByRole("button", { name: "Accept & continue" })).toBeEnabled();
+    expect(screen.queryByText(/Every field is required/)).not.toBeInTheDocument();
+    expect(registerCompanyAdmin).not.toHaveBeenCalled();
+  });
+
+  it("names the field that was left empty as soon as it is left", async () => {
+    // The button being disabled says *that* something is missing; leaving a
+    // field has to say *which*, or the form is a guessing game.
+    renderAuth({ initialPath: "/signup" });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByLabelText("Company name"));
+    await user.tab();
+
     expect(screen.getByText("Company name is required")).toBeInTheDocument();
-    expect(screen.getByText("Display name is required")).toBeInTheDocument();
-    expect(screen.getByText("Email is required")).toBeInTheDocument();
-    expect(screen.getByText("Password is required")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Company name"), "Northstar Energy");
+    expect(screen.queryByText("Company name is required")).not.toBeInTheDocument();
+  });
+
+  it("validates format and password strength once the fields are filled", async () => {
+    const { registerCompanyAdmin } = renderAuth({ initialPath: "/signup" });
+    const user = userEvent.setup();
+    // Format problems are reported on submit rather than by keeping the button
+    // dead, so the message can say what is actually wrong.
+    await user.type(await screen.findByLabelText("Company name"), "Northstar Energy");
+    await user.type(screen.getByLabelText("Display name"), "First Admin");
+    await user.type(screen.getByLabelText("Email"), "not-an-address");
+    await user.type(screen.getByLabelText("Password"), "weak");
+    await user.type(screen.getByLabelText("Confirm password"), "different");
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Accept & continue" }));
+
+    expect(screen.getByText("Enter a valid email address")).toBeInTheDocument();
+    expect(
+      screen.getByText("Use 8+ characters with upper, lower, and a number"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Passwords do not match")).toBeInTheDocument();
     expect(registerCompanyAdmin).not.toHaveBeenCalled();
   });
 
