@@ -104,14 +104,6 @@
           "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:ANTHROPIC_API_KEY::"
         },
         {
-          "name": "AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:AWS_ACCESS_KEY_ID::"
-        },
-        {
-          "name": "AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:AWS_SECRET_ACCESS_KEY::"
-        },
-        {
           "name": "STRIPE_SECRET_KEY",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:STRIPE_SECRET_KEY::"
         },

@@ -2928,3 +2928,26 @@ transports: one branded shell, the logo attached as an inline CID part rather
 than a remote image (so it renders when a client blocks remote content, which
 most do by default), and a plain-text alternative beside every HTML body.
 
+### Signup cannot be submitted half-filled (2026-09-15)
+
+Both signup screens gate their submit button on a **complete** form, not just
+on the legal acknowledgment: `signupIsComplete` in
+`apps/admin/src/auth/auth-experience.tsx` and `_isComplete` in
+`apps/mobile/lib/auth/auth_experience.dart`. The acknowledgment alone used to
+be enough to make the button live, so an empty form could be submitted and the
+only feedback was five error messages appearing at once.
+
+The completeness test is deliberately **weaker** than the validation rules.
+It asks only whether each field has been filled in at all; *format* problems —
+a malformed address, a weak password, a mismatched confirmation — are still
+reported as messages on submit. A button that stayed dead until the password
+were strong enough would be a button that never explains itself. Two things
+close the gap that a disabled button otherwise leaves: a field is checked when
+the user leaves it (so it names what is missing, not merely that something is),
+and a hint beside the button says which of the two conditions is unmet.
+
+`signupErrors` is the single source of those rules on the web side, shared by
+the submit handler, the per-field blur check, and nothing else — duplicating
+them would let the button go live on input the submit handler then refuses,
+which reads as a broken form.
+

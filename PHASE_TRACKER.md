@@ -299,3 +299,11 @@ in Secrets Manager — those two secret values have to be added to the `fev/api`
 secret before the next deploy, or the container will fall back to the SES API
 path and its rotated keys.
 
+Signup required-field gating (2026-09-15): ticking the legal acknowledgment was
+enough to make **Accept & continue** live on a completely empty form. Both
+clients now keep it disabled until every field has been filled in, name the
+field that was left empty as soon as the user leaves it, and say beside the
+button which condition is still unmet. Format validation is unchanged and still
+runs on submit, so the messages can say what is actually wrong rather than the
+button silently staying dead.
+

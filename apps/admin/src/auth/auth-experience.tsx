@@ -271,9 +271,59 @@ export function ForgotPasswordScreen({
   );
 }
 
-type SignupErrors = Partial<
-  Record<"company" | "display" | "email" | "password" | "confirm", string>
->;
+type SignupField = "company" | "display" | "email" | "password" | "confirm";
+
+type SignupErrors = Partial<Record<SignupField, string>>;
+
+type SignupValues = {
+  companyName: string;
+  confirm: string;
+  displayName: string;
+  email: string;
+  password: string;
+};
+
+/**
+ * Every rule the signup form applies, in one place.
+ *
+ * Shared by three callers that must agree: the submit handler, the per-field
+ * check that runs on blur, and the completeness test that keeps the submit
+ * button disabled. Duplicating them would let the button go live on input the
+ * submit handler then refuses, which reads as a broken form.
+ */
+function signupErrors(values: SignupValues): SignupErrors {
+  const next: SignupErrors = {};
+  if (values.companyName.trim().length < 2) next.company = "Company name is required";
+  if (values.displayName.trim().length < 2) next.display = "Display name is required";
+  if (!values.email.trim()) next.email = "Email is required";
+  else if (!emailPattern.test(values.email.trim())) next.email = "Enter a valid email address";
+  if (!values.password) next.password = "Password is required";
+  else if (!strongPassword.test(values.password)) {
+    next.password = "Use 8+ characters with upper, lower, and a number";
+  }
+  if (!values.confirm) next.confirm = "Confirm your password";
+  else if (values.confirm !== values.password) next.confirm = "Passwords do not match";
+  return next;
+}
+
+/**
+ * Whether every field has been filled in at all.
+ *
+ * Deliberately weaker than `signupErrors`: the button unlocks once nothing is
+ * blank, and *format* problems (a malformed address, a weak password, a
+ * mismatched confirmation) are reported as messages on submit. A button that
+ * stayed dead until the password were strong enough would be a button that
+ * never explains itself.
+ */
+function signupIsComplete(values: SignupValues): boolean {
+  return (
+    values.companyName.trim().length > 0 &&
+    values.displayName.trim().length > 0 &&
+    values.email.trim().length > 0 &&
+    values.password.length > 0 &&
+    values.confirm.length > 0
+  );
+}
 
 export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?: boolean }) {
   const { toLogin: onBack } = usePublicAuthNav();
@@ -291,19 +341,23 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
   const [errors, setErrors] = useState<SignupErrors>({});
   const loading = status === "signingUp";
 
+  const values = { companyName, confirm, displayName, email, password };
+  const complete = signupIsComplete(values);
+
+  /** Report one field once the user has left it, rather than only on submit. */
+  function checkField(field: SignupField) {
+    const found = signupErrors(values);
+    setErrors((previous) => ({ ...previous, [field]: found[field] }));
+  }
+
+  /** Clear a field's message while it is being corrected; blur re-checks it. */
+  function clearField(field: SignupField) {
+    setErrors((previous) => (previous[field] ? { ...previous, [field]: undefined } : previous));
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next: SignupErrors = {};
-    if (companyName.trim().length < 2) next.company = "Company name is required";
-    if (displayName.trim().length < 2) next.display = "Display name is required";
-    if (!email.trim()) next.email = "Email is required";
-    else if (!emailPattern.test(email.trim())) next.email = "Enter a valid email address";
-    if (!password) next.password = "Password is required";
-    else if (!strongPassword.test(password)) {
-      next.password = "Use 8+ characters with upper, lower, and a number";
-    }
-    if (!confirm) next.confirm = "Confirm your password";
-    else if (confirm !== password) next.confirm = "Passwords do not match";
+    const next = signupErrors(values);
     setErrors(next);
     if (Object.keys(next).length > 0 || loading || !accepted) return;
     // Park the plan the pricing CTA carried before leaving this URL behind: the
@@ -353,14 +407,24 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
           disabled={loading}
           error={errors.company}
           label="Company name"
-          onChange={(e) => setCompanyName(e.target.value)}
+          onBlur={() => checkField("company")}
+          onChange={(e) => {
+            setCompanyName(e.target.value);
+            clearField("company");
+          }}
+          required
           value={companyName}
         />
         <Input
           disabled={loading}
           error={errors.display}
           label="Display name"
-          onChange={(e) => setDisplayName(e.target.value)}
+          onBlur={() => checkField("display")}
+          onChange={(e) => {
+            setDisplayName(e.target.value);
+            clearField("display");
+          }}
+          required
           value={displayName}
         />
         <div className="md:col-span-2">
@@ -369,7 +433,12 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
             disabled={loading}
             error={errors.email}
             label="Email"
-            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => checkField("email")}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearField("email");
+            }}
+            required
             type="email"
             value={email}
           />
@@ -380,7 +449,12 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
           endAdornment={toggle}
           error={errors.password}
           label="Password"
-          onChange={(e) => setPassword(e.target.value)}
+          onBlur={() => checkField("password")}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            clearField("password");
+          }}
+          required
           type={showPassword ? "text" : "password"}
           value={password}
         />
@@ -389,7 +463,12 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
           disabled={loading}
           error={errors.confirm}
           label="Confirm password"
-          onChange={(e) => setConfirm(e.target.value)}
+          onBlur={() => checkField("confirm")}
+          onChange={(e) => {
+            setConfirm(e.target.value);
+            clearField("confirm");
+          }}
+          required
           type={showPassword ? "text" : "password"}
           value={confirm}
         />
@@ -445,6 +524,14 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
             <InlineError message={authError} />
           </div>
         )}
+        {!loading && (!complete || !accepted) && (
+          // A disabled button that does not say why is just a dead button.
+          <p className="text-caption text-text-muted md:col-span-2" role="status">
+            {complete
+              ? "Accept the terms above to continue."
+              : "Every field is required — fill them all in to continue."}
+          </p>
+        )}
         <div className="flex gap-3 md:col-span-2">
           <Button
             className="flex-1"
@@ -457,7 +544,7 @@ export function SignupScreen({ reducedMotionOverride }: { reducedMotionOverride?
           </Button>
           <Button
             className="flex-1"
-            disabled={!accepted || loading}
+            disabled={!complete || !accepted || loading}
             loading={loading}
             type="submit"
             variant="accent"

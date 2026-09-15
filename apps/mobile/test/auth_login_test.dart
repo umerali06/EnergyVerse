@@ -773,7 +773,9 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('signup validation blocks invalid values', (tester) async {
+  testWidgets('signup cannot be submitted until every field is filled', (
+    tester,
+  ) async {
     final gateway = FakeGateway();
     final api = FakeApi(identity());
     await pumpApp(tester, gateway: gateway, api: api);
@@ -784,12 +786,84 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('signup-legal-acceptance')));
     await tester.pumpAndSettle();
+
+    // Ticking the acknowledgment is no longer enough on its own.
+    expect(find.byKey(const Key('signup-incomplete-hint')), findsOneWidget);
     await tester.ensureVisible(find.text('Accept & continue'));
     await tester.tap(find.text('Accept & continue'));
     await tester.pump();
-    expect(find.text('Company name is required'), findsOneWidget);
-    expect(find.text('Display name is required'), findsOneWidget);
-    expect(find.text('Email is required'), findsOneWidget);
+    expect(api.registrations, 0);
+
+    await tester.enterText(
+      find.byKey(const Key('signup-company')),
+      'Northstar',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-display-name')),
+      'Ada Admin',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-email')),
+      'admin@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-password')),
+      'StrongPass1',
+    );
+    await tester.pumpAndSettle();
+    // One field still blank, so it is still not submittable.
+    expect(find.byKey(const Key('signup-incomplete-hint')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('signup-confirm-password')),
+      'StrongPass1',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('signup-incomplete-hint')), findsNothing);
+  });
+
+  testWidgets('signup reports format problems once the fields are filled', (
+    tester,
+  ) async {
+    // Format problems are reported on submit rather than by keeping the button
+    // dead, so the message can say what is actually wrong.
+    final gateway = FakeGateway();
+    final api = FakeApi(identity());
+    await pumpApp(tester, gateway: gateway, api: api);
+    await tester.tap(find.byKey(const Key('open-signup')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('signup-company')),
+      'Northstar',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-display-name')),
+      'Ada Admin',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-email')),
+      'not-an-address',
+    );
+    await tester.enterText(find.byKey(const Key('signup-password')), 'weak');
+    await tester.enterText(
+      find.byKey(const Key('signup-confirm-password')),
+      'different',
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('signup-legal-acceptance')),
+    );
+    await tester.tap(find.byKey(const Key('signup-legal-acceptance')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Accept & continue'));
+    await tester.tap(find.text('Accept & continue'));
+    await tester.pump();
+
+    expect(find.text('Enter a valid email address'), findsOneWidget);
+    expect(
+      find.text('Use 8+ characters with upper, lower, and a number'),
+      findsOneWidget,
+    );
+    expect(find.text('Passwords do not match'), findsOneWidget);
     expect(api.registrations, 0);
   });
 
