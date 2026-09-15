@@ -60,11 +60,10 @@ async def request_verification_email(
     credentials that are actually an AWS key -- and `email_configured` cannot
     see any of that, so this used to escape as an unhandled 500 saying "the
     server is broken" about a working server whose mail provider had refused
-    it. It
-    matters more since D-103, because registration now sends through this route
-    rather than the provider's own unbranded sender; the admin client falls
-    back to that sender on any failure here, and a truthful status is what lets
-    it tell "cannot send" apart from a genuine fault.
+    it. It matters more since D-103, because registration now sends through
+    this route rather than the provider's own unbranded sender; the admin
+    client falls back to that sender on any failure here, and a truthful status
+    is what lets it tell "cannot send" apart from a genuine fault.
     """
     try:
         sent = await service.send(current_user)
