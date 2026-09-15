@@ -148,7 +148,7 @@ class NotificationService:
         )
 
     async def _send_email(self, scope: CompanyScope, user_id: str, title: str, body: str) -> bool:
-        if not settings.ses_configured:
+        if not settings.email_configured:
             return False
         recipient = await self._users.get(scope, user_id)
         if recipient is None or not recipient.email:

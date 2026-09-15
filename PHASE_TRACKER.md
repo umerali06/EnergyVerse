@@ -279,3 +279,23 @@ confirmation route removes it from the critical path of signup, but a webhook
 that is genuinely misconfigured will still leave later lifecycle events
 (renewal, cancellation, payment failure) unreconciled, and that needs the Stripe
 dashboard rather than code.
+
+Transactional email over SMTP (2026-09-15): the operator issued SES SMTP
+credentials and put them in `apps/api/.env`, which the API's
+`Settings(extra=forbid)` rejected outright — **the backend would not start at
+all** until the fields existed. They exist now, and `SmtpEmailSender` sends
+through SES's SMTP endpoint with the same branded templates, preferred over the
+boto3 API client whenever SMTP is configured (D-106). Two live checks that had
+been owed for months now pass: the **contact form has sent a real message**
+through the real unauthenticated `POST /api/v1/contact` route, and the **signup
+verification email really sends** rather than falling back to Firebase's
+unbranded sender. The `SMTP_PORT` in the supplied values was `58`, which is not
+an SMTP port; it is 587, SES's STARTTLS submission port, and nothing would have
+connected on the original value.
+
+Open on this: nothing in the email path. The deployed task definition now
+carries `SMTP_HOST`/`SMTP_PORT`/`SMTP_FROM` and expects `SMTP_USER`/`SMTP_PASS`
+in Secrets Manager — those two secret values have to be added to the `fev/api`
+secret before the next deploy, or the container will fall back to the SES API
+path and its rotated keys.
+

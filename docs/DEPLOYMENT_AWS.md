@@ -168,6 +168,8 @@ aws secretsmanager create-secret \
     "ANTHROPIC_API_KEY": "sk-ant-...",
     "AWS_ACCESS_KEY_ID": "AKIA...",
     "AWS_SECRET_ACCESS_KEY": "...",
+    "SMTP_USER": "AKIA...",
+    "SMTP_PASS": "...",
     "STRIPE_SECRET_KEY": "sk_live_...",
     "STRIPE_PUBLISHABLE_KEY": "pk_live_...",
     "STRIPE_WEBHOOK_SECRET": "whsec_...",
@@ -181,6 +183,20 @@ Copy the returned **ARN** — it ends in six random characters like
 > The `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` here are the **SES sending**
 > credentials the app uses, taken from your current `apps/api/.env`. They are
 > not the deploy credentials.
+>
+> `SMTP_USER` / `SMTP_PASS` are **not** those keys. SES SMTP credentials are
+> generated separately in the SES console (*SMTP settings → Create SMTP
+> credentials*); the password is derived from an IAM secret and is shown once.
+> Pasting an AWS access key here authenticates against nothing and every send
+> fails with `smtp_auth_failed`. The app prefers SMTP whenever `SMTP_HOST`,
+> `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` are all set, and falls back to the
+> SES API otherwise — so leaving the SMTP entries out is a supported
+> configuration, not a broken one.
+>
+> `SMTP_FROM` must be an identity verified in SES for the region in
+> `SMTP_HOST`. Verification is per-region: an address verified in `us-east-1`
+> is not verified for `eu-west-1`, and the send is refused with
+> `smtp_sender_refused`.
 
 ## A3. Create the IAM roles
 

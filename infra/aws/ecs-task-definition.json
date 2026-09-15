@@ -66,6 +66,18 @@
           "value": "Flacron Energy"
         },
         {
+          "name": "SMTP_HOST",
+          "value": "email-smtp.us-east-1.amazonaws.com"
+        },
+        {
+          "name": "SMTP_PORT",
+          "value": "587"
+        },
+        {
+          "name": "SMTP_FROM",
+          "value": "noreply@flacronenergy.com"
+        },
+        {
           "name": "PUSH_NOTIFICATIONS_ENABLED",
           "value": "true"
         },
@@ -114,6 +126,14 @@
         {
           "name": "SEED_DEMO_PASSWORD",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:SEED_DEMO_PASSWORD::"
+        },
+        {
+          "name": "SMTP_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:SMTP_USER::"
+        },
+        {
+          "name": "SMTP_PASS",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:482881544977:secret:fev/api-FPkQs5:SMTP_PASS::"
         }
       ],
       "logConfiguration": {
