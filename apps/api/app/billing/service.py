@@ -95,6 +95,15 @@ class SubscriptionService:
         plan = PLANS.get(tier)
         if plan is None:
             raise BillingError("unknown_plan", f"No such plan: {tier}")
+        if not plan.self_serve:
+            # Enterprise has no list price and no Stripe Price, so there is
+            # nothing to open a session against. Refusing here rather than in
+            # the route means a direct API call cannot buy it either -- the
+            # deal has to go through sales, which is the point of quoting it.
+            raise BillingError(
+                "plan_requires_sales",
+                f"{plan.name} is custom-quoted. Contact sales for a quote.",
+            )
 
         scope = CompanyScope(company_id=company_id)
         company = await self._companies.get(scope)

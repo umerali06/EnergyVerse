@@ -29,6 +29,18 @@ import {
 export interface BillingCatalogResponse {
     /**
      *
+     * @type {number}
+     * @memberof BillingCatalogResponse
+     */
+    annualMonthsCharged: number;
+    /**
+     *
+     * @type {Array<string>}
+     * @memberof BillingCatalogResponse
+     */
+    enterpriseQuoteFactors: Array<string>;
+    /**
+     *
      * @type {Array<BillingPlanResponse>}
      * @memberof BillingCatalogResponse
      */
@@ -45,6 +57,8 @@ export interface BillingCatalogResponse {
  * Check if a given object implements the BillingCatalogResponse interface.
  */
 export function instanceOfBillingCatalogResponse(value: object): value is BillingCatalogResponse {
+    if (!('annualMonthsCharged' in value) || value['annualMonthsCharged'] === undefined) return false;
+    if (!('enterpriseQuoteFactors' in value) || value['enterpriseQuoteFactors'] === undefined) return false;
     if (!('plans' in value) || value['plans'] === undefined) return false;
     if (!('trialDays' in value) || value['trialDays'] === undefined) return false;
     return true;
@@ -60,6 +74,8 @@ export function BillingCatalogResponseFromJSONTyped(json: any, ignoreDiscriminat
     }
     return {
 
+        'annualMonthsCharged': json['annual_months_charged'],
+        'enterpriseQuoteFactors': json['enterprise_quote_factors'],
         'plans': ((json['plans'] as Array<any>).map(BillingPlanResponseFromJSON)),
         'trialDays': json['trial_days'],
     };
@@ -76,6 +92,8 @@ export function BillingCatalogResponseToJSONTyped(value?: BillingCatalogResponse
 
     return {
 
+        'annual_months_charged': value['annualMonthsCharged'],
+        'enterprise_quote_factors': value['enterpriseQuoteFactors'],
         'plans': ((value['plans'] as Array<any>).map(BillingPlanResponseToJSON)),
         'trial_days': value['trialDays'],
     };

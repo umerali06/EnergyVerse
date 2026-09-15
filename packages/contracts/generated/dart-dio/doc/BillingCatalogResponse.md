@@ -8,6 +8,8 @@ import 'package:fev_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**annualMonthsCharged** | **int** |  |
+**enterpriseQuoteFactors** | **BuiltList&lt;String&gt;** |  |
 **plans** | [**BuiltList&lt;BillingPlanResponse&gt;**](BillingPlanResponse.md) |  |
 **trialDays** | **int** |  |
 

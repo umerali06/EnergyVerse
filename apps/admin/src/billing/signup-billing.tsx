@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -72,6 +73,8 @@ function PlanCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  // A custom-quoted plan has no amount at either interval; it publishes a floor
+  // to anchor the conversation and is bought through sales.
   const amount = interval === "annual" ? plan.annualTotalCents : plan.monthlyCents;
   const per = interval === "annual" ? "per year" : "per month";
   const quotas = plan.quotas;
@@ -90,30 +93,40 @@ function PlanCard({
       ? "Unlimited seats"
       : `${quotas.seats} seats`;
 
-  return (
-    <button
-      aria-pressed={selected}
-      className={`flex h-full flex-col rounded-xl border p-5 text-left transition-colors ${
-        selected
-          ? "border-accent-500 bg-elevated"
-          : "border-border bg-surface hover:border-primary-400/60"
-      }`}
-      data-plan-tier={plan.tier}
-      onClick={onSelect}
-      type="button"
-    >
+  const body = (
+    <>
       <span className="flex items-center gap-2">
         <span className="text-bodySmall font-semibold text-text-primary">{plan.name}</span>
-        {plan.customQuoted ? (
+        {plan.selfServe ? null : (
           <span className="rounded-full border border-border px-2 py-0.5 font-mono text-micro uppercase tracking-wider text-text-muted">
-            from
+            custom
           </span>
-        ) : null}
+        )}
       </span>
-      <span className="mt-3 font-heading text-h2 font-bold leading-none text-text-primary">
-        {money(amount)}
-      </span>
-      <span className="mt-1 text-caption text-text-muted">{per}</span>
+      {plan.selfServe ? (
+        <>
+          <span className="mt-3 font-heading text-h2 font-bold leading-none text-text-primary">
+            {money(amount ?? 0)}
+          </span>
+          <span className="mt-1 text-caption text-text-muted">{per}</span>
+          {/* Both prices, before payment: the interval toggle changes what is
+              charged, so the alternative has to be visible rather than found. */}
+          <span className="mt-1 font-mono text-micro text-text-muted">
+            {interval === "annual"
+              ? `${money(plan.monthlyCents ?? 0)}/mo if billed monthly`
+              : `${money(plan.annualTotalCents ?? 0)}/yr if billed annually`}
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="mt-3 font-heading text-h4 font-bold leading-tight text-text-primary">
+            Custom pricing
+          </span>
+          <span className="mt-1 text-caption text-text-muted">
+            Starting around {money(plan.startingMonthlyCents ?? 0)}/month
+          </span>
+        </>
+      )}
       <span className="mt-4 grid gap-1 font-mono text-micro text-text-secondary">
         <span>{facilities}</span>
         <span>{assets}</span>
@@ -122,6 +135,42 @@ function PlanCard({
       <span className="mt-4 border-t border-border pt-3 text-caption text-text-secondary">
         {plan.support}
       </span>
+    </>
+  );
+
+  const shell =
+    "flex h-full flex-col rounded-xl border p-5 text-left transition-colors";
+
+  // Not a selectable option at all: there is no Price to open a session
+  // against, so offering it as one would end in a 400 from the API.
+  if (!plan.selfServe) {
+    return (
+      <Link
+        className={`${shell} border-dashed border-border bg-surface hover:border-primary-400/60`}
+        data-plan-tier={plan.tier}
+        href="/contact?topic=enterprise"
+      >
+        {body}
+        <span className="mt-4 text-caption font-semibold text-primary-600 dark:text-primary-400">
+          Request a quote →
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      aria-pressed={selected}
+      className={`${shell} ${
+        selected
+          ? "border-accent-500 bg-elevated"
+          : "border-border bg-surface hover:border-primary-400/60"
+      }`}
+      data-plan-tier={plan.tier}
+      onClick={onSelect}
+      type="button"
+    >
+      {body}
     </button>
   );
 }
@@ -174,7 +223,9 @@ export function SignupPlanScreen({ reducedMotionOverride }: { reducedMotionOverr
   }, [client]);
 
   const selected = useMemo(
-    () => catalog?.plans.find((plan) => plan.tier === tier) ?? null,
+    // A custom-quoted tier is never "selected", even if an intent carried one
+    // in from a pricing-page link: there is no Price to check out against.
+    () => catalog?.plans.find((plan) => plan.tier === tier && plan.selfServe) ?? null,
     [catalog, tier],
   );
 
@@ -272,7 +323,9 @@ export function SignupPlanScreen({ reducedMotionOverride }: { reducedMotionOverr
               ))}
             </div>
             <p className="mt-2 text-caption text-text-muted">
-              Annual billing is the listed price; monthly carries a premium.
+              {catalog.annualMonthsCharged
+                ? `Annual is charged as ${catalog.annualMonthsCharged} months for twelve months of service — ${12 - catalog.annualMonthsCharged} months free.`
+                : "Choose how you would like to be billed."}
             </p>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -293,16 +346,34 @@ export function SignupPlanScreen({ reducedMotionOverride }: { reducedMotionOverr
               </p>
             ) : null}
 
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Button loading={redirecting} onClick={startCheckout}>
+            {selected ? (
+              // Say the exact amount and cadence before the button that leaves
+              // for Stripe, so nothing about the charge is first seen there.
+              <p className="mt-6 text-bodySmall text-text-secondary" data-testid="checkout-summary">
+                <strong className="font-semibold text-text-primary">{selected.name}</strong> —{" "}
+                {interval === "annual"
+                  ? `${money(selected.annualTotalCents ?? 0)} per year (${money(
+                      selected.annualMonthlyEquivalentCents ?? 0,
+                    )}/mo), billed annually`
+                  : `${money(selected.monthlyCents ?? 0)} per month, billed monthly`}
+                . Nothing is charged for {catalog.trialDays} days.
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <Button disabled={!selected} loading={redirecting} onClick={startCheckout}>
                 {selected
                   ? `Start ${catalog.trialDays}-day trial on ${selected.name}`
-                  : "Continue to secure checkout"}
+                  : "Choose a plan to continue"}
               </Button>
               <p className="text-caption text-text-muted">
                 You will be taken to Stripe. We never see your card details.
               </p>
             </div>
+            <p className="mt-3 text-caption text-text-muted">
+              Have a founding-customer or discount code? Enter it on the Stripe checkout page —
+              the discounted amount is shown there before you pay.
+            </p>
 
             {/* Required before payment authorization: what is being bought,
                 how it renews, and every policy it is subject to. */}

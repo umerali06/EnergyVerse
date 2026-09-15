@@ -8,6 +8,10 @@ part of 'billing_catalog_response.dart';
 
 class _$BillingCatalogResponse extends BillingCatalogResponse {
   @override
+  final int annualMonthsCharged;
+  @override
+  final BuiltList<String> enterpriseQuoteFactors;
+  @override
   final BuiltList<BillingPlanResponse> plans;
   @override
   final int trialDays;
@@ -16,8 +20,16 @@ class _$BillingCatalogResponse extends BillingCatalogResponse {
           [void Function(BillingCatalogResponseBuilder)? updates]) =>
       (new BillingCatalogResponseBuilder()..update(updates))._build();
 
-  _$BillingCatalogResponse._({required this.plans, required this.trialDays})
+  _$BillingCatalogResponse._(
+      {required this.annualMonthsCharged,
+      required this.enterpriseQuoteFactors,
+      required this.plans,
+      required this.trialDays})
       : super._() {
+    BuiltValueNullFieldError.checkNotNull(
+        annualMonthsCharged, r'BillingCatalogResponse', 'annualMonthsCharged');
+    BuiltValueNullFieldError.checkNotNull(enterpriseQuoteFactors,
+        r'BillingCatalogResponse', 'enterpriseQuoteFactors');
     BuiltValueNullFieldError.checkNotNull(
         plans, r'BillingCatalogResponse', 'plans');
     BuiltValueNullFieldError.checkNotNull(
@@ -37,6 +49,8 @@ class _$BillingCatalogResponse extends BillingCatalogResponse {
   bool operator ==(Object other) {
     if (identical(other, this)) return true;
     return other is BillingCatalogResponse &&
+        annualMonthsCharged == other.annualMonthsCharged &&
+        enterpriseQuoteFactors == other.enterpriseQuoteFactors &&
         plans == other.plans &&
         trialDays == other.trialDays;
   }
@@ -44,6 +58,8 @@ class _$BillingCatalogResponse extends BillingCatalogResponse {
   @override
   int get hashCode {
     var _$hash = 0;
+    _$hash = $jc(_$hash, annualMonthsCharged.hashCode);
+    _$hash = $jc(_$hash, enterpriseQuoteFactors.hashCode);
     _$hash = $jc(_$hash, plans.hashCode);
     _$hash = $jc(_$hash, trialDays.hashCode);
     _$hash = $jf(_$hash);
@@ -53,6 +69,8 @@ class _$BillingCatalogResponse extends BillingCatalogResponse {
   @override
   String toString() {
     return (newBuiltValueToStringHelper(r'BillingCatalogResponse')
+          ..add('annualMonthsCharged', annualMonthsCharged)
+          ..add('enterpriseQuoteFactors', enterpriseQuoteFactors)
           ..add('plans', plans)
           ..add('trialDays', trialDays))
         .toString();
@@ -62,6 +80,17 @@ class _$BillingCatalogResponse extends BillingCatalogResponse {
 class BillingCatalogResponseBuilder
     implements Builder<BillingCatalogResponse, BillingCatalogResponseBuilder> {
   _$BillingCatalogResponse? _$v;
+
+  int? _annualMonthsCharged;
+  int? get annualMonthsCharged => _$this._annualMonthsCharged;
+  set annualMonthsCharged(int? annualMonthsCharged) =>
+      _$this._annualMonthsCharged = annualMonthsCharged;
+
+  ListBuilder<String>? _enterpriseQuoteFactors;
+  ListBuilder<String> get enterpriseQuoteFactors =>
+      _$this._enterpriseQuoteFactors ??= new ListBuilder<String>();
+  set enterpriseQuoteFactors(ListBuilder<String>? enterpriseQuoteFactors) =>
+      _$this._enterpriseQuoteFactors = enterpriseQuoteFactors;
 
   ListBuilder<BillingPlanResponse>? _plans;
   ListBuilder<BillingPlanResponse> get plans =>
@@ -79,6 +108,8 @@ class BillingCatalogResponseBuilder
   BillingCatalogResponseBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
+      _annualMonthsCharged = $v.annualMonthsCharged;
+      _enterpriseQuoteFactors = $v.enterpriseQuoteFactors.toBuilder();
       _plans = $v.plans.toBuilder();
       _trialDays = $v.trialDays;
       _$v = null;
@@ -105,12 +136,19 @@ class BillingCatalogResponseBuilder
     try {
       _$result = _$v ??
           new _$BillingCatalogResponse._(
+              annualMonthsCharged: BuiltValueNullFieldError.checkNotNull(
+                  annualMonthsCharged,
+                  r'BillingCatalogResponse',
+                  'annualMonthsCharged'),
+              enterpriseQuoteFactors: enterpriseQuoteFactors.build(),
               plans: plans.build(),
               trialDays: BuiltValueNullFieldError.checkNotNull(
                   trialDays, r'BillingCatalogResponse', 'trialDays'));
     } catch (_) {
       late String _$failedField;
       try {
+        _$failedField = 'enterpriseQuoteFactors';
+        enterpriseQuoteFactors.build();
         _$failedField = 'plans';
         plans.build();
       } catch (e) {

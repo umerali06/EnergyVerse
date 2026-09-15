@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.billing.plans import TIER_ORDER
+
 
 class ErrorEnvelope(BaseModel):
     """Stable error contract returned by every API failure."""
@@ -225,7 +227,11 @@ class UpdateCompanyRequest(BaseModel):
     contact_phone: str | None = Field(default=None, min_length=3, max_length=40)
 
 
-SUBSCRIPTION_TIERS = ("demo", "starter", "professional", "enterprise")
+#: The published tiers, cheapest first, derived so a repricing cannot leave a
+#: stale copy behind -- this list used to read ("demo", "starter",
+#: "professional", "enterprise"), none of which survived Phase 13, and a tier
+#: missing from it makes any `minTier` gate hide everything from that tenant.
+SUBSCRIPTION_TIERS = tuple(tier.value for tier in TIER_ORDER)
 
 
 class PlatformCompanySummary(BaseModel):
@@ -1596,22 +1602,40 @@ class BillingPlanQuotasResponse(BaseModel):
 
 
 class BillingPlanResponse(BaseModel):
+    """One published tier.
+
+    The price fields are nullable because a custom-quoted tier has no list
+    price at all -- `starting_monthly_cents` is the floor it is sold from, and
+    a client must render that as "starting around", never as a buyable amount.
+    `self_serve` is what a client should branch on: false means the call to
+    action is a conversation, not a card.
+    """
+
     tier: str
     name: str
     audience: str
-    list_monthly_cents: int
-    annual_total_cents: int
-    monthly_cents: int
+    monthly_cents: int | None
+    annual_total_cents: int | None
+    #: What the annual total works out to per month, for "or $X/mo billed annually".
+    annual_monthly_equivalent_cents: int | None
+    starting_monthly_cents: int | None
     quotas: BillingPlanQuotasResponse
     features: list[str]
     digital_twin_scope: str
     support: str
+    adds: list[str]
     custom_quoted: bool
+    self_serve: bool
 
 
 class BillingCatalogResponse(BaseModel):
     trial_days: int
+    #: Months charged for twelve months of service on annual billing.
+    annual_months_charged: int
     plans: list[BillingPlanResponse]
+    #: What an Enterprise quote is built from, published so "custom" reads as a
+    #: method rather than an evasion.
+    enterprise_quote_factors: list[str]
 
 
 class SubscriptionResponse(BaseModel):

@@ -1,13 +1,17 @@
 """The entitlement gate as the API actually enforces it.
 
 Phase 13.1 defined `require_feature` and 13.7 applied it to every module router.
-Until it was applied the gate was decorative: hiding Work Orders in the two
-clients is UX, and a Starter tenant could still call `/api/v1/work-orders`
-directly. These cases pin the server half.
+Until it was applied the gate was decorative: hiding a module in the two clients
+is UX, and an entry-tier tenant could still call the route directly. These cases
+pin the server half.
 
-The two gates are independent, and that is the point of most of what follows: a
-Starter tenant's Company Admin holds every permission and must still be refused
-the modules its plan omits, with a 402 that names the tier which unlocks them.
+The two gates are independent, and that is the point of most of what follows: an
+entry-tier tenant's Company Admin holds every permission and must still be
+refused the modules its plan omits, with a 402 that names the tier which unlocks
+them. Since D-107 the only module an entry tier omits is permit-to-work — work
+orders and AR inspection are core product on every paid tier — so the gate is
+exercised against permits, and work orders are now checked for the opposite:
+that Pilot can reach them.
 """
 
 from collections.abc import Iterator
@@ -32,12 +36,14 @@ COMPANY_ID = "acme-energy"
 #: Routes that must be refused on a plan without the module. One read per
 #: gated router, since the gate is applied at router level.
 GATED_READS = [
-    ("/api/v1/work-orders", Feature.WORK_ORDERS),
     ("/api/v1/permits", Feature.PERMITS),
     ("/api/v1/permit-templates", Feature.PERMITS),
 ]
 
-#: Base modules every paid tier includes; these must stay reachable on Starter.
+#: Core modules every paid tier includes; these must stay reachable on Pilot,
+#: the cheapest plan anyone can buy. Work orders are on this list since D-107:
+#: a customer proving the platform on one site needs the real workflow, not a
+#: demonstration of it.
 BASE_READS = [
     "/api/v1/assets",
     "/api/v1/inspections",
@@ -45,6 +51,7 @@ BASE_READS = [
     "/api/v1/safety-reports",
     "/api/v1/reports",
     "/api/v1/documents",
+    "/api/v1/work-orders",
 ]
 
 
@@ -93,17 +100,17 @@ def client_on() -> Iterator[Any]:
 
 class TestPlanGatedModules:
     @pytest.mark.parametrize(("path", "feature"), GATED_READS)
-    def test_starter_is_refused_with_402_and_an_upgrade_target(
+    def test_an_entry_tier_is_refused_with_402_and_an_upgrade_target(
         self, client_on: Any, path: str, feature: Feature
     ) -> None:
-        response = client_on(PlanTier.STARTER).get(path)
+        response = client_on(PlanTier.PILOT).get(path)
 
         # 402, not 403: the caller is allowed, the company has not bought it.
         assert response.status_code == 402, (path, response.text)
         body = response.json()
         assert body["error"] == "plan_upgrade_required"
         details = body["details"]
-        assert details["current_tier"] == "starter"
+        assert details["current_tier"] == "pilot"
         # The response names a real plan so the client can offer an upgrade
         # rather than a dead end.
         assert details["required_tier"] == cheapest_tier_with(feature).value
@@ -117,15 +124,22 @@ class TestPlanGatedModules:
         assert response.status_code != 402, (path, response.text)
 
     @pytest.mark.parametrize("path", BASE_READS)
-    def test_base_modules_stay_open_on_the_entry_tier(
+    def test_core_modules_stay_open_on_the_cheapest_tier(
         self, client_on: Any, path: str
     ) -> None:
-        response = client_on(PlanTier.STARTER).get(path)
+        response = client_on(PlanTier.PILOT).get(path)
         assert response.status_code != 402, (path, response.text)
 
+    def test_work_orders_are_reachable_on_every_paid_tier(self, client_on: Any) -> None:
+        # The D-107 commitment, enforced rather than described: an upgrade can
+        # never take work orders away, because no paid tier is without them.
+        for tier in (PlanTier.PILOT, PlanTier.STARTER, PlanTier.FIELD, PlanTier.OPERATIONS):
+            response = client_on(tier).get("/api/v1/work-orders")
+            assert response.status_code != 402, (tier, response.text)
+
     def test_field_is_gated_exactly_like_starter(self, client_on: Any) -> None:
-        # Field buys more assets and seats, not more modules (§22.1).
-        response = client_on(PlanTier.FIELD).get("/api/v1/work-orders")
+        # Field buys capacity, not capability.
+        response = client_on(PlanTier.FIELD).get("/api/v1/permits")
         assert response.status_code == 402
 
 
@@ -187,13 +201,22 @@ class TestCatalogConsistency:
             assert tier is not None, feature
             assert PLANS[tier].has(feature)
 
-    def test_the_entry_tiers_omit_exactly_the_operations_modules(self) -> None:
-        # Guards the §22.1 reading the product owner confirmed: Field buys
-        # capacity, not capability.
-        operations_only = PLANS[PlanTier.OPERATIONS].features - PLANS[PlanTier.STARTER].features
-        assert operations_only == {
-            Feature.AR_INSPECTION,
-            Feature.PERMITS,
-            Feature.WORK_ORDERS,
-        }
-        assert PLANS[PlanTier.FIELD].features == PLANS[PlanTier.STARTER].features
+    def test_the_entry_tiers_omit_exactly_permit_to_work(self) -> None:
+        # Guards the D-107 shape: everything below Operations is the same
+        # product at different capacities, and Operations adds one module.
+        operations_only = PLANS[PlanTier.OPERATIONS].features - PLANS[PlanTier.PILOT].features
+        assert operations_only == {Feature.PERMITS}
+        assert (
+            PLANS[PlanTier.PILOT].features
+            == PLANS[PlanTier.STARTER].features
+            == PLANS[PlanTier.FIELD].features
+        )
+
+    def test_no_upgrade_ever_removes_a_module(self) -> None:
+        # The property the whole ladder rests on. Asserted over the real tier
+        # order rather than spot-checked, so a future tier cannot break it.
+        from app.billing.plans import TIER_ORDER
+
+        for lower, higher in zip(TIER_ORDER, TIER_ORDER[1:], strict=False):
+            missing = PLANS[lower].features - PLANS[higher].features
+            assert not missing, f"upgrading {lower} -> {higher} would remove {missing}"

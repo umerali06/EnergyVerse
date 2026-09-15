@@ -11,7 +11,13 @@ import type { AuthGateway, AuthSession } from "@/auth/firebase-gateway";
 import { ThemeProvider, ToastProvider } from "@/design-system";
 import { APP_HOME } from "@/navigation/routes";
 
-import { TRIAL_DAYS, allowanceLine, plans } from "./pricing-plans";
+import {
+  ANNUAL_MONTHS_CHARGED,
+  BASE_MODULES,
+  TRIAL_DAYS,
+  allowanceLine,
+  plans,
+} from "./pricing-plans";
 import { chainSteps } from "./record-chain";
 import { roleRows } from "./role-matrix";
 
@@ -161,10 +167,11 @@ describe("public marketing site", () => {
     pathControl.set("/");
   });
 
-  it("renders every published tier with its allowance and a trial CTA", () => {
+  it("renders every published tier with its allowance and the right CTA", () => {
     renderMarketing(<PricingPage />);
 
     expect(plans.map((plan) => plan.tier)).toEqual([
+      "pilot",
       "starter",
       "field",
       "operations",
@@ -175,40 +182,63 @@ describe("public marketing site", () => {
       expect(screen.getByText(allowanceLine(plan))).toBeInTheDocument();
     }
     // Every trial CTA must carry the chosen plan into signup, or step two has
-    // no idea which Stripe Price to open.
+    // no idea which Stripe Price to open. Enterprise has no trial CTA at all.
+    const selfServe = plans.filter((plan) => !plan.customQuoted);
     const trialLinks = screen.getAllByRole("link", { name: `Start ${TRIAL_DAYS}-day trial` });
-    expect(trialLinks.length).toBe(plans.length + 1);
-    for (const plan of plans) {
+    expect(trialLinks.length).toBe(selfServe.length + 1);
+    for (const plan of selfServe) {
       expect(
         trialLinks.some(
           (link) => link.getAttribute("href") === `/signup?plan=${plan.tier}&interval=annual`,
         ),
       ).toBe(true);
     }
-    // Enterprise is custom-quoted, so it also offers a human.
-    expect(screen.getByRole("link", { name: "Contact sales" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("mailto:"),
-    );
+    expect(
+      trialLinks.some((link) => link.getAttribute("href")?.includes("plan=enterprise")),
+    ).toBe(false);
   });
 
-  it("publishes the prices and quotas from the requirements document", () => {
+  it("routes Enterprise to sales instead of to a card", () => {
+    renderMarketing(<PricingPage />);
+
+    // There is no Stripe Price for a custom-quoted tier, so a buy button here
+    // would open a checkout against a price that does not exist.
+    expect(screen.getByRole("link", { name: "Request a quote" })).toHaveAttribute(
+      "href",
+      "/contact?topic=enterprise",
+    );
+    expect(screen.getByText("Custom Pricing")).toBeInTheDocument();
+    expect(screen.getByText(/Starting around \$9,999\/month/)).toBeInTheDocument();
+    // The figure the product owner asked us to stop publishing.
+    expect(screen.queryByText(/29,997/)).not.toBeInTheDocument();
+  });
+
+  it("publishes the launch prices and quotas", () => {
     renderMarketing(<PricingPage />);
 
     // These are charged through Stripe, so a typo is a commercial defect. The
     // backend catalog (apps/api/app/billing/plans.py) holds the same figures
     // and its own suite pins them; this guards the published half.
     const byTier = Object.fromEntries(plans.map((plan) => [plan.tier, plan]));
-    expect(byTier.starter.listMonthlyCents).toBe(99_799);
-    expect(byTier.field.listMonthlyCents).toBe(299_799);
-    expect(byTier.operations.listMonthlyCents).toBe(999_799);
-    expect(byTier.enterprise.listMonthlyCents).toBe(2_999_799);
-    for (const plan of plans) {
-      expect(plan.annualTotalCents).toBe(plan.listMonthlyCents * 12);
-      expect(plan.monthlyCents).toBeGreaterThan(plan.listMonthlyCents);
+    expect(byTier.pilot.monthlyCents).toBe(49_900);
+    expect(byTier.starter.monthlyCents).toBe(99_900);
+    expect(byTier.field.monthlyCents).toBe(199_900);
+    expect(byTier.operations.monthlyCents).toBe(499_900);
+    // Custom-quoted means no list price at all, only a floor to quote from.
+    expect(byTier.enterprise.monthlyCents).toBeNull();
+    expect(byTier.enterprise.annualTotalCents).toBeNull();
+    expect(byTier.enterprise.startingMonthlyCents).toBe(999_900);
+
+    for (const plan of plans.filter((entry) => !entry.customQuoted)) {
+      // Twelve months of service for ten months of money, and never the other
+      // way round -- an "incentive" that costs more is a penalty.
+      expect(plan.annualTotalCents).toBe(plan.monthlyCents! * ANNUAL_MONTHS_CHARGED);
+      expect(plan.annualTotalCents!).toBeLessThan(plan.monthlyCents! * 12);
     }
-    expect(byTier.starter.quotas).toEqual({ facilities: 1, assets: 150, seats: 5 });
-    expect(byTier.field.quotas).toEqual({ facilities: 1, assets: 500, seats: 15 });
+
+    expect(byTier.pilot.quotas).toEqual({ facilities: 1, assets: 100, seats: 5 });
+    expect(byTier.starter.quotas).toEqual({ facilities: 1, assets: 250, seats: 10 });
+    expect(byTier.field.quotas).toEqual({ facilities: 2, assets: 750, seats: 25 });
     expect(byTier.operations.quotas).toEqual({ facilities: 5, assets: 2_500, seats: 75 });
     expect(byTier.enterprise.quotas).toEqual({
       facilities: null,
@@ -216,15 +246,32 @@ describe("public marketing site", () => {
       seats: null,
     });
 
-    // The commercial line that shapes the whole product UI.
-    expect(byTier.starter.adds).toEqual([]);
-    expect(byTier.field.adds).toEqual([]);
-    expect(byTier.operations.adds.join(" ")).toMatch(/AR inspection/);
-    expect(byTier.operations.adds.join(" ")).toMatch(/Permit-to-work/);
-    expect(byTier.operations.adds.join(" ")).toMatch(/Work orders/);
+    // Both prices on the card, so a buyer picking monthly is not quoted a
+    // number they can only reach by committing to a year.
+    // Scoped to the plan card: "$999" also appears in the add-on table, and an
+    // ambiguous match would pass for the wrong reason.
+    const starterCard = screen
+      .getByRole("heading", { level: 2, name: "Starter" })
+      .closest(".mk-panel");
+    expect(starterCard?.textContent).toContain("$999");
+    expect(starterCard?.textContent).toContain("$9,990/yr billed annually");
+    expect(starterCard?.textContent).toContain("2 months free");
+  });
 
-    expect(screen.getByText("$997.99")).toBeInTheDocument();
-    expect(screen.getByText(/\$11,975\.88\/yr/)).toBeInTheDocument();
+  it("puts the core product on every tier, including Pilot", () => {
+    renderMarketing(<PricingPage />);
+
+    // The commercial line that shapes the whole product UI: a customer proves
+    // the platform on Pilot and upgrades for capacity, never for the basics.
+    const core = BASE_MODULES.join(" ");
+    expect(core).toMatch(/AI photo and video analysis/);
+    expect(core).toMatch(/AR inspection/);
+    expect(core).toMatch(/Work orders/);
+
+    const byTier = Object.fromEntries(plans.map((plan) => [plan.tier, plan]));
+    expect(byTier.pilot.adds).toEqual([]);
+    expect(byTier.operations.adds.join(" ")).toMatch(/Permit-to-work/);
+    expect(byTier.enterprise.adds.join(" ")).toMatch(/VR training/);
   });
 
   it("presents the hero product depiction as one described image, not a text wall", () => {

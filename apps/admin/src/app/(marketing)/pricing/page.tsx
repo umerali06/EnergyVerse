@@ -10,22 +10,24 @@ import {
   SectionHeading,
 } from "@/marketing/marketing-ui";
 import {
+  ANNUAL_MONTHS_CHARGED,
   BASE_MODULES,
   TRIAL_DAYS,
+  addOns,
   allowanceLine,
+  annualMonthlyEquivalentCents,
+  enterpriseQuoteFactors,
   formatPrice,
   plans,
   pricingFaqs,
-  seatAddOns,
   services,
-  usageAddOns,
 } from "@/marketing/pricing-plans";
 import { PricingLegalNote } from "@/legal/commercial-notices";
 import { publicPage } from "@/seo/site";
 
 export const metadata: Metadata = publicPage(
   "Pricing",
-  "Per-site licensing with role-based seats for oil, gas, and energy operations. Starter through Enterprise, each with a 7-day trial on the plan's full feature set.",
+  "Per-site licensing for oil, gas, and energy operations. Pilot from $499/month through custom-quoted Enterprise, each self-serve tier with a 7-day trial on its full feature set.",
   "/pricing",
 );
 
@@ -45,7 +47,7 @@ export default function PricingPage() {
             align="center"
             eyebrow="Pricing"
             highlight="the site, not the software"
-            lede={`Priced against what a facility is worth, not against generic field-service tools. Every tier starts with a ${TRIAL_DAYS}-day trial on its full feature set, billed annually — monthly billing is available at a premium.`}
+            lede={`Start on one site and grow into it. Every paid tier carries the core platform — AI analysis, AR inspection, work orders, reports — and the tiers differ on capacity, support, and enterprise capability. Monthly or annual, with ${12 - ANNUAL_MONTHS_CHARGED} months free on annual, and a ${TRIAL_DAYS}-day trial on every self-serve plan.`}
             level={1}
             title="Licensed per"
           />
@@ -72,43 +74,59 @@ export default function PricingPage() {
                   {plan.audience}
                 </p>
 
-                <p
-                  className={`mt-8 font-heading text-h1 font-bold leading-none tracking-[-0.02em] ${
-                    plan.featured ? "mk-gradient-text" : "text-text-primary"
-                  }`}
-                >
-                  {plan.customQuoted ? "From " : null}
-                  {formatPrice(plan.listMonthlyCents)}
-                </p>
-                <p className="mt-2 text-bodySmall text-text-muted">
-                  per month, billed annually ({formatPrice(plan.annualTotalCents)}/yr)
-                </p>
-                <p className="mt-1 font-mono text-micro text-text-muted">
-                  or {formatPrice(plan.monthlyCents)}/mo billed monthly
-                </p>
+                {plan.customQuoted ? (
+                  <>
+                    <p className="mt-8 font-heading text-h2 font-bold leading-none tracking-[-0.02em] text-text-primary">
+                      Custom Pricing
+                    </p>
+                    <p className="mt-2 text-bodySmall text-text-muted">
+                      Starting around {formatPrice(plan.startingMonthlyCents ?? 0)}/month
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p
+                      className={`mt-8 font-heading text-h1 font-bold leading-none tracking-[-0.02em] ${
+                        plan.featured ? "mk-gradient-text" : "text-text-primary"
+                      }`}
+                    >
+                      {formatPrice(plan.monthlyCents ?? 0)}
+                    </p>
+                    <p className="mt-2 text-bodySmall text-text-muted">per month</p>
+                    <p className="mt-1 font-mono text-micro text-text-muted">
+                      or {formatPrice(plan.annualTotalCents ?? 0)}/yr billed annually —{" "}
+                      {formatPrice(annualMonthlyEquivalentCents(plan) ?? 0)}/mo,{" "}
+                      {12 - ANNUAL_MONTHS_CHARGED} months free
+                    </p>
+                  </>
+                )}
 
                 <p className="mt-5 rounded-lg border border-border px-3 py-2 font-mono text-micro leading-relaxed text-text-secondary">
                   {allowanceLine(plan)}
                 </p>
 
                 <div className="mt-6">
-                  <CtaLink
-                    className="w-full"
-                    href={signupHref(plan.tier)}
-                    variant={plan.featured ? "accent" : "ghost"}
-                  >
-                    Start {TRIAL_DAYS}-day trial
-                  </CtaLink>
+                  {plan.customQuoted ? (
+                    // No card path at all: Enterprise has no list price, so a
+                    // "start trial" button here would open a checkout against
+                    // a price that does not exist.
+                    <CtaLink className="w-full" href="/contact?topic=enterprise" variant="accent">
+                      Request a quote
+                    </CtaLink>
+                  ) : (
+                    <CtaLink
+                      className="w-full"
+                      href={signupHref(plan.tier)}
+                      variant={plan.featured ? "accent" : "ghost"}
+                    >
+                      Start {TRIAL_DAYS}-day trial
+                    </CtaLink>
+                  )}
                 </div>
                 {plan.customQuoted ? (
-                  <p className="mt-3 text-center text-caption text-text-muted">
-                    Quoted against sites, assets, and integration scope.{" "}
-                    <a
-                      className="font-semibold text-text-secondary underline decoration-border underline-offset-4 hover:text-text-primary"
-                      href="mailto:sales@flacronenterprises.com?subject=Flacron%20Energy%20Enterprise"
-                    >
-                      Contact sales
-                    </a>
+                  <p className="mt-3 text-caption leading-relaxed text-text-muted">
+                    Priced on {enterpriseQuoteFactors.slice(0, 5).join(", ")}, and the rest of your
+                    deployment scope. Sales agrees the figure with you before anything is invoiced.
                   </p>
                 ) : null}
 
@@ -125,8 +143,8 @@ export default function PricingPage() {
                   </>
                 ) : (
                   <p className="mt-7 text-caption leading-relaxed text-text-muted">
-                    Includes the full base platform below. AR inspection, permit-to-work, and work
-                    orders start at Operations.
+                    The complete core platform below, on one site — AI analysis, AR inspection,
+                    work orders, and reports included.
                   </p>
                 )}
 
@@ -142,8 +160,8 @@ export default function PricingPage() {
         <SectionHeading
           eyebrow="Every tier"
           highlight="not add-ons"
-          lede="These are the platform, not a bundle you assemble. The tiers differ on capacity and on three modules, never on whether your records are auditable."
-          title="The base platform,"
+          lede="These are the platform, not a bundle you assemble. Every paid tier gets all of them, Pilot included — the tiers differ on capacity, support, and enterprise capability, never on whether your records are auditable."
+          title="The core platform,"
         />
         <div className="mt-14 grid gap-3 md:grid-cols-2">
           {BASE_MODULES.map((module, index) => (
@@ -163,59 +181,64 @@ export default function PricingPage() {
       {/* ------------------------------------------------------- add-ons */}
       <Section>
         <SectionHeading
-          eyebrow="Beyond the allotment"
-          lede="Seats, assets, and sites are additive — you are never forced up a whole tier to add one inspector."
-          title="Add-on pricing"
+          eyebrow="Beyond the plan"
+          lede="A short list on purpose. Seats are not sold one at a time — more seats means the next tier up, because a price list nobody can total is worse than a tier change."
+          title="The only separate charges"
         />
         <div className="mt-14 grid gap-6 lg:grid-cols-2">
           <Panel data-reveal="up">
             <h3 className="font-heading text-h4 font-semibold text-text-primary">
-              Per seat, per month
+              Capacity and modules
             </h3>
             <p className="mt-2 text-bodySmall text-text-secondary">
-              Beyond each tier&apos;s included seats. Executive read-only, Super Admin, and Company
-              Admin seats are free on every tier.
+              Monthly, on top of the plan, when you pass an allowance or want a module your tier
+              does not include.
             </p>
             <dl className="mt-5 grid gap-0">
-              {seatAddOns.map((seat) => (
-                <div
-                  className="flex items-baseline justify-between gap-4 border-t border-border py-3 first:border-t-0"
-                  key={seat.role}
-                >
-                  <dt className="text-bodySmall text-text-secondary">
-                    {seat.role}
-                    {"note" in seat && seat.note ? (
-                      <span className="mt-0.5 block text-caption text-text-muted">{seat.note}</span>
-                    ) : null}
-                  </dt>
-                  <dd className="whitespace-nowrap font-mono text-bodySmall font-semibold text-text-primary">
-                    {formatPrice(seat.cents)}
-                  </dd>
-                </div>
-              ))}
+              {addOns
+                .filter((item) => item.cents !== null)
+                .map((item) => (
+                  <div
+                    className="flex items-baseline justify-between gap-4 border-t border-border py-3 first:border-t-0"
+                    key={item.label}
+                  >
+                    <dt className="text-bodySmall text-text-secondary">
+                      {item.label}
+                      <span className="mt-0.5 block text-caption text-text-muted">{item.unit}</span>
+                    </dt>
+                    <dd className="whitespace-nowrap font-mono text-bodySmall font-semibold text-text-primary">
+                      {formatPrice(item.cents ?? 0)}
+                    </dd>
+                  </div>
+                ))}
             </dl>
           </Panel>
           <Panel data-reveal="up" style={{ "--reveal-delay": "90ms" } as React.CSSProperties}>
             <h3 className="font-heading text-h4 font-semibold text-text-primary">
-              Capacity and modules
+              Scoped and quoted
             </h3>
             <p className="mt-2 text-bodySmall text-text-secondary">
-              Monthly, on top of the base licence. Custom 3D facility model builds are quoted
-              per facility.
+              Work whose price depends on what is actually there, so it is scoped with you rather
+              than listed.
             </p>
             <dl className="mt-5 grid gap-0">
-              {usageAddOns.map((item) => (
-                <div
-                  className="flex items-baseline justify-between gap-4 border-t border-border py-3 first:border-t-0"
-                  key={item.label}
-                >
-                  <dt className="text-bodySmall text-text-secondary">{item.label}</dt>
-                  <dd className="whitespace-nowrap font-mono text-bodySmall font-semibold text-text-primary">
-                    {formatPrice(item.cents)}
-                  </dd>
-                </div>
-              ))}
+              {addOns
+                .filter((item) => item.cents === null)
+                .map((item) => (
+                  <div
+                    className="flex items-baseline justify-between gap-4 border-t border-border py-3 first:border-t-0"
+                    key={item.label}
+                  >
+                    <dt className="text-bodySmall text-text-secondary">{item.label}</dt>
+                    <dd className="whitespace-nowrap font-mono text-caption text-text-muted">
+                      {item.unit}
+                    </dd>
+                  </div>
+                ))}
             </dl>
+            <p className="mt-5 border-t border-border pt-4 text-caption leading-relaxed text-text-secondary">
+              Everything on this page is included at Enterprise or folded into its quote.
+            </p>
           </Panel>
         </div>
       </Section>
@@ -224,7 +247,7 @@ export default function PricingPage() {
       <Section tone="surface">
         <SectionHeading
           eyebrow="Implementation"
-          lede="An asset platform is only as good as the data in it, so onboarding is a real engagement rather than a login link."
+          lede="An asset platform is only as good as the data in it, so onboarding is a real engagement rather than a login link. Founding customers get a negotiated rate and discounted or waived implementation, issued as a code applied at checkout."
           title="Onboarding and support"
         />
         <div className="mt-14 grid gap-5 md:grid-cols-2">
@@ -274,8 +297,8 @@ export default function PricingPage() {
       </section>
 
       <CtaBand
-        body={`Pick a plan, enter a card, and run a real inspection on a real asset. Nothing is charged for ${TRIAL_DAYS} days.`}
-        primaryHref={signupHref("operations")}
+        body={`Start on Pilot, on one site, and run a real inspection on a real asset. Nothing is charged for ${TRIAL_DAYS} days.`}
+        primaryHref={signupHref("pilot")}
         primaryLabel={`Start ${TRIAL_DAYS}-day trial`}
         secondaryHref="/about"
         secondaryLabel="About the platform"

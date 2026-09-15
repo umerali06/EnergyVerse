@@ -307,3 +307,21 @@ button which condition is still unmet. Format validation is unchanged and still
 runs on submit, so the messages can say what is actually wrong rather than the
 button silently staying dead.
 
+Pricing restructure for launch (2026-09-15): five tiers — Pilot $499, Starter
+$999, Field $1,999, Operations $4,999 per month, Enterprise custom-quoted from a
+published $9,999 floor — with annual billing at ten months for twelve (D-107).
+The old $29,997.99 Enterprise figure is gone from every published surface, and
+Enterprise is no longer purchasable with a card at all. Two structural changes
+came out of the brief rather than being asked for directly: AR inspection and
+work orders moved down to Pilot, because Pilot's stated scope included them
+while they were Operations-and-above and that would have made Pilot → Starter an
+upgrade that removed modules; and the add-on list was cut from eleven line items
+to eight, with seats no longer sold individually.
+
+Open on this: **the Stripe catalog has not been re-synced.** `stripe_sync.py`
+creates the new Products and Prices and archives the superseded ones, but it has
+only been run as `--dry-run` here — applying it writes to the live Stripe account
+and is the owner's call. The add-on amounts on the pricing page are also the one
+part of the catalog not dictated by the product owner: they are proposed against
+the new base prices and need sign-off before the first order form goes out.
+

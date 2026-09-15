@@ -4,36 +4,40 @@
  * Mirrors `apps/api/app/billing/plans.py`, which is authoritative — it enforces
  * entitlements and the Stripe Prices are created from it. This copy exists so
  * the marketing pages stay static server components with no API dependency
- * (D-087). The `pricing-catalog.test.ts` suite pins every number against the
- * requirements document so the two cannot drift silently; change them together.
+ * (D-087). `pricing-catalog.test.ts` pins every number against the backend
+ * catalog so the two cannot drift silently; change them together.
  *
- * Figures are from requirements §22.1. One caveat carried over from the backend
- * catalog: the monthly-billing prices are **derived**, not quoted — the document
- * gives one price per tier plus "monthly billing available at a ~15% premium"
- * without the monthly figures, so these are list × 1.15 rounded to .99 and need
- * product-owner sign-off before a live monthly Price is created.
+ * Restructured for launch on 2026-09-15 (D-107):
+ *
+ * - The quoted price is the **monthly** price. Annual is ten months of it —
+ *   twelve months of service for ten months of money.
+ * - Every paid tier carries the core product (AI, AR, work orders, reports).
+ *   Tiers differ on capacity, support, and enterprise capability, so an upgrade
+ *   never takes away a module someone was already using.
+ * - Enterprise is **not self-serve**: no list price, no Stripe Price, no card.
+ *   It publishes a floor to anchor the conversation and routes to sales.
  */
 
 export type BillingInterval = "monthly" | "annual";
 
-export type PlanTier = "starter" | "field" | "operations" | "enterprise";
+export type PlanTier = "pilot" | "starter" | "field" | "operations" | "enterprise";
 
 export type Plan = {
   tier: PlanTier;
   name: string;
   audience: string;
-  /** Annual-equivalent monthly price in cents, as published. */
-  listMonthlyCents: number;
-  /** Charged up front for twelve months. */
-  annualTotalCents: number;
-  /** Derived ~15% premium for month-to-month billing. */
-  monthlyCents: number;
+  /** Month-to-month price in cents. `null` on a custom-quoted tier. */
+  monthlyCents: number | null;
+  /** Twelve months of service, paid up front. `null` on a custom-quoted tier. */
+  annualTotalCents: number | null;
+  /** The floor a custom-quoted tier is sold from. Never charged. */
+  startingMonthlyCents: number | null;
   quotas: { facilities: number | null; assets: number | null; seats: number | null };
-  /** Modules this tier unlocks beyond the base set, in reading order. */
+  /** What this tier adds over the one below it, in reading order. */
   adds: readonly string[];
   support: string;
   featured: boolean;
-  /** Enterprise is quoted from its floor price; a CSM negotiates upward. */
+  /** Sold by sales rather than by card. */
   customQuoted: boolean;
 };
 
@@ -41,11 +45,17 @@ export type Plan = {
  * is collected up front, so the trial converts rather than stranding a tenant. */
 export const TRIAL_DAYS = 7;
 
-/** Modules every paid tier includes (§23.1 MVP scope minus the gated three). */
+/** Months charged for twelve months of service — the whole annual incentive.
+ * Matches `ANNUAL_MONTHS_CHARGED` in the backend catalog. */
+export const ANNUAL_MONTHS_CHARGED = 10;
+
+/** The core product, on every paid tier including Pilot. */
 export const BASE_MODULES: readonly string[] = [
   "Asset registry with facilities, areas, and QR labels",
   "Digital inspections with photo, video, and reading capture",
   "AI photo and video analysis, always inspector-reviewed",
+  "AR inspection with dimension measurement",
+  "Work orders with supervised sign-off",
   "Manual asset condition logging",
   "Safety incident reporting",
   "Controlled document library",
@@ -57,14 +67,27 @@ export const BASE_MODULES: readonly string[] = [
 
 export const plans: readonly Plan[] = [
   {
+    tier: "pilot",
+    name: "Pilot",
+    audience: "Early customer proving the platform on one site before rolling it out",
+    monthlyCents: 49_900,
+    annualTotalCents: 499_000,
+    startingMonthlyCents: null,
+    quotas: { facilities: 1, assets: 100, seats: 5 },
+    adds: [],
+    support: "Email support",
+    featured: false,
+    customQuoted: false,
+  },
+  {
     tier: "starter",
     name: "Starter",
     audience: "Very small operator, single well site, independent EPC on one project",
-    listMonthlyCents: 99_799,
-    annualTotalCents: 1_197_588,
-    monthlyCents: 114_799,
-    quotas: { facilities: 1, assets: 150, seats: 5 },
-    adds: [],
+    monthlyCents: 99_900,
+    annualTotalCents: 999_000,
+    startingMonthlyCents: null,
+    quotas: { facilities: 1, assets: 250, seats: 10 },
+    adds: ["More assets, more seats, and a larger AI analysis allowance than Pilot"],
     support: "Email support",
     featured: false,
     customQuoted: false,
@@ -73,12 +96,12 @@ export const plans: readonly Plan[] = [
     tier: "field",
     name: "Field",
     audience: "Single site or small-to-mid operator, EPC contractor on one project",
-    listMonthlyCents: 299_799,
-    annualTotalCents: 3_597_588,
-    monthlyCents: 344_799,
-    quotas: { facilities: 1, assets: 500, seats: 15 },
-    adds: [],
-    support: "Email support",
+    monthlyCents: 199_900,
+    annualTotalCents: 1_999_000,
+    startingMonthlyCents: null,
+    quotas: { facilities: 2, assets: 750, seats: 25 },
+    adds: ["A second facility", "Higher asset, seat, and AI analysis allowances"],
+    support: "Business-hours email and chat support",
     featured: false,
     customQuoted: false,
   },
@@ -86,15 +109,15 @@ export const plans: readonly Plan[] = [
     tier: "operations",
     name: "Operations",
     audience: "Mid-market multi-site operator, regional utility",
-    listMonthlyCents: 999_799,
-    annualTotalCents: 11_997_588,
-    monthlyCents: 1_149_799,
+    monthlyCents: 499_900,
+    annualTotalCents: 4_999_000,
+    startingMonthlyCents: null,
     quotas: { facilities: 5, assets: 2_500, seats: 75 },
     adds: [
-      "AR inspection with dimension measurement",
       "Permit-to-work with approvals",
-      "Work orders with supervised sign-off",
       "Static 3D digital twin across every facility",
+      "Advanced executive analytics",
+      "Priority support with a next-business-day SLA",
     ],
     support: "Priority support (next-business-day SLA)",
     featured: true,
@@ -105,17 +128,18 @@ export const plans: readonly Plan[] = [
     name: "Enterprise",
     audience:
       "Major E&P operator, integrated oil major, national utility, large EPC or mining group",
-    listMonthlyCents: 2_999_799,
-    annualTotalCents: 35_997_588,
-    monthlyCents: 3_449_799,
+    monthlyCents: null,
+    annualTotalCents: null,
+    startingMonthlyCents: 999_900,
     quotas: { facilities: null, assets: null, seats: null },
     adds: [
-      "Everything in Operations",
+      "Unlimited facilities, assets, and seats",
       "VR training environment",
       "SSO and Azure AD",
       "Audit-log export",
+      "Custom integrations",
       "Dedicated CSM and custom SLA (99.9% uptime, 4-hr critical response)",
-      "Custom onboarding and data migration",
+      "Custom onboarding, data migration, and deployment",
     ],
     support: "Premium support (4-hr critical response, 24/7 on-call)",
     featured: false,
@@ -123,27 +147,80 @@ export const plans: readonly Plan[] = [
   },
 ];
 
-/** Per-seat prices beyond a tier's allotment (§22.2). */
-export const seatAddOns = [
-  { role: "Field Inspector", cents: 18_999 },
-  { role: "Maintenance Technician", cents: 14_999 },
-  { role: "Operations Manager", cents: 29_999 },
-  { role: "HSE Manager", cents: 34_999, note: "safety and compliance liability premium" },
-  { role: "Executive (read-only)", cents: 9_999 },
+/**
+ * What an Enterprise quote is built from.
+ *
+ * Published verbatim so "custom pricing" reads as a real method rather than an
+ * evasion. Matches `ENTERPRISE_QUOTE_FACTORS` in the backend catalog.
+ */
+export const enterpriseQuoteFactors: readonly string[] = [
+  "number of facilities",
+  "number of assets",
+  "number of users and seats",
+  "AI analysis usage",
+  "storage requirements",
+  "3D and VR requirements",
+  "custom integrations",
+  "SSO and enterprise security requirements",
+  "support SLA",
+  "data migration",
+  "onboarding and implementation scope",
+];
+
+/**
+ * The only things billed separately from the plan.
+ *
+ * Deliberately short. A launch price list with a line item for every role and
+ * every module reads as a maze, and a buyer who cannot tell what a year costs
+ * does not buy — so seats are not sold à la carte at all: more seats means the
+ * next tier up. `cents: null` means the extra is scoped and quoted rather than
+ * carrying a list price.
+ *
+ * The amounts here are proposed against the new base prices and are the one
+ * part of this catalog not dictated by the product owner — confirm before the
+ * first order form goes out.
+ */
+export const addOns = [
+  { label: "Additional facility or site", cents: 49_900, unit: "per facility, per month" },
+  { label: "Additional tracked assets", cents: 29_900, unit: "per 1,000 assets, per month" },
+  { label: "Additional AI analysis volume", cents: 19_900, unit: "per 1,000 analyses, per month" },
+  { label: "VR training environment", cents: 99_900, unit: "per month, included at Enterprise" },
+  {
+    label: "Premium support and custom SLA",
+    cents: 99_900,
+    unit: "per month, included at Enterprise",
+  },
+  { label: "Custom 3D facility modeling", cents: null, unit: "quoted per facility" },
+  { label: "Custom integrations", cents: null, unit: "quoted per integration" },
+  { label: "Data migration from legacy systems", cents: null, unit: "quoted by scope" },
 ] as const;
 
-/** Usage and module add-ons (§22.3). */
-export const usageAddOns = [
-  { label: "Additional tracked assets, per 1,000 beyond allotment", cents: 84_999 },
-  { label: "Additional facility or site beyond allotment", cents: 219_799 },
-  { label: "AI analysis overage, per 1,000 analyses/mo beyond quota", cents: 59_799 },
-  { label: "VR Training module (included at Enterprise)", cents: 349_799 },
-  { label: "Advanced Executive Analytics and benchmarking pack", cents: 119_799 },
-  { label: "Dedicated Customer Success Manager", cents: 199_799 },
+/** Implementation and support services. */
+export const services = [
+  {
+    label: "Standard onboarding — data migration, asset import, QR setup, admin training",
+    price: "$4,999 one-time",
+    tiers: "Pilot, Starter, Field, Operations",
+  },
+  {
+    label:
+      "Enterprise onboarding — multi-site rollout, legacy migration, custom integrations, change management",
+    price: "Quoted with the contract",
+    tiers: "Enterprise",
+  },
+  {
+    label: "Founding-customer terms — discounted or waived implementation, negotiated rate",
+    price: "Applied as a discount code at checkout",
+    tiers: "By agreement",
+  },
+  {
+    label: "Standard support — business hours, email and chat",
+    price: "Included",
+    tiers: "All tiers",
+  },
 ] as const;
 
-/** Whole dollars with thousands separators — the cents are always .99, so they
- * are rendered separately and never rounded away. */
+/** Whole dollars with thousands separators; cents shown only when non-zero. */
 export function formatPrice(cents: number): string {
   const dollars = Math.floor(cents / 100);
   const remainder = cents % 100;
@@ -151,12 +228,17 @@ export function formatPrice(cents: number): string {
   return remainder === 0 ? `$${formatted}` : `$${formatted}.${String(remainder).padStart(2, "0")}`;
 }
 
+/** What an annual plan works out to per month, for "or $X/mo billed annually". */
+export function annualMonthlyEquivalentCents(plan: Plan): number | null {
+  return plan.annualTotalCents === null ? null : Math.round(plan.annualTotalCents / 12);
+}
+
 export function quotaLabel(value: number | null, noun: string): string {
   if (value === null) return `Unlimited ${noun}`;
   return `${value.toLocaleString("en-US")} ${noun}`;
 }
 
-/** Seat and asset allowances as one line, for a plan card. */
+/** Facility, asset, and seat allowances as one line, for a plan card. */
 export function allowanceLine(plan: Plan): string {
   const facilities =
     plan.quotas.facilities === null
@@ -175,19 +257,23 @@ export const pricingFaqs = [
     answer: `Pick a plan, enter a card, and you get ${TRIAL_DAYS} days on that plan's full feature set. Nothing is charged until the trial ends, and you can cancel inside the portal before then.`,
   },
   {
-    question: "Why is pricing per site rather than per user only?",
-    answer:
-      "A refinery or pipeline network carries thousands of trackable assets and loses far more per hour of unplanned downtime than a typical field-service operation. The base license reflects the site, with role-based seats layered on top.",
+    question: "What is the difference between monthly and annual?",
+    answer: `The same plan either way. Monthly is the price on the card; annual charges ${ANNUAL_MONTHS_CHARGED} months up front for twelve months of service, so a year costs two months less. You choose at checkout and can see both prices before you pay.`,
   },
   {
-    question: "Who counts as a seat?",
+    question: "What do I actually get on Pilot?",
     answer:
-      "Anyone who signs in to do field or operational work. Executive read-only, Super Admin, and Company Admin seats are included at no extra charge on every tier — pricing scales on the roles that generate the return.",
+      "The real product on one site: AI photo and video analysis, AR inspection with measurement, work orders, QR asset scanning, and reports — with a smaller asset, seat, and AI allowance. It exists so you can prove the value internally before committing to a rollout.",
+  },
+  {
+    question: "Do I lose anything by starting small?",
+    answer:
+      "No. Every paid tier includes the core platform; moving up adds capacity, permit-to-work, 3D across every site, VR training, SSO, and support commitments. An upgrade never removes a module you were already using.",
   },
   {
     question: "What happens if we outgrow our asset or seat allowance?",
     answer:
-      "The platform tells you before it blocks you, and you can either add capacity as an add-on or move up a tier. Assets are unlimited architecturally; the caps are commercial.",
+      "The platform tells you before it blocks you. Extra facilities, assets, and AI volume can be added on, and more seats means the next tier up — seats are not sold one at a time, because a price list nobody can total is worse than a tier change.",
   },
   {
     question: "Does the mobile app really work offline?",
@@ -195,33 +281,12 @@ export const pricingFaqs = [
       "Yes. Inspections, readings, photos, and work-order updates are written to a local database on the device and pushed through a sync engine when the connection returns, so a crew can complete a full round with no coverage.",
   },
   {
-    question: "Can we get SSO, an audit-log export, or a custom SLA?",
+    question: "How is Enterprise priced?",
+    answer: `Custom, starting around ${formatPrice(999_900)}/month. It is quoted against ${enterpriseQuoteFactors.slice(0, 4).join(", ")}, and the rest of the scope — so it is a conversation with sales, not a checkout page.`,
+  },
+  {
+    question: "Do you offer founding-customer pricing?",
     answer:
-      "Those are Enterprise-tier capabilities, along with VR training and a dedicated customer success manager. Enterprise is quoted against site count, asset count, and integration scope.",
-  },
-] as const;
-
-/** Implementation and support services (§22.4). */
-export const services = [
-  {
-    label: "Standard onboarding — data migration, asset import, QR setup, admin training",
-    price: "$14,997.99 one-time",
-    tiers: "Starter, Field, Operations",
-  },
-  {
-    label:
-      "Enterprise onboarding — multi-site rollout, legacy migration, custom integrations, change management",
-    price: "$59,997.99–$149,997.99 one-time, scope-dependent",
-    tiers: "Enterprise",
-  },
-  {
-    label: "Standard support — business hours, email and chat",
-    price: "Included",
-    tiers: "All tiers",
-  },
-  {
-    label: "Premium support — 4-hr critical response, 24/7 on-call",
-    price: "Included at Enterprise; $4,997.99/mo for lower tiers",
-    tiers: "All tiers",
+      "Yes. Founding customers get a negotiated rate and discounted or waived implementation. Discounts are issued as a code you apply at checkout, so the price you agreed is the price you are charged.",
   },
 ] as const;

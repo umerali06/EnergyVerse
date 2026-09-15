@@ -17,7 +17,7 @@ export const refundPolicy: LegalDocument = {
       blocks: [
         {
           kind: "p",
-          text: "Flacron Energy uses enterprise pricing that may include base subscription fees, per-seat charges, asset-volume charges, facility/site add-ons, AI usage, VR modules, custom 3D modeling, implementation, onboarding, data migration, integrations, premium support, and other professional services.",
+          text: "Flacron Energy uses enterprise pricing that may include base subscription fees, additional facility or site charges, asset-volume charges, AI usage charges, VR training, custom 3D modeling, implementation, onboarding, data migration, integrations, premium support, and other professional services. Enterprise subscriptions are individually quoted and governed by the applicable order form or agreement.",
         },
       ],
     },

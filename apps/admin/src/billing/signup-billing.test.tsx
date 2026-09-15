@@ -53,45 +53,57 @@ const identity = {
 
 const catalog = {
   trialDays: 7,
+  annualMonthsCharged: 10,
+  enterpriseQuoteFactors: ["number of facilities", "support SLA"],
   plans: [
     {
       tier: "starter",
       name: "Starter",
       audience: "Single well site",
-      listMonthlyCents: 99_799,
-      annualTotalCents: 1_197_588,
-      monthlyCents: 114_799,
-      quotas: { facilities: 1, assets: 150, seats: 5 },
-      features: ["assets", "inspections"],
+      monthlyCents: 99_900,
+      annualTotalCents: 999_000,
+      annualMonthlyEquivalentCents: 83_250,
+      startingMonthlyCents: null,
+      quotas: { facilities: 1, assets: 250, seats: 10 },
+      features: ["assets", "inspections", "work_orders"],
       digitalTwinScope: "single",
       support: "Email support",
+      adds: [],
       customQuoted: false,
+      selfServe: true,
     },
     {
       tier: "operations",
       name: "Operations",
       audience: "Multi-site operator",
-      listMonthlyCents: 999_799,
-      annualTotalCents: 11_997_588,
-      monthlyCents: 1_149_799,
+      monthlyCents: 499_900,
+      annualTotalCents: 4_999_000,
+      annualMonthlyEquivalentCents: 416_583,
+      startingMonthlyCents: null,
       quotas: { facilities: 5, assets: 2_500, seats: 75 },
       features: ["assets", "work_orders", "permits", "ar_inspection"],
       digitalTwinScope: "all",
       support: "Priority support",
+      adds: ["Permit-to-work with approvals"],
       customQuoted: false,
+      selfServe: true,
     },
     {
+      // No list price at either interval: bought through sales, never a card.
       tier: "enterprise",
       name: "Enterprise",
       audience: "Integrated oil major",
-      listMonthlyCents: 2_999_799,
-      annualTotalCents: 35_997_588,
-      monthlyCents: 3_449_799,
+      monthlyCents: null,
+      annualTotalCents: null,
+      annualMonthlyEquivalentCents: null,
+      startingMonthlyCents: 999_900,
       quotas: { facilities: null, assets: null, seats: null },
       features: ["vr_training"],
       digitalTwinScope: "all",
       support: "Premium support",
+      adds: ["VR training environment"],
       customQuoted: true,
+      selfServe: false,
     },
   ],
 };
@@ -202,8 +214,43 @@ describe("signup step 3: choose a plan", () => {
       expect(card?.textContent).toContain(plan.name);
     }
     // Annual is the default, and prices come from the catalog's cents values.
-    expect(screen.getByText("$11,975.88")).toBeInTheDocument();
-    expect(screen.getByText("$119,975.88")).toBeInTheDocument();
+    expect(screen.getByText("$9,990.00")).toBeInTheDocument();
+    expect(screen.getByText("$49,990.00")).toBeInTheDocument();
+    // The alternative interval is shown too, so a buyer sees both numbers
+    // before paying rather than discovering one on Stripe.
+    expect(screen.getByText("$999.00/mo if billed monthly")).toBeInTheDocument();
+  });
+
+  it("offers Enterprise as a conversation, not as a card", async () => {
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
+    await screen.findByRole("button", { name: /Start 7-day trial on Starter/ });
+
+    // There is no Price behind a custom-quoted tier, so selecting it would end
+    // in a 400 from the API. It is a link to sales instead of an option.
+    const enterprise = document.querySelector('[data-plan-tier="enterprise"]');
+    expect(enterprise?.tagName).toBe("A");
+    expect(enterprise?.getAttribute("href")).toBe("/contact?topic=enterprise");
+    expect(enterprise?.textContent).toContain("Custom pricing");
+    expect(enterprise?.textContent).toContain("Starting around $9,999.00/month");
+  });
+
+  it("states the exact charge and cadence before the button that leaves for Stripe", async () => {
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
+    await screen.findByRole("button", { name: /Start 7-day trial on Starter/ });
+
+    const summary = screen.getByTestId("checkout-summary");
+    expect(summary.textContent).toContain("$9,990.00 per year");
+    expect(summary.textContent).toContain("billed annually");
+    expect(summary.textContent).toContain("Nothing is charged for 7 days");
+  });
+
+  it("says a discount code can be applied at checkout", async () => {
+    // Founding-customer pricing is issued as a Stripe promotion code, so the
+    // page has to say where it goes or the customer pays list by accident.
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
+    await screen.findByRole("button", { name: /Start 7-day trial on Starter/ });
+
+    expect(screen.getByText(/founding-customer or discount code/i)).toBeInTheDocument();
   });
 
   it("names its place in the sequence and that it is the last step", async () => {
@@ -243,22 +290,36 @@ describe("signup step 3: choose a plan", () => {
 
   it("lets a plan link on the current URL override a parked one", async () => {
     window.localStorage.setItem("fev.signup.plan", "starter");
+    setLocationSearch("?plan=operations");
+    renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
+
+    expect(
+      await screen.findByRole("button", { name: /Start 7-day trial on Operations/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("will not select a custom-quoted tier even when one is linked", async () => {
+    // A stale link could carry ?plan=enterprise; checking out against it is
+    // impossible, so the button must not offer to.
     setLocationSearch("?plan=enterprise");
     renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
 
     expect(
-      await screen.findByRole("button", { name: /Start 7-day trial on Enterprise/ }),
-    ).toBeInTheDocument();
+      await screen.findByRole("button", { name: "Choose a plan to continue" }),
+    ).toBeDisabled();
+    expect(screen.queryByText(/trial on Enterprise/)).not.toBeInTheDocument();
   });
 
   it("switches the displayed price when the interval changes", async () => {
     renderScreen(<SignupPlanScreen reducedMotionOverride />, {});
-    await screen.findByText("$11,975.88");
+    await screen.findByText("$9,990.00");
 
     await userEvent.click(screen.getByRole("button", { name: "monthly" }));
 
-    expect(screen.getByText("$1,147.99")).toBeInTheDocument();
-    expect(screen.queryByText("$11,975.88")).not.toBeInTheDocument();
+    expect(screen.getByText("$999.00")).toBeInTheDocument();
+    expect(screen.queryByText("$9,990.00")).not.toBeInTheDocument();
+    // And the annual alternative takes its place as the secondary line.
+    expect(screen.getByText("$9,990.00/yr if billed annually")).toBeInTheDocument();
   });
 
   it("sends the chosen tier and interval to checkout and leaves for Stripe", async () => {

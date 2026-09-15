@@ -17,7 +17,13 @@ import '../design_system/tokens_generated.dart';
 // Mirrors SUBSCRIPTION_TIERS in apps/api/app/models/api.py -- a small local
 // constant since no widget sets `minTier` yet; this is the hook, real
 // enforcement lands in the billing phase.
-const subscriptionTiers = ['demo', 'starter', 'professional', 'enterprise'];
+const subscriptionTiers = [
+  'pilot',
+  'starter',
+  'field',
+  'operations',
+  'enterprise',
+];
 
 bool _tierMeetsMinimum(String? currentTier, String? minTier) {
   if (minTier == null) return true;

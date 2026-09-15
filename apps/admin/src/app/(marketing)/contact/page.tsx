@@ -12,7 +12,16 @@ export const metadata: Metadata = publicPage(
   "/contact",
 );
 
-export default function ContactPage() {
+export default async function ContactPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string | string[] }>;
+}) {
+  // The pricing page's "Request a quote" arrives as ?topic=enterprise, so the
+  // category is already right and the person writes about their deployment
+  // instead of first hunting for the correct label.
+  const { topic } = await searchParams;
+  const requested = Array.isArray(topic) ? topic[0] : topic;
   return (
     <div className="px-5 py-14 md:px-8 md:py-20">
       <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
@@ -28,7 +37,7 @@ export default function ContactPage() {
           <div className="mt-10">
             <h2 className="font-heading text-h3 font-bold text-text-primary">Send us a message</h2>
             <div className="mt-6">
-              <ContactForm />
+              <ContactForm topic={requested} />
             </div>
           </div>
         </div>

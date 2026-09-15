@@ -13,11 +13,19 @@ part 'billing_catalog_response.g.dart';
 /// BillingCatalogResponse
 ///
 /// Properties:
+/// * [annualMonthsCharged]
+/// * [enterpriseQuoteFactors]
 /// * [plans]
 /// * [trialDays]
 @BuiltValue()
 abstract class BillingCatalogResponse
     implements Built<BillingCatalogResponse, BillingCatalogResponseBuilder> {
+  @BuiltValueField(wireName: r'annual_months_charged')
+  int get annualMonthsCharged;
+
+  @BuiltValueField(wireName: r'enterprise_quote_factors')
+  BuiltList<String> get enterpriseQuoteFactors;
+
   @BuiltValueField(wireName: r'plans')
   BuiltList<BillingPlanResponse> get plans;
 
@@ -54,6 +62,16 @@ class _$BillingCatalogResponseSerializer
     BillingCatalogResponse object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
+    yield r'annual_months_charged';
+    yield serializers.serialize(
+      object.annualMonthsCharged,
+      specifiedType: const FullType(int),
+    );
+    yield r'enterprise_quote_factors';
+    yield serializers.serialize(
+      object.enterpriseQuoteFactors,
+      specifiedType: const FullType(BuiltList, [FullType(String)]),
+    );
     yield r'plans';
     yield serializers.serialize(
       object.plans,
@@ -89,6 +107,20 @@ class _$BillingCatalogResponseSerializer
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
+        case r'annual_months_charged':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(int),
+          ) as int;
+          result.annualMonthsCharged = valueDes;
+          break;
+        case r'enterprise_quote_factors':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(BuiltList, [FullType(String)]),
+          ) as BuiltList<String>;
+          result.enterpriseQuoteFactors.replace(valueDes);
+          break;
         case r'plans':
           final valueDes = serializers.deserialize(
             value,

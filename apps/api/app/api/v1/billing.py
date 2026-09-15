@@ -22,10 +22,13 @@ from app.billing.dependencies import (
 )
 from app.billing.entitlements import Entitlements, resolve_entitlements
 from app.billing.plans import (
+    ANNUAL_MONTHS_CHARGED,
+    ENTERPRISE_QUOTE_FACTORS,
     PLANS,
     TIER_ORDER,
     TRIAL_DAYS,
     BillingInterval,
+    Plan,
     PlanTier,
 )
 from app.billing.service import BillingError, SubscriptionService
@@ -84,6 +87,36 @@ def _subscription_response(entitlements: Entitlements) -> SubscriptionResponse:
     )
 
 
+def _plan_response(plan: Plan) -> BillingPlanResponse:
+    """One catalogued plan, as the wire sees it.
+
+    A custom-quoted plan reports `None` for both prices and `self_serve=False`.
+    That is the whole contract a client needs to know not to offer a card for
+    it -- deriving "is this buyable" from the tier name in the client is how
+    the two ends drift apart.
+    """
+    return BillingPlanResponse(
+        tier=plan.tier.value,
+        name=plan.name,
+        audience=plan.audience,
+        monthly_cents=plan.monthly_cents,
+        annual_total_cents=plan.annual_total_cents,
+        annual_monthly_equivalent_cents=plan.annual_monthly_equivalent_cents(),
+        starting_monthly_cents=plan.starting_monthly_cents,
+        quotas=BillingPlanQuotasResponse(
+            facilities=plan.quotas.facilities,
+            assets=plan.quotas.assets,
+            seats=plan.quotas.seats,
+        ),
+        features=sorted(feature.value for feature in plan.features),
+        digital_twin_scope=plan.digital_twin_scope,
+        support=plan.support,
+        adds=list(plan.adds),
+        custom_quoted=plan.custom_quoted,
+        self_serve=plan.self_serve,
+    )
+
+
 @router.get(
     "/catalog",
     response_model=BillingCatalogResponse,
@@ -95,26 +128,9 @@ async def get_catalog() -> BillingCatalogResponse:
     can never render a tier the backend does not honour."""
     return BillingCatalogResponse(
         trial_days=TRIAL_DAYS,
-        plans=[
-            BillingPlanResponse(
-                tier=tier.value,
-                name=PLANS[tier].name,
-                audience=PLANS[tier].audience,
-                list_monthly_cents=PLANS[tier].list_monthly_cents,
-                annual_total_cents=PLANS[tier].annual_total_cents,
-                monthly_cents=PLANS[tier].monthly_cents,
-                quotas=BillingPlanQuotasResponse(
-                    facilities=PLANS[tier].quotas.facilities,
-                    assets=PLANS[tier].quotas.assets,
-                    seats=PLANS[tier].quotas.seats,
-                ),
-                features=sorted(feature.value for feature in PLANS[tier].features),
-                digital_twin_scope=PLANS[tier].digital_twin_scope,
-                support=PLANS[tier].support,
-                custom_quoted=PLANS[tier].custom_quoted,
-            )
-            for tier in TIER_ORDER
-        ],
+        annual_months_charged=ANNUAL_MONTHS_CHARGED,
+        enterprise_quote_factors=list(ENTERPRISE_QUOTE_FACTORS),
+        plans=[_plan_response(PLANS[tier]) for tier in TIER_ORDER],
     )
 
 

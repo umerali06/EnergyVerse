@@ -396,10 +396,6 @@ Serializers _$serializers = (new Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(AuditLogEntry)]),
           () => new ListBuilder<AuditLogEntry>())
       ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(BillingPlanResponse)]),
-          () => new ListBuilder<BillingPlanResponse>())
-      ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(CameraPreset)]),
           () => new ListBuilder<CameraPreset>())
       ..addBuilderFactory(
@@ -613,6 +609,16 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(String)]),
+          () => new ListBuilder<String>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(BillingPlanResponse)]),
+          () => new ListBuilder<BillingPlanResponse>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())

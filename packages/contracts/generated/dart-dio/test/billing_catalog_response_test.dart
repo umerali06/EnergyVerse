@@ -7,6 +7,16 @@ void main() {
   // TODO add properties to the builder and call build()
 
   group(BillingCatalogResponse, () {
+    // int annualMonthsCharged
+    test('to test the property `annualMonthsCharged`', () async {
+      // TODO
+    });
+
+    // BuiltList<String> enterpriseQuoteFactors
+    test('to test the property `enterpriseQuoteFactors`', () async {
+      // TODO
+    });
+
     // BuiltList<BillingPlanResponse> plans
     test('to test the property `plans`', () async {
       // TODO

@@ -22,17 +22,35 @@ import {
 } from './BillingPlanQuotasResponse';
 
 /**
+ * One published tier.
  *
+ * The price fields are nullable because a custom-quoted tier has no list
+ * price at all -- `starting_monthly_cents` is the floor it is sold from, and
+ * a client must render that as "starting around", never as a buyable amount.
+ * `self_serve` is what a client should branch on: false means the call to
+ * action is a conversation, not a card.
  * @export
  * @interface BillingPlanResponse
  */
 export interface BillingPlanResponse {
     /**
      *
+     * @type {Array<string>}
+     * @memberof BillingPlanResponse
+     */
+    adds: Array<string>;
+    /**
+     *
      * @type {number}
      * @memberof BillingPlanResponse
      */
-    annualTotalCents: number;
+    annualMonthlyEquivalentCents: number | null;
+    /**
+     *
+     * @type {number}
+     * @memberof BillingPlanResponse
+     */
+    annualTotalCents: number | null;
     /**
      *
      * @type {string}
@@ -62,13 +80,7 @@ export interface BillingPlanResponse {
      * @type {number}
      * @memberof BillingPlanResponse
      */
-    listMonthlyCents: number;
-    /**
-     *
-     * @type {number}
-     * @memberof BillingPlanResponse
-     */
-    monthlyCents: number;
+    monthlyCents: number | null;
     /**
      *
      * @type {string}
@@ -81,6 +93,18 @@ export interface BillingPlanResponse {
      * @memberof BillingPlanResponse
      */
     quotas: BillingPlanQuotasResponse;
+    /**
+     *
+     * @type {boolean}
+     * @memberof BillingPlanResponse
+     */
+    selfServe: boolean;
+    /**
+     *
+     * @type {number}
+     * @memberof BillingPlanResponse
+     */
+    startingMonthlyCents: number | null;
     /**
      *
      * @type {string}
@@ -99,15 +123,18 @@ export interface BillingPlanResponse {
  * Check if a given object implements the BillingPlanResponse interface.
  */
 export function instanceOfBillingPlanResponse(value: object): value is BillingPlanResponse {
+    if (!('adds' in value) || value['adds'] === undefined) return false;
+    if (!('annualMonthlyEquivalentCents' in value) || value['annualMonthlyEquivalentCents'] === undefined) return false;
     if (!('annualTotalCents' in value) || value['annualTotalCents'] === undefined) return false;
     if (!('audience' in value) || value['audience'] === undefined) return false;
     if (!('customQuoted' in value) || value['customQuoted'] === undefined) return false;
     if (!('digitalTwinScope' in value) || value['digitalTwinScope'] === undefined) return false;
     if (!('features' in value) || value['features'] === undefined) return false;
-    if (!('listMonthlyCents' in value) || value['listMonthlyCents'] === undefined) return false;
     if (!('monthlyCents' in value) || value['monthlyCents'] === undefined) return false;
     if (!('name' in value) || value['name'] === undefined) return false;
     if (!('quotas' in value) || value['quotas'] === undefined) return false;
+    if (!('selfServe' in value) || value['selfServe'] === undefined) return false;
+    if (!('startingMonthlyCents' in value) || value['startingMonthlyCents'] === undefined) return false;
     if (!('support' in value) || value['support'] === undefined) return false;
     if (!('tier' in value) || value['tier'] === undefined) return false;
     return true;
@@ -123,15 +150,18 @@ export function BillingPlanResponseFromJSONTyped(json: any, ignoreDiscriminator:
     }
     return {
 
+        'adds': json['adds'],
+        'annualMonthlyEquivalentCents': json['annual_monthly_equivalent_cents'],
         'annualTotalCents': json['annual_total_cents'],
         'audience': json['audience'],
         'customQuoted': json['custom_quoted'],
         'digitalTwinScope': json['digital_twin_scope'],
         'features': json['features'],
-        'listMonthlyCents': json['list_monthly_cents'],
         'monthlyCents': json['monthly_cents'],
         'name': json['name'],
         'quotas': BillingPlanQuotasResponseFromJSON(json['quotas']),
+        'selfServe': json['self_serve'],
+        'startingMonthlyCents': json['starting_monthly_cents'],
         'support': json['support'],
         'tier': json['tier'],
     };
@@ -148,15 +178,18 @@ export function BillingPlanResponseToJSONTyped(value?: BillingPlanResponse | nul
 
     return {
 
+        'adds': value['adds'],
+        'annual_monthly_equivalent_cents': value['annualMonthlyEquivalentCents'],
         'annual_total_cents': value['annualTotalCents'],
         'audience': value['audience'],
         'custom_quoted': value['customQuoted'],
         'digital_twin_scope': value['digitalTwinScope'],
         'features': value['features'],
-        'list_monthly_cents': value['listMonthlyCents'],
         'monthly_cents': value['monthlyCents'],
         'name': value['name'],
         'quotas': BillingPlanQuotasResponseToJSON(value['quotas']),
+        'self_serve': value['selfServe'],
+        'starting_monthly_cents': value['startingMonthlyCents'],
         'support': value['support'],
         'tier': value['tier'],
     };

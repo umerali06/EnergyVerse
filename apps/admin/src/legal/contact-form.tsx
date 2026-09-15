@@ -54,12 +54,39 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Errors = Partial<Record<"name" | "email" | "subject" | "message", string>>;
 
-export function ContactForm({ client }: { client?: Pick<FevApiClient, "submitContactMessage"> }) {
+/**
+ * Short `?topic=` values a link may carry, mapped to a published category.
+ *
+ * Kept deliberately small and one-way: a link cannot name an arbitrary
+ * category, so a stale or hand-edited URL falls back to the default rather
+ * than putting an unoffered value into the select — which the API would then
+ * refuse, after the person had typed their message.
+ */
+const TOPIC_CATEGORIES: Record<string, (typeof CONTACT_CATEGORIES)[number]> = {
+  enterprise: "Enterprise / SSO",
+  billing: "Billing / Subscription",
+  onboarding: "Implementation / Onboarding",
+  migration: "Data Migration",
+  integration: "Integration Request",
+  security: "Security Concern",
+  privacy: "Privacy Request",
+};
+
+export function ContactForm({
+  client,
+  topic,
+}: {
+  client?: Pick<FevApiClient, "submitContactMessage">;
+  /** From the query string, so "Request a quote" lands on the right category. */
+  topic?: string;
+}) {
   const [api] = useState(() => client ?? new FevApiClient());
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
-  const [category, setCategory] = useState<string>(CONTACT_CATEGORIES[0]);
+  const [category, setCategory] = useState<string>(
+    (topic ? TOPIC_CATEGORIES[topic.toLowerCase()] : undefined) ?? CONTACT_CATEGORIES[0],
+  );
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Errors>({});

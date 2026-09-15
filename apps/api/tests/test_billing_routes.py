@@ -15,6 +15,7 @@ calls it.
 """
 
 from collections.abc import Iterator
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -34,6 +35,7 @@ from .conftest import entitlements_for
 from .test_billing_stripe import NOW
 
 COMPANY_ID = "acme-energy"
+CATALOG = "/api/v1/billing/catalog"
 
 
 def company_admin(*, permissions: set[str] | None = None) -> CurrentUser:
@@ -238,3 +240,94 @@ class TestSubscriptionRoute:
         assert body["features"] == []
         # Zero, not unlimited: an unentitled company fails closed.
         assert body["quotas"]["assets"] == 0
+
+
+class TestCatalogRoute:
+    """What the pricing page and the checkout picker actually receive.
+
+    Public, so these run without any auth override -- and that is deliberate:
+    a prospective customer has no account, and a catalog they cannot read is a
+    pricing page that cannot render.
+
+    Asserted in snake_case, which is what the API emits; the camelCase the
+    clients see is the generated client's doing, and `serialization.test.ts`
+    guards that side (D-095).
+    """
+
+    def test_publishes_every_tier_cheapest_first(self) -> None:
+        body = TestClient(app).get("/api/v1/billing/catalog").json()
+
+        assert [plan["tier"] for plan in body["plans"]] == [
+            "pilot",
+            "starter",
+            "field",
+            "operations",
+            "enterprise",
+        ]
+        assert body["trial_days"] == 7
+        assert body["annual_months_charged"] == 10
+
+    def test_the_prices_on_the_wire_are_the_published_ones(self) -> None:
+        plans = {plan["tier"]: plan for plan in TestClient(app).get(CATALOG).json()["plans"]}
+
+        assert plans["pilot"]["monthly_cents"] == 49_900
+        assert plans["starter"]["monthly_cents"] == 99_900
+        assert plans["field"]["monthly_cents"] == 199_900
+        assert plans["operations"]["monthly_cents"] == 499_900
+        # Both figures reach the client, so a checkout can show what a year
+        # costs beside what a month costs without computing either itself.
+        assert plans["starter"]["annual_total_cents"] == 999_000
+        assert plans["starter"]["annual_monthly_equivalent_cents"] == 83_250
+
+    def test_enterprise_carries_a_floor_and_no_buyable_price(self) -> None:
+        plans = {plan["tier"]: plan for plan in TestClient(app).get(CATALOG).json()["plans"]}
+        enterprise = plans["enterprise"]
+
+        assert enterprise["self_serve"] is False
+        assert enterprise["custom_quoted"] is True
+        assert enterprise["monthly_cents"] is None
+        assert enterprise["annual_total_cents"] is None
+        assert enterprise["starting_monthly_cents"] == 999_900
+        # The old published figure must not reappear anywhere on the wire: the
+        # product owner asked specifically that it stop being shown.
+        assert "2999799" not in TestClient(app).get(CATALOG).text
+
+    def test_the_quote_factors_are_published(self) -> None:
+        factors = TestClient(app).get(CATALOG).json()["enterprise_quote_factors"]
+        assert "number of facilities" in factors
+        assert "support SLA" in factors
+
+
+class TestCheckoutRoute:
+    def test_a_custom_quoted_tier_cannot_be_bought_with_a_card(
+        self, billing_client: Any
+    ) -> None:
+        """Enterprise has no Stripe Price, so a checkout against it would fail
+        somewhere worse. It is refused here, at the edge, with a reason a client
+        can turn into "talk to sales" rather than a generic failure."""
+        client = billing_client()
+        client.service.start_checkout.side_effect = BillingError(
+            "plan_requires_sales", "Enterprise is custom-quoted. Contact sales for a quote."
+        )
+
+        response = client.post(
+            "/api/v1/billing/checkout",
+            json={"tier": "enterprise", "interval": "monthly"},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["error"] == "plan_requires_sales"
+
+    def test_a_self_serve_tier_still_opens_a_session(self, billing_client: Any) -> None:
+        client = billing_client()
+        client.service.start_checkout.return_value = SimpleNamespace(
+            id="cs_test_123", url="https://checkout.stripe.test/cs_test_123"
+        )
+
+        response = client.post(
+            "/api/v1/billing/checkout",
+            json={"tier": "pilot", "interval": "monthly"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["session_id"] == "cs_test_123"

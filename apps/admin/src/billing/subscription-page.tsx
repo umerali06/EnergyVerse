@@ -228,7 +228,14 @@ export function SubscriptionPage({ reducedMotionOverride }: { reducedMotionOverr
             <div>
               <dt className="text-caption text-text-muted">List price</dt>
               <dd className="mt-1 font-mono text-bodySmall text-text-primary">
-                {plan ? `${currency.format(plan.listMonthlyCents / 100)} / month` : "—"}
+                {/* A custom-quoted plan has no list price to show; what this
+                    tenant actually pays is on their agreement, and printing a
+                    floor here would misstate it. */}
+                {plan === null
+                  ? "—"
+                  : plan.selfServe && plan.monthlyCents !== null
+                    ? `${currency.format(plan.monthlyCents / 100)} / month`
+                    : "Custom (agreed with sales)"}
               </dd>
             </div>
             <div>

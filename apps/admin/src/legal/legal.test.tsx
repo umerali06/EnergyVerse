@@ -113,8 +113,12 @@ describe("a rendered legal page", () => {
       </ThemeProvider>,
     );
 
-    expect(screen.getByText("$997.99/mo ($11,975.88/yr)")).toBeInTheDocument();
-    expect(screen.getByText(/From \$29,997.99\/mo/)).toBeInTheDocument();
+    expect(screen.getByText("$999/mo ($9,990/yr)")).toBeInTheDocument();
+    expect(screen.getByText("$499/mo ($4,990/yr)")).toBeInTheDocument();
+    // Enterprise publishes a floor, never a buyable figure — and never the old
+    // $29,997.99, which the product owner asked us to stop showing.
+    expect(screen.getByText("Custom pricing, starting around $9,999/mo")).toBeInTheDocument();
+    expect(screen.queryByText(/29,997/)).not.toBeInTheDocument();
   });
 });
 
@@ -234,6 +238,22 @@ describe("the contact form", () => {
     render(<ContactForm client={{ submitContactMessage: vi.fn() }} />);
     const options = within(screen.getByLabelText("Category")).getAllByRole("option");
     expect(options.map((option) => option.textContent)).toEqual([...CONTACT_CATEGORIES]);
+  });
+
+  it("opens on the category a topic link asked for", () => {
+    // The pricing page's "Request a quote" sends ?topic=enterprise. Landing on
+    // "General Question" would make an Enterprise lead look like support mail.
+    render(<ContactForm client={{ submitContactMessage: vi.fn() }} topic="enterprise" />);
+
+    expect(screen.getByLabelText("Category")).toHaveValue("Enterprise / SSO");
+  });
+
+  it("ignores a topic it does not publish a category for", () => {
+    // A stale or hand-edited link must not put an unoffered value in the
+    // select, which the API would refuse after the message had been typed.
+    render(<ContactForm client={{ submitContactMessage: vi.fn() }} topic="not-a-topic" />);
+
+    expect(screen.getByLabelText("Category")).toHaveValue(CONTACT_CATEGORIES[0]);
   });
 
   it("warns against sending credentials or card numbers", () => {

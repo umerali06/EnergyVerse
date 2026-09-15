@@ -1,4 +1,4 @@
-"""Create or update the Stripe Products and Prices for every published plan.
+"""Create or update the Stripe Products and Prices for every self-serve plan.
 
 Idempotent: Products use a deterministic id (`fev_operations`) and Prices are
 addressed by lookup key (`fev_operations_annual`), so re-running reconciles
@@ -13,6 +13,11 @@ migrated, which is Stripe's intended behaviour and why nothing here deletes.
 Reads `STRIPE_SECRET_KEY` from the environment. The key's mode decides which
 Stripe account this writes to; the amounts always come from
 `app.billing.plans`, so what is charged cannot drift from what is published.
+
+Custom-quoted tiers are skipped. Enterprise has no list price, and publishing a
+Price at its own floor would make an Enterprise deal buyable at its minimum by
+accident -- the Price for one of those is created against the agreed figure
+after the contract is signed.
 """
 
 from __future__ import annotations
@@ -23,7 +28,7 @@ from dataclasses import dataclass
 
 import stripe
 
-from app.billing.plans import PLANS, TIER_ORDER, BillingInterval, Plan
+from app.billing.plans import PLANS, SELF_SERVE_TIERS, TIER_ORDER, BillingInterval, Plan
 from app.billing.stripe_gateway import price_lookup_key, product_lookup_id
 from app.core.settings import settings
 
@@ -174,6 +179,13 @@ def sync(*, dry_run: bool) -> int:
     for tier in TIER_ORDER:
         plan = PLANS[tier]
         print(f"{plan.name} ({tier.value})")
+        if not plan.self_serve:
+            # A custom-quoted tier has no list price, so there is nothing to
+            # create. Creating one "just in case" would publish a buyable
+            # Enterprise price at its own floor, which is exactly what selling
+            # it through sales is meant to prevent.
+            print("  custom-quoted - sold through sales, no Price created")
+            continue
         tier_changes = ensure_product(plan, dry_run=dry_run)
         for interval in (BillingInterval.MONTHLY, BillingInterval.ANNUAL):
             tier_changes += ensure_price(plan, interval, dry_run=dry_run)
@@ -193,7 +205,7 @@ def verify() -> int:
     stripe.api_key = settings.stripe_secret_key
     failures = 0
     print("Verifying every published price resolves to the catalogued amount:\n")
-    for tier in TIER_ORDER:
+    for tier in SELF_SERVE_TIERS:
         plan = PLANS[tier]
         for interval in (BillingInterval.MONTHLY, BillingInterval.ANNUAL):
             key = price_lookup_key(tier, interval)

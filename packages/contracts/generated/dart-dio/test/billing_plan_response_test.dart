@@ -7,6 +7,16 @@ void main() {
   // TODO add properties to the builder and call build()
 
   group(BillingPlanResponse, () {
+    // BuiltList<String> adds
+    test('to test the property `adds`', () async {
+      // TODO
+    });
+
+    // int annualMonthlyEquivalentCents
+    test('to test the property `annualMonthlyEquivalentCents`', () async {
+      // TODO
+    });
+
     // int annualTotalCents
     test('to test the property `annualTotalCents`', () async {
       // TODO
@@ -32,11 +42,6 @@ void main() {
       // TODO
     });
 
-    // int listMonthlyCents
-    test('to test the property `listMonthlyCents`', () async {
-      // TODO
-    });
-
     // int monthlyCents
     test('to test the property `monthlyCents`', () async {
       // TODO
@@ -49,6 +54,16 @@ void main() {
 
     // BillingPlanQuotasResponse quotas
     test('to test the property `quotas`', () async {
+      // TODO
+    });
+
+    // bool selfServe
+    test('to test the property `selfServe`', () async {
+      // TODO
+    });
+
+    // int startingMonthlyCents
+    test('to test the property `startingMonthlyCents`', () async {
       // TODO
     });
 

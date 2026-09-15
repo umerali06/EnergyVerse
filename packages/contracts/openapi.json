@@ -1599,6 +1599,17 @@
       },
       "BillingCatalogResponse": {
         "properties": {
+          "annual_months_charged": {
+            "title": "Annual Months Charged",
+            "type": "integer"
+          },
+          "enterprise_quote_factors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Enterprise Quote Factors",
+            "type": "array"
+          },
           "plans": {
             "items": {
               "$ref": "#/components/schemas/BillingPlanResponse"
@@ -1613,7 +1624,9 @@
         },
         "required": [
           "trial_days",
-          "plans"
+          "annual_months_charged",
+          "plans",
+          "enterprise_quote_factors"
         ],
         "title": "BillingCatalogResponse",
         "type": "object"
@@ -1664,10 +1677,36 @@
         "type": "object"
       },
       "BillingPlanResponse": {
+        "description": "One published tier.\n\nThe price fields are nullable because a custom-quoted tier has no list\nprice at all -- `starting_monthly_cents` is the floor it is sold from, and\na client must render that as \"starting around\", never as a buyable amount.\n`self_serve` is what a client should branch on: false means the call to\naction is a conversation, not a card.",
         "properties": {
+          "adds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Adds",
+            "type": "array"
+          },
+          "annual_monthly_equivalent_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Monthly Equivalent Cents"
+          },
           "annual_total_cents": {
-            "title": "Annual Total Cents",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Total Cents"
           },
           "audience": {
             "title": "Audience",
@@ -1688,13 +1727,16 @@
             "title": "Features",
             "type": "array"
           },
-          "list_monthly_cents": {
-            "title": "List Monthly Cents",
-            "type": "integer"
-          },
           "monthly_cents": {
-            "title": "Monthly Cents",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Cents"
           },
           "name": {
             "title": "Name",
@@ -1702,6 +1744,21 @@
           },
           "quotas": {
             "$ref": "#/components/schemas/BillingPlanQuotasResponse"
+          },
+          "self_serve": {
+            "title": "Self Serve",
+            "type": "boolean"
+          },
+          "starting_monthly_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starting Monthly Cents"
           },
           "support": {
             "title": "Support",
@@ -1716,14 +1773,17 @@
           "tier",
           "name",
           "audience",
-          "list_monthly_cents",
-          "annual_total_cents",
           "monthly_cents",
+          "annual_total_cents",
+          "annual_monthly_equivalent_cents",
+          "starting_monthly_cents",
           "quotas",
           "features",
           "digital_twin_scope",
           "support",
-          "custom_quoted"
+          "adds",
+          "custom_quoted",
+          "self_serve"
         ],
         "title": "BillingPlanResponse",
         "type": "object"

@@ -2,8 +2,8 @@
 
 The catalog assertions are deliberately literal: the prices and quotas are
 published on the public pricing page and charged through Stripe, so a typo here
-is a commercial defect, not a styling one. Every number below is checked
-against requirements §22.1.
+is a commercial defect, not a styling one. Every number below is the launch
+pricing agreed with the product owner on 2026-09-15 (D-107).
 """
 
 from __future__ import annotations
@@ -23,8 +23,10 @@ from app.billing.entitlements import (
     upgrade_hint,
 )
 from app.billing.plans import (
-    BASE_FEATURES,
+    ANNUAL_MONTHS_CHARGED,
+    CORE_FEATURES,
     PLANS,
+    SELF_SERVE_TIERS,
     TIER_ORDER,
     TRIAL_DAYS,
     BillingInterval,
@@ -57,37 +59,49 @@ def company(
 
 
 class TestPlanCatalog:
-    """§22.1 — the published tiers."""
+    """The published tiers (D-107)."""
 
     @pytest.mark.parametrize(
-        ("tier", "list_monthly", "annual_total"),
+        ("tier", "monthly", "annual_total"),
         [
-            (PlanTier.STARTER, 99_799, 1_197_588),
-            (PlanTier.FIELD, 299_799, 3_597_588),
-            (PlanTier.OPERATIONS, 999_799, 11_997_588),
-            (PlanTier.ENTERPRISE, 2_999_799, 35_997_588),
+            (PlanTier.PILOT, 49_900, 499_000),
+            (PlanTier.STARTER, 99_900, 999_000),
+            (PlanTier.FIELD, 199_900, 1_999_000),
+            (PlanTier.OPERATIONS, 499_900, 4_999_000),
         ],
     )
-    def test_prices_match_the_requirements_document(
-        self, tier: PlanTier, list_monthly: int, annual_total: int
+    def test_the_published_prices_are_what_is_charged(
+        self, tier: PlanTier, monthly: int, annual_total: int
     ) -> None:
         plan = PLANS[tier]
-        assert plan.list_monthly_cents == list_monthly
+        assert plan.monthly_cents == monthly
         assert plan.annual_total_cents == annual_total
-        # The annual total must be exactly twelve months at the list price;
-        # the ~15% premium applies only to monthly billing.
-        assert plan.annual_total_cents == plan.list_monthly_cents * 12
+        # The quoted figure is the monthly price, and a year is ten months of
+        # it. If this ever drifts, a customer is charged something other than
+        # the two numbers printed beside each other on the pricing page.
+        assert plan.annual_total_cents == monthly * ANNUAL_MONTHS_CHARGED
+
+    def test_annual_is_two_months_free_on_every_self_serve_tier(self) -> None:
+        assert ANNUAL_MONTHS_CHARGED == 10
+        for tier in SELF_SERVE_TIERS:
+            plan = PLANS[tier]
+            assert plan.monthly_cents is not None
+            assert plan.annual_total_cents == plan.monthly_cents * 10
+            # And never the other way round: annual must be the cheaper way to
+            # buy twelve months, or the incentive is a penalty.
+            assert plan.annual_total_cents < plan.monthly_cents * 12
 
     @pytest.mark.parametrize(
         ("tier", "facilities", "assets", "seats"),
         [
-            (PlanTier.STARTER, 1, 150, 5),
-            (PlanTier.FIELD, 1, 500, 15),
+            (PlanTier.PILOT, 1, 100, 5),
+            (PlanTier.STARTER, 1, 250, 10),
+            (PlanTier.FIELD, 2, 750, 25),
             (PlanTier.OPERATIONS, 5, 2_500, 75),
             (PlanTier.ENTERPRISE, None, None, None),
         ],
     )
-    def test_quotas_match_the_requirements_document(
+    def test_quotas_match_the_published_allowances(
         self,
         tier: PlanTier,
         facilities: int | None,
@@ -99,31 +113,70 @@ class TestPlanCatalog:
         assert quotas.assets == assets
         assert quotas.seats == seats
 
-    def test_monthly_billing_carries_the_premium_over_the_list_price(self) -> None:
-        for plan in PLANS.values():
-            assert plan.monthly_cents > plan.list_monthly_cents
-            premium = plan.monthly_cents / plan.list_monthly_cents
-            assert 1.14 < premium < 1.16
+    def test_quotas_only_grow_up_the_tier_order(self) -> None:
+        """Capacity is the ladder, so it must never step down."""
+        for lower, higher in zip(TIER_ORDER, TIER_ORDER[1:], strict=False):
+            for resource in ("facilities", "assets", "seats"):
+                low = PLANS[lower].quotas.limit_for(resource)
+                high = PLANS[higher].quotas.limit_for(resource)
+                if high is None:  # unlimited beats any number
+                    continue
+                assert low is not None, f"{lower} is unlimited but {higher} is not"
+                assert low <= high, f"{resource} shrinks from {lower} to {higher}"
 
-    def test_ar_permits_and_work_orders_start_at_operations(self) -> None:
-        """The commercial line that shapes the whole UI: Starter and Field have
-        no AR inspection, no permits, and no work orders (§22.1)."""
-        gated = (Feature.AR_INSPECTION, Feature.PERMITS, Feature.WORK_ORDERS)
-        for feature in gated:
-            assert not PLANS[PlanTier.STARTER].has(feature)
-            assert not PLANS[PlanTier.FIELD].has(feature)
-            assert PLANS[PlanTier.OPERATIONS].has(feature)
-            assert PLANS[PlanTier.ENTERPRISE].has(feature)
-            assert cheapest_tier_with(feature) is PlanTier.OPERATIONS
+    def test_the_core_product_starts_at_pilot(self) -> None:
+        """The commercial line that shapes the whole UI: every paid tier gets
+        AI analysis, AR inspection, work orders and reports, so a customer can
+        prove the product on one site and upgrade for capacity (D-107)."""
+        core = (
+            Feature.AI_MEDIA_ANALYSIS,
+            Feature.AR_INSPECTION,
+            Feature.WORK_ORDERS,
+            Feature.REPORTS,
+        )
+        for feature in core:
+            for tier in TIER_ORDER:
+                assert PLANS[tier].has(feature), f"{tier} is missing {feature}"
+            assert cheapest_tier_with(feature) is PlanTier.PILOT
+
+    def test_permits_start_at_operations(self) -> None:
+        assert not PLANS[PlanTier.PILOT].has(Feature.PERMITS)
+        assert not PLANS[PlanTier.STARTER].has(Feature.PERMITS)
+        assert not PLANS[PlanTier.FIELD].has(Feature.PERMITS)
+        assert PLANS[PlanTier.OPERATIONS].has(Feature.PERMITS)
+        assert cheapest_tier_with(Feature.PERMITS) is PlanTier.OPERATIONS
+
+    def test_enterprise_is_custom_quoted_and_not_self_serve(self) -> None:
+        plan = PLANS[PlanTier.ENTERPRISE]
+        assert plan.custom_quoted is True
+        assert plan.self_serve is False
+        # No list price at all. A published floor that could be charged is the
+        # same as selling Enterprise at its minimum by accident.
+        assert plan.monthly_cents is None
+        assert plan.annual_total_cents is None
+        assert plan.starting_monthly_cents == 999_900
+        with pytest.raises(ValueError, match="custom-quoted"):
+            plan.price_cents(BillingInterval.MONTHLY)
+
+    def test_every_other_tier_is_self_serve(self) -> None:
+        assert SELF_SERVE_TIERS == (
+            PlanTier.PILOT,
+            PlanTier.STARTER,
+            PlanTier.FIELD,
+            PlanTier.OPERATIONS,
+        )
+        for tier in SELF_SERVE_TIERS:
+            assert PLANS[tier].self_serve
+            assert PLANS[tier].monthly_cents is not None
 
     def test_vr_sso_and_audit_export_are_enterprise_only(self) -> None:
         for feature in (Feature.VR_TRAINING, Feature.SSO, Feature.AUDIT_EXPORT):
             assert cheapest_tier_with(feature) is PlanTier.ENTERPRISE
             assert not PLANS[PlanTier.OPERATIONS].has(feature)
 
-    def test_every_paid_tier_includes_the_base_modules(self) -> None:
+    def test_every_paid_tier_includes_the_core_product(self) -> None:
         for tier in TIER_ORDER:
-            assert BASE_FEATURES <= PLANS[tier].features
+            assert CORE_FEATURES <= PLANS[tier].features
 
     def test_features_only_grow_up_the_tier_order(self) -> None:
         """A higher tier must never lose a module a cheaper one had, or an
@@ -132,6 +185,7 @@ class TestPlanCatalog:
             assert PLANS[lower].features <= PLANS[higher].features
 
     def test_digital_twin_scope_widens_at_operations(self) -> None:
+        assert PLANS[PlanTier.PILOT].digital_twin_scope == "single"
         assert PLANS[PlanTier.STARTER].digital_twin_scope == "single"
         assert PLANS[PlanTier.FIELD].digital_twin_scope == "single"
         assert PLANS[PlanTier.OPERATIONS].digital_twin_scope == "all"
@@ -162,13 +216,17 @@ class TestResolveEntitlements:
         assert result.has(Feature.WORK_ORDERS)
         assert not result.has(Feature.VR_TRAINING)
 
-    def test_a_lower_tier_is_refused_the_gated_modules(self) -> None:
-        result = resolve_entitlements(company(tier="starter", status="active"))
+    def test_a_lower_tier_keeps_the_core_and_is_refused_only_the_extras(self) -> None:
+        result = resolve_entitlements(company(tier="pilot", status="active"))
         assert result.is_entitled
+        # The whole point of Pilot: the real product, on less of it.
         assert result.has(Feature.INSPECTIONS)
-        assert not result.has(Feature.WORK_ORDERS)
+        assert result.has(Feature.AI_MEDIA_ANALYSIS)
+        assert result.has(Feature.AR_INSPECTION)
+        assert result.has(Feature.WORK_ORDERS)
+        # And not the tiers above it.
         assert not result.has(Feature.PERMITS)
-        assert not result.has(Feature.AR_INSPECTION)
+        assert not result.has(Feature.VR_TRAINING)
 
     def test_trialing_grants_full_access_to_the_chosen_plan(self) -> None:
         result = resolve_entitlements(
@@ -225,15 +283,17 @@ class TestResolveEntitlements:
 class TestQuotas:
     def test_create_is_allowed_below_the_limit(self) -> None:
         entitlements = resolve_entitlements(company(tier="starter", status="active"))
-        assert_within_quota(entitlements, resource="assets", current_count=149)
+        assert_within_quota(entitlements, resource="assets", current_count=249)
 
     def test_create_is_refused_at_the_limit(self) -> None:
         entitlements = resolve_entitlements(company(tier="starter", status="active"))
         with pytest.raises(QuotaExceededError) as error:
-            assert_within_quota(entitlements, resource="assets", current_count=150)
+            assert_within_quota(entitlements, resource="assets", current_count=250)
         assert error.value.resource == "assets"
-        assert error.value.limit == 150
+        assert error.value.limit == 250
         assert error.value.tier is PlanTier.STARTER
+        # The quota message names a real next step, which is what makes hitting
+        # a cap survivable rather than a dead end.
         assert error.value.upgrade_tier is PlanTier.FIELD
 
     def test_enterprise_is_unlimited(self) -> None:
@@ -248,18 +308,25 @@ class TestQuotas:
             assert_within_quota(entitlements, resource="assets", current_count=0)
 
     def test_next_tier_above_walks_the_order_then_stops(self) -> None:
+        assert next_tier_above(PlanTier.PILOT) is PlanTier.STARTER
         assert next_tier_above(PlanTier.STARTER) is PlanTier.FIELD
         assert next_tier_above(PlanTier.OPERATIONS) is PlanTier.ENTERPRISE
         assert next_tier_above(PlanTier.ENTERPRISE) is None
-        assert next_tier_above(PlanTier.UNASSIGNED) is PlanTier.STARTER
+        # A company with no plan is pointed at the entry tier, not at whichever
+        # tier happened to be cheapest before Pilot existed.
+        assert next_tier_above(PlanTier.UNASSIGNED) is PlanTier.PILOT
 
 
 class TestUpgradeHint:
     def test_names_the_tier_that_unlocks_the_feature(self) -> None:
-        hint = upgrade_hint(Feature.WORK_ORDERS)
-        assert hint["feature"] == "work_orders"
+        hint = upgrade_hint(Feature.PERMITS)
+        assert hint["feature"] == "permits"
         assert hint["required_tier"] == "operations"
         assert hint["required_tier_name"] == "Operations"
 
-    def test_base_features_point_at_the_cheapest_tier(self) -> None:
-        assert upgrade_hint(Feature.ASSETS)["required_tier"] == "starter"
+    def test_core_features_point_at_the_entry_tier(self) -> None:
+        assert upgrade_hint(Feature.ASSETS)["required_tier"] == "pilot"
+        # Work orders moved down to Pilot with the repricing; an upgrade prompt
+        # that still named Operations would send a customer up three tiers for
+        # something their current plan already includes.
+        assert upgrade_hint(Feature.WORK_ORDERS)["required_tier"] == "pilot"

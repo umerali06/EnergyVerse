@@ -2951,3 +2951,43 @@ the submit handler, the per-field blur check, and nothing else — duplicating
 them would let the button go live on input the submit handler then refuses,
 which reads as a broken form.
 
+### Pricing and the plan catalog (2026-09-15)
+
+`apps/api/app/billing/plans.py` is authoritative for every tier: the API
+enforces against it, `GET /api/v1/billing/catalog` serves it, and
+`scripts/stripe_sync.py` creates the Stripe Prices from it, so what is charged
+cannot drift from what is published. `apps/admin/src/marketing/pricing-plans.ts`
+mirrors it only so the marketing pages can stay static server components
+(D-087); the two are pinned against each other by tests on both sides.
+
+**The quoted figure is the monthly price** and annual is `ANNUAL_MONTHS_CHARGED`
+(ten) months of it — twelve months of service for ten months of money. The
+previous catalog inverted this, publishing an annual-equivalent and charging a
+~15% premium month-to-month, which meant a monthly buyer never saw the price on
+the page. Both figures now appear on the plan card and again in the checkout
+summary before the button that leaves for Stripe.
+
+**Every paid tier carries the core product** — assets, inspections, AI analysis,
+AR inspection, work orders, safety reports, documents, reports, digital twin.
+Operations adds permit-to-work and 3D across every facility; Enterprise adds VR
+training, SSO, and audit-log export. This is what makes the ladder monotonic,
+and it is enforced rather than described: a test walks `TIER_ORDER` and asserts
+no upgrade removes a feature, because an upgrade that takes away a module
+someone was using is a support incident, not a pricing decision.
+
+**Enterprise is custom-quoted and not self-serve.** It has no `monthly_cents`,
+no `annual_total_cents`, and no Stripe Price — only `starting_monthly_cents`, a
+floor rendered as "starting around" and never as an amount. `price_cents()`
+raises on it, `SubscriptionService.start_checkout` refuses it with
+`plan_requires_sales` before anything reaches Stripe, `stripe_sync` skips it,
+and both the pricing page and the checkout picker render it as a link to
+`/contact?topic=enterprise` rather than as a selectable option. Selling it runs
+contact → qualification → quote → agreement → invoice, and a Price is created
+against the agreed figure after the contract is signed. `self_serve` on the
+catalog response is the one flag a client should branch on; deriving "is this
+buyable" from the tier name in the client is how the two ends drift apart.
+
+**Founding-customer pricing** rides on Stripe promotion codes, which the
+checkout session already allowed (`allow_promotion_codes=True`) but nothing told
+the customer about; the plan picker now says where to enter one.
+

@@ -21,7 +21,13 @@ export type WidgetSize = "sm" | "md" | "lg";
 // small local constant rather than a generated type since no widget sets
 // `minTier` yet; this is the hook, real enforcement lands in the billing
 // phase.
-export const SUBSCRIPTION_TIERS = ["demo", "starter", "professional", "enterprise"] as const;
+export const SUBSCRIPTION_TIERS = [
+  "pilot",
+  "starter",
+  "field",
+  "operations",
+  "enterprise",
+] as const;
 export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number];
 
 function tierMeetsMinimum(

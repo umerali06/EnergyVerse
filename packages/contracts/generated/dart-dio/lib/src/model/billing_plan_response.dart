@@ -10,25 +10,34 @@ import 'package:built_value/serializer.dart';
 
 part 'billing_plan_response.g.dart';
 
-/// BillingPlanResponse
+/// One published tier.  The price fields are nullable because a custom-quoted tier has no list price at all -- `starting_monthly_cents` is the floor it is sold from, and a client must render that as \"starting around\", never as a buyable amount. `self_serve` is what a client should branch on: false means the call to action is a conversation, not a card.
 ///
 /// Properties:
+/// * [adds]
+/// * [annualMonthlyEquivalentCents]
 /// * [annualTotalCents]
 /// * [audience]
 /// * [customQuoted]
 /// * [digitalTwinScope]
 /// * [features]
-/// * [listMonthlyCents]
 /// * [monthlyCents]
 /// * [name]
 /// * [quotas]
+/// * [selfServe]
+/// * [startingMonthlyCents]
 /// * [support]
 /// * [tier]
 @BuiltValue()
 abstract class BillingPlanResponse
     implements Built<BillingPlanResponse, BillingPlanResponseBuilder> {
+  @BuiltValueField(wireName: r'adds')
+  BuiltList<String> get adds;
+
+  @BuiltValueField(wireName: r'annual_monthly_equivalent_cents')
+  int? get annualMonthlyEquivalentCents;
+
   @BuiltValueField(wireName: r'annual_total_cents')
-  int get annualTotalCents;
+  int? get annualTotalCents;
 
   @BuiltValueField(wireName: r'audience')
   String get audience;
@@ -42,17 +51,20 @@ abstract class BillingPlanResponse
   @BuiltValueField(wireName: r'features')
   BuiltList<String> get features;
 
-  @BuiltValueField(wireName: r'list_monthly_cents')
-  int get listMonthlyCents;
-
   @BuiltValueField(wireName: r'monthly_cents')
-  int get monthlyCents;
+  int? get monthlyCents;
 
   @BuiltValueField(wireName: r'name')
   String get name;
 
   @BuiltValueField(wireName: r'quotas')
   BillingPlanQuotasResponse get quotas;
+
+  @BuiltValueField(wireName: r'self_serve')
+  bool get selfServe;
+
+  @BuiltValueField(wireName: r'starting_monthly_cents')
+  int? get startingMonthlyCents;
 
   @BuiltValueField(wireName: r'support')
   String get support;
@@ -89,11 +101,25 @@ class _$BillingPlanResponseSerializer
     BillingPlanResponse object, {
     FullType specifiedType = FullType.unspecified,
   }) sync* {
-    yield r'annual_total_cents';
+    yield r'adds';
     yield serializers.serialize(
-      object.annualTotalCents,
-      specifiedType: const FullType(int),
+      object.adds,
+      specifiedType: const FullType(BuiltList, [FullType(String)]),
     );
+    yield r'annual_monthly_equivalent_cents';
+    yield object.annualMonthlyEquivalentCents == null
+        ? null
+        : serializers.serialize(
+            object.annualMonthlyEquivalentCents,
+            specifiedType: const FullType.nullable(int),
+          );
+    yield r'annual_total_cents';
+    yield object.annualTotalCents == null
+        ? null
+        : serializers.serialize(
+            object.annualTotalCents,
+            specifiedType: const FullType.nullable(int),
+          );
     yield r'audience';
     yield serializers.serialize(
       object.audience,
@@ -114,16 +140,13 @@ class _$BillingPlanResponseSerializer
       object.features,
       specifiedType: const FullType(BuiltList, [FullType(String)]),
     );
-    yield r'list_monthly_cents';
-    yield serializers.serialize(
-      object.listMonthlyCents,
-      specifiedType: const FullType(int),
-    );
     yield r'monthly_cents';
-    yield serializers.serialize(
-      object.monthlyCents,
-      specifiedType: const FullType(int),
-    );
+    yield object.monthlyCents == null
+        ? null
+        : serializers.serialize(
+            object.monthlyCents,
+            specifiedType: const FullType.nullable(int),
+          );
     yield r'name';
     yield serializers.serialize(
       object.name,
@@ -134,6 +157,18 @@ class _$BillingPlanResponseSerializer
       object.quotas,
       specifiedType: const FullType(BillingPlanQuotasResponse),
     );
+    yield r'self_serve';
+    yield serializers.serialize(
+      object.selfServe,
+      specifiedType: const FullType(bool),
+    );
+    yield r'starting_monthly_cents';
+    yield object.startingMonthlyCents == null
+        ? null
+        : serializers.serialize(
+            object.startingMonthlyCents,
+            specifiedType: const FullType.nullable(int),
+          );
     yield r'support';
     yield serializers.serialize(
       object.support,
@@ -169,11 +204,27 @@ class _$BillingPlanResponseSerializer
       final key = serializedList[i] as String;
       final value = serializedList[i + 1];
       switch (key) {
+        case r'adds':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(BuiltList, [FullType(String)]),
+          ) as BuiltList<String>;
+          result.adds.replace(valueDes);
+          break;
+        case r'annual_monthly_equivalent_cents':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(int),
+          ) as int?;
+          if (valueDes == null) continue;
+          result.annualMonthlyEquivalentCents = valueDes;
+          break;
         case r'annual_total_cents':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(int),
-          ) as int;
+            specifiedType: const FullType.nullable(int),
+          ) as int?;
+          if (valueDes == null) continue;
           result.annualTotalCents = valueDes;
           break;
         case r'audience':
@@ -204,18 +255,12 @@ class _$BillingPlanResponseSerializer
           ) as BuiltList<String>;
           result.features.replace(valueDes);
           break;
-        case r'list_monthly_cents':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(int),
-          ) as int;
-          result.listMonthlyCents = valueDes;
-          break;
         case r'monthly_cents':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(int),
-          ) as int;
+            specifiedType: const FullType.nullable(int),
+          ) as int?;
+          if (valueDes == null) continue;
           result.monthlyCents = valueDes;
           break;
         case r'name':
@@ -231,6 +276,21 @@ class _$BillingPlanResponseSerializer
             specifiedType: const FullType(BillingPlanQuotasResponse),
           ) as BillingPlanQuotasResponse;
           result.quotas.replace(valueDes);
+          break;
+        case r'self_serve':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(bool),
+          ) as bool;
+          result.selfServe = valueDes;
+          break;
+        case r'starting_monthly_cents':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(int),
+          ) as int?;
+          if (valueDes == null) continue;
+          result.startingMonthlyCents = valueDes;
           break;
         case r'support':
           final valueDes = serializers.deserialize(

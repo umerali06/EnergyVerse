@@ -8,15 +8,18 @@ import 'package:fev_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**adds** | **BuiltList&lt;String&gt;** |  |
+**annualMonthlyEquivalentCents** | **int** |  |
 **annualTotalCents** | **int** |  |
 **audience** | **String** |  |
 **customQuoted** | **bool** |  |
 **digitalTwinScope** | **String** |  |
 **features** | **BuiltList&lt;String&gt;** |  |
-**listMonthlyCents** | **int** |  |
 **monthlyCents** | **int** |  |
 **name** | **String** |  |
 **quotas** | [**BillingPlanQuotasResponse**](BillingPlanQuotasResponse.md) |  |
+**selfServe** | **bool** |  |
+**startingMonthlyCents** | **int** |  |
 **support** | **String** |  |
 **tier** | **String** |  |
 
